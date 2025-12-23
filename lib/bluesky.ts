@@ -80,15 +80,32 @@ export interface ReplyRef {
   parent: { uri: string; cid: string };
 }
 
+export interface QuoteRef {
+  uri: string;
+  cid: string;
+}
+
 export async function createPost(
   text: string,
   threadgateType: ThreadgateType = 'following',
-  reply?: ReplyRef
+  reply?: ReplyRef,
+  quote?: QuoteRef
 ) {
   if (!agent) throw new Error('Not logged in');
 
   const rt = new RichText({ text });
   await rt.detectFacets(agent);
+
+  // Build embed for quote post
+  const embed = quote
+    ? {
+        $type: 'app.bsky.embed.record',
+        record: {
+          uri: quote.uri,
+          cid: quote.cid,
+        },
+      }
+    : undefined;
 
   // Create the post
   const postResult = await agent.post({
@@ -96,6 +113,7 @@ export async function createPost(
     facets: rt.facets,
     createdAt: new Date().toISOString(),
     ...(reply && { reply }),
+    ...(embed && { embed }),
   });
 
   // Apply threadgate based on type
