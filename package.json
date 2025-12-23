@@ -11,6 +11,10 @@
   "dependencies": {
     "@atproto/api": "^0.18.8",
     "@atproto/oauth-client-browser": "^0.3.37",
+    "@vercel/postgres": "^0.10.0",
+    "dotenv": "^17.2.3",
+    "drizzle-orm": "^0.45.1",
+    "nanoid": "^5.1.6",
     "next": "16.1.1",
     "react": "19.2.3",
     "react-dom": "19.2.3"
@@ -20,6 +24,7 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "drizzle-kit": "^0.31.8",
     "eslint": "^9",
     "eslint-config-next": "16.1.1",
     "tailwindcss": "^4",

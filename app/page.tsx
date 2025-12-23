@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import Link from 'next/link';
-import { getSession, logout } from '@/lib/bluesky';
+import { getSession, logout, restoreSession } from '@/lib/bluesky';
 import { SettingsProvider } from '@/lib/settings';
 import Login from '@/components/Login';
 import Timeline from '@/components/Timeline';
@@ -14,9 +14,20 @@ type FeedType = 'timeline' | 'papers';
 
 function AppContent() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [refreshKey, setRefreshKey] = useState(0);
   const [showSettings, setShowSettings] = useState(false);
   const [activeFeed, setActiveFeed] = useState<FeedType>('timeline');
+
+  // Try to restore session on mount
+  useEffect(() => {
+    restoreSession().then((restored) => {
+      if (restored) {
+        setIsLoggedIn(true);
+      }
+      setIsLoading(false);
+    });
+  }, []);
 
   const handleLogin = () => {
     setIsLoggedIn(true);
@@ -32,6 +43,14 @@ function AppContent() {
   }, []);
 
   const session = getSession();
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 dark:bg-black flex items-center justify-center">
+        <div className="animate-spin w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full"></div>
+      </div>
+    );
+  }
 
   if (!isLoggedIn) {
     return <Login onLogin={handleLogin} />;

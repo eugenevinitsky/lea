@@ -2,18 +2,53 @@ import { BskyAgent, RichText } from '@atproto/api';
 
 let agent: BskyAgent | null = null;
 
+// Cache for community list URI
+let communityListUri: string | null = null;
+
+const SESSION_KEY = 'lea-bsky-session';
+
 export function getAgent(): BskyAgent | null {
   return agent;
+}
+
+// Restore session from localStorage if available
+export async function restoreSession(): Promise<boolean> {
+  if (agent?.session) return true; // Already have a session
+
+  if (typeof window === 'undefined') return false; // SSR
+
+  const stored = localStorage.getItem(SESSION_KEY);
+  if (!stored) return false;
+
+  try {
+    const sessionData = JSON.parse(stored);
+    agent = new BskyAgent({ service: 'https://bsky.social' });
+    await agent.resumeSession(sessionData);
+    return true;
+  } catch (error) {
+    console.error('Failed to restore session:', error);
+    localStorage.removeItem(SESSION_KEY);
+    return false;
+  }
 }
 
 export async function login(identifier: string, password: string): Promise<BskyAgent> {
   agent = new BskyAgent({ service: 'https://bsky.social' });
   await agent.login({ identifier, password });
+
+  // Persist session to localStorage
+  if (typeof window !== 'undefined' && agent.session) {
+    localStorage.setItem(SESSION_KEY, JSON.stringify(agent.session));
+  }
+
   return agent;
 }
 
 export function logout() {
   agent = null;
+  if (typeof window !== 'undefined') {
+    localStorage.removeItem(SESSION_KEY);
+  }
 }
 
 export async function getTimeline(cursor?: string) {
@@ -21,7 +56,29 @@ export async function getTimeline(cursor?: string) {
   return agent.getTimeline({ limit: 30, cursor });
 }
 
-export async function createPost(text: string, applyThreadgate: boolean = true) {
+export type ThreadgateType = 'following' | 'verified' | 'open';
+
+// Fetch community list URI from API
+async function getCommunityListUri(): Promise<string | null> {
+  if (communityListUri) return communityListUri;
+
+  try {
+    const response = await fetch('/api/list/uri');
+    if (response.ok) {
+      const data = await response.json();
+      communityListUri = data.listUri;
+      return communityListUri;
+    }
+  } catch (error) {
+    console.error('Failed to fetch community list URI:', error);
+  }
+  return null;
+}
+
+export async function createPost(
+  text: string,
+  threadgateType: ThreadgateType = 'following'
+) {
   if (!agent) throw new Error('Not logged in');
 
   const rt = new RichText({ text });
@@ -34,21 +91,37 @@ export async function createPost(text: string, applyThreadgate: boolean = true) 
     createdAt: new Date().toISOString(),
   });
 
-  // Auto-apply threadgate if enabled (verified researchers only)
-  if (applyThreadgate && postResult.uri) {
-    // For now, restrict to followers only (simplest threadgate)
-    // In full version, this would use the Lea verified-researcher list
-    await agent.api.app.bsky.feed.threadgate.create(
-      { repo: agent.session!.did, rkey: postResult.uri.split('/').pop()! },
-      {
-        post: postResult.uri,
-        createdAt: new Date().toISOString(),
-        allow: [
-          { $type: 'app.bsky.feed.threadgate#followingRule' }, // People you follow
-          // { $type: 'app.bsky.feed.threadgate#listRule', list: LEA_VERIFIED_LIST_URI }
-        ],
+  // Apply threadgate based on type
+  if (threadgateType !== 'open' && postResult.uri) {
+    const allow: Array<{ $type: string; list?: string }> = [];
+
+    if (threadgateType === 'following') {
+      allow.push({ $type: 'app.bsky.feed.threadgate#followingRule' });
+    } else if (threadgateType === 'verified') {
+      // Use the community list for verified community restriction
+      const listUri = await getCommunityListUri();
+      if (listUri) {
+        allow.push({
+          $type: 'app.bsky.feed.threadgate#listRule',
+          list: listUri,
+        });
+      } else {
+        // Fallback to following if list not available
+        console.warn('Community list not available, falling back to following');
+        allow.push({ $type: 'app.bsky.feed.threadgate#followingRule' });
       }
-    );
+    }
+
+    if (allow.length > 0) {
+      await agent.api.app.bsky.feed.threadgate.create(
+        { repo: agent.session!.did, rkey: postResult.uri.split('/').pop()! },
+        {
+          post: postResult.uri,
+          createdAt: new Date().toISOString(),
+          allow,
+        }
+      );
+    }
   }
 
   return postResult;

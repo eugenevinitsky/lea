@@ -21,8 +21,9 @@ export default function Composer({ onPost }: ComposerProps) {
     try {
       setPosting(true);
       setError(null);
-      const shouldApplyThreadgate = settings.autoThreadgate && settings.threadgateType !== 'open';
-      await createPost(text, shouldApplyThreadgate);
+      // Pass threadgate type: 'open' if disabled, otherwise the selected type
+      const threadgateType = settings.autoThreadgate ? settings.threadgateType : 'open';
+      await createPost(text, threadgateType);
       setText('');
       onPost?.();
     } catch (err) {
@@ -39,7 +40,7 @@ export default function Composer({ onPost }: ComposerProps) {
   const threadgateLabel = settings.threadgateType === 'following'
     ? 'people you follow'
     : settings.threadgateType === 'verified'
-    ? 'verified researchers'
+    ? 'verified community (2-hop)'
     : 'anyone';
 
   return (

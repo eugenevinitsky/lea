@@ -52,23 +52,24 @@ export default function Settings({ onClose }: SettingsProps) {
                   <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Who can reply?</p>
                   <div className="space-y-2">
                     {[
-                      { value: 'following', label: 'People you follow' },
-                      { value: 'verified', label: 'Verified researchers only', disabled: true },
-                      { value: 'open', label: 'Anyone' },
+                      { value: 'following', label: 'People you follow', description: '' },
+                      { value: 'verified', label: 'Verified community', description: '2-hop from verified researchers' },
+                      { value: 'open', label: 'Anyone', description: '' },
                     ].map((option) => (
-                      <label key={option.value} className={`flex items-center gap-2 ${option.disabled ? 'opacity-50' : ''}`}>
+                      <label key={option.value} className="flex items-center gap-2">
                         <input
                           type="radio"
                           name="threadgateType"
                           value={option.value}
                           checked={settings.threadgateType === option.value}
                           onChange={(e) => updateSettings({ threadgateType: e.target.value as typeof settings.threadgateType })}
-                          disabled={option.disabled}
                           className="text-blue-500 focus:ring-blue-500"
                         />
                         <span className="text-sm text-gray-700 dark:text-gray-300">
                           {option.label}
-                          {option.disabled && ' (coming soon)'}
+                          {option.description && (
+                            <span className="text-gray-400 ml-1">({option.description})</span>
+                          )}
                         </span>
                       </label>
                     ))}

@@ -5,6 +5,7 @@ import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { getAuthorByOrcid, getAuthorWorks, OpenAlexAuthor, OpenAlexWork } from '@/lib/openalex';
 import { checkVerificationEligibility, VerificationResult, ESTABLISHED_VENUES } from '@/lib/verification';
+import { getSession, restoreSession } from '@/lib/bluesky';
 
 type VerificationStep = 'input' | 'loading' | 'result';
 
@@ -18,6 +19,18 @@ function VerifyContent() {
   const [author, setAuthor] = useState<OpenAlexAuthor | null>(null);
   const [works, setWorks] = useState<OpenAlexWork[]>([]);
   const [result, setResult] = useState<VerificationResult | null>(null);
+  const [completing, setCompleting] = useState(false);
+  const [verificationComplete, setVerificationComplete] = useState(false);
+  const [sessionRestored, setSessionRestored] = useState(false);
+  const [hasSession, setHasSession] = useState(false);
+
+  // Restore Bluesky session on mount
+  useEffect(() => {
+    restoreSession().then((restored) => {
+      setSessionRestored(true);
+      setHasSession(restored);
+    });
+  }, []);
 
   // Check for ORCID OAuth callback params
   useEffect(() => {
@@ -74,6 +87,44 @@ function VerifyContent() {
   const handleOrcidLogin = () => {
     // Redirect to ORCID OAuth
     window.location.href = '/api/orcid/authorize';
+  };
+
+  const completeVerification = async () => {
+    const session = getSession();
+    if (!session) {
+      setError('Please log in to Bluesky first from the main page, then return here.');
+      return;
+    }
+
+    setCompleting(true);
+    setError(null);
+
+    try {
+      const response = await fetch('/api/researchers/verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          did: session.did,
+          handle: session.handle,
+          orcid: orcid,
+          name: author?.display_name || authenticatedName,
+          institution: author?.last_known_institution?.display_name,
+          verificationMethod: 'auto',
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to complete verification');
+      }
+
+      setVerificationComplete(true);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to complete verification');
+    } finally {
+      setCompleting(false);
+    }
   };
 
   const reset = () => {
@@ -367,7 +418,25 @@ function VerifyContent() {
               <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
                 Next Steps
               </h3>
-              {result.eligible && isAuthenticated ? (
+              {verificationComplete ? (
+                <div className="space-y-3">
+                  <div className="flex items-center gap-3 text-emerald-600 dark:text-emerald-400">
+                    <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <span className="text-xl font-bold">Verification Complete!</span>
+                  </div>
+                  <p className="text-gray-600 dark:text-gray-400">
+                    You're now a verified researcher in the Lea community. Your posts can now use the "Verified Community" reply restriction.
+                  </p>
+                  <Link
+                    href="/"
+                    className="mt-4 block w-full py-3 bg-blue-500 text-white font-semibold rounded-full hover:bg-blue-600 text-center"
+                  >
+                    Return to Feed
+                  </Link>
+                </div>
+              ) : result.eligible && isAuthenticated ? (
                 <div className="space-y-3">
                   <p className="text-gray-600 dark:text-gray-400">
                     You're verified and eligible! To complete the process:
@@ -375,13 +444,25 @@ function VerifyContent() {
                   <ol className="list-decimal list-inside space-y-2 text-gray-600 dark:text-gray-400">
                     <li className="text-emerald-600 dark:text-emerald-400">✓ ORCID authenticated</li>
                     <li className="text-emerald-600 dark:text-emerald-400">✓ Eligibility confirmed</li>
-                    <li>Connect your Bluesky account to receive the badge</li>
+                    <li>Complete verification to join the community</li>
                   </ol>
+                  {error && (
+                    <div className="p-3 bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 rounded-lg text-sm">
+                      {error}
+                    </div>
+                  )}
+                  {sessionRestored && !hasSession && (
+                    <div className="p-3 bg-amber-50 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 rounded-lg text-sm">
+                      You need to be logged into Bluesky first.{' '}
+                      <Link href="/" className="underline">Log in on the main page</Link>, then return here.
+                    </div>
+                  )}
                   <button
-                    className="mt-4 w-full py-3 bg-blue-500 text-white font-semibold rounded-full hover:bg-blue-600"
-                    disabled
+                    onClick={completeVerification}
+                    disabled={completing || !sessionRestored || !hasSession}
+                    className="mt-4 w-full py-3 bg-blue-500 text-white font-semibold rounded-full hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    Connect Bluesky (Coming Soon)
+                    {!sessionRestored ? 'Loading...' : completing ? 'Completing...' : 'Complete Verification'}
                   </button>
                 </div>
               ) : result.eligible ? (
