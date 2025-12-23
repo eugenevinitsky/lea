@@ -9,6 +9,8 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@atproto/api": "^0.18.8",
+    "@atproto/oauth-client-browser": "^0.3.37",
     "next": "16.1.1",
     "react": "19.2.3",
     "react-dom": "19.2.3"
