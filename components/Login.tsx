@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 import { login } from '@/lib/bluesky';
 
 interface LoginProps {
@@ -108,6 +109,19 @@ export default function Login({ onLogin }: LoginProps) {
           <br />
           Your posts will have reply limits enabled by default.
         </p>
+
+        {/* Verification link */}
+        <div className="mt-6 text-center">
+          <Link
+            href="/verify"
+            className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 rounded-full text-sm font-medium hover:bg-emerald-100 dark:hover:bg-emerald-900/50 transition-colors"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            Check researcher eligibility
+          </Link>
+        </div>
       </div>
     </div>
   );

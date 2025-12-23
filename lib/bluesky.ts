@@ -57,3 +57,33 @@ export async function createPost(text: string, applyThreadgate: boolean = true) 
 export function getSession() {
   return agent?.session;
 }
+
+// Label utilities
+const VERIFIED_RESEARCHER_LABEL = 'verified-researcher';
+// TODO: Replace with actual Lea labeler DID once deployed
+// const LEA_LABELER_DID = 'did:plc:lea-labeler';
+
+export interface Label {
+  src: string;  // DID of the labeler
+  uri: string;  // Subject URI
+  val: string;  // Label value
+  cts: string;  // Creation timestamp
+}
+
+export function isVerifiedResearcher(labels?: Label[]): boolean {
+  if (!labels || labels.length === 0) return false;
+
+  return labels.some(label =>
+    label.val === VERIFIED_RESEARCHER_LABEL
+    // Once Lea labeler is deployed, also check:
+    // && label.src === LEA_LABELER_DID
+  );
+}
+
+export function getVerifiedLabel(labels?: Label[]): Label | undefined {
+  if (!labels) return undefined;
+
+  return labels.find(label =>
+    label.val === VERIFIED_RESEARCHER_LABEL
+  );
+}

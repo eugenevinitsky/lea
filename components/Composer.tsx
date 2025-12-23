@@ -2,16 +2,17 @@
 
 import { useState } from 'react';
 import { createPost } from '@/lib/bluesky';
+import { useSettings } from '@/lib/settings';
 
 interface ComposerProps {
   onPost?: () => void;
 }
 
 export default function Composer({ onPost }: ComposerProps) {
+  const { settings, updateSettings } = useSettings();
   const [text, setText] = useState('');
   const [posting, setPosting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [autoThreadgate, setAutoThreadgate] = useState(true);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -20,7 +21,8 @@ export default function Composer({ onPost }: ComposerProps) {
     try {
       setPosting(true);
       setError(null);
-      await createPost(text, autoThreadgate);
+      const shouldApplyThreadgate = settings.autoThreadgate && settings.threadgateType !== 'open';
+      await createPost(text, shouldApplyThreadgate);
       setText('');
       onPost?.();
     } catch (err) {
@@ -33,6 +35,12 @@ export default function Composer({ onPost }: ComposerProps) {
   const charCount = text.length;
   const maxChars = 300;
   const isOverLimit = charCount > maxChars;
+
+  const threadgateLabel = settings.threadgateType === 'following'
+    ? 'people you follow'
+    : settings.threadgateType === 'verified'
+    ? 'verified researchers'
+    : 'anyone';
 
   return (
     <form onSubmit={handleSubmit} className="border-b border-gray-200 dark:border-gray-800 p-4">
@@ -54,11 +62,11 @@ export default function Composer({ onPost }: ComposerProps) {
           <label className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400 cursor-pointer">
             <input
               type="checkbox"
-              checked={autoThreadgate}
-              onChange={(e) => setAutoThreadgate(e.target.checked)}
+              checked={settings.autoThreadgate}
+              onChange={(e) => updateSettings({ autoThreadgate: e.target.checked })}
               className="rounded border-gray-300 text-blue-500 focus:ring-blue-500"
             />
-            <span>Limit replies (following only)</span>
+            <span>Limit replies</span>
           </label>
         </div>
 
@@ -79,9 +87,9 @@ export default function Composer({ onPost }: ComposerProps) {
         </div>
       </div>
 
-      {autoThreadgate && (
+      {settings.autoThreadgate && settings.threadgateType !== 'open' && (
         <p className="mt-2 text-xs text-gray-500">
-          Threadgate enabled: Only accounts you follow can reply
+          Replies limited to {threadgateLabel}
         </p>
       )}
     </form>
