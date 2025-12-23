@@ -1,44 +1,60 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { getAuthorByOrcid, getAuthorWorks, OpenAlexAuthor, OpenAlexWork } from '@/lib/openalex';
 import { checkVerificationEligibility, VerificationResult, ESTABLISHED_VENUES } from '@/lib/verification';
 
 type VerificationStep = 'input' | 'loading' | 'result';
 
-export default function VerifyPage() {
+function VerifyContent() {
+  const searchParams = useSearchParams();
   const [step, setStep] = useState<VerificationStep>('input');
   const [orcid, setOrcid] = useState('');
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [authenticatedName, setAuthenticatedName] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [author, setAuthor] = useState<OpenAlexAuthor | null>(null);
   const [works, setWorks] = useState<OpenAlexWork[]>([]);
   const [result, setResult] = useState<VerificationResult | null>(null);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!orcid.trim()) return;
+  // Check for ORCID OAuth callback params
+  useEffect(() => {
+    const orcidParam = searchParams.get('orcid');
+    const authenticated = searchParams.get('authenticated');
+    const name = searchParams.get('name');
+    const errorParam = searchParams.get('error');
 
+    if (errorParam) {
+      setError(decodeURIComponent(errorParam));
+    } else if (orcidParam && authenticated === 'true') {
+      setOrcid(orcidParam);
+      setIsAuthenticated(true);
+      if (name) setAuthenticatedName(decodeURIComponent(name));
+      // Auto-fetch data for authenticated ORCID
+      fetchVerificationData(orcidParam);
+    }
+  }, [searchParams]);
+
+  const fetchVerificationData = async (orcidToFetch: string) => {
     setStep('loading');
     setError(null);
 
     try {
-      // Fetch author from OpenAlex
-      const authorData = await getAuthorByOrcid(orcid);
+      const authorData = await getAuthorByOrcid(orcidToFetch);
 
       if (!authorData) {
-        setError('No author found with this ORCID. Make sure your ORCID profile is linked to OpenAlex.');
+        setError('No author found with this ORCID in OpenAlex. Your ORCID may not be linked to OpenAlex yet.');
         setStep('input');
         return;
       }
 
       setAuthor(authorData);
 
-      // Fetch their works
       const worksData = await getAuthorWorks(authorData.id, { perPage: 100 });
       setWorks(worksData.results);
 
-      // Check eligibility
       const verificationResult = checkVerificationEligibility(authorData, worksData.results);
       setResult(verificationResult);
 
@@ -49,13 +65,28 @@ export default function VerifyPage() {
     }
   };
 
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!orcid.trim()) return;
+    await fetchVerificationData(orcid);
+  };
+
+  const handleOrcidLogin = () => {
+    // Redirect to ORCID OAuth
+    window.location.href = '/api/orcid/authorize';
+  };
+
   const reset = () => {
     setStep('input');
     setOrcid('');
+    setIsAuthenticated(false);
+    setAuthenticatedName('');
     setAuthor(null);
     setWorks([]);
     setResult(null);
     setError(null);
+    // Clear URL params
+    window.history.replaceState({}, '', '/verify');
   };
 
   return (
@@ -75,10 +106,10 @@ export default function VerifyPage() {
         {step === 'input' && (
           <div className="bg-white dark:bg-gray-900 rounded-2xl p-6 shadow-sm">
             <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-2">
-              Check Your Eligibility
+              Verify Your Researcher Status
             </h1>
             <p className="text-gray-600 dark:text-gray-400 mb-6">
-              Enter your ORCID to check if you qualify for auto-approval as a verified researcher.
+              Connect your ORCID to check if you qualify for auto-approval as a verified researcher.
             </p>
 
             {error && (
@@ -87,6 +118,32 @@ export default function VerifyPage() {
               </div>
             )}
 
+            {/* ORCID OAuth Button */}
+            <div className="mb-6">
+              <button
+                onClick={handleOrcidLogin}
+                className="w-full py-3 px-4 bg-[#A6CE39] hover:bg-[#96be29] text-white font-semibold rounded-full flex items-center justify-center gap-3 transition-colors"
+              >
+                <svg className="w-6 h-6" viewBox="0 0 256 256" fill="currentColor">
+                  <path d="M128 0C57.3 0 0 57.3 0 128s57.3 128 128 128 128-57.3 128-128S198.7 0 128 0zM70.7 200.1H48.9V87h21.8v113.1zm-10.9-128c-7.4 0-13.4-6-13.4-13.4s6-13.4 13.4-13.4 13.4 6 13.4 13.4-6 13.4-13.4 13.4zm147.1 128h-21.8v-55c0-13.8-.5-31.6-19.3-31.6-19.3 0-22.3 15.1-22.3 30.6v56h-21.8V87h21v15.5h.3c2.9-5.5 10.1-19.3 29.3-19.3 31.3 0 34.6 20.6 34.6 47.4v69.5z"/>
+                </svg>
+                Sign in with ORCID
+              </button>
+              <p className="mt-2 text-xs text-center text-gray-500">
+                Recommended: Proves you own this ORCID
+              </p>
+            </div>
+
+            <div className="relative my-6">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-gray-200 dark:border-gray-700"></div>
+              </div>
+              <div className="relative flex justify-center text-sm">
+                <span className="px-2 bg-white dark:bg-gray-900 text-gray-500">or check eligibility only</span>
+              </div>
+            </div>
+
+            {/* Manual ORCID Entry */}
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
@@ -110,7 +167,7 @@ export default function VerifyPage() {
               <button
                 type="submit"
                 disabled={!orcid.trim()}
-                className="w-full py-3 bg-blue-500 text-white font-semibold rounded-full hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full py-3 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 font-semibold rounded-full hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Check Eligibility
               </button>
@@ -155,6 +212,21 @@ export default function VerifyPage() {
         {/* Step: Result */}
         {step === 'result' && result && author && (
           <div className="space-y-6">
+            {/* Authentication status */}
+            {isAuthenticated && (
+              <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-2xl p-4 flex items-center gap-3">
+                <svg className="w-5 h-5 text-blue-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                </svg>
+                <div>
+                  <p className="font-medium text-blue-800 dark:text-blue-200">ORCID Verified</p>
+                  <p className="text-sm text-blue-600 dark:text-blue-300">
+                    You've proven ownership of ORCID {orcid}
+                  </p>
+                </div>
+              </div>
+            )}
+
             {/* Result card */}
             <div className={`rounded-2xl p-6 shadow-sm ${
               result.eligible
@@ -295,21 +367,41 @@ export default function VerifyPage() {
               <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
                 Next Steps
               </h3>
-              {result.eligible ? (
+              {result.eligible && isAuthenticated ? (
                 <div className="space-y-3">
                   <p className="text-gray-600 dark:text-gray-400">
-                    You're eligible for auto-approval! To complete verification:
+                    You're verified and eligible! To complete the process:
                   </p>
                   <ol className="list-decimal list-inside space-y-2 text-gray-600 dark:text-gray-400">
-                    <li>Connect your Bluesky account</li>
-                    <li>Authenticate with ORCID (to prove ownership)</li>
-                    <li>Receive your verified researcher badge</li>
+                    <li className="text-emerald-600 dark:text-emerald-400">✓ ORCID authenticated</li>
+                    <li className="text-emerald-600 dark:text-emerald-400">✓ Eligibility confirmed</li>
+                    <li>Connect your Bluesky account to receive the badge</li>
                   </ol>
                   <button
                     className="mt-4 w-full py-3 bg-blue-500 text-white font-semibold rounded-full hover:bg-blue-600"
                     disabled
                   >
-                    Complete Verification (Coming Soon)
+                    Connect Bluesky (Coming Soon)
+                  </button>
+                </div>
+              ) : result.eligible ? (
+                <div className="space-y-3">
+                  <p className="text-gray-600 dark:text-gray-400">
+                    You're eligible for auto-approval! To complete verification:
+                  </p>
+                  <ol className="list-decimal list-inside space-y-2 text-gray-600 dark:text-gray-400">
+                    <li>Sign in with ORCID (to prove ownership)</li>
+                    <li>Connect your Bluesky account</li>
+                    <li>Receive your verified researcher badge</li>
+                  </ol>
+                  <button
+                    onClick={handleOrcidLogin}
+                    className="mt-4 w-full py-3 bg-[#A6CE39] hover:bg-[#96be29] text-white font-semibold rounded-full flex items-center justify-center gap-2"
+                  >
+                    <svg className="w-5 h-5" viewBox="0 0 256 256" fill="currentColor">
+                      <path d="M128 0C57.3 0 0 57.3 0 128s57.3 128 128 128 128-57.3 128-128S198.7 0 128 0zM70.7 200.1H48.9V87h21.8v113.1zm-10.9-128c-7.4 0-13.4-6-13.4-13.4s6-13.4 13.4-13.4 13.4 6 13.4 13.4-6 13.4-13.4 13.4zm147.1 128h-21.8v-55c0-13.8-.5-31.6-19.3-31.6-19.3 0-22.3 15.1-22.3 30.6v56h-21.8V87h21v15.5h.3c2.9-5.5 10.1-19.3 29.3-19.3 31.3 0 34.6 20.6 34.6 47.4v69.5z"/>
+                    </svg>
+                    Sign in with ORCID to Continue
                   </button>
                 </div>
               ) : (
@@ -336,7 +428,7 @@ export default function VerifyPage() {
               onClick={reset}
               className="w-full py-3 border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 font-medium rounded-full hover:bg-gray-50 dark:hover:bg-gray-800"
             >
-              Check Another ORCID
+              Start Over
             </button>
           </div>
         )}
@@ -359,5 +451,17 @@ export default function VerifyPage() {
         </details>
       </main>
     </div>
+  );
+}
+
+export default function VerifyPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gray-50 dark:bg-black flex items-center justify-center">
+        <div className="animate-spin w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full"></div>
+      </div>
+    }>
+      <VerifyContent />
+    </Suspense>
   );
 }

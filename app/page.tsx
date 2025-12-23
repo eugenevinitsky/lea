@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useCallback } from 'react';
+import Link from 'next/link';
 import { getSession, logout } from '@/lib/bluesky';
 import { SettingsProvider } from '@/lib/settings';
 import Login from '@/components/Login';
@@ -38,10 +39,19 @@ function AppContent() {
       <header className="sticky top-0 z-20 bg-white/80 dark:bg-black/80 backdrop-blur border-b border-gray-200 dark:border-gray-800">
         <div className="max-w-xl mx-auto px-4 py-3 flex items-center justify-between">
           <h1 className="text-xl font-bold text-blue-500">Lea</h1>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
             <span className="text-sm text-gray-600 dark:text-gray-400">
               @{session?.handle}
             </span>
+            <Link
+              href="/verify"
+              className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full"
+              title="Get Verified"
+            >
+              <svg className="w-5 h-5 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </Link>
             <button
               onClick={() => setShowSettings(true)}
               className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full"
