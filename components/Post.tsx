@@ -89,7 +89,7 @@ function VerifiedBadge() {
   );
 }
 
-export default function Post({ post, onReply }: PostProps & { onReply?: () => void }) {
+export default function Post({ post, onReply, onOpenThread }: PostProps & { onReply?: () => void; onOpenThread?: (uri: string) => void }) {
   const { settings } = useSettings();
   const [showReplyComposer, setShowReplyComposer] = useState(false);
   const [replyText, setReplyText] = useState('');
@@ -286,9 +286,25 @@ export default function Post({ post, onReply }: PostProps & { onReply?: () => vo
           </div>
 
           {/* Post text */}
-          <p className="mt-1 text-gray-900 dark:text-gray-100 whitespace-pre-wrap break-words">
+          <p
+            className={`mt-1 text-gray-900 dark:text-gray-100 whitespace-pre-wrap break-words ${onOpenThread ? 'cursor-pointer' : ''}`}
+            onClick={() => onOpenThread?.(post.uri)}
+          >
             {record.text}
           </p>
+
+          {/* Reply context indicator */}
+          {record.reply && onOpenThread && (
+            <button
+              onClick={() => onOpenThread(post.uri)}
+              className="mt-1 text-xs text-blue-500 hover:text-blue-600 flex items-center gap-1"
+            >
+              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
+              </svg>
+              View thread
+            </button>
+          )}
 
           {/* Engagement actions */}
           <div className="flex gap-4 mt-3 text-sm text-gray-500">

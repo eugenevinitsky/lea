@@ -6,6 +6,7 @@ import { getTimeline } from '@/lib/bluesky';
 import { useSettings } from '@/lib/settings';
 import { detectPaperLink } from '@/lib/papers';
 import Post from './Post';
+import ThreadView from './ThreadView';
 
 export default function PapersFeed() {
   const { settings } = useSettings();
@@ -14,12 +15,13 @@ export default function PapersFeed() {
   const [error, setError] = useState<string | null>(null);
   const [cursor, setCursor] = useState<string | undefined>();
   const [loadedPages, setLoadedPages] = useState(0);
+  const [threadUri, setThreadUri] = useState<string | null>(null);
 
-  const loadTimeline = async (loadMore = false) => {
+  const loadTimeline = async (loadMore = false, currentCursor?: string) => {
     try {
       setLoading(true);
       setError(null);
-      const response = await getTimeline(loadMore ? cursor : undefined);
+      const response = await getTimeline(loadMore ? (currentCursor || cursor) : undefined);
 
       if (loadMore) {
         setAllPosts(prev => [...prev, ...response.data.feed]);
@@ -28,15 +30,32 @@ export default function PapersFeed() {
       }
       setCursor(response.data.cursor);
       setLoadedPages(prev => prev + 1);
+      return response.data.cursor;
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load feed');
+      return undefined;
     } finally {
       setLoading(false);
     }
   };
 
+  // Auto-scan multiple pages on initial load to find papers
   useEffect(() => {
-    loadTimeline();
+    const initialScan = async () => {
+      let currentCursor: string | undefined;
+      const MIN_PAGES = 5; // Scan at least 5 pages initially
+
+      // First load
+      currentCursor = await loadTimeline();
+
+      // Continue loading more pages
+      for (let i = 1; i < MIN_PAGES && currentCursor; i++) {
+        await new Promise(resolve => setTimeout(resolve, 100)); // Small delay
+        currentCursor = await loadTimeline(true, currentCursor);
+      }
+    };
+
+    initialScan();
   }, []);
 
   // Filter posts to only those with paper links
@@ -137,8 +156,17 @@ export default function PapersFeed() {
 
       {/* Paper posts */}
       {paperPosts.map((item, index) => (
-        <Post key={`${item.post.uri}-${index}`} post={item.post} />
+        <Post
+          key={`${item.post.uri}-${index}`}
+          post={item.post}
+          onOpenThread={setThreadUri}
+        />
       ))}
+
+      {/* Thread View Modal */}
+      {threadUri && (
+        <ThreadView uri={threadUri} onClose={() => setThreadUri(null)} />
+      )}
 
       {/* Load more */}
       {paperPosts.length > 0 && cursor && !loading && (

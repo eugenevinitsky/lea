@@ -57,6 +57,11 @@ export async function getTimeline(cursor?: string) {
   return agent.getTimeline({ limit: 30, cursor });
 }
 
+export async function getThread(uri: string, depth = 10) {
+  if (!agent) throw new Error('Not logged in');
+  return agent.getPostThread({ uri, depth });
+}
+
 export type ThreadgateType = 'following' | 'verified' | 'researchers' | 'open';
 
 // Fetch community list URI from API

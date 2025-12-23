@@ -5,6 +5,7 @@ import { AppBskyFeedDefs } from '@atproto/api';
 import { getTimeline } from '@/lib/bluesky';
 import { useSettings } from '@/lib/settings';
 import Post from './Post';
+import ThreadView from './ThreadView';
 
 export default function Timeline() {
   const { settings } = useSettings();
@@ -12,6 +13,7 @@ export default function Timeline() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [cursor, setCursor] = useState<string | undefined>();
+  const [threadUri, setThreadUri] = useState<string | null>(null);
 
   const loadTimeline = async (loadMore = false) => {
     try {
@@ -98,8 +100,17 @@ export default function Timeline() {
 
       {/* Posts */}
       {filteredPosts.map((item, index) => (
-        <Post key={`${item.post.uri}-${index}`} post={item.post} />
+        <Post
+          key={`${item.post.uri}-${index}`}
+          post={item.post}
+          onOpenThread={setThreadUri}
+        />
       ))}
+
+      {/* Thread View Modal */}
+      {threadUri && (
+        <ThreadView uri={threadUri} onClose={() => setThreadUri(null)} />
+      )}
 
       {/* Load more */}
       {cursor && !loading && (
