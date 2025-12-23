@@ -1,24 +1,35 @@
 import { BskyAgent } from '@atproto/api';
-import { db, blueskyLists, communityMembers } from '@/lib/db';
+import { db, blueskyLists, communityMembers, verifiedResearchers } from '@/lib/db';
 import { eq, isNull, and } from 'drizzle-orm';
 import { nanoid } from 'nanoid';
 
-const LIST_NAME = 'Lea Verified Community';
-const LIST_DESCRIPTION =
-  'Verified researchers and their trusted connections (within 2 hops). Used for reply restrictions.';
+const COMMUNITY_LIST_NAME = 'Lea Verified Community';
+const COMMUNITY_LIST_DESCRIPTION =
+  'Verified researchers and their trusted connections (1-hop). Used for reply restrictions.';
+
+const VERIFIED_LIST_NAME = 'Lea Verified Researchers';
+const VERIFIED_LIST_DESCRIPTION =
+  'Verified researchers only. Used for strict reply restrictions.';
 
 function delay(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-export async function getOrCreateCommunityList(
-  agent: BskyAgent
+export type ListPurpose = 'community_members' | 'verified_only';
+
+export async function getOrCreateList(
+  agent: BskyAgent,
+  purpose: ListPurpose
 ): Promise<string> {
+  const isVerifiedOnly = purpose === 'verified_only';
+  const listName = isVerifiedOnly ? VERIFIED_LIST_NAME : COMMUNITY_LIST_NAME;
+  const listDescription = isVerifiedOnly ? VERIFIED_LIST_DESCRIPTION : COMMUNITY_LIST_DESCRIPTION;
+
   // Check if list exists in database
   const existingList = await db
     .select()
     .from(blueskyLists)
-    .where(eq(blueskyLists.purpose, 'community_members'))
+    .where(eq(blueskyLists.purpose, purpose))
     .limit(1);
 
   if (existingList[0]) {
@@ -32,8 +43,8 @@ export async function getOrCreateCommunityList(
     record: {
       $type: 'app.bsky.graph.list',
       purpose: 'app.bsky.graph.defs#curatelist',
-      name: LIST_NAME,
-      description: LIST_DESCRIPTION,
+      name: listName,
+      description: listDescription,
       createdAt: new Date().toISOString(),
     },
   });
@@ -44,21 +55,37 @@ export async function getOrCreateCommunityList(
     ownerDid: agent.session!.did,
     listUri: result.data.uri,
     listCid: result.data.cid,
-    name: LIST_NAME,
-    purpose: 'community_members',
+    name: listName,
+    purpose: purpose,
   });
 
   return result.data.uri;
 }
 
-export async function getCommunityListUri(): Promise<string | null> {
+// Backwards compatible wrapper
+export async function getOrCreateCommunityList(
+  agent: BskyAgent
+): Promise<string> {
+  return getOrCreateList(agent, 'community_members');
+}
+
+export async function getListUri(purpose: ListPurpose): Promise<string | null> {
   const list = await db
     .select()
     .from(blueskyLists)
-    .where(eq(blueskyLists.purpose, 'community_members'))
+    .where(eq(blueskyLists.purpose, purpose))
     .limit(1);
 
   return list[0]?.listUri || null;
+}
+
+// Backwards compatible wrapper
+export async function getCommunityListUri(): Promise<string | null> {
+  return getListUri('community_members');
+}
+
+export async function getVerifiedOnlyListUri(): Promise<string | null> {
+  return getListUri('verified_only');
 }
 
 interface SyncResult {
@@ -123,6 +150,66 @@ export async function syncListMembers(agent: BskyAgent): Promise<SyncResult> {
     .update(blueskyLists)
     .set({
       memberCount: membersInList.length,
+      updatedAt: new Date(),
+    })
+    .where(eq(blueskyLists.listUri, listUri));
+
+  return { addedCount, removedCount, listUri, errors };
+}
+
+// Sync verified researchers only to the verified-only list
+export async function syncVerifiedOnlyList(agent: BskyAgent): Promise<SyncResult> {
+  const listUri = await getOrCreateList(agent, 'verified_only');
+  const errors: string[] = [];
+  let addedCount = 0;
+  let removedCount = 0;
+
+  // Get all active verified researchers
+  const researchers = await db
+    .select()
+    .from(verifiedResearchers)
+    .where(eq(verifiedResearchers.isActive, true));
+
+  // Get existing list items to avoid duplicates
+  let existingDids = new Set<string>();
+  try {
+    const listItems = await agent.app.bsky.graph.getList({ list: listUri, limit: 100 });
+    existingDids = new Set(listItems.data.items.map(item => item.subject.did));
+  } catch (error) {
+    console.log('Could not fetch existing list items, will try to add all');
+  }
+
+  for (const researcher of researchers) {
+    if (existingDids.has(researcher.did)) {
+      continue; // Already in list
+    }
+
+    try {
+      await agent.com.atproto.repo.createRecord({
+        repo: agent.session!.did,
+        collection: 'app.bsky.graph.listitem',
+        record: {
+          $type: 'app.bsky.graph.listitem',
+          subject: researcher.did,
+          list: listUri,
+          createdAt: new Date().toISOString(),
+        },
+      });
+
+      addedCount++;
+      await delay(200);
+    } catch (error) {
+      const msg = `Failed to add researcher ${researcher.did}: ${error instanceof Error ? error.message : String(error)}`;
+      console.error(msg);
+      errors.push(msg);
+    }
+  }
+
+  // Update list member count
+  await db
+    .update(blueskyLists)
+    .set({
+      memberCount: researchers.length,
       updatedAt: new Date(),
     })
     .where(eq(blueskyLists.listUri, listUri));

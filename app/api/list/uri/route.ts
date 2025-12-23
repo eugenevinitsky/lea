@@ -1,13 +1,20 @@
-import { NextResponse } from 'next/server';
-import { getCommunityListUri } from '@/lib/services/list-manager';
+import { NextRequest, NextResponse } from 'next/server';
+import { getCommunityListUri, getVerifiedOnlyListUri } from '@/lib/services/list-manager';
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
-    const listUri = await getCommunityListUri();
+    const type = request.nextUrl.searchParams.get('type') || 'community';
+
+    let listUri: string | null;
+    if (type === 'verified') {
+      listUri = await getVerifiedOnlyListUri();
+    } else {
+      listUri = await getCommunityListUri();
+    }
 
     if (!listUri) {
       return NextResponse.json(
-        { error: 'Community list not created yet' },
+        { error: `${type} list not created yet` },
         { status: 404 }
       );
     }

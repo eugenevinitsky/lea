@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { AppBskyFeedDefs, AppBskyFeedPost, AppBskyEmbedExternal } from '@atproto/api';
-import { isVerifiedResearcher, Label, createPost, ReplyRef, likePost, unlikePost, repost, deleteRepost } from '@/lib/bluesky';
+import { isVerifiedResearcher, Label, createPost, ReplyRef, QuoteRef, likePost, unlikePost, repost, deleteRepost } from '@/lib/bluesky';
 import { useSettings } from '@/lib/settings';
 
 interface PostProps {
@@ -108,6 +108,12 @@ export default function Post({ post, onReply }: PostProps & { onReply?: () => vo
   const [repostCount, setRepostCount] = useState(post.repostCount || 0);
   const [reposting, setReposting] = useState(false);
 
+  // Quote state
+  const [showQuoteComposer, setShowQuoteComposer] = useState(false);
+  const [quoteText, setQuoteText] = useState('');
+  const [quoting, setQuoting] = useState(false);
+  const [quoteError, setQuoteError] = useState<string | null>(null);
+
   const record = post.record as AppBskyFeedPost.Record;
   const author = post.author;
   const isVerified = isVerifiedResearcher(author.labels as Label[] | undefined);
@@ -154,6 +160,34 @@ export default function Post({ post, onReply }: PostProps & { onReply?: () => vo
       console.error('Failed to repost/unrepost:', err);
     } finally {
       setReposting(false);
+    }
+  };
+
+  const handleQuote = async () => {
+    if (!quoteText.trim() || quoting) return;
+
+    try {
+      setQuoting(true);
+      setQuoteError(null);
+
+      const quoteRef: QuoteRef = {
+        uri: post.uri,
+        cid: post.cid,
+      };
+
+      await createPost(
+        quoteText,
+        settings.autoThreadgate ? settings.threadgateType : 'open',
+        undefined,
+        quoteRef
+      );
+
+      setQuoteText('');
+      setShowQuoteComposer(false);
+    } catch (err) {
+      setQuoteError(err instanceof Error ? err.message : 'Failed to quote');
+    } finally {
+      setQuoting(false);
     }
   };
 
@@ -278,11 +312,23 @@ export default function Post({ post, onReply }: PostProps & { onReply?: () => vo
                   ? 'text-green-500 hover:text-green-600'
                   : 'hover:text-green-500'
               } ${reposting ? 'opacity-50' : ''}`}
+              title="Repost"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
               </svg>
               {repostCount}
+            </button>
+
+            {/* Quote button */}
+            <button
+              onClick={() => setShowQuoteComposer(!showQuoteComposer)}
+              className="flex items-center gap-1 hover:text-blue-500 transition-colors"
+              title="Quote post"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+              </svg>
             </button>
 
             {/* Like button */}
@@ -342,6 +388,54 @@ export default function Post({ post, onReply }: PostProps & { onReply?: () => vo
                     className="px-3 py-1 text-sm bg-blue-500 text-white rounded-full hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {replying ? 'Posting...' : 'Reply'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Quote composer */}
+          {showQuoteComposer && (
+            <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-800">
+              <textarea
+                value={quoteText}
+                onChange={(e) => setQuoteText(e.target.value)}
+                placeholder="Add your thoughts..."
+                className="w-full p-2 text-sm bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 dark:text-gray-100"
+                rows={3}
+                disabled={quoting}
+              />
+              {/* Preview of quoted post */}
+              <div className="mt-2 p-2 bg-gray-100 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 text-xs">
+                <div className="flex items-center gap-1 text-gray-500">
+                  <span className="font-medium text-gray-700 dark:text-gray-300">@{author.handle}</span>
+                </div>
+                <p className="mt-1 text-gray-600 dark:text-gray-400 line-clamp-2">{record.text}</p>
+              </div>
+              {quoteError && (
+                <p className="mt-1 text-xs text-red-500">{quoteError}</p>
+              )}
+              <div className="flex justify-between items-center mt-2">
+                <span className={`text-xs ${quoteText.length > 300 ? 'text-red-500' : 'text-gray-400'}`}>
+                  {quoteText.length}/300
+                </span>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => {
+                      setShowQuoteComposer(false);
+                      setQuoteText('');
+                      setQuoteError(null);
+                    }}
+                    className="px-3 py-1 text-sm text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleQuote}
+                    disabled={!quoteText.trim() || quoting || quoteText.length > 300}
+                    className="px-3 py-1 text-sm bg-blue-500 text-white rounded-full hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {quoting ? 'Posting...' : 'Quote'}
                   </button>
                 </div>
               </div>

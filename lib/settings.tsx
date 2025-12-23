@@ -5,7 +5,7 @@ import { createContext, useContext, useState, useEffect, ReactNode } from 'react
 export interface LeaSettings {
   // Protective defaults
   autoThreadgate: boolean;
-  threadgateType: 'following' | 'verified' | 'open';
+  threadgateType: 'following' | 'verified' | 'researchers' | 'open';
   highFollowerThreshold: number | null; // null = off, number = threshold
 
   // Display

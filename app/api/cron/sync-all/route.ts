@@ -3,7 +3,7 @@ import { db, verifiedResearchers } from '@/lib/db';
 import { eq } from 'drizzle-orm';
 import { syncUserGraph } from '@/lib/services/graph-sync';
 import { computeNHopCommunity } from '@/lib/services/hop-computation';
-import { syncListMembers, getBotAgent } from '@/lib/services/list-manager';
+import { syncListMembers, syncVerifiedOnlyList, getBotAgent } from '@/lib/services/list-manager';
 
 export async function GET(request: NextRequest) {
   // Verify cron secret (Vercel sets this automatically)
@@ -68,8 +68,15 @@ export async function GET(request: NextRequest) {
     // Step 4: Sync community members to Bluesky list
     const listResult = await syncListMembers(agent);
     (results.steps as unknown[]).push({
-      name: 'list_sync',
+      name: 'community_list_sync',
       ...listResult,
+    });
+
+    // Step 5: Sync verified-only list
+    const verifiedListResult = await syncVerifiedOnlyList(agent);
+    (results.steps as unknown[]).push({
+      name: 'verified_list_sync',
+      ...verifiedListResult,
     });
 
     results.success = true;
