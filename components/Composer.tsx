@@ -42,7 +42,7 @@ export default function Composer({ onPost }: ComposerProps) {
     : settings.threadgateType === 'researchers'
     ? 'verified researchers only'
     : settings.threadgateType === 'verified'
-    ? 'verified community (1-hop)'
+    ? 'my community (verified + 1-hop from you)'
     : 'anyone';
 
   return (

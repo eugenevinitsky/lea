@@ -23,6 +23,9 @@ export const verifiedResearchers = pgTable(
     verificationMethod: varchar('verification_method', { length: 50 }).notNull(), // 'auto' | 'vouched' | 'manual'
     vouchedBy: varchar('vouched_by', { length: 36 }), // FK to verified_researchers.id
     isActive: boolean('is_active').default(true).notNull(),
+    // Personal community list for this researcher's 1-hop connections
+    personalListUri: varchar('personal_list_uri', { length: 500 }),
+    personalListSyncedAt: timestamp('personal_list_synced_at'),
   },
   (table) => [
     index('verified_researchers_did_idx').on(table.did),

@@ -3,7 +3,7 @@ import { db, verifiedResearchers } from '@/lib/db';
 import { eq } from 'drizzle-orm';
 import { syncUserGraph } from '@/lib/services/graph-sync';
 import { computeNHopCommunity } from '@/lib/services/hop-computation';
-import { syncListMembers, syncVerifiedOnlyList, getBotAgent } from '@/lib/services/list-manager';
+import { syncListMembers, syncVerifiedOnlyList, syncAllPersonalLists, getBotAgent } from '@/lib/services/list-manager';
 
 export async function GET(request: NextRequest) {
   // Verify cron secret (Vercel sets this automatically)
@@ -77,6 +77,13 @@ export async function GET(request: NextRequest) {
     (results.steps as unknown[]).push({
       name: 'verified_list_sync',
       ...verifiedListResult,
+    });
+
+    // Step 6: Sync personal lists for all verified researchers
+    const personalListsResult = await syncAllPersonalLists(agent);
+    (results.steps as unknown[]).push({
+      name: 'personal_lists_sync',
+      ...personalListsResult,
     });
 
     results.success = true;

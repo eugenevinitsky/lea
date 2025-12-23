@@ -5,6 +5,7 @@ let agent: BskyAgent | null = null;
 // Cache for list URIs
 let communityListUri: string | null = null;
 let verifiedOnlyListUri: string | null = null;
+let personalListUri: string | null = null;
 
 const SESSION_KEY = 'lea-bsky-session';
 
@@ -47,6 +48,7 @@ export async function login(identifier: string, password: string): Promise<BskyA
 
 export function logout() {
   agent = null;
+  personalListUri = null; // Clear personal list cache on logout
   if (typeof window !== 'undefined') {
     localStorage.removeItem(SESSION_KEY);
   }
@@ -94,6 +96,24 @@ async function getVerifiedOnlyListUri(): Promise<string | null> {
     }
   } catch (error) {
     console.error('Failed to fetch verified-only list URI:', error);
+  }
+  return null;
+}
+
+// Fetch personal list URI for the current user
+async function getPersonalListUri(): Promise<string | null> {
+  if (!agent?.session?.did) return null;
+  if (personalListUri) return personalListUri;
+
+  try {
+    const response = await fetch(`/api/list/uri?type=personal&did=${agent.session.did}`);
+    if (response.ok) {
+      const data = await response.json();
+      personalListUri = data.listUri;
+      return personalListUri;
+    }
+  } catch (error) {
+    console.error('Failed to fetch personal list URI:', error);
   }
   return null;
 }
@@ -146,17 +166,27 @@ export async function createPost(
     if (threadgateType === 'following') {
       allow.push({ $type: 'app.bsky.feed.threadgate#followingRule' });
     } else if (threadgateType === 'verified') {
-      // Use the community list for verified community restriction (1-hop)
-      const listUri = await getCommunityListUri();
+      // Use the personal list for 1-hop from YOU (not all verified researchers)
+      const listUri = await getPersonalListUri();
       if (listUri) {
         allow.push({
           $type: 'app.bsky.feed.threadgate#listRule',
           list: listUri,
         });
       } else {
-        // Fallback to following if list not available
-        console.warn('Community list not available, falling back to following');
-        allow.push({ $type: 'app.bsky.feed.threadgate#followingRule' });
+        // Fallback to global community list if personal not available
+        const fallbackUri = await getCommunityListUri();
+        if (fallbackUri) {
+          console.warn('Personal list not available, using global community list');
+          allow.push({
+            $type: 'app.bsky.feed.threadgate#listRule',
+            list: fallbackUri,
+          });
+        } else {
+          // Fallback to following if no list available
+          console.warn('No community list available, falling back to following');
+          allow.push({ $type: 'app.bsky.feed.threadgate#followingRule' });
+        }
       }
     } else if (threadgateType === 'researchers') {
       // Use the verified-only list (only verified researchers)

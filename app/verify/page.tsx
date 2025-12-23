@@ -119,6 +119,13 @@ function VerifyContent() {
         throw new Error(data.error || 'Failed to complete verification');
       }
 
+      // Trigger personal list sync in the background (don't await)
+      fetch('/api/list/personal/sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ did: session.did }),
+      }).catch(console.error);
+
       setVerificationComplete(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to complete verification');

@@ -1,6 +1,6 @@
 import { BskyAgent } from '@atproto/api';
-import { db, blueskyLists, communityMembers, verifiedResearchers } from '@/lib/db';
-import { eq, isNull, and } from 'drizzle-orm';
+import { db, blueskyLists, communityMembers, verifiedResearchers, socialGraph } from '@/lib/db';
+import { eq, isNull, and, or } from 'drizzle-orm';
 import { nanoid } from 'nanoid';
 
 const COMMUNITY_LIST_NAME = 'Lea Verified Community';
@@ -10,6 +10,10 @@ const COMMUNITY_LIST_DESCRIPTION =
 const VERIFIED_LIST_NAME = 'Lea Verified Researchers';
 const VERIFIED_LIST_DESCRIPTION =
   'Verified researchers only. Used for strict reply restrictions.';
+
+const PERSONAL_LIST_NAME_PREFIX = 'My Verified Community';
+const PERSONAL_LIST_DESCRIPTION =
+  'People within 1-hop of me (my followers + following). Used for reply restrictions.';
 
 function delay(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -273,4 +277,213 @@ export async function getBotAgent(): Promise<BskyAgent | null> {
     console.error('Failed to login bot agent:', error);
     return null;
   }
+}
+
+// ==========================================
+// Per-User Personal Community Lists
+// ==========================================
+
+// Get the personal list URI for a verified researcher
+export async function getPersonalListUri(userDid: string): Promise<string | null> {
+  const researcher = await db
+    .select()
+    .from(verifiedResearchers)
+    .where(eq(verifiedResearchers.did, userDid))
+    .limit(1);
+
+  return researcher[0]?.personalListUri || null;
+}
+
+// Create or get personal list for a verified researcher
+export async function getOrCreatePersonalList(
+  agent: BskyAgent,
+  userDid: string
+): Promise<string> {
+  // Check if researcher already has a personal list
+  const researcher = await db
+    .select()
+    .from(verifiedResearchers)
+    .where(eq(verifiedResearchers.did, userDid))
+    .limit(1);
+
+  if (!researcher[0]) {
+    throw new Error('User is not a verified researcher');
+  }
+
+  if (researcher[0].personalListUri) {
+    return researcher[0].personalListUri;
+  }
+
+  // Create new list on Bluesky (owned by the bot, for the user)
+  const result = await agent.com.atproto.repo.createRecord({
+    repo: agent.session!.did,
+    collection: 'app.bsky.graph.list',
+    record: {
+      $type: 'app.bsky.graph.list',
+      purpose: 'app.bsky.graph.defs#curatelist',
+      name: `${PERSONAL_LIST_NAME_PREFIX} - ${researcher[0].handle || userDid.slice(-8)}`,
+      description: PERSONAL_LIST_DESCRIPTION,
+      createdAt: new Date().toISOString(),
+    },
+  });
+
+  // Store in database
+  await db
+    .update(verifiedResearchers)
+    .set({ personalListUri: result.data.uri })
+    .where(eq(verifiedResearchers.did, userDid));
+
+  return result.data.uri;
+}
+
+// Compute 1-hop connections for a specific user
+export async function computePersonalHops(userDid: string): Promise<Set<string>> {
+  const oneHopDids = new Set<string>();
+
+  // Get all edges where user is follower or following
+  const edges = await db
+    .select()
+    .from(socialGraph)
+    .where(
+      or(
+        eq(socialGraph.followerId, userDid),
+        eq(socialGraph.followingId, userDid)
+      )
+    );
+
+  // Collect all DIDs that are 1-hop from user
+  for (const edge of edges) {
+    if (edge.followerId === userDid) {
+      oneHopDids.add(edge.followingId); // People user follows
+    }
+    if (edge.followingId === userDid) {
+      oneHopDids.add(edge.followerId); // People who follow user
+    }
+  }
+
+  // Also include the user themselves
+  oneHopDids.add(userDid);
+
+  // Also include all verified researchers (they should always be able to reply)
+  const allVerified = await db
+    .select()
+    .from(verifiedResearchers)
+    .where(eq(verifiedResearchers.isActive, true));
+
+  for (const researcher of allVerified) {
+    oneHopDids.add(researcher.did);
+  }
+
+  return oneHopDids;
+}
+
+interface PersonalSyncResult {
+  addedCount: number;
+  totalMembers: number;
+  listUri: string;
+  errors: string[];
+}
+
+// Sync personal list for a specific verified researcher
+export async function syncPersonalList(
+  agent: BskyAgent,
+  userDid: string
+): Promise<PersonalSyncResult> {
+  const listUri = await getOrCreatePersonalList(agent, userDid);
+  const errors: string[] = [];
+  let addedCount = 0;
+
+  // Compute who should be in this user's personal list
+  const shouldBeInList = await computePersonalHops(userDid);
+
+  // Get existing list items to avoid duplicates
+  let existingDids = new Set<string>();
+  try {
+    let cursor: string | undefined;
+    do {
+      const listItems = await agent.app.bsky.graph.getList({
+        list: listUri,
+        limit: 100,
+        cursor
+      });
+      for (const item of listItems.data.items) {
+        existingDids.add(item.subject.did);
+      }
+      cursor = listItems.data.cursor;
+    } while (cursor);
+  } catch (error) {
+    console.log('Could not fetch existing list items, will try to add all');
+  }
+
+  // Add missing members (limit to 50 per sync to stay within rate limits)
+  let addedThisSync = 0;
+  const MAX_PER_SYNC = 50;
+
+  for (const did of shouldBeInList) {
+    if (addedThisSync >= MAX_PER_SYNC) break;
+    if (existingDids.has(did)) continue;
+
+    try {
+      await agent.com.atproto.repo.createRecord({
+        repo: agent.session!.did,
+        collection: 'app.bsky.graph.listitem',
+        record: {
+          $type: 'app.bsky.graph.listitem',
+          subject: did,
+          list: listUri,
+          createdAt: new Date().toISOString(),
+        },
+      });
+
+      addedCount++;
+      addedThisSync++;
+      await delay(200);
+    } catch (error) {
+      const msg = `Failed to add ${did} to personal list: ${error instanceof Error ? error.message : String(error)}`;
+      console.error(msg);
+      errors.push(msg);
+    }
+  }
+
+  // Update sync timestamp
+  await db
+    .update(verifiedResearchers)
+    .set({ personalListSyncedAt: new Date() })
+    .where(eq(verifiedResearchers.did, userDid));
+
+  return {
+    addedCount,
+    totalMembers: existingDids.size + addedCount,
+    listUri,
+    errors,
+  };
+}
+
+// Sync personal lists for all verified researchers
+export async function syncAllPersonalLists(agent: BskyAgent): Promise<{
+  synced: number;
+  errors: string[];
+}> {
+  const researchers = await db
+    .select()
+    .from(verifiedResearchers)
+    .where(eq(verifiedResearchers.isActive, true));
+
+  const errors: string[] = [];
+  let synced = 0;
+
+  for (const researcher of researchers) {
+    try {
+      await syncPersonalList(agent, researcher.did);
+      synced++;
+      // Longer delay between users to avoid rate limits
+      await delay(500);
+    } catch (error) {
+      const msg = `Failed to sync personal list for ${researcher.did}: ${error instanceof Error ? error.message : String(error)}`;
+      console.error(msg);
+      errors.push(msg);
+    }
+  }
+
+  return { synced, errors };
 }
