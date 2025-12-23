@@ -40,7 +40,7 @@ export default function Composer({ onPost }: ComposerProps) {
   const threadgateLabel = settings.threadgateType === 'following'
     ? 'people you follow'
     : settings.threadgateType === 'verified'
-    ? 'verified community (2-hop)'
+    ? 'verified community (1-hop)'
     : 'anyone';
 
   return (

@@ -2,7 +2,7 @@ import { db, verifiedResearchers, socialGraph, communityMembers } from '@/lib/db
 import { eq, inArray, or, and, notInArray } from 'drizzle-orm';
 import { nanoid } from 'nanoid';
 
-const MAX_HOPS = 2;
+const MAX_HOPS = 1;
 
 interface HopComputationResult {
   totalMembers: number;

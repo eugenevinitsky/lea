@@ -1,7 +1,8 @@
 'use client';
 
+import { useState } from 'react';
 import { AppBskyFeedDefs, AppBskyFeedPost, AppBskyEmbedExternal } from '@atproto/api';
-import { isVerifiedResearcher, Label } from '@/lib/bluesky';
+import { isVerifiedResearcher, Label, createPost, ReplyRef, likePost, unlikePost, repost, deleteRepost } from '@/lib/bluesky';
 import { useSettings } from '@/lib/settings';
 
 interface PostProps {
@@ -88,12 +89,104 @@ function VerifiedBadge() {
   );
 }
 
-export default function Post({ post }: PostProps) {
+export default function Post({ post, onReply }: PostProps & { onReply?: () => void }) {
   const { settings } = useSettings();
+  const [showReplyComposer, setShowReplyComposer] = useState(false);
+  const [replyText, setReplyText] = useState('');
+  const [replying, setReplying] = useState(false);
+  const [replyError, setReplyError] = useState<string | null>(null);
+
+  // Like state
+  const [isLiked, setIsLiked] = useState(!!post.viewer?.like);
+  const [likeUri, setLikeUri] = useState<string | undefined>(post.viewer?.like);
+  const [likeCount, setLikeCount] = useState(post.likeCount || 0);
+  const [liking, setLiking] = useState(false);
+
+  // Repost state
+  const [isReposted, setIsReposted] = useState(!!post.viewer?.repost);
+  const [repostUri, setRepostUri] = useState<string | undefined>(post.viewer?.repost);
+  const [repostCount, setRepostCount] = useState(post.repostCount || 0);
+  const [reposting, setReposting] = useState(false);
+
   const record = post.record as AppBskyFeedPost.Record;
   const author = post.author;
   const isVerified = isVerifiedResearcher(author.labels as Label[] | undefined);
   const { hasPaper, domain } = containsPaperLink(record.text, post.embed);
+
+  const handleLike = async () => {
+    if (liking) return;
+    setLiking(true);
+    try {
+      if (isLiked && likeUri) {
+        await unlikePost(likeUri);
+        setIsLiked(false);
+        setLikeUri(undefined);
+        setLikeCount((c) => Math.max(0, c - 1));
+      } else {
+        const result = await likePost(post.uri, post.cid);
+        setIsLiked(true);
+        setLikeUri(result.uri);
+        setLikeCount((c) => c + 1);
+      }
+    } catch (err) {
+      console.error('Failed to like/unlike:', err);
+    } finally {
+      setLiking(false);
+    }
+  };
+
+  const handleRepost = async () => {
+    if (reposting) return;
+    setReposting(true);
+    try {
+      if (isReposted && repostUri) {
+        await deleteRepost(repostUri);
+        setIsReposted(false);
+        setRepostUri(undefined);
+        setRepostCount((c) => Math.max(0, c - 1));
+      } else {
+        const result = await repost(post.uri, post.cid);
+        setIsReposted(true);
+        setRepostUri(result.uri);
+        setRepostCount((c) => c + 1);
+      }
+    } catch (err) {
+      console.error('Failed to repost/unrepost:', err);
+    } finally {
+      setReposting(false);
+    }
+  };
+
+  const handleReply = async () => {
+    if (!replyText.trim() || replying) return;
+
+    try {
+      setReplying(true);
+      setReplyError(null);
+
+      // For replies, we need root and parent
+      // If this post is already a reply, use its root; otherwise this post is the root
+      const existingReply = record.reply as ReplyRef | undefined;
+      const replyRef: ReplyRef = {
+        root: existingReply?.root || { uri: post.uri, cid: post.cid },
+        parent: { uri: post.uri, cid: post.cid },
+      };
+
+      await createPost(
+        replyText,
+        settings.autoThreadgate ? settings.threadgateType : 'open',
+        replyRef
+      );
+
+      setReplyText('');
+      setShowReplyComposer(false);
+      onReply?.();
+    } catch (err) {
+      setReplyError(err instanceof Error ? err.message : 'Failed to reply');
+    } finally {
+      setReplying(false);
+    }
+  };
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
@@ -163,12 +256,97 @@ export default function Post({ post }: PostProps) {
             {record.text}
           </p>
 
-          {/* Engagement stats */}
-          <div className="flex gap-6 mt-3 text-sm text-gray-500">
-            <span>{post.replyCount || 0} replies</span>
-            <span>{post.repostCount || 0} reposts</span>
-            <span>{post.likeCount || 0} likes</span>
+          {/* Engagement actions */}
+          <div className="flex gap-4 mt-3 text-sm text-gray-500">
+            {/* Reply button */}
+            <button
+              onClick={() => setShowReplyComposer(!showReplyComposer)}
+              className="flex items-center gap-1 hover:text-blue-500 transition-colors"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+              </svg>
+              {post.replyCount || 0}
+            </button>
+
+            {/* Repost button */}
+            <button
+              onClick={handleRepost}
+              disabled={reposting}
+              className={`flex items-center gap-1 transition-colors ${
+                isReposted
+                  ? 'text-green-500 hover:text-green-600'
+                  : 'hover:text-green-500'
+              } ${reposting ? 'opacity-50' : ''}`}
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+              {repostCount}
+            </button>
+
+            {/* Like button */}
+            <button
+              onClick={handleLike}
+              disabled={liking}
+              className={`flex items-center gap-1 transition-colors ${
+                isLiked
+                  ? 'text-red-500 hover:text-red-600'
+                  : 'hover:text-red-500'
+              } ${liking ? 'opacity-50' : ''}`}
+            >
+              <svg
+                className="w-4 h-4"
+                fill={isLiked ? 'currentColor' : 'none'}
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+              </svg>
+              {likeCount}
+            </button>
           </div>
+
+          {/* Reply composer */}
+          {showReplyComposer && (
+            <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-800">
+              <textarea
+                value={replyText}
+                onChange={(e) => setReplyText(e.target.value)}
+                placeholder={`Reply to @${author.handle}...`}
+                className="w-full p-2 text-sm bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 dark:text-gray-100"
+                rows={3}
+                disabled={replying}
+              />
+              {replyError && (
+                <p className="mt-1 text-xs text-red-500">{replyError}</p>
+              )}
+              <div className="flex justify-between items-center mt-2">
+                <span className={`text-xs ${replyText.length > 300 ? 'text-red-500' : 'text-gray-400'}`}>
+                  {replyText.length}/300
+                </span>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => {
+                      setShowReplyComposer(false);
+                      setReplyText('');
+                      setReplyError(null);
+                    }}
+                    className="px-3 py-1 text-sm text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleReply}
+                    disabled={!replyText.trim() || replying || replyText.length > 300}
+                    className="px-3 py-1 text-sm bg-blue-500 text-white rounded-full hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {replying ? 'Posting...' : 'Reply'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </article>

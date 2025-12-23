@@ -75,9 +75,15 @@ async function getCommunityListUri(): Promise<string | null> {
   return null;
 }
 
+export interface ReplyRef {
+  root: { uri: string; cid: string };
+  parent: { uri: string; cid: string };
+}
+
 export async function createPost(
   text: string,
-  threadgateType: ThreadgateType = 'following'
+  threadgateType: ThreadgateType = 'following',
+  reply?: ReplyRef
 ) {
   if (!agent) throw new Error('Not logged in');
 
@@ -89,6 +95,7 @@ export async function createPost(
     text: rt.text,
     facets: rt.facets,
     createdAt: new Date().toISOString(),
+    ...(reply && { reply }),
   });
 
   // Apply threadgate based on type
@@ -129,6 +136,32 @@ export async function createPost(
 
 export function getSession() {
   return agent?.session;
+}
+
+// Like a post
+export async function likePost(uri: string, cid: string): Promise<{ uri: string }> {
+  if (!agent) throw new Error('Not logged in');
+  const result = await agent.like(uri, cid);
+  return result;
+}
+
+// Unlike a post
+export async function unlikePost(likeUri: string): Promise<void> {
+  if (!agent) throw new Error('Not logged in');
+  await agent.deleteLike(likeUri);
+}
+
+// Repost a post
+export async function repost(uri: string, cid: string): Promise<{ uri: string }> {
+  if (!agent) throw new Error('Not logged in');
+  const result = await agent.repost(uri, cid);
+  return result;
+}
+
+// Delete a repost
+export async function deleteRepost(repostUri: string): Promise<void> {
+  if (!agent) throw new Error('Not logged in');
+  await agent.deleteRepost(repostUri);
 }
 
 // Label utilities

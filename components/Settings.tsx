@@ -53,7 +53,7 @@ export default function Settings({ onClose }: SettingsProps) {
                   <div className="space-y-2">
                     {[
                       { value: 'following', label: 'People you follow', description: '' },
-                      { value: 'verified', label: 'Verified community', description: '2-hop from verified researchers' },
+                      { value: 'verified', label: 'Verified community', description: '1-hop from verified researchers' },
                       { value: 'open', label: 'Anyone', description: '' },
                     ].map((option) => (
                       <label key={option.value} className="flex items-center gap-2">
