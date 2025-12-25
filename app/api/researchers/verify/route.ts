@@ -65,6 +65,22 @@ export async function POST(request: NextRequest) {
       closestVerifiedDid: did,
     });
 
+    // Add to labeler's verified researchers list for threadgates
+    try {
+      const baseUrl = process.env.VERCEL_URL
+        ? `https://${process.env.VERCEL_URL}`
+        : process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
+
+      await fetch(`${baseUrl}/api/labeler/add-to-list`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ did }),
+      });
+    } catch (listError) {
+      console.error('Failed to add to labeler list:', listError);
+      // Don't fail verification if list add fails
+    }
+
     return NextResponse.json({
       success: true,
       id: researcherId,

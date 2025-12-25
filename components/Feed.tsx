@@ -1,0 +1,287 @@
+'use client';
+
+import { useState, useEffect, useMemo } from 'react';
+import { AppBskyFeedDefs, AppBskyFeedPost, AppBskyEmbedExternal } from '@atproto/api';
+import { getTimeline, getFeed, FEEDS, FeedId, isVerifiedResearcher, Label } from '@/lib/bluesky';
+import { useSettings } from '@/lib/settings';
+import { detectPaperLink } from '@/lib/papers';
+import Post from './Post';
+import ThreadView from './ThreadView';
+
+interface FeedProps {
+  feedId: FeedId;
+  refreshKey?: number;
+}
+
+export default function Feed({ feedId, refreshKey }: FeedProps) {
+  const { settings } = useSettings();
+  const [posts, setPosts] = useState<AppBskyFeedDefs.FeedViewPost[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [cursor, setCursor] = useState<string | undefined>();
+  const [loadedPages, setLoadedPages] = useState(0);
+  const [threadUri, setThreadUri] = useState<string | null>(null);
+
+  const feedConfig = FEEDS[feedId];
+  const isPapersFeed = feedId === 'papers';
+  const isVerifiedFeed = feedId === 'verified';
+
+  const loadFeed = async (loadMore = false, currentCursor?: string) => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      let response;
+      if (feedConfig.uri) {
+        // Custom feed (like Paper Skygest)
+        response = await getFeed(feedConfig.uri, loadMore ? (currentCursor || cursor) : undefined);
+      } else {
+        // User's timeline
+        response = await getTimeline(loadMore ? (currentCursor || cursor) : undefined);
+      }
+
+      if (loadMore) {
+        setPosts(prev => [...prev, ...response.data.feed]);
+      } else {
+        setPosts(response.data.feed);
+      }
+      setCursor(response.data.cursor);
+      setLoadedPages(prev => prev + 1);
+      return response.data.cursor;
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load feed');
+      return undefined;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Reset and reload when feed changes or refresh triggered
+  useEffect(() => {
+    setPosts([]);
+    setCursor(undefined);
+    setLoadedPages(0);
+
+    // For papers feed or verified feed, scan multiple pages
+    if (isPapersFeed || isVerifiedFeed) {
+      const initialScan = async () => {
+        let currentCursor: string | undefined;
+        const MIN_PAGES = 5;
+
+        currentCursor = await loadFeed();
+        for (let i = 1; i < MIN_PAGES && currentCursor; i++) {
+          await new Promise(resolve => setTimeout(resolve, 100));
+          currentCursor = await loadFeed(true, currentCursor);
+        }
+      };
+      initialScan();
+    } else {
+      loadFeed();
+    }
+  }, [feedId, refreshKey]);
+
+  // Filter posts based on settings and feed type
+  const { filteredPosts, hiddenCount, totalScanned } = useMemo(() => {
+    let filtered = posts;
+    let hidden = 0;
+
+    // Apply paper filtering for Papers feed
+    if (isPapersFeed) {
+      const papers: AppBskyFeedDefs.FeedViewPost[] = [];
+      for (const item of posts) {
+        const record = item.post.record as AppBskyFeedPost.Record;
+        const embed = item.post.embed;
+
+        let embedUri: string | undefined;
+        if (embed && 'external' in embed) {
+          const external = embed as AppBskyEmbedExternal.View;
+          embedUri = external.external?.uri;
+        }
+
+        const { hasPaper } = detectPaperLink(record.text, embedUri);
+        if (hasPaper) {
+          papers.push(item);
+        }
+      }
+      filtered = papers;
+    }
+
+    // Apply verified researcher filtering for Verified feed
+    if (isVerifiedFeed) {
+      const verified: AppBskyFeedDefs.FeedViewPost[] = [];
+      for (const item of posts) {
+        const author = item.post.author;
+        const labels = author.labels as Label[] | undefined;
+        if (isVerifiedResearcher(labels)) {
+          verified.push(item);
+        }
+      }
+      filtered = verified;
+    }
+
+    // Apply high-follower filter
+    if (settings.highFollowerThreshold !== null) {
+      const afterHighFollower: AppBskyFeedDefs.FeedViewPost[] = [];
+      for (const item of filtered) {
+        const author = item.post.author as { followsCount?: number };
+        const followingCount = author.followsCount ?? 0;
+        if (followingCount > settings.highFollowerThreshold) {
+          hidden++;
+        } else {
+          afterHighFollower.push(item);
+        }
+      }
+      filtered = afterHighFollower;
+    }
+
+    return { filteredPosts: filtered, hiddenCount: hidden, totalScanned: posts.length };
+  }, [posts, settings.highFollowerThreshold, isPapersFeed, isVerifiedFeed]);
+
+  if (error) {
+    return (
+      <div className="p-4 text-center">
+        <p className="text-red-500">{error}</p>
+        <button
+          onClick={() => loadFeed()}
+          className="mt-2 px-4 py-2 bg-blue-500 text-white rounded-full hover:bg-blue-600"
+        >
+          Retry
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      {/* Header */}
+      <div className="sticky top-0 z-10 bg-white/80 dark:bg-black/80 backdrop-blur border-b border-gray-200 dark:border-gray-800 p-3">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="font-semibold text-gray-900 dark:text-gray-100">{feedConfig.name}</h2>
+            {isPapersFeed && (
+              <p className="text-xs text-gray-500">
+                {filteredPosts.length} paper{filteredPosts.length !== 1 ? 's' : ''} found in {totalScanned} posts
+              </p>
+            )}
+            {isVerifiedFeed && (
+              <p className="text-xs text-gray-500">
+                {filteredPosts.length} post{filteredPosts.length !== 1 ? 's' : ''} from verified researchers in {totalScanned} scanned
+              </p>
+            )}
+          </div>
+          <button
+            onClick={() => {
+              setPosts([]);
+              setCursor(undefined);
+              setLoadedPages(0);
+              loadFeed();
+            }}
+            disabled={loading}
+            className="px-3 py-1.5 text-sm text-blue-500 hover:bg-gray-100 dark:hover:bg-gray-900 rounded-lg disabled:opacity-50"
+          >
+            {loading ? 'Loading...' : 'Refresh'}
+          </button>
+        </div>
+      </div>
+
+      {/* Hidden posts indicator */}
+      {hiddenCount > 0 && (
+        <div className="px-4 py-2 bg-amber-50 dark:bg-amber-900/20 border-b border-amber-200 dark:border-amber-800">
+          <p className="text-sm text-amber-700 dark:text-amber-300">
+            {hiddenCount} post{hiddenCount !== 1 ? 's' : ''} hidden from high-follower accounts
+            <span className="text-amber-500 ml-1">(following {settings.highFollowerThreshold?.toLocaleString()}+)</span>
+          </p>
+        </div>
+      )}
+
+      {/* Empty state for papers feed */}
+      {!loading && isPapersFeed && filteredPosts.length === 0 && (
+        <div className="p-8 text-center">
+          <div className="w-16 h-16 mx-auto mb-4 bg-purple-100 dark:bg-purple-900/30 rounded-full flex items-center justify-center">
+            <svg className="w-8 h-8 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+          </div>
+          <h3 className="font-semibold text-gray-900 dark:text-gray-100 mb-2">No papers found yet</h3>
+          <p className="text-sm text-gray-500 mb-4">
+            We've scanned {totalScanned} posts from your timeline.
+            <br />
+            Load more to find papers from your network.
+          </p>
+          <button
+            onClick={() => loadFeed(true)}
+            disabled={loading || !cursor}
+            className="px-4 py-2 bg-purple-500 text-white rounded-full hover:bg-purple-600 disabled:opacity-50"
+          >
+            Load more posts
+          </button>
+        </div>
+      )}
+
+      {/* Empty state for verified feed */}
+      {!loading && isVerifiedFeed && filteredPosts.length === 0 && (
+        <div className="p-8 text-center">
+          <div className="w-16 h-16 mx-auto mb-4 bg-emerald-100 dark:bg-emerald-900/30 rounded-full flex items-center justify-center">
+            <svg className="w-8 h-8 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </div>
+          <h3 className="font-semibold text-gray-900 dark:text-gray-100 mb-2">No verified researchers found</h3>
+          <p className="text-sm text-gray-500 mb-4">
+            We've scanned {totalScanned} posts from your timeline.
+            <br />
+            Load more to find posts from verified researchers.
+          </p>
+          <button
+            onClick={() => loadFeed(true)}
+            disabled={loading || !cursor}
+            className="px-4 py-2 bg-emerald-500 text-white rounded-full hover:bg-emerald-600 disabled:opacity-50"
+          >
+            Load more posts
+          </button>
+        </div>
+      )}
+
+      {/* Posts */}
+      {filteredPosts.map((item, index) => (
+        <Post
+          key={`${item.post.uri}-${index}`}
+          post={item.post}
+          onOpenThread={setThreadUri}
+        />
+      ))}
+
+      {/* Thread View Modal */}
+      {threadUri && (
+        <ThreadView uri={threadUri} onClose={() => setThreadUri(null)} />
+      )}
+
+      {/* Load more */}
+      {filteredPosts.length > 0 && cursor && !loading && (
+        <div className="p-4">
+          <button
+            onClick={() => loadFeed(true)}
+            className="w-full py-3 text-blue-500 hover:bg-gray-100 dark:hover:bg-gray-900 rounded-lg"
+          >
+            {isPapersFeed || isVerifiedFeed
+              ? `Load more (${loadedPages} page${loadedPages !== 1 ? 's' : ''} scanned)`
+              : 'Load more'}
+          </button>
+        </div>
+      )}
+
+      {/* Loading indicator */}
+      {loading && posts.length > 0 && (
+        <div className="p-4 text-center text-gray-500">
+          {isPapersFeed ? 'Scanning for papers...' : isVerifiedFeed ? 'Scanning for verified researchers...' : 'Loading...'}
+        </div>
+      )}
+
+      {loading && posts.length === 0 && (
+        <div className="p-8 text-center text-gray-500">
+          Loading {feedConfig.name.toLowerCase()}...
+        </div>
+      )}
+    </div>
+  );
+}

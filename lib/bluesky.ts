@@ -59,6 +59,38 @@ export async function getTimeline(cursor?: string) {
   return agent.getTimeline({ limit: 30, cursor });
 }
 
+// Fetch a custom feed by URI
+export async function getFeed(feedUri: string, cursor?: string) {
+  if (!agent) throw new Error('Not logged in');
+  return agent.app.bsky.feed.getFeed({ feed: feedUri, limit: 30, cursor });
+}
+
+// Feed definitions
+export const FEEDS = {
+  skygest: {
+    id: 'skygest',
+    name: 'Paper Skygest',
+    uri: 'at://did:plc:uaadt6f5bbda6cycbmatcm3z/app.bsky.feed.generator/preprintdigest',
+  },
+  verified: {
+    id: 'verified',
+    name: 'Verified',
+    uri: null as string | null, // Filtered from timeline
+  },
+  timeline: {
+    id: 'timeline',
+    name: 'Timeline',
+    uri: null as string | null,
+  },
+  papers: {
+    id: 'papers',
+    name: 'Papers',
+    uri: null as string | null,
+  },
+} as const;
+
+export type FeedId = keyof typeof FEEDS;
+
 export async function getThread(uri: string, depth = 10) {
   if (!agent) throw new Error('Not logged in');
   return agent.getPostThread({ uri, depth });
@@ -83,10 +115,25 @@ async function getCommunityListUri(): Promise<string | null> {
   return null;
 }
 
-// Fetch verified-only list URI from API
+// Fetch labeler's verified researchers list URI
 async function getVerifiedOnlyListUri(): Promise<string | null> {
   if (verifiedOnlyListUri) return verifiedOnlyListUri;
 
+  try {
+    // First try the labeler's list (new system)
+    const response = await fetch('/api/labeler/init-list');
+    if (response.ok) {
+      const data = await response.json();
+      if (data.listUri) {
+        verifiedOnlyListUri = data.listUri;
+        return verifiedOnlyListUri;
+      }
+    }
+  } catch (error) {
+    console.error('Failed to fetch labeler list URI:', error);
+  }
+
+  // Fallback to old system
   try {
     const response = await fetch('/api/list/uri?type=verified');
     if (response.ok) {
@@ -250,8 +297,7 @@ export async function deleteRepost(repostUri: string): Promise<void> {
 
 // Label utilities
 const VERIFIED_RESEARCHER_LABEL = 'verified-researcher';
-// TODO: Replace with actual Lea labeler DID once deployed
-// const LEA_LABELER_DID = 'did:plc:lea-labeler';
+const LEA_LABELER_DID = 'did:plc:7c7tx56n64jhzezlwox5dja6'; // lea-community.bsky.social
 
 export interface Label {
   src: string;  // DID of the labeler
@@ -264,9 +310,8 @@ export function isVerifiedResearcher(labels?: Label[]): boolean {
   if (!labels || labels.length === 0) return false;
 
   return labels.some(label =>
-    label.val === VERIFIED_RESEARCHER_LABEL
-    // Once Lea labeler is deployed, also check:
-    // && label.src === LEA_LABELER_DID
+    label.val === VERIFIED_RESEARCHER_LABEL &&
+    label.src === LEA_LABELER_DID
   );
 }
 
@@ -274,6 +319,7 @@ export function getVerifiedLabel(labels?: Label[]): Label | undefined {
   if (!labels) return undefined;
 
   return labels.find(label =>
-    label.val === VERIFIED_RESEARCHER_LABEL
+    label.val === VERIFIED_RESEARCHER_LABEL &&
+    label.src === LEA_LABELER_DID
   );
 }

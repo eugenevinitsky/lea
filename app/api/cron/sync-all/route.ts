@@ -72,12 +72,36 @@ export async function GET(request: NextRequest) {
       ...listResult,
     });
 
-    // Step 5: Sync verified-only list
+    // Step 5: Sync verified-only list (old database-based system)
     const verifiedListResult = await syncVerifiedOnlyList(agent);
     (results.steps as unknown[]).push({
       name: 'verified_list_sync',
       ...verifiedListResult,
     });
+
+    // Step 5b: Sync labeler's verified list from Ozone
+    try {
+      const baseUrl = process.env.VERCEL_URL
+        ? `https://${process.env.VERCEL_URL}`
+        : 'http://localhost:3000';
+
+      const labelerSyncResponse = await fetch(`${baseUrl}/api/labeler/sync-from-ozone`, {
+        method: 'POST',
+      });
+
+      if (labelerSyncResponse.ok) {
+        const labelerSyncResult = await labelerSyncResponse.json();
+        (results.steps as unknown[]).push({
+          name: 'labeler_ozone_sync',
+          ...labelerSyncResult,
+        });
+      }
+    } catch (error) {
+      (results.steps as unknown[]).push({
+        name: 'labeler_ozone_sync',
+        error: String(error),
+      });
+    }
 
     // Step 6: Sync personal lists for all verified researchers
     const personalListsResult = await syncAllPersonalLists(agent);

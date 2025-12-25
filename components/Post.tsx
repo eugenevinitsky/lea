@@ -89,6 +89,97 @@ function VerifiedBadge() {
   );
 }
 
+// Render post text with clickable links, mentions, and hashtags
+function RichText({ text, facets }: { text: string; facets?: AppBskyFeedPost.Record['facets'] }) {
+  if (!facets || facets.length === 0) {
+    return <>{text}</>;
+  }
+
+  // Sort facets by start index
+  const sortedFacets = [...facets].sort((a, b) => a.index.byteStart - b.index.byteStart);
+
+  // Convert byte indices to character indices (for non-ASCII text)
+  const encoder = new TextEncoder();
+  const bytes = encoder.encode(text);
+
+  const elements: React.ReactNode[] = [];
+  let lastIndex = 0;
+
+  for (const facet of sortedFacets) {
+    const { byteStart, byteEnd } = facet.index;
+
+    // Add text before this facet
+    if (byteStart > lastIndex) {
+      const beforeBytes = bytes.slice(lastIndex, byteStart);
+      const beforeText = new TextDecoder().decode(beforeBytes);
+      elements.push(beforeText);
+    }
+
+    // Get the facet text
+    const facetBytes = bytes.slice(byteStart, byteEnd);
+    const facetText = new TextDecoder().decode(facetBytes);
+
+    // Determine facet type and render accordingly
+    const feature = facet.features[0];
+    if (feature.$type === 'app.bsky.richtext.facet#link') {
+      const uri = (feature as { uri: string }).uri;
+      elements.push(
+        <a
+          key={byteStart}
+          href={uri}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-blue-500 hover:underline"
+          onClick={(e) => e.stopPropagation()}
+        >
+          {facetText}
+        </a>
+      );
+    } else if (feature.$type === 'app.bsky.richtext.facet#mention') {
+      const did = (feature as { did: string }).did;
+      elements.push(
+        <a
+          key={byteStart}
+          href={`https://bsky.app/profile/${did}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-blue-500 hover:underline"
+          onClick={(e) => e.stopPropagation()}
+        >
+          {facetText}
+        </a>
+      );
+    } else if (feature.$type === 'app.bsky.richtext.facet#tag') {
+      const tag = (feature as { tag: string }).tag;
+      elements.push(
+        <a
+          key={byteStart}
+          href={`https://bsky.app/hashtag/${tag}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-blue-500 hover:underline"
+          onClick={(e) => e.stopPropagation()}
+        >
+          {facetText}
+        </a>
+      );
+    } else {
+      elements.push(facetText);
+    }
+
+    lastIndex = byteEnd;
+  }
+
+  // Add remaining text after last facet
+  if (lastIndex < bytes.length) {
+    const afterBytes = bytes.slice(lastIndex);
+    const afterText = new TextDecoder().decode(afterBytes);
+    elements.push(afterText);
+  }
+
+  return <>{elements}</>;
+}
+
 export default function Post({ post, onReply, onOpenThread }: PostProps & { onReply?: () => void; onOpenThread?: (uri: string) => void }) {
   const { settings } = useSettings();
   const [showReplyComposer, setShowReplyComposer] = useState(false);
@@ -290,7 +381,7 @@ export default function Post({ post, onReply, onOpenThread }: PostProps & { onRe
             className={`mt-1 text-gray-900 dark:text-gray-100 whitespace-pre-wrap break-words ${onOpenThread ? 'cursor-pointer' : ''}`}
             onClick={() => onOpenThread?.(post.uri)}
           >
-            {record.text}
+            <RichText text={record.text} facets={record.facets} />
           </p>
 
           {/* Reply context indicator */}
