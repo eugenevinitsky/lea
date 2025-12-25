@@ -65,6 +65,65 @@ export async function getFeed(feedUri: string, cursor?: string) {
   return agent.app.bsky.feed.getFeed({ feed: feedUri, limit: 30, cursor });
 }
 
+// Feed generator info type
+export interface FeedGeneratorInfo {
+  uri: string;
+  cid: string;
+  did: string;
+  creator: {
+    did: string;
+    handle: string;
+    displayName?: string;
+    avatar?: string;
+  };
+  displayName: string;
+  description?: string;
+  avatar?: string;
+  likeCount?: number;
+  acceptsInteractions?: boolean;
+}
+
+// Search for feeds
+export async function searchFeeds(query: string, cursor?: string): Promise<{ feeds: FeedGeneratorInfo[]; cursor?: string }> {
+  if (!agent) throw new Error('Not logged in');
+  const response = await agent.app.bsky.unspecced.getPopularFeedGenerators({
+    query,
+    limit: 25,
+    cursor,
+  });
+  return {
+    feeds: response.data.feeds as FeedGeneratorInfo[],
+    cursor: response.data.cursor,
+  };
+}
+
+// Get popular feeds
+export async function getPopularFeeds(cursor?: string): Promise<{ feeds: FeedGeneratorInfo[]; cursor?: string }> {
+  if (!agent) throw new Error('Not logged in');
+  const response = await agent.app.bsky.unspecced.getPopularFeedGenerators({
+    limit: 25,
+    cursor,
+  });
+  return {
+    feeds: response.data.feeds as FeedGeneratorInfo[],
+    cursor: response.data.cursor,
+  };
+}
+
+// Get feed generator info by URI
+export async function getFeedGenerator(feedUri: string): Promise<FeedGeneratorInfo> {
+  if (!agent) throw new Error('Not logged in');
+  const response = await agent.app.bsky.feed.getFeedGenerator({ feed: feedUri });
+  return response.data.view as FeedGeneratorInfo;
+}
+
+// Get multiple feed generators by URI
+export async function getFeedGenerators(feedUris: string[]): Promise<FeedGeneratorInfo[]> {
+  if (!agent) throw new Error('Not logged in');
+  const response = await agent.app.bsky.feed.getFeedGenerators({ feeds: feedUris });
+  return response.data.feeds as FeedGeneratorInfo[];
+}
+
 // Feed definitions
 export const FEEDS = {
   skygest: {

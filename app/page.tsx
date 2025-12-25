@@ -1,9 +1,10 @@
 'use client';
 
 import { useState, useCallback, useEffect } from 'react';
-import { getSession, logout, restoreSession, FEEDS, FeedId } from '@/lib/bluesky';
+import { getSession, logout, restoreSession } from '@/lib/bluesky';
 import { SettingsProvider } from '@/lib/settings';
 import { BookmarksProvider } from '@/lib/bookmarks';
+import { FeedsProvider, useFeeds } from '@/lib/feeds';
 import Login from '@/components/Login';
 import Feed from '@/components/Feed';
 import Composer from '@/components/Composer';
@@ -11,16 +12,24 @@ import Settings from '@/components/Settings';
 import Bookmarks from '@/components/Bookmarks';
 import ThreadView from '@/components/ThreadView';
 import DMSidebar from '@/components/DMSidebar';
-
-const FEED_ORDER: FeedId[] = ['skygest', 'foryou', 'timeline'];
+import FeedDiscovery from '@/components/FeedDiscovery';
 
 function AppContent() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [refreshKey, setRefreshKey] = useState(0);
   const [showSettings, setShowSettings] = useState(false);
-  const [activeFeed, setActiveFeed] = useState<FeedId>('skygest');
+  const [showFeedDiscovery, setShowFeedDiscovery] = useState(false);
+  const [activeFeedUri, setActiveFeedUri] = useState<string | null>(null);
   const [threadUri, setThreadUri] = useState<string | null>(null);
+  const { pinnedFeeds, removeFeed } = useFeeds();
+
+  // Set active feed to first pinned feed when feeds load
+  useEffect(() => {
+    if (pinnedFeeds.length > 0 && activeFeedUri === null) {
+      setActiveFeedUri(pinnedFeeds[0].uri);
+    }
+  }, [pinnedFeeds, activeFeedUri]);
 
   // Try to restore session on mount
   useEffect(() => {
@@ -116,27 +125,36 @@ function AppContent() {
 
           {/* Feed Tabs */}
           <div className="flex border-b border-gray-200 dark:border-gray-800">
-            {FEED_ORDER.map((feedId) => {
-              const feed = FEEDS[feedId];
-              const isActive = activeFeed === feedId;
-              const isSkygest = feedId === 'skygest';
+            {pinnedFeeds.map((feed) => {
+              const isActive = activeFeedUri === feed.uri;
+              const isSkygest = feed.uri.includes('preprintdigest');
 
               return (
                 <button
-                  key={feedId}
-                  onClick={() => setActiveFeed(feedId)}
-                  className={`flex-1 py-3 text-sm font-medium transition-colors relative flex items-center justify-center gap-1.5 ${
+                  key={feed.uri}
+                  onClick={() => setActiveFeedUri(feed.uri)}
+                  onContextMenu={(e) => {
+                    e.preventDefault();
+                    if (pinnedFeeds.length > 1) {
+                      removeFeed(feed.uri);
+                      if (isActive) {
+                        setActiveFeedUri(pinnedFeeds[0].uri === feed.uri ? pinnedFeeds[1]?.uri : pinnedFeeds[0].uri);
+                      }
+                    }
+                  }}
+                  className={`flex-1 py-3 text-sm font-medium transition-colors relative flex items-center justify-center gap-1.5 group ${
                     isActive
                       ? isSkygest ? 'text-purple-500' : 'text-blue-500'
                       : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
                   }`}
+                  title="Right-click to unpin"
                 >
                   {isSkygest && (
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                     </svg>
                   )}
-                  {feed.name}
+                  <span className="truncate max-w-[80px]">{feed.displayName}</span>
                   {isActive && (
                     <div className={`absolute bottom-0 left-0 right-0 h-0.5 ${
                       isSkygest ? 'bg-purple-500' : 'bg-blue-500'
@@ -145,10 +163,27 @@ function AppContent() {
                 </button>
               );
             })}
+            {/* Add feed button */}
+            <button
+              onClick={() => setShowFeedDiscovery(true)}
+              className="px-3 py-3 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+              title="Add feeds"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              </svg>
+            </button>
           </div>
 
           {/* Feed Content */}
-          <Feed feedId={activeFeed} refreshKey={refreshKey} />
+          {activeFeedUri && (
+            <Feed
+              feedUri={activeFeedUri}
+              feedName={pinnedFeeds.find(f => f.uri === activeFeedUri)?.displayName}
+              acceptsInteractions={pinnedFeeds.find(f => f.uri === activeFeedUri)?.acceptsInteractions}
+              refreshKey={refreshKey}
+            />
+          )}
         </main>
       </div>
 
@@ -159,6 +194,9 @@ function AppContent() {
 
       {/* Settings modal */}
       {showSettings && <Settings onClose={() => setShowSettings(false)} />}
+
+      {/* Feed Discovery modal */}
+      {showFeedDiscovery && <FeedDiscovery onClose={() => setShowFeedDiscovery(false)} />}
     </div>
   );
 }
@@ -167,7 +205,9 @@ export default function Home() {
   return (
     <SettingsProvider>
       <BookmarksProvider>
-        <AppContent />
+        <FeedsProvider>
+          <AppContent />
+        </FeedsProvider>
       </BookmarksProvider>
     </SettingsProvider>
   );

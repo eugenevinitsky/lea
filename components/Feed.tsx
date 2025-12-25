@@ -9,11 +9,14 @@ import Post from './Post';
 import ThreadView from './ThreadView';
 
 interface FeedProps {
-  feedId: FeedId;
+  feedId?: FeedId;
+  feedUri?: string;
+  feedName?: string;
+  acceptsInteractions?: boolean;
   refreshKey?: number;
 }
 
-export default function Feed({ feedId, refreshKey }: FeedProps) {
+export default function Feed({ feedId, feedUri, feedName, acceptsInteractions, refreshKey }: FeedProps) {
   const { settings } = useSettings();
   const [posts, setPosts] = useState<AppBskyFeedDefs.FeedViewPost[]>([]);
   const [loading, setLoading] = useState(true);
@@ -22,7 +25,11 @@ export default function Feed({ feedId, refreshKey }: FeedProps) {
   const [loadedPages, setLoadedPages] = useState(0);
   const [threadUri, setThreadUri] = useState<string | null>(null);
 
-  const feedConfig = FEEDS[feedId];
+  // Support both old feedId-based and new feedUri-based props
+  const feedConfig = feedId ? FEEDS[feedId] : null;
+  const effectiveFeedUri = feedUri || feedConfig?.uri || null;
+  const effectiveFeedName = feedName || feedConfig?.name || 'Feed';
+  const effectiveAcceptsInteractions = acceptsInteractions ?? feedConfig?.acceptsInteractions ?? false;
   const isPapersFeed = feedId === 'papers';
   const isVerifiedFeed = feedId === 'verified';
 
@@ -32,9 +39,9 @@ export default function Feed({ feedId, refreshKey }: FeedProps) {
       setError(null);
 
       let response;
-      if (feedConfig.uri) {
+      if (effectiveFeedUri && effectiveFeedUri !== 'timeline') {
         // Custom feed (like Paper Skygest)
-        response = await getFeed(feedConfig.uri, loadMore ? (currentCursor || cursor) : undefined);
+        response = await getFeed(effectiveFeedUri, loadMore ? (currentCursor || cursor) : undefined);
       } else {
         // User's timeline
         response = await getTimeline(loadMore ? (currentCursor || cursor) : undefined);
@@ -78,7 +85,7 @@ export default function Feed({ feedId, refreshKey }: FeedProps) {
     } else {
       loadFeed();
     }
-  }, [feedId, refreshKey]);
+  }, [feedId, feedUri, refreshKey]);
 
   // Filter posts based on settings and feed type
   const { filteredPosts, hiddenCount, totalScanned } = useMemo(() => {
@@ -157,7 +164,7 @@ export default function Feed({ feedId, refreshKey }: FeedProps) {
       <div className="sticky top-0 z-10 bg-white/80 dark:bg-black/80 backdrop-blur border-b border-gray-200 dark:border-gray-800 p-3">
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="font-semibold text-gray-900 dark:text-gray-100">{feedConfig.name}</h2>
+            <h2 className="font-semibold text-gray-900 dark:text-gray-100">{effectiveFeedName}</h2>
             {isPapersFeed && (
               <p className="text-xs text-gray-500">
                 {filteredPosts.length} paper{filteredPosts.length !== 1 ? 's' : ''} found in {totalScanned} posts
@@ -250,7 +257,7 @@ export default function Feed({ feedId, refreshKey }: FeedProps) {
           onOpenThread={setThreadUri}
           feedContext={item.feedContext}
           reqId={item.reqId}
-          supportsInteractions={feedConfig.acceptsInteractions}
+          supportsInteractions={effectiveAcceptsInteractions}
         />
       ))}
 
@@ -282,7 +289,7 @@ export default function Feed({ feedId, refreshKey }: FeedProps) {
 
       {loading && posts.length === 0 && (
         <div className="p-8 text-center text-gray-500">
-          Loading {feedConfig.name.toLowerCase()}...
+          Loading {effectiveFeedName.toLowerCase()}...
         </div>
       )}
     </div>
