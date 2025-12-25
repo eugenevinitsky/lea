@@ -365,54 +365,11 @@ export function getVerifiedLabel(labels?: Label[]): Label | undefined {
 
 const CHAT_SERVICE_DID = 'did:web:api.bsky.chat';
 
-// Helper to make chat API requests with service proxy header
-async function chatRequest<T>(
-  method: 'GET' | 'POST',
-  endpoint: string,
-  params?: Record<string, unknown>
-): Promise<T> {
-  if (!agent) throw new Error('Not logged in');
-
-  const headers = {
+// Get headers for chat API proxy
+function getChatHeaders() {
+  return {
     'atproto-proxy': `${CHAT_SERVICE_DID}#bsky_chat`,
   };
-
-  if (method === 'GET') {
-    const url = new URL(`https://bsky.social/xrpc/${endpoint}`);
-    if (params) {
-      Object.entries(params).forEach(([key, value]) => {
-        if (value !== undefined) {
-          url.searchParams.set(key, String(value));
-        }
-      });
-    }
-    const response = await fetch(url.toString(), {
-      headers: {
-        ...headers,
-        'Authorization': `Bearer ${agent.session?.accessJwt}`,
-      },
-    });
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({}));
-      throw new Error(error.message || `Request failed: ${response.status}`);
-    }
-    return response.json();
-  } else {
-    const response = await fetch(`https://bsky.social/xrpc/${endpoint}`, {
-      method: 'POST',
-      headers: {
-        ...headers,
-        'Authorization': `Bearer ${agent.session?.accessJwt}`,
-        'Content-Type': 'application/json',
-      },
-      body: params ? JSON.stringify(params) : undefined,
-    });
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({}));
-      throw new Error(error.message || `Request failed: ${response.status}`);
-    }
-    return response.json();
-  }
 }
 
 // DM Types
@@ -466,70 +423,90 @@ export interface LogResponse {
 
 // List all conversations
 export async function listConvos(cursor?: string): Promise<ConvoListResponse> {
-  return chatRequest<ConvoListResponse>('GET', 'chat.bsky.convo.listConvos', {
-    limit: 50,
-    cursor,
-  });
+  if (!agent) throw new Error('Not logged in');
+  const response = await agent.api.chat.bsky.convo.listConvos(
+    { limit: 50, cursor },
+    { headers: getChatHeaders() }
+  );
+  return response.data as ConvoListResponse;
 }
 
 // Get a single conversation
 export async function getConvo(convoId: string): Promise<{ convo: Convo }> {
-  return chatRequest<{ convo: Convo }>('GET', 'chat.bsky.convo.getConvo', {
-    convoId,
-  });
+  if (!agent) throw new Error('Not logged in');
+  const response = await agent.api.chat.bsky.convo.getConvo(
+    { convoId },
+    { headers: getChatHeaders() }
+  );
+  return response.data as { convo: Convo };
 }
 
 // Get or create a conversation with a user
 export async function getConvoForMembers(members: string[]): Promise<{ convo: Convo }> {
-  return chatRequest<{ convo: Convo }>('GET', 'chat.bsky.convo.getConvoForMembers', {
-    members,
-  });
+  if (!agent) throw new Error('Not logged in');
+  const response = await agent.api.chat.bsky.convo.getConvoForMembers(
+    { members },
+    { headers: getChatHeaders() }
+  );
+  return response.data as { convo: Convo };
 }
 
 // Get messages in a conversation
 export async function getMessages(convoId: string, cursor?: string): Promise<MessagesResponse> {
-  return chatRequest<MessagesResponse>('GET', 'chat.bsky.convo.getMessages', {
-    convoId,
-    limit: 50,
-    cursor,
-  });
+  if (!agent) throw new Error('Not logged in');
+  const response = await agent.api.chat.bsky.convo.getMessages(
+    { convoId, limit: 50, cursor },
+    { headers: getChatHeaders() }
+  );
+  return response.data as MessagesResponse;
 }
 
 // Send a message
 export async function sendMessage(convoId: string, text: string): Promise<ChatMessage> {
-  const result = await chatRequest<{ message: ChatMessage }>('POST', 'chat.bsky.convo.sendMessage', {
-    convoId,
-    message: {
-      text,
-    },
-  });
-  return result.message;
+  if (!agent) throw new Error('Not logged in');
+  const response = await agent.api.chat.bsky.convo.sendMessage(
+    { convoId, message: { text } },
+    { headers: getChatHeaders() }
+  );
+  return response.data as unknown as ChatMessage;
 }
 
 // Get log of updates (for polling)
 export async function getChatLog(cursor?: string): Promise<LogResponse> {
-  return chatRequest<LogResponse>('GET', 'chat.bsky.convo.getLog', {
-    cursor,
-  });
+  if (!agent) throw new Error('Not logged in');
+  const response = await agent.api.chat.bsky.convo.getLog(
+    { cursor },
+    { headers: getChatHeaders() }
+  );
+  return response.data as LogResponse;
 }
 
 // Mark messages as read
 export async function updateRead(convoId: string): Promise<{ convo: Convo }> {
-  return chatRequest<{ convo: Convo }>('POST', 'chat.bsky.convo.updateRead', {
-    convoId,
-  });
+  if (!agent) throw new Error('Not logged in');
+  const response = await agent.api.chat.bsky.convo.updateRead(
+    { convoId },
+    { headers: getChatHeaders() }
+  );
+  return response.data as { convo: Convo };
 }
 
 // Mute a conversation
 export async function muteConvo(convoId: string): Promise<{ convo: Convo }> {
-  return chatRequest<{ convo: Convo }>('POST', 'chat.bsky.convo.muteConvo', {
-    convoId,
-  });
+  if (!agent) throw new Error('Not logged in');
+  const response = await agent.api.chat.bsky.convo.muteConvo(
+    { convoId },
+    { headers: getChatHeaders() }
+  );
+  return response.data as { convo: Convo };
 }
 
 // Unmute a conversation
 export async function unmuteConvo(convoId: string): Promise<{ convo: Convo }> {
-  return chatRequest<{ convo: Convo }>('POST', 'chat.bsky.convo.unmuteConvo', {
-    convoId,
-  });
+  if (!agent) throw new Error('Not logged in');
+  const response = await agent.api.chat.bsky.convo.unmuteConvo(
+    { convoId },
+    { headers: getChatHeaders() }
+  );
+  return response.data as { convo: Convo };
 }
