@@ -248,6 +248,9 @@ export default function Feed({ feedId, refreshKey }: FeedProps) {
           key={`${item.post.uri}-${index}`}
           post={item.post}
           onOpenThread={setThreadUri}
+          feedContext={item.feedContext}
+          reqId={item.reqId}
+          supportsInteractions={feedConfig.acceptsInteractions}
         />
       ))}
 

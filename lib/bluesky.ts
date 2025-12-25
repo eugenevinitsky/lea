@@ -71,25 +71,60 @@ export const FEEDS = {
     id: 'skygest',
     name: 'Paper Skygest',
     uri: 'at://did:plc:uaadt6f5bbda6cycbmatcm3z/app.bsky.feed.generator/preprintdigest',
+    acceptsInteractions: false,
+  },
+  foryou: {
+    id: 'foryou',
+    name: 'For You',
+    uri: 'at://did:plc:3guzzweuqraryl3rdkimjamk/app.bsky.feed.generator/for-you',
+    acceptsInteractions: true,
   },
   verified: {
     id: 'verified',
     name: 'Verified',
-    uri: null as string | null, // Filtered from timeline
+    uri: null as string | null,
+    acceptsInteractions: false,
   },
   timeline: {
     id: 'timeline',
     name: 'Timeline',
     uri: null as string | null,
+    acceptsInteractions: false,
   },
   papers: {
     id: 'papers',
     name: 'Papers',
     uri: null as string | null,
+    acceptsInteractions: false,
   },
 } as const;
 
 export type FeedId = keyof typeof FEEDS;
+
+// Send feed interaction (show more/less like this)
+export type InteractionEvent = 'requestMore' | 'requestLess';
+
+export async function sendFeedInteraction(
+  postUri: string,
+  event: InteractionEvent,
+  feedContext?: string,
+  reqId?: string
+) {
+  if (!agent) throw new Error('Not logged in');
+
+  const eventType = event === 'requestMore'
+    ? 'app.bsky.feed.defs#requestMore'
+    : 'app.bsky.feed.defs#requestLess';
+
+  return agent.api.app.bsky.feed.sendInteractions({
+    interactions: [{
+      item: postUri,
+      event: eventType,
+      feedContext,
+      reqId,
+    }],
+  });
+}
 
 export async function getThread(uri: string, depth = 10) {
   if (!agent) throw new Error('Not logged in');
@@ -322,4 +357,179 @@ export function getVerifiedLabel(labels?: Label[]): Label | undefined {
     label.val === VERIFIED_RESEARCHER_LABEL &&
     label.src === LEA_LABELER_DID
   );
+}
+
+// ============================================
+// Direct Messages (DM) API
+// ============================================
+
+const CHAT_SERVICE_DID = 'did:web:api.bsky.chat';
+
+// Helper to make chat API requests with service proxy header
+async function chatRequest<T>(
+  method: 'GET' | 'POST',
+  endpoint: string,
+  params?: Record<string, unknown>
+): Promise<T> {
+  if (!agent) throw new Error('Not logged in');
+
+  const headers = {
+    'atproto-proxy': `${CHAT_SERVICE_DID}#bsky_chat`,
+  };
+
+  if (method === 'GET') {
+    const url = new URL(`https://bsky.social/xrpc/${endpoint}`);
+    if (params) {
+      Object.entries(params).forEach(([key, value]) => {
+        if (value !== undefined) {
+          url.searchParams.set(key, String(value));
+        }
+      });
+    }
+    const response = await fetch(url.toString(), {
+      headers: {
+        ...headers,
+        'Authorization': `Bearer ${agent.session?.accessJwt}`,
+      },
+    });
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.message || `Request failed: ${response.status}`);
+    }
+    return response.json();
+  } else {
+    const response = await fetch(`https://bsky.social/xrpc/${endpoint}`, {
+      method: 'POST',
+      headers: {
+        ...headers,
+        'Authorization': `Bearer ${agent.session?.accessJwt}`,
+        'Content-Type': 'application/json',
+      },
+      body: params ? JSON.stringify(params) : undefined,
+    });
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.message || `Request failed: ${response.status}`);
+    }
+    return response.json();
+  }
+}
+
+// DM Types
+export interface ChatMessage {
+  id: string;
+  rev: string;
+  text: string;
+  sender: {
+    did: string;
+  };
+  sentAt: string;
+}
+
+export interface ConvoMember {
+  did: string;
+  handle: string;
+  displayName?: string;
+  avatar?: string;
+}
+
+export interface Convo {
+  id: string;
+  rev: string;
+  members: ConvoMember[];
+  lastMessage?: ChatMessage;
+  muted: boolean;
+  unreadCount: number;
+}
+
+export interface ConvoListResponse {
+  convos: Convo[];
+  cursor?: string;
+}
+
+export interface MessagesResponse {
+  messages: ChatMessage[];
+  cursor?: string;
+}
+
+export interface LogEntry {
+  $type: string;
+  rev: string;
+  convoId: string;
+  message?: ChatMessage;
+}
+
+export interface LogResponse {
+  logs: LogEntry[];
+  cursor?: string;
+}
+
+// List all conversations
+export async function listConvos(cursor?: string): Promise<ConvoListResponse> {
+  return chatRequest<ConvoListResponse>('GET', 'chat.bsky.convo.listConvos', {
+    limit: 50,
+    cursor,
+  });
+}
+
+// Get a single conversation
+export async function getConvo(convoId: string): Promise<{ convo: Convo }> {
+  return chatRequest<{ convo: Convo }>('GET', 'chat.bsky.convo.getConvo', {
+    convoId,
+  });
+}
+
+// Get or create a conversation with a user
+export async function getConvoForMembers(members: string[]): Promise<{ convo: Convo }> {
+  return chatRequest<{ convo: Convo }>('GET', 'chat.bsky.convo.getConvoForMembers', {
+    members,
+  });
+}
+
+// Get messages in a conversation
+export async function getMessages(convoId: string, cursor?: string): Promise<MessagesResponse> {
+  return chatRequest<MessagesResponse>('GET', 'chat.bsky.convo.getMessages', {
+    convoId,
+    limit: 50,
+    cursor,
+  });
+}
+
+// Send a message
+export async function sendMessage(convoId: string, text: string): Promise<ChatMessage> {
+  const result = await chatRequest<{ message: ChatMessage }>('POST', 'chat.bsky.convo.sendMessage', {
+    convoId,
+    message: {
+      text,
+    },
+  });
+  return result.message;
+}
+
+// Get log of updates (for polling)
+export async function getChatLog(cursor?: string): Promise<LogResponse> {
+  return chatRequest<LogResponse>('GET', 'chat.bsky.convo.getLog', {
+    cursor,
+  });
+}
+
+// Mark messages as read
+export async function updateRead(convoId: string): Promise<{ convo: Convo }> {
+  return chatRequest<{ convo: Convo }>('POST', 'chat.bsky.convo.updateRead', {
+    convoId,
+  });
+}
+
+// Mute a conversation
+export async function muteConvo(convoId: string): Promise<{ convo: Convo }> {
+  return chatRequest<{ convo: Convo }>('POST', 'chat.bsky.convo.muteConvo', {
+    convoId,
+  });
+}
+
+// Unmute a conversation
+export async function unmuteConvo(convoId: string): Promise<{ convo: Convo }> {
+  return chatRequest<{ convo: Convo }>('POST', 'chat.bsky.convo.unmuteConvo', {
+    convoId,
+  });
 }

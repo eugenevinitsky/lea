@@ -2,11 +2,15 @@
 
 import { useState } from 'react';
 import { AppBskyFeedDefs, AppBskyFeedPost, AppBskyEmbedExternal } from '@atproto/api';
-import { isVerifiedResearcher, Label, createPost, ReplyRef, QuoteRef, likePost, unlikePost, repost, deleteRepost } from '@/lib/bluesky';
+import { isVerifiedResearcher, Label, createPost, ReplyRef, QuoteRef, likePost, unlikePost, repost, deleteRepost, sendFeedInteraction, InteractionEvent } from '@/lib/bluesky';
 import { useSettings } from '@/lib/settings';
+import { useBookmarks, BookmarkedPost } from '@/lib/bookmarks';
 
 interface PostProps {
   post: AppBskyFeedDefs.PostView;
+  feedContext?: string;
+  reqId?: string;
+  supportsInteractions?: boolean;
 }
 
 // Paper link detection
@@ -180,8 +184,9 @@ function RichText({ text, facets }: { text: string; facets?: AppBskyFeedPost.Rec
   return <>{elements}</>;
 }
 
-export default function Post({ post, onReply, onOpenThread }: PostProps & { onReply?: () => void; onOpenThread?: (uri: string) => void }) {
+export default function Post({ post, onReply, onOpenThread, feedContext, reqId, supportsInteractions }: PostProps & { onReply?: () => void; onOpenThread?: (uri: string) => void }) {
   const { settings } = useSettings();
+  const { addBookmark, removeBookmark, isBookmarked } = useBookmarks();
   const [showReplyComposer, setShowReplyComposer] = useState(false);
   const [replyText, setReplyText] = useState('');
   const [replying, setReplying] = useState(false);
@@ -205,10 +210,46 @@ export default function Post({ post, onReply, onOpenThread }: PostProps & { onRe
   const [quoting, setQuoting] = useState(false);
   const [quoteError, setQuoteError] = useState<string | null>(null);
 
+  // Feed interaction state
+  const [interactionSent, setInteractionSent] = useState<InteractionEvent | null>(null);
+  const [sendingInteraction, setSendingInteraction] = useState(false);
+
+  const handleFeedInteraction = async (event: InteractionEvent) => {
+    if (sendingInteraction) return;
+    setSendingInteraction(true);
+    try {
+      await sendFeedInteraction(post.uri, event, feedContext, reqId);
+      setInteractionSent(event);
+    } catch (err) {
+      console.error('Failed to send interaction:', err);
+    } finally {
+      setSendingInteraction(false);
+    }
+  };
+
   const record = post.record as AppBskyFeedPost.Record;
   const author = post.author;
   const isVerified = isVerifiedResearcher(author.labels as Label[] | undefined);
   const { hasPaper, domain } = containsPaperLink(record.text, post.embed);
+  const bookmarked = isBookmarked(post.uri);
+
+  const handleBookmark = () => {
+    if (bookmarked) {
+      removeBookmark(post.uri);
+    } else {
+      const bookmarkData: BookmarkedPost = {
+        uri: post.uri,
+        cid: post.cid,
+        authorHandle: author.handle,
+        authorDisplayName: author.displayName,
+        authorAvatar: author.avatar,
+        text: record.text,
+        createdAt: record.createdAt,
+        bookmarkedAt: new Date().toISOString(),
+      };
+      addBookmark(bookmarkData);
+    }
+  };
 
   const handleLike = async () => {
     if (liking) return;
@@ -458,6 +499,62 @@ export default function Post({ post, onReply, onOpenThread }: PostProps & { onRe
               </svg>
               {likeCount}
             </button>
+
+            {/* Bookmark button */}
+            <button
+              onClick={handleBookmark}
+              className={`flex items-center gap-1 transition-colors ${
+                bookmarked
+                  ? 'text-blue-500 hover:text-blue-600'
+                  : 'hover:text-blue-500'
+              }`}
+              title={bookmarked ? 'Remove bookmark' : 'Bookmark'}
+            >
+              <svg
+                className="w-4 h-4"
+                fill={bookmarked ? 'currentColor' : 'none'}
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
+              </svg>
+            </button>
+
+            {/* Feed interaction buttons - only show for feeds that support interactions */}
+            {supportsInteractions && (
+              <>
+                {interactionSent ? (
+                  <span className="text-xs text-gray-400 ml-auto">
+                    {interactionSent === 'requestMore' ? 'Showing more like this' : 'Showing less like this'}
+                  </span>
+                ) : (
+                  <>
+                    <button
+                      onClick={() => handleFeedInteraction('requestMore')}
+                      disabled={sendingInteraction}
+                      className="flex items-center gap-1 hover:text-green-500 transition-colors ml-auto"
+                      title="Show more like this"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M5 15l7-7 7 7" />
+                      </svg>
+                      <span className="text-xs">More</span>
+                    </button>
+                    <button
+                      onClick={() => handleFeedInteraction('requestLess')}
+                      disabled={sendingInteraction}
+                      className="flex items-center gap-1 hover:text-orange-500 transition-colors"
+                      title="Show less like this"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 9l-7 7-7-7" />
+                      </svg>
+                      <span className="text-xs">Less</span>
+                    </button>
+                  </>
+                )}
+              </>
+            )}
           </div>
 
           {/* Reply composer */}
