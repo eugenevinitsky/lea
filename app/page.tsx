@@ -10,7 +10,7 @@ import Composer from '@/components/Composer';
 import Settings from '@/components/Settings';
 import Bookmarks from '@/components/Bookmarks';
 import ThreadView from '@/components/ThreadView';
-import DirectMessages, { useUnreadMessageCount } from '@/components/DirectMessages';
+import DMSidebar from '@/components/DMSidebar';
 
 const FEED_ORDER: FeedId[] = ['skygest', 'foryou', 'timeline'];
 
@@ -19,10 +19,8 @@ function AppContent() {
   const [isLoading, setIsLoading] = useState(true);
   const [refreshKey, setRefreshKey] = useState(0);
   const [showSettings, setShowSettings] = useState(false);
-  const [showDMs, setShowDMs] = useState(false);
   const [activeFeed, setActiveFeed] = useState<FeedId>('skygest');
   const [threadUri, setThreadUri] = useState<string | null>(null);
-  const unreadMessageCount = useUnreadMessageCount();
 
   // Try to restore session on mount
   useEffect(() => {
@@ -84,20 +82,6 @@ function AppContent() {
               Get verified
             </a>
             <button
-              onClick={() => setShowDMs(true)}
-              className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full relative"
-              title="Messages"
-            >
-              <svg className="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-              </svg>
-              {unreadMessageCount > 0 && (
-                <span className="absolute -top-1 -right-1 w-4 h-4 bg-blue-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center">
-                  {unreadMessageCount > 9 ? '9+' : unreadMessageCount}
-                </span>
-              )}
-            </button>
-            <button
               onClick={() => setShowSettings(true)}
               className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full"
               title="Settings"
@@ -119,9 +103,10 @@ function AppContent() {
 
       {/* Main layout with sidebar */}
       <div className="max-w-5xl mx-auto flex gap-4 px-4">
-        {/* Left Sidebar - Bookmarks */}
-        <aside className="hidden lg:block w-72 flex-shrink-0 sticky top-16 h-fit pt-4">
+        {/* Left Sidebar - Bookmarks & Messages */}
+        <aside className="hidden lg:block w-72 flex-shrink-0 sticky top-16 h-fit pt-4 space-y-4">
           <Bookmarks onOpenPost={setThreadUri} />
+          <DMSidebar />
         </aside>
 
         {/* Main content */}
@@ -174,14 +159,6 @@ function AppContent() {
 
       {/* Settings modal */}
       {showSettings && <Settings onClose={() => setShowSettings(false)} />}
-
-      {/* DMs modal */}
-      {showDMs && (
-        <DirectMessages
-          onClose={() => setShowDMs(false)}
-          isVisible={showDMs}
-        />
-      )}
     </div>
   );
 }
