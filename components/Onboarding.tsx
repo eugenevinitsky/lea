@@ -572,7 +572,13 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                                   </svg>
                                 </span>
                               </div>
-                              <p className="text-xs text-gray-500 truncate">@{researcher.handle}</p>
+                              {researcher.researchTopics && researcher.researchTopics.length > 0 ? (
+                                <p className="text-xs text-gray-500 truncate">
+                                  {researcher.researchTopics.slice(0, 2).join(' · ')}
+                                </p>
+                              ) : (
+                                <p className="text-xs text-gray-500 truncate">@{researcher.handle}</p>
+                              )}
                             </div>
                             {followedDids.has(researcher.did) && (
                               <span className="text-xs text-gray-400">Following</span>
