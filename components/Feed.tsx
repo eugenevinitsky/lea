@@ -17,9 +17,11 @@ interface FeedProps {
   // Feed type: 'feed' for generators, 'keyword' for search, 'list' for list feeds
   feedType?: 'feed' | 'keyword' | 'list';
   keyword?: string;
+  // Callback to open a profile in the main view
+  onOpenProfile?: (did: string) => void;
 }
 
-export default function Feed({ feedId, feedUri, feedName, acceptsInteractions, refreshKey, feedType, keyword }: FeedProps) {
+export default function Feed({ feedId, feedUri, feedName, acceptsInteractions, refreshKey, feedType, keyword, onOpenProfile }: FeedProps) {
   const { settings } = useSettings();
   const [posts, setPosts] = useState<AppBskyFeedDefs.FeedViewPost[]>([]);
   const [loading, setLoading] = useState(true);
@@ -289,6 +291,7 @@ export default function Feed({ feedId, feedUri, feedName, acceptsInteractions, r
           feedContext={item.feedContext}
           reqId={item.reqId}
           supportsInteractions={effectiveAcceptsInteractions}
+          onOpenProfile={onOpenProfile}
         />
       ))}
 

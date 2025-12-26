@@ -15,6 +15,7 @@ import DMSidebar from '@/components/DMSidebar';
 import FeedDiscovery from '@/components/FeedDiscovery';
 import Onboarding from '@/components/Onboarding';
 import ProfileEditor from '@/components/ProfileEditor';
+import ProfileView from '@/components/ProfileView';
 
 function AppContent() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -26,6 +27,7 @@ function AppContent() {
   const [showProfileEditor, setShowProfileEditor] = useState(false);
   const [activeFeedUri, setActiveFeedUri] = useState<string | null>(null);
   const [threadUri, setThreadUri] = useState<string | null>(null);
+  const [viewingProfileDid, setViewingProfileDid] = useState<string | null>(null);
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
   const [isVerified, setIsVerified] = useState(false);
@@ -275,8 +277,15 @@ function AppContent() {
             </button>
           </div>
 
-          {/* Feed Content */}
-          {activeFeedUri && (() => {
+          {/* Feed Content or Profile View */}
+          {viewingProfileDid ? (
+            <ProfileView
+              did={viewingProfileDid}
+              onClose={() => setViewingProfileDid(null)}
+              onOpenProfile={setViewingProfileDid}
+              inline
+            />
+          ) : activeFeedUri && (() => {
             const activeFeed = pinnedFeeds.find(f => f.uri === activeFeedUri);
             return (
               <Feed
@@ -286,6 +295,7 @@ function AppContent() {
                 feedType={activeFeed?.type}
                 keyword={activeFeed?.keyword}
                 refreshKey={refreshKey}
+                onOpenProfile={setViewingProfileDid}
               />
             );
           })()}

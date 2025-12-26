@@ -723,7 +723,7 @@ function PostEmbed({ embed, onOpenThread }: { embed: AppBskyFeedDefs.PostView['e
   return null;
 }
 
-export default function Post({ post, onReply, onOpenThread, feedContext, reqId, supportsInteractions }: PostProps & { onReply?: () => void; onOpenThread?: (uri: string) => void }) {
+export default function Post({ post, onReply, onOpenThread, feedContext, reqId, supportsInteractions, onOpenProfile }: PostProps & { onReply?: () => void; onOpenThread?: (uri: string) => void; onOpenProfile?: (did: string) => void }) {
   const { settings } = useSettings();
   const { addBookmark, removeBookmark, isBookmarked } = useBookmarks();
   const [showReplyComposer, setShowReplyComposer] = useState(false);
@@ -928,7 +928,11 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
           className="flex-shrink-0 relative cursor-pointer"
           onClick={(e) => {
             e.stopPropagation();
-            setShowProfile(true);
+            if (onOpenProfile) {
+              onOpenProfile(author.did);
+            } else {
+              setShowProfile(true);
+            }
           }}
         >
           {author.avatar ? (
@@ -958,7 +962,11 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
               className="font-semibold text-gray-900 dark:text-gray-100 truncate hover:underline"
               onClick={(e) => {
                 e.stopPropagation();
-                setShowProfile(true);
+                if (onOpenProfile) {
+                  onOpenProfile(author.did);
+                } else {
+                  setShowProfile(true);
+                }
               }}
             >
               {author.displayName || author.handle}
