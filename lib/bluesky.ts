@@ -602,16 +602,15 @@ export interface StarterPackView {
   indexedAt: string;
 }
 
-// Search starter packs by query
+// Search starter packs by query (requires authentication)
 export async function searchStarterPacks(query: string, limit: number = 10): Promise<StarterPackView[]> {
+  if (!agent) {
+    console.error('Not logged in - cannot search starter packs');
+    return [];
+  }
   try {
-    const response = await fetch(
-      `https://public.api.bsky.app/xrpc/app.bsky.graph.searchStarterPacks?` +
-      new URLSearchParams({ q: query, limit: String(limit) })
-    );
-    if (!response.ok) return [];
-    const data = await response.json();
-    return data.starterPacks || [];
+    const response = await agent.api.app.bsky.graph.searchStarterPacks({ q: query, limit });
+    return (response.data.starterPacks || []) as StarterPackView[];
   } catch (error) {
     console.error('Failed to search starter packs:', error);
     return [];
