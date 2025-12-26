@@ -92,9 +92,49 @@ export const syncState = pgTable('sync_state', {
   errorMessage: text('error_message'),
 });
 
+// Community members (legacy table - preserved to prevent data loss)
+export const communityMembers = pgTable('community_members', {
+  id: varchar('id', { length: 36 }).primaryKey(),
+  did: varchar('did', { length: 255 }).notNull(),
+  handle: varchar('handle', { length: 255 }),
+  addedAt: timestamp('added_at').defaultNow().notNull(),
+  hopDistance: integer('hop_distance'),
+  closestVerifiedDid: varchar('closest_verified_did', { length: 255 }),
+  computedAt: timestamp('computed_at'),
+  addedToListAt: timestamp('added_to_list_at'),
+  listItemUri: varchar('list_item_uri', { length: 500 }),
+});
+
+// Researcher profiles (extended profile data for verified researchers)
+export const researcherProfiles = pgTable('researcher_profiles', {
+  did: varchar('did', { length: 255 }).primaryKey(), // Must be a verified researcher
+  shortBio: text('short_bio'), // ~280 chars
+  disciplines: text('disciplines'), // JSON array of strings, max 5
+  links: text('links'), // JSON array of {title, url}, max 3
+  publicationVenues: text('publication_venues'), // JSON array of strings, max 5
+  favoriteOwnPapers: text('favorite_own_papers'), // JSON array of {title, url, authors, year}, max 3
+  favoriteReadPapers: text('favorite_read_papers'), // JSON array of {title, url, authors, year}, max 3
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
 // Type exports
 export type VerifiedResearcher = typeof verifiedResearchers.$inferSelect;
 export type NewVerifiedResearcher = typeof verifiedResearchers.$inferInsert;
 export type SocialGraphEdge = typeof socialGraph.$inferSelect;
 export type VouchRequest = typeof vouchRequests.$inferSelect;
 export type BlueskyList = typeof blueskyLists.$inferSelect;
+export type ResearcherProfile = typeof researcherProfiles.$inferSelect;
+export type NewResearcherProfile = typeof researcherProfiles.$inferInsert;
+
+// Profile field types
+export interface ProfileLink {
+  title: string;
+  url: string;
+}
+
+export interface ProfilePaper {
+  title: string;
+  url: string;
+  authors: string;
+  year: number | string;
+}

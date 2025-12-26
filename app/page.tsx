@@ -14,6 +14,7 @@ import ThreadView from '@/components/ThreadView';
 import DMSidebar from '@/components/DMSidebar';
 import FeedDiscovery from '@/components/FeedDiscovery';
 import Onboarding from '@/components/Onboarding';
+import ProfileEditor from '@/components/ProfileEditor';
 
 function AppContent() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -22,6 +23,7 @@ function AppContent() {
   const [refreshKey, setRefreshKey] = useState(0);
   const [showSettings, setShowSettings] = useState(false);
   const [showFeedDiscovery, setShowFeedDiscovery] = useState(false);
+  const [showProfileEditor, setShowProfileEditor] = useState(false);
   const [activeFeedUri, setActiveFeedUri] = useState<string | null>(null);
   const [threadUri, setThreadUri] = useState<string | null>(null);
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
@@ -114,15 +116,16 @@ function AppContent() {
               @{session?.handle}
             </span>
             {isVerified ? (
-              <span
-                className="flex items-center gap-1 px-3 py-1.5 text-sm font-medium text-emerald-600 dark:text-emerald-500 bg-emerald-50 dark:bg-emerald-900/20 rounded-full"
-                title="You are a verified researcher"
+              <button
+                onClick={() => setShowProfileEditor(true)}
+                className="flex items-center gap-1 px-3 py-1.5 text-sm font-medium text-emerald-600 dark:text-emerald-500 bg-emerald-50 dark:bg-emerald-900/20 rounded-full hover:bg-emerald-100 dark:hover:bg-emerald-900/40 transition-colors"
+                title="Edit your researcher profile"
               >
                 <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
                   <path fillRule="evenodd" d="M8.603 3.799A4.49 4.49 0 0112 2.25c1.357 0 2.573.6 3.397 1.549a4.49 4.49 0 013.498 1.307 4.491 4.491 0 011.307 3.497A4.49 4.49 0 0121.75 12a4.49 4.49 0 01-1.549 3.397 4.491 4.491 0 01-1.307 3.497 4.491 4.491 0 01-3.497 1.307A4.49 4.49 0 0112 21.75a4.49 4.49 0 01-3.397-1.549 4.49 4.49 0 01-3.498-1.306 4.491 4.491 0 01-1.307-3.498A4.49 4.49 0 012.25 12c0-1.357.6-2.573 1.549-3.397a4.49 4.49 0 011.307-3.497 4.49 4.49 0 013.497-1.307zm7.007 6.387a.75.75 0 10-1.22-.872l-3.236 4.53L9.53 12.22a.75.75 0 00-1.06 1.06l2.25 2.25a.75.75 0 001.14-.094l3.75-5.25z" clipRule="evenodd" />
                 </svg>
                 Verified
-              </span>
+              </button>
             ) : (
               <a
                 href="https://lea-verify.vercel.app/"
@@ -289,6 +292,9 @@ function AppContent() {
 
       {/* Feed Discovery modal */}
       {showFeedDiscovery && <FeedDiscovery onClose={() => setShowFeedDiscovery(false)} />}
+
+      {/* Profile Editor modal */}
+      {showProfileEditor && <ProfileEditor onClose={() => setShowProfileEditor(false)} />}
     </div>
   );
 }
