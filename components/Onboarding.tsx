@@ -75,9 +75,45 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
   // Research interests state
   const [selectedTopics, setSelectedTopics] = useState<Set<string>>(new Set());
   const [suggestions, setSuggestions] = useState<ResearcherSuggestion[]>([]);
+  const [allResearchers, setAllResearchers] = useState<ResearcherSuggestion[]>([]);
   const [loadingSuggestions, setLoadingSuggestions] = useState(false);
+  const [loadingAllResearchers, setLoadingAllResearchers] = useState(false);
   const [followedDids, setFollowedDids] = useState<Set<string>>(new Set());
   const [followingDid, setFollowingDid] = useState<string | null>(null);
+  const [followMode, setFollowMode] = useState<'all' | 'topics' | 'individual'>('topics');
+  const [bulkFollowing, setBulkFollowing] = useState(false);
+
+  // Fetch all researchers when entering step 3
+  useEffect(() => {
+    if (step === 3 && allResearchers.length === 0) {
+      const fetchAllResearchers = async () => {
+        setLoadingAllResearchers(true);
+        try {
+          const session = getSession();
+          const response = await fetch('/api/researchers');
+          const data = await response.json();
+          if (data.researchers) {
+            const mapped = data.researchers
+              .filter((r: { did: string }) => r.did !== session?.did)
+              .map((r: { did: string; handle: string; name: string; institution: string; researchTopics: string | null }) => ({
+                did: r.did,
+                handle: r.handle,
+                name: r.name,
+                institution: r.institution,
+                researchTopics: r.researchTopics ? JSON.parse(r.researchTopics) : [],
+                matchedTopics: [],
+              }));
+            setAllResearchers(mapped);
+          }
+        } catch (error) {
+          console.error('Failed to fetch researchers:', error);
+        } finally {
+          setLoadingAllResearchers(false);
+        }
+      };
+      fetchAllResearchers();
+    }
+  }, [step, allResearchers.length]);
 
   // Fetch suggestions when topics change
   useEffect(() => {
@@ -96,7 +132,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
           body: JSON.stringify({
             topics: Array.from(selectedTopics),
             excludeDid: session?.did,
-            limit: 8,
+            limit: 20,
           }),
         });
         const data = await response.json();
@@ -136,6 +172,31 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
     } finally {
       setFollowingDid(null);
     }
+  };
+
+  const handleBulkFollow = async (researchers: ResearcherSuggestion[]) => {
+    setBulkFollowing(true);
+    const toFollow = researchers.filter(r => !followedDids.has(r.did));
+    for (const researcher of toFollow) {
+      try {
+        await followUser(researcher.did);
+        setFollowedDids(prev => new Set(prev).add(researcher.did));
+        // Small delay to avoid rate limiting
+        await new Promise(resolve => setTimeout(resolve, 200));
+      } catch (error) {
+        console.error(`Failed to follow ${researcher.handle}:`, error);
+      }
+    }
+    setBulkFollowing(false);
+  };
+
+  const getResearchersToShow = () => {
+    if (followMode === 'all') {
+      return allResearchers;
+    } else if (followMode === 'topics') {
+      return suggestions;
+    }
+    return followMode === 'individual' ? (selectedTopics.size > 0 ? suggestions : allResearchers) : [];
   };
 
   const toggleFeed = (uri: string) => {
@@ -342,74 +403,170 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
             <div className="p-8">
               <div className="text-center mb-6">
                 <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-                  Find Researchers
+                  Follow Researchers
                 </h2>
                 <p className="mt-2 text-gray-600 dark:text-gray-400">
-                  Select your research interests to discover verified researchers to follow
+                  Connect with verified researchers in your field
                 </p>
               </div>
 
-              {/* Topic selection */}
+              {/* Follow mode selection */}
               <div className="mb-6">
-                <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
-                  Your research interests
-                </h3>
-                <div className="flex flex-wrap gap-2">
-                  {RESEARCH_TOPICS.map(topic => (
-                    <button
-                      key={topic}
-                      onClick={() => toggleTopic(topic)}
-                      className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
-                        selectedTopics.has(topic)
-                          ? 'bg-blue-500 text-white'
-                          : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
-                      }`}
-                    >
-                      {topic}
-                    </button>
-                  ))}
+                <div className="space-y-2">
+                  <button
+                    onClick={() => setFollowMode('all')}
+                    className={`w-full p-3 rounded-xl border-2 text-left transition-all ${
+                      followMode === 'all'
+                        ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
+                        : 'border-gray-200 dark:border-gray-700 hover:border-gray-300'
+                    }`}
+                  >
+                    <div className="font-medium text-gray-900 dark:text-gray-100">Follow all ({allResearchers.length})</div>
+                    <p className="text-sm text-gray-500 mt-0.5">Follow every verified researcher at once</p>
+                  </button>
+
+                  <button
+                    onClick={() => setFollowMode('topics')}
+                    className={`w-full p-3 rounded-xl border-2 text-left transition-all ${
+                      followMode === 'topics'
+                        ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
+                        : 'border-gray-200 dark:border-gray-700 hover:border-gray-300'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium text-gray-900 dark:text-gray-100">By interest</span>
+                      <span className="text-xs px-2 py-0.5 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 rounded-full">
+                        Recommended
+                      </span>
+                    </div>
+                    <p className="text-sm text-gray-500 mt-0.5">Select topics, follow matching researchers</p>
+                  </button>
+
+                  <button
+                    onClick={() => setFollowMode('individual')}
+                    className={`w-full p-3 rounded-xl border-2 text-left transition-all ${
+                      followMode === 'individual'
+                        ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
+                        : 'border-gray-200 dark:border-gray-700 hover:border-gray-300'
+                    }`}
+                  >
+                    <div className="font-medium text-gray-900 dark:text-gray-100">Pick individually</div>
+                    <p className="text-sm text-gray-500 mt-0.5">Browse and select one by one</p>
+                  </button>
                 </div>
               </div>
 
-              {/* Suggestions */}
-              {selectedTopics.size > 0 && (
+              {/* Topic selection for 'topics' mode */}
+              {followMode === 'topics' && (
                 <div className="mb-6">
                   <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
-                    Suggested researchers
+                    Select your research interests
                   </h3>
+                  <div className="flex flex-wrap gap-2">
+                    {RESEARCH_TOPICS.map(topic => (
+                      <button
+                        key={topic}
+                        onClick={() => toggleTopic(topic)}
+                        className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
+                          selectedTopics.has(topic)
+                            ? 'bg-blue-500 text-white'
+                            : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
+                        }`}
+                      >
+                        {topic}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Bulk follow button for 'all' mode */}
+              {followMode === 'all' && (
+                <div className="mb-6">
+                  {loadingAllResearchers ? (
+                    <div className="flex justify-center py-8">
+                      <div className="animate-spin w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full"></div>
+                    </div>
+                  ) : (
+                    <div className="text-center">
+                      <button
+                        onClick={() => handleBulkFollow(allResearchers)}
+                        disabled={bulkFollowing || allResearchers.every(r => followedDids.has(r.did))}
+                        className={`px-6 py-3 rounded-xl font-medium transition-colors ${
+                          allResearchers.every(r => followedDids.has(r.did))
+                            ? 'bg-gray-200 dark:bg-gray-700 text-gray-500'
+                            : 'bg-blue-500 hover:bg-blue-600 text-white'
+                        }`}
+                      >
+                        {bulkFollowing ? (
+                          <span className="flex items-center gap-2">
+                            <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
+                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                            </svg>
+                            Following... ({followedDids.size}/{allResearchers.length})
+                          </span>
+                        ) : allResearchers.every(r => followedDids.has(r.did)) ? (
+                          `Following all ${allResearchers.length} researchers`
+                        ) : (
+                          `Follow all ${allResearchers.length} researchers`
+                        )}
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Bulk follow button for 'topics' mode when topics selected */}
+              {followMode === 'topics' && selectedTopics.size > 0 && (
+                <div className="mb-6">
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                      Matching researchers ({suggestions.length})
+                    </h3>
+                    {suggestions.length > 0 && (
+                      <button
+                        onClick={() => handleBulkFollow(suggestions)}
+                        disabled={bulkFollowing || suggestions.every(r => followedDids.has(r.did))}
+                        className={`px-4 py-1.5 rounded-full text-sm font-medium transition-colors ${
+                          suggestions.every(r => followedDids.has(r.did))
+                            ? 'bg-gray-200 dark:bg-gray-700 text-gray-500'
+                            : 'bg-blue-500 hover:bg-blue-600 text-white'
+                        }`}
+                      >
+                        {bulkFollowing ? 'Following...' : suggestions.every(r => followedDids.has(r.did)) ? 'All followed' : 'Follow all'}
+                      </button>
+                    )}
+                  </div>
                   {loadingSuggestions ? (
                     <div className="flex justify-center py-8">
                       <div className="animate-spin w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full"></div>
                     </div>
                   ) : suggestions.length === 0 ? (
                     <p className="text-sm text-gray-500 dark:text-gray-400 text-center py-4">
-                      No matching researchers found yet. More researchers are being verified every day!
+                      No matching researchers found. Try selecting different topics.
                     </p>
                   ) : (
-                    <div className="space-y-3 max-h-[300px] overflow-y-auto">
+                    <div className="space-y-2 max-h-[200px] overflow-y-auto">
                       {suggestions.map(researcher => (
                         <div
                           key={researcher.did}
-                          className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-xl"
+                          className="flex items-center justify-between p-2 bg-gray-50 dark:bg-gray-800 rounded-lg"
                         >
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2">
-                              <span className="font-medium text-gray-900 dark:text-gray-100 truncate">
+                              <span className="font-medium text-sm text-gray-900 dark:text-gray-100 truncate">
                                 {researcher.name || researcher.handle}
                               </span>
-                              <span className="flex-shrink-0 w-4 h-4 bg-emerald-500 rounded-full flex items-center justify-center">
-                                <svg className="w-2.5 h-2.5 text-white" fill="currentColor" viewBox="0 0 20 20">
+                              <span className="flex-shrink-0 w-3.5 h-3.5 bg-emerald-500 rounded-full flex items-center justify-center">
+                                <svg className="w-2 h-2 text-white" fill="currentColor" viewBox="0 0 20 20">
                                   <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                                 </svg>
                               </span>
                             </div>
-                            <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
-                              @{researcher.handle}
-                              {researcher.institution && ` · ${researcher.institution}`}
-                            </p>
                             {researcher.matchedTopics.length > 0 && (
                               <div className="flex flex-wrap gap-1 mt-1">
-                                {researcher.matchedTopics.map(topic => (
+                                {researcher.matchedTopics.slice(0, 3).map(topic => (
                                   <span
                                     key={topic}
                                     className="text-xs px-1.5 py-0.5 bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded"
@@ -423,24 +580,61 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                           <button
                             onClick={() => handleFollow(researcher.did)}
                             disabled={followedDids.has(researcher.did) || followingDid === researcher.did}
-                            className={`ml-3 px-4 py-1.5 rounded-full text-sm font-medium transition-colors ${
+                            className={`ml-2 px-3 py-1 rounded-full text-xs font-medium transition-colors ${
                               followedDids.has(researcher.did)
-                                ? 'bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-400'
+                                ? 'bg-gray-200 dark:bg-gray-700 text-gray-500'
                                 : 'bg-blue-500 hover:bg-blue-600 text-white'
                             }`}
                           >
-                            {followingDid === researcher.did ? (
-                              <span className="flex items-center gap-1">
-                                <svg className="animate-spin w-3 h-3" fill="none" viewBox="0 0 24 24">
-                                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                            {followedDids.has(researcher.did) ? '✓' : 'Follow'}
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Individual selection mode */}
+              {followMode === 'individual' && (
+                <div className="mb-6">
+                  <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
+                    All verified researchers
+                  </h3>
+                  {loadingAllResearchers ? (
+                    <div className="flex justify-center py-8">
+                      <div className="animate-spin w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full"></div>
+                    </div>
+                  ) : (
+                    <div className="space-y-2 max-h-[300px] overflow-y-auto">
+                      {allResearchers.map(researcher => (
+                        <div
+                          key={researcher.did}
+                          className="flex items-center justify-between p-2 bg-gray-50 dark:bg-gray-800 rounded-lg"
+                        >
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2">
+                              <span className="font-medium text-sm text-gray-900 dark:text-gray-100 truncate">
+                                {researcher.name || researcher.handle}
+                              </span>
+                              <span className="flex-shrink-0 w-3.5 h-3.5 bg-emerald-500 rounded-full flex items-center justify-center">
+                                <svg className="w-2 h-2 text-white" fill="currentColor" viewBox="0 0 20 20">
+                                  <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                                 </svg>
                               </span>
-                            ) : followedDids.has(researcher.did) ? (
-                              'Following'
-                            ) : (
-                              'Follow'
-                            )}
+                            </div>
+                            <p className="text-xs text-gray-500 truncate">@{researcher.handle}</p>
+                          </div>
+                          <button
+                            onClick={() => handleFollow(researcher.did)}
+                            disabled={followedDids.has(researcher.did) || followingDid === researcher.did}
+                            className={`ml-2 px-3 py-1 rounded-full text-xs font-medium transition-colors ${
+                              followedDids.has(researcher.did)
+                                ? 'bg-gray-200 dark:bg-gray-700 text-gray-500'
+                                : 'bg-blue-500 hover:bg-blue-600 text-white'
+                            }`}
+                          >
+                            {followingDid === researcher.did ? '...' : followedDids.has(researcher.did) ? '✓' : 'Follow'}
                           </button>
                         </div>
                       ))}
@@ -466,7 +660,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                   onClick={() => setStep(4)}
                   className="flex-1 py-3.5 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-semibold rounded-xl transition-all"
                 >
-                  {selectedTopics.size === 0 ? 'Skip' : 'Continue'}
+                  Continue
                 </button>
               </div>
             </div>

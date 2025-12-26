@@ -1,39 +1,26 @@
 import { BskyAgent } from '@atproto/api';
-import { db, blueskyLists, communityMembers, verifiedResearchers, socialGraph } from '@/lib/db';
-import { eq, isNull, and, or } from 'drizzle-orm';
+import { db, blueskyLists, verifiedResearchers, socialGraph } from '@/lib/db';
+import { eq, or } from 'drizzle-orm';
 import { nanoid } from 'nanoid';
-
-const COMMUNITY_LIST_NAME = 'Lea Verified Community';
-const COMMUNITY_LIST_DESCRIPTION =
-  'Verified researchers and their trusted connections (1-hop). Used for reply restrictions.';
 
 const VERIFIED_LIST_NAME = 'Lea Verified Researchers';
 const VERIFIED_LIST_DESCRIPTION =
-  'Verified researchers only. Used for strict reply restrictions.';
+  'Verified researchers only. Used for reply restrictions.';
 
 const PERSONAL_LIST_NAME_PREFIX = 'My Verified Community';
 const PERSONAL_LIST_DESCRIPTION =
-  'People within 1-hop of me (my followers + following). Used for reply restrictions.';
+  'My followers and following, plus all verified researchers. Used for reply restrictions.';
 
 function delay(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-export type ListPurpose = 'community_members' | 'verified_only';
-
-export async function getOrCreateList(
-  agent: BskyAgent,
-  purpose: ListPurpose
-): Promise<string> {
-  const isVerifiedOnly = purpose === 'verified_only';
-  const listName = isVerifiedOnly ? VERIFIED_LIST_NAME : COMMUNITY_LIST_NAME;
-  const listDescription = isVerifiedOnly ? VERIFIED_LIST_DESCRIPTION : COMMUNITY_LIST_DESCRIPTION;
-
+export async function getOrCreateVerifiedList(agent: BskyAgent): Promise<string> {
   // Check if list exists in database
   const existingList = await db
     .select()
     .from(blueskyLists)
-    .where(eq(blueskyLists.purpose, purpose))
+    .where(eq(blueskyLists.purpose, 'verified_only'))
     .limit(1);
 
   if (existingList[0]) {
@@ -47,8 +34,8 @@ export async function getOrCreateList(
     record: {
       $type: 'app.bsky.graph.list',
       purpose: 'app.bsky.graph.defs#curatelist',
-      name: listName,
-      description: listDescription,
+      name: VERIFIED_LIST_NAME,
+      description: VERIFIED_LIST_DESCRIPTION,
       createdAt: new Date().toISOString(),
     },
   });
@@ -59,37 +46,21 @@ export async function getOrCreateList(
     ownerDid: agent.session!.did,
     listUri: result.data.uri,
     listCid: result.data.cid,
-    name: listName,
-    purpose: purpose,
+    name: VERIFIED_LIST_NAME,
+    purpose: 'verified_only',
   });
 
   return result.data.uri;
 }
 
-// Backwards compatible wrapper
-export async function getOrCreateCommunityList(
-  agent: BskyAgent
-): Promise<string> {
-  return getOrCreateList(agent, 'community_members');
-}
-
-export async function getListUri(purpose: ListPurpose): Promise<string | null> {
+export async function getVerifiedOnlyListUri(): Promise<string | null> {
   const list = await db
     .select()
     .from(blueskyLists)
-    .where(eq(blueskyLists.purpose, purpose))
+    .where(eq(blueskyLists.purpose, 'verified_only'))
     .limit(1);
 
   return list[0]?.listUri || null;
-}
-
-// Backwards compatible wrapper
-export async function getCommunityListUri(): Promise<string | null> {
-  return getListUri('community_members');
-}
-
-export async function getVerifiedOnlyListUri(): Promise<string | null> {
-  return getListUri('verified_only');
 }
 
 interface SyncResult {
@@ -99,71 +70,9 @@ interface SyncResult {
   errors: string[];
 }
 
-export async function syncListMembers(agent: BskyAgent): Promise<SyncResult> {
-  const listUri = await getOrCreateCommunityList(agent);
-  const errors: string[] = [];
-  let addedCount = 0;
-  let removedCount = 0;
-
-  // Get community members not yet added to list
-  const membersToAdd = await db
-    .select()
-    .from(communityMembers)
-    .where(isNull(communityMembers.addedToListAt))
-    .limit(50); // Process in batches due to rate limits
-
-  for (const member of membersToAdd) {
-    try {
-      // Add to Bluesky list
-      const result = await agent.com.atproto.repo.createRecord({
-        repo: agent.session!.did,
-        collection: 'app.bsky.graph.listitem',
-        record: {
-          $type: 'app.bsky.graph.listitem',
-          subject: member.did,
-          list: listUri,
-          createdAt: new Date().toISOString(),
-        },
-      });
-
-      // Update database
-      await db
-        .update(communityMembers)
-        .set({
-          addedToListAt: new Date(),
-          listItemUri: result.data.uri,
-        })
-        .where(eq(communityMembers.id, member.id));
-
-      addedCount++;
-
-      // Rate limit
-      await delay(200);
-    } catch (error) {
-      const msg = `Failed to add ${member.did}: ${error instanceof Error ? error.message : String(error)}`;
-      console.error(msg);
-      errors.push(msg);
-    }
-  }
-
-  // Update list member count - count members that have been added to list
-  const allMembers = await db.select().from(communityMembers);
-  const membersInList = allMembers.filter((m) => m.addedToListAt !== null);
-
-  await db
-    .update(blueskyLists)
-    .set({
-      memberCount: membersInList.length,
-      updatedAt: new Date(),
-    })
-    .where(eq(blueskyLists.listUri, listUri));
-
-  return { addedCount, removedCount, listUri, errors };
-}
-
-// Sync verified researchers only to the verified-only list
+// Sync verified researchers to the verified-only list
 export async function syncVerifiedOnlyList(agent: BskyAgent): Promise<SyncResult> {
-  const listUri = await getOrCreateList(agent, 'verified_only');
+  const listUri = await getOrCreateVerifiedList(agent);
   const errors: string[] = [];
   let addedCount = 0;
   let removedCount = 0;
@@ -219,43 +128,6 @@ export async function syncVerifiedOnlyList(agent: BskyAgent): Promise<SyncResult
     .where(eq(blueskyLists.listUri, listUri));
 
   return { addedCount, removedCount, listUri, errors };
-}
-
-export async function removeFromList(
-  agent: BskyAgent,
-  memberDid: string
-): Promise<boolean> {
-  const member = await db
-    .select()
-    .from(communityMembers)
-    .where(eq(communityMembers.did, memberDid))
-    .limit(1);
-
-  if (!member[0]?.listItemUri) {
-    return false;
-  }
-
-  try {
-    // Parse the URI to get rkey
-    const parts = member[0].listItemUri.split('/');
-    const rkey = parts[parts.length - 1];
-
-    await agent.com.atproto.repo.deleteRecord({
-      repo: agent.session!.did,
-      collection: 'app.bsky.graph.listitem',
-      rkey,
-    });
-
-    await db
-      .update(communityMembers)
-      .set({ addedToListAt: null, listItemUri: null })
-      .where(eq(communityMembers.did, memberDid));
-
-    return true;
-  } catch (error) {
-    console.error(`Failed to remove ${memberDid} from list:`, error);
-    return false;
-  }
 }
 
 // Get bot agent for list management
@@ -336,9 +208,9 @@ export async function getOrCreatePersonalList(
   return result.data.uri;
 }
 
-// Compute 1-hop connections for a specific user
-export async function computePersonalHops(userDid: string): Promise<Set<string>> {
-  const oneHopDids = new Set<string>();
+// Compute personal connections for a specific user (followers + following + verified)
+export async function computePersonalConnections(userDid: string): Promise<Set<string>> {
+  const connectionDids = new Set<string>();
 
   // Get all edges where user is follower or following
   const edges = await db
@@ -351,18 +223,18 @@ export async function computePersonalHops(userDid: string): Promise<Set<string>>
       )
     );
 
-  // Collect all DIDs that are 1-hop from user
+  // Collect all connected DIDs
   for (const edge of edges) {
     if (edge.followerId === userDid) {
-      oneHopDids.add(edge.followingId); // People user follows
+      connectionDids.add(edge.followingId); // People user follows
     }
     if (edge.followingId === userDid) {
-      oneHopDids.add(edge.followerId); // People who follow user
+      connectionDids.add(edge.followerId); // People who follow user
     }
   }
 
   // Also include the user themselves
-  oneHopDids.add(userDid);
+  connectionDids.add(userDid);
 
   // Also include all verified researchers (they should always be able to reply)
   const allVerified = await db
@@ -371,10 +243,10 @@ export async function computePersonalHops(userDid: string): Promise<Set<string>>
     .where(eq(verifiedResearchers.isActive, true));
 
   for (const researcher of allVerified) {
-    oneHopDids.add(researcher.did);
+    connectionDids.add(researcher.did);
   }
 
-  return oneHopDids;
+  return connectionDids;
 }
 
 interface PersonalSyncResult {
@@ -394,7 +266,7 @@ export async function syncPersonalList(
   let addedCount = 0;
 
   // Compute who should be in this user's personal list
-  const shouldBeInList = await computePersonalHops(userDid);
+  const shouldBeInList = await computePersonalConnections(userDid);
 
   // Get existing list items to avoid duplicates
   let existingDids = new Set<string>();

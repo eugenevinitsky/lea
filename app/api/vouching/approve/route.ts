@@ -3,7 +3,6 @@ import {
   db,
   vouchRequests,
   verifiedResearchers,
-  communityMembers,
 } from '@/lib/db';
 import { eq, and } from 'drizzle-orm';
 import { nanoid } from 'nanoid';
@@ -65,15 +64,6 @@ export async function POST(request: NextRequest) {
       orcid: '', // No ORCID for vouched users
       verificationMethod: 'vouched',
       vouchedBy: voucher[0].id,
-    });
-
-    // Add as community member (hop 0 since they're now verified)
-    await db.insert(communityMembers).values({
-      id: nanoid(),
-      did: req.requesterDid,
-      handle: req.requesterHandle,
-      hopDistance: 0,
-      closestVerifiedDid: req.requesterDid,
     });
 
     // Update vouch request status

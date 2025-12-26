@@ -83,20 +83,30 @@ export default function Bookmarks({ onOpenPost }: BookmarksProps) {
     setMounted(true);
   }, []);
 
-  const handleExport = (format: 'ris' | 'bibtex' | 'json') => {
+  const [exporting, setExporting] = useState(false);
+
+  const handleExport = async (format: 'ris' | 'bibtex' | 'json') => {
     const date = new Date().toISOString().split('T')[0];
-    switch (format) {
-      case 'ris':
-        downloadFile(exportToRIS(bookmarks), `bookmarks-${date}.ris`, 'application/x-research-info-systems');
-        break;
-      case 'bibtex':
-        downloadFile(exportToBibTeX(bookmarks), `bookmarks-${date}.bib`, 'application/x-bibtex');
-        break;
-      case 'json':
-        downloadFile(exportToJSON(bookmarks), `bookmarks-${date}.json`, 'application/json');
-        break;
+    setExporting(true);
+
+    try {
+      switch (format) {
+        case 'ris':
+          downloadFile(exportToRIS(bookmarks), `bookmarks-${date}.ris`, 'application/x-research-info-systems');
+          break;
+        case 'bibtex':
+          // BibTeX export is async because it fetches paper metadata
+          const bibtex = await exportToBibTeX(bookmarks);
+          downloadFile(bibtex, `bookmarks-${date}.bib`, 'application/x-bibtex');
+          break;
+        case 'json':
+          downloadFile(exportToJSON(bookmarks), `bookmarks-${date}.json`, 'application/json');
+          break;
+      }
+    } finally {
+      setExporting(false);
+      setShowExportMenu(false);
     }
-    setShowExportMenu(false);
   };
 
   return (
@@ -137,21 +147,24 @@ export default function Bookmarks({ onOpenPost }: BookmarksProps) {
                     <div className="space-y-2">
                       <button
                         onClick={() => handleExport('ris')}
-                        className="w-full px-3 py-2.5 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg flex items-center gap-3"
+                        disabled={exporting}
+                        className="w-full px-3 py-2.5 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg flex items-center gap-3 disabled:opacity-50"
                       >
                         <span className="text-orange-500 font-mono text-xs font-bold bg-orange-100 dark:bg-orange-900/30 px-2 py-0.5 rounded">RIS</span>
                         <span>Zotero / Mendeley</span>
                       </button>
                       <button
                         onClick={() => handleExport('bibtex')}
-                        className="w-full px-3 py-2.5 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg flex items-center gap-3"
+                        disabled={exporting}
+                        className="w-full px-3 py-2.5 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg flex items-center gap-3 disabled:opacity-50"
                       >
                         <span className="text-green-500 font-mono text-xs font-bold bg-green-100 dark:bg-green-900/30 px-2 py-0.5 rounded">BIB</span>
-                        <span>BibTeX / LaTeX</span>
+                        <span>{exporting ? 'Fetching paper metadata...' : 'BibTeX / LaTeX'}</span>
                       </button>
                       <button
                         onClick={() => handleExport('json')}
-                        className="w-full px-3 py-2.5 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg flex items-center gap-3"
+                        disabled={exporting}
+                        className="w-full px-3 py-2.5 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg flex items-center gap-3 disabled:opacity-50"
                       >
                         <span className="text-blue-500 font-mono text-xs font-bold bg-blue-100 dark:bg-blue-900/30 px-2 py-0.5 rounded">JSON</span>
                         <span>Raw data</span>

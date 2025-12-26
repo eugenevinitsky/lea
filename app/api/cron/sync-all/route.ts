@@ -2,8 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db, verifiedResearchers } from '@/lib/db';
 import { eq } from 'drizzle-orm';
 import { syncUserGraph } from '@/lib/services/graph-sync';
-import { computeNHopCommunity } from '@/lib/services/hop-computation';
-import { syncListMembers, syncVerifiedOnlyList, syncAllPersonalLists, getBotAgent } from '@/lib/services/list-manager';
+import { syncVerifiedOnlyList, syncAllPersonalLists, getBotAgent } from '@/lib/services/list-manager';
 
 export async function GET(request: NextRequest) {
   // Verify cron secret (Vercel sets this automatically)
@@ -58,33 +57,19 @@ export async function GET(request: NextRequest) {
       results: graphResults,
     });
 
-    // Step 3: Recompute N-hop community
-    const hopResult = await computeNHopCommunity();
-    (results.steps as unknown[]).push({
-      name: 'hop_computation',
-      ...hopResult,
-    });
-
-    // Step 4: Sync community members to Bluesky list
-    const listResult = await syncListMembers(agent);
-    (results.steps as unknown[]).push({
-      name: 'community_list_sync',
-      ...listResult,
-    });
-
-    // Step 5: Sync verified-only list (old database-based system)
+    // Step 3: Sync verified-only list
     const verifiedListResult = await syncVerifiedOnlyList(agent);
     (results.steps as unknown[]).push({
       name: 'verified_list_sync',
       ...verifiedListResult,
     });
 
-    // Step 5b: Sync labeler's verified list from Ozone
-    try {
-      const baseUrl = process.env.VERCEL_URL
-        ? `https://${process.env.VERCEL_URL}`
-        : 'http://localhost:3000';
+    // Step 4: Sync labeler's verified list from Ozone
+    const baseUrl = process.env.VERCEL_URL
+      ? `https://${process.env.VERCEL_URL}`
+      : 'http://localhost:3000';
 
+    try {
       const labelerSyncResponse = await fetch(`${baseUrl}/api/labeler/sync-from-ozone`, {
         method: 'POST',
       });
@@ -99,6 +84,26 @@ export async function GET(request: NextRequest) {
     } catch (error) {
       (results.steps as unknown[]).push({
         name: 'labeler_ozone_sync',
+        error: String(error),
+      });
+    }
+
+    // Step 5: Sync labeled researchers to database
+    try {
+      const syncToDbResponse = await fetch(`${baseUrl}/api/labeler/sync-to-db`, {
+        method: 'POST',
+      });
+
+      if (syncToDbResponse.ok) {
+        const syncToDbResult = await syncToDbResponse.json();
+        (results.steps as unknown[]).push({
+          name: 'labeler_db_sync',
+          ...syncToDbResult,
+        });
+      }
+    } catch (error) {
+      (results.steps as unknown[]).push({
+        name: 'labeler_db_sync',
         error: String(error),
       });
     }

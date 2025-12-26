@@ -11,6 +11,10 @@ export interface BookmarkedPost {
   text: string;
   createdAt: string;
   bookmarkedAt: string;
+  // Paper-related fields
+  paperUrl?: string;
+  paperDoi?: string;
+  paperTitle?: string;
 }
 
 interface BookmarksContextType {
@@ -95,25 +99,26 @@ function atUriToWebUrl(uri: string, authorHandle: string): string {
 }
 
 // Export bookmarks to RIS format (for Zotero, Mendeley, EndNote)
+// Only exports bookmarks that contain papers
 export function exportToRIS(bookmarks: BookmarkedPost[]): string {
-  return bookmarks.map(bookmark => {
-    const url = atUriToWebUrl(bookmark.uri, bookmark.authorHandle);
+  // Filter to only bookmarks with paper URLs
+  const paperBookmarks = bookmarks.filter(b => b.paperUrl || b.paperDoi);
+
+  if (paperBookmarks.length === 0) {
+    return '';
+  }
+
+  return paperBookmarks.map(bookmark => {
     const date = new Date(bookmark.createdAt);
     const dateStr = `${date.getFullYear()}/${String(date.getMonth() + 1).padStart(2, '0')}/${String(date.getDate()).padStart(2, '0')}`;
 
-    // Truncate text for title (first 100 chars or first line)
-    const firstLine = bookmark.text.split('\n')[0];
-    const title = firstLine.length > 100 ? firstLine.substring(0, 100) + '...' : firstLine;
-
     const lines = [
-      'TY  - ELEC',
-      `TI  - ${title}`,
-      `AU  - ${bookmark.authorDisplayName || bookmark.authorHandle}`,
-      `UR  - ${url}`,
+      'TY  - JOUR',
+      `TI  - ${bookmark.paperTitle || 'Paper'}`,
+      `UR  - ${bookmark.paperUrl || ''}`,
       `DA  - ${dateStr}`,
-      `AB  - ${bookmark.text.replace(/\n/g, ' ')}`,
-      `DB  - Bluesky`,
-      `AN  - @${bookmark.authorHandle}`,
+      ...(bookmark.paperDoi ? [`DO  - ${bookmark.paperDoi.replace(/^arXiv:/i, '')}`] : []),
+      `N1  - Shared by @${bookmark.authorHandle} on Bluesky`,
       'ER  - ',
     ];
 
@@ -121,32 +126,151 @@ export function exportToRIS(bookmarks: BookmarkedPost[]): string {
   }).join('\n\n');
 }
 
-// Export bookmarks to BibTeX format
-export function exportToBibTeX(bookmarks: BookmarkedPost[]): string {
-  return bookmarks.map((bookmark, index) => {
-    const url = atUriToWebUrl(bookmark.uri, bookmark.authorHandle);
-    const date = new Date(bookmark.createdAt);
-    const author = bookmark.authorDisplayName || bookmark.authorHandle;
-    const key = `bsky${date.getFullYear()}${bookmark.authorHandle.replace(/[^a-zA-Z0-9]/g, '')}${index}`;
+// Fetch paper metadata from DOI using CrossRef API
+async function fetchDoiMetadata(doi: string): Promise<{
+  title?: string;
+  authors?: string[];
+  year?: number;
+  journal?: string;
+  volume?: string;
+  pages?: string;
+  doi?: string;
+} | null> {
+  try {
+    const response = await fetch(`https://api.crossref.org/works/${encodeURIComponent(doi)}`);
+    if (!response.ok) return null;
 
-    // Escape special BibTeX characters
-    const escapeTeX = (str: string) => str
-      .replace(/[&%$#_{}~^\\]/g, '\\$&')
-      .replace(/\n/g, ' ');
+    const data = await response.json();
+    const work = data.message;
 
-    const firstLine = bookmark.text.split('\n')[0];
-    const title = firstLine.length > 100 ? firstLine.substring(0, 100) + '...' : firstLine;
+    return {
+      title: work.title?.[0],
+      authors: work.author?.map((a: { given?: string; family?: string }) =>
+        a.given && a.family ? `${a.family}, ${a.given}` : a.family || a.given || ''
+      ),
+      year: work.published?.['date-parts']?.[0]?.[0] || work['published-print']?.['date-parts']?.[0]?.[0],
+      journal: work['container-title']?.[0],
+      volume: work.volume,
+      pages: work.page,
+      doi: work.DOI,
+    };
+  } catch (error) {
+    console.error('Failed to fetch DOI metadata:', error);
+    return null;
+  }
+}
 
-    return `@misc{${key},
-  author = {${escapeTeX(author)}},
-  title = {${escapeTeX(title)}},
-  howpublished = {Bluesky},
-  year = {${date.getFullYear()}},
-  month = {${date.getMonth() + 1}},
-  url = {${url}},
-  note = {Post by @${bookmark.authorHandle}}
+// Fetch paper metadata from arXiv API
+async function fetchArxivMetadata(arxivId: string): Promise<{
+  title?: string;
+  authors?: string[];
+  year?: number;
+  arxivId?: string;
+} | null> {
+  try {
+    // Remove 'arXiv:' prefix if present
+    const id = arxivId.replace(/^arXiv:/i, '');
+    const response = await fetch(`https://export.arxiv.org/api/query?id_list=${id}`);
+    if (!response.ok) return null;
+
+    const text = await response.text();
+
+    // Parse XML response
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(text, 'text/xml');
+
+    const entry = doc.querySelector('entry');
+    if (!entry) return null;
+
+    const title = entry.querySelector('title')?.textContent?.replace(/\s+/g, ' ').trim();
+    const authors = Array.from(entry.querySelectorAll('author name')).map(
+      (el) => el.textContent?.trim() || ''
+    );
+    const published = entry.querySelector('published')?.textContent;
+    const year = published ? new Date(published).getFullYear() : undefined;
+
+    return {
+      title,
+      authors,
+      year,
+      arxivId: id,
+    };
+  } catch (error) {
+    console.error('Failed to fetch arXiv metadata:', error);
+    return null;
+  }
+}
+
+// Export bookmarks to BibTeX format (async to fetch paper metadata)
+// Only exports bookmarks that contain papers
+export async function exportToBibTeX(bookmarks: BookmarkedPost[]): Promise<string> {
+  // Filter to only bookmarks with paper URLs
+  const paperBookmarks = bookmarks.filter(b => b.paperUrl || b.paperDoi);
+
+  if (paperBookmarks.length === 0) {
+    return '% No paper bookmarks found';
+  }
+
+  const entries = await Promise.all(
+    paperBookmarks.map(async (bookmark, index) => {
+      const escapeTeX = (str: string) =>
+        str.replace(/[&%$#_{}~^\\]/g, '\\$&').replace(/\n/g, ' ');
+
+      // If bookmark has a DOI or arXiv ID, fetch paper metadata
+      if (bookmark.paperDoi) {
+        let metadata = null;
+
+        if (bookmark.paperDoi.startsWith('arXiv:')) {
+          metadata = await fetchArxivMetadata(bookmark.paperDoi);
+          if (metadata) {
+            const key = `arxiv${metadata.year || ''}${metadata.arxivId?.replace(/[^a-zA-Z0-9]/g, '')}`;
+            const authors = metadata.authors?.join(' and ') || 'Unknown';
+
+            return `@article{${key},
+  author = {${escapeTeX(authors)}},
+  title = {${escapeTeX(metadata.title || bookmark.paperTitle || 'Unknown')}},
+  year = {${metadata.year || ''}},
+  eprint = {${metadata.arxivId}},
+  archivePrefix = {arXiv},
+  primaryClass = {cs.CL},
+  url = {${bookmark.paperUrl || ''}}
 }`;
-  }).join('\n\n');
+          }
+        } else {
+          metadata = await fetchDoiMetadata(bookmark.paperDoi);
+          if (metadata) {
+            const firstAuthor = metadata.authors?.[0]?.split(',')[0] || 'unknown';
+            const key = `${firstAuthor.toLowerCase().replace(/[^a-z]/g, '')}${metadata.year || ''}`;
+            const authors = metadata.authors?.join(' and ') || 'Unknown';
+
+            return `@article{${key},
+  author = {${escapeTeX(authors)}},
+  title = {${escapeTeX(metadata.title || bookmark.paperTitle || 'Unknown')}},
+  journal = {${escapeTeX(metadata.journal || '')}},
+  year = {${metadata.year || ''}},
+  volume = {${metadata.volume || ''}},
+  pages = {${metadata.pages || ''}},
+  doi = {${metadata.doi || bookmark.paperDoi}},
+  url = {${bookmark.paperUrl || ''}}
+}`;
+          }
+        }
+      }
+
+      // Fallback: If no paper metadata could be fetched, use paper title/URL
+      const date = new Date(bookmark.createdAt);
+      const key = `paper${date.getFullYear()}${index}`;
+
+      return `@misc{${key},
+  title = {${escapeTeX(bookmark.paperTitle || 'Paper')}},
+  howpublished = {\\url{${bookmark.paperUrl || ''}}},
+  year = {${date.getFullYear()}},
+  note = {Shared by @${bookmark.authorHandle} on Bluesky}
+}`;
+    })
+  );
+
+  return entries.join('\n\n');
 }
 
 // Export bookmarks to JSON format

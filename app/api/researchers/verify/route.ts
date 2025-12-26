@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db, verifiedResearchers, communityMembers } from '@/lib/db';
+import { db, verifiedResearchers } from '@/lib/db';
 import { eq } from 'drizzle-orm';
 import { nanoid } from 'nanoid';
 
@@ -55,15 +55,6 @@ export async function POST(request: NextRequest) {
       institution,
       researchTopics: researchTopics ? JSON.stringify(researchTopics) : null,
       verificationMethod,
-    });
-
-    // Also add as community member (hop 0)
-    await db.insert(communityMembers).values({
-      id: nanoid(),
-      did,
-      handle,
-      hopDistance: 0,
-      closestVerifiedDid: did,
     });
 
     // Add to labeler's verified researchers list for threadgates

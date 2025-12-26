@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { AppBskyFeedDefs, AppBskyFeedPost, AppBskyEmbedExternal, AppBskyEmbedImages, AppBskyEmbedRecord, AppBskyEmbedRecordWithMedia } from '@atproto/api';
+import { AppBskyFeedDefs, AppBskyFeedPost, AppBskyEmbedExternal, AppBskyEmbedImages, AppBskyEmbedRecord, AppBskyEmbedRecordWithMedia, AppBskyEmbedVideo } from '@atproto/api';
 import { isVerifiedResearcher, Label, createPost, ReplyRef, QuoteRef, likePost, unlikePost, repost, deleteRepost, sendFeedInteraction, InteractionEvent } from '@/lib/bluesky';
 import { useSettings } from '@/lib/settings';
 import { useBookmarks, BookmarkedPost } from '@/lib/bookmarks';
@@ -52,6 +52,73 @@ function containsPaperLink(text: string, embed?: AppBskyFeedDefs.PostView['embed
   }
 
   return { hasPaper: false };
+}
+
+// Extract paper URL and title from post
+function extractPaperInfo(text: string, embed?: AppBskyFeedDefs.PostView['embed']): { url?: string; title?: string; doi?: string } {
+  // Helper to check if a URL is a paper link
+  const checkUrl = (uri: string, title?: string): { url?: string; title?: string; doi?: string } | null => {
+    for (const domain of PAPER_DOMAINS) {
+      if (uri.toLowerCase().includes(domain)) {
+        const doi = extractDoi(uri);
+        return { url: uri, title, doi };
+      }
+    }
+    return null;
+  };
+
+  if (embed) {
+    // Check direct external link embed
+    if ('external' in embed) {
+      const external = embed as AppBskyEmbedExternal.View;
+      const uri = external.external?.uri || '';
+      const result = checkUrl(uri, external.external?.title);
+      if (result) return result;
+    }
+
+    // Check recordWithMedia embed (has both media and quoted record)
+    if ('media' in embed) {
+      const recordWithMedia = embed as AppBskyEmbedRecordWithMedia.View;
+      const media = recordWithMedia.media;
+      if (media && 'external' in media) {
+        const external = media as AppBskyEmbedExternal.View;
+        const uri = external.external?.uri || '';
+        const result = checkUrl(uri, external.external?.title);
+        if (result) return result;
+      }
+    }
+  }
+
+  // Fall back to extracting URL from text
+  const urlRegex = /https?:\/\/[^\s<>"{}|\\^`[\]]+/gi;
+  const urls = text.match(urlRegex) || [];
+
+  for (const url of urls) {
+    const result = checkUrl(url);
+    if (result) return result;
+  }
+
+  return {};
+}
+
+// Extract DOI from URL
+function extractDoi(url: string): string | undefined {
+  // DOI patterns:
+  // https://doi.org/10.xxxx/yyyy
+  // https://dx.doi.org/10.xxxx/yyyy
+  // URLs containing /doi/10.xxxx/
+  const doiMatch = url.match(/(?:doi\.org\/|\/doi\/)(10\.\d{4,}\/[^\s&?#]+)/i);
+  if (doiMatch) {
+    return doiMatch[1];
+  }
+
+  // arXiv ID (can be used to get DOI later)
+  const arxivMatch = url.match(/arxiv\.org\/(?:abs|pdf)\/(\d{4}\.\d{4,})/i);
+  if (arxivMatch) {
+    return `arXiv:${arxivMatch[1]}`;
+  }
+
+  return undefined;
 }
 
 function PaperIndicator({ domain }: { domain?: string }) {
@@ -274,8 +341,135 @@ function EmbedExternal({ external }: { external: AppBskyEmbedExternal.ViewExtern
   );
 }
 
+// Quote post component that opens thread view
+function QuotePost({
+  author,
+  postRecord,
+  viewRecord,
+  isVerified,
+  formatDate,
+  onOpenThread,
+}: {
+  author: AppBskyEmbedRecord.ViewRecord['author'];
+  postRecord: AppBskyFeedPost.Record;
+  viewRecord: AppBskyEmbedRecord.ViewRecord;
+  isVerified: boolean;
+  formatDate: (dateString: string) => string;
+  onOpenThread?: (uri: string) => void;
+}) {
+  return (
+    <div
+      className={`mt-2 border border-gray-200 dark:border-gray-700 rounded-xl p-3 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors ${onOpenThread ? 'cursor-pointer' : ''}`}
+      onClick={(e) => {
+        e.stopPropagation();
+        if (onOpenThread) {
+          onOpenThread(viewRecord.uri);
+        }
+      }}
+    >
+      {/* Quoted post header */}
+      <div className="flex items-center gap-2">
+        {author.avatar ? (
+          <img
+            src={author.avatar}
+            alt={author.displayName || author.handle}
+            className="w-5 h-5 rounded-full"
+          />
+        ) : (
+          <div className="w-5 h-5 rounded-full bg-blue-500 flex items-center justify-center text-white text-xs font-bold">
+            {(author.displayName || author.handle)[0].toUpperCase()}
+          </div>
+        )}
+        <span className="font-medium text-sm text-gray-900 dark:text-gray-100 truncate">
+          {author.displayName || author.handle}
+        </span>
+        {isVerified && (
+          <span className="text-emerald-500 text-xs font-medium px-1 py-0.5 bg-emerald-50 dark:bg-emerald-900/30 rounded">
+            Researcher
+          </span>
+        )}
+        <span className="text-gray-500 text-sm truncate">@{author.handle}</span>
+        <span className="text-gray-400 text-sm">·</span>
+        <span className="text-gray-400 text-sm">{formatDate(postRecord.createdAt)}</span>
+      </div>
+
+      {/* Quoted post text - truncated preview */}
+      {postRecord.text && (
+        <p className="mt-2 text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap line-clamp-4">
+          {postRecord.text}
+        </p>
+      )}
+
+      {/* Quoted post embeds (images, external links, videos) - thumbnail preview */}
+      {viewRecord.embeds && viewRecord.embeds.length > 0 && (
+        <div className="mt-2">
+          {viewRecord.embeds.map((embed, i) => {
+            if ('images' in embed && Array.isArray((embed as AppBskyEmbedImages.View).images)) {
+              const images = (embed as AppBskyEmbedImages.View).images;
+              return (
+                <div key={i} className="flex gap-1 rounded-lg overflow-hidden">
+                  {images.slice(0, 4).map((img, j) => (
+                    <img
+                      key={j}
+                      src={img.thumb}
+                      alt={img.alt || ''}
+                      className="object-cover flex-1 h-20"
+                      style={{ maxWidth: `${100 / Math.min(images.length, 4)}%` }}
+                    />
+                  ))}
+                </div>
+              );
+            }
+            if ('external' in embed && (embed as AppBskyEmbedExternal.View).external) {
+              const external = (embed as AppBskyEmbedExternal.View).external;
+              return (
+                <div
+                  key={i}
+                  className="flex items-center gap-2 p-2 bg-gray-100 dark:bg-gray-800 rounded-lg"
+                >
+                  {external.thumb && (
+                    <img src={external.thumb} alt="" className="w-12 h-12 object-cover rounded" />
+                  )}
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs text-gray-500 truncate">{new URL(external.uri).hostname}</p>
+                    <p className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">{external.title}</p>
+                  </div>
+                </div>
+              );
+            }
+            if ('playlist' in embed && (embed as AppBskyEmbedVideo.View).playlist) {
+              const video = embed as AppBskyEmbedVideo.View;
+              return (
+                <div key={i} className="rounded-lg overflow-hidden bg-black h-20 relative">
+                  {video.thumbnail ? (
+                    <img src={video.thumbnail} alt="" className="w-full h-full object-cover" />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center">
+                      <svg className="w-8 h-8 text-white/50" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M8 5v14l11-7z" />
+                      </svg>
+                    </div>
+                  )}
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <div className="w-10 h-10 rounded-full bg-black/50 flex items-center justify-center">
+                      <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M8 5v14l11-7z" />
+                      </svg>
+                    </div>
+                  </div>
+                </div>
+              );
+            }
+            return null;
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // Render embedded/quoted post
-function EmbedRecord({ record }: { record: AppBskyEmbedRecord.View['record'] }) {
+function EmbedRecord({ record, onOpenThread }: { record: AppBskyEmbedRecord.View['record']; onOpenThread?: (uri: string) => void }) {
   // Handle different record types
   if (!record || record.$type === 'app.bsky.embed.record#viewNotFound') {
     return (
@@ -324,87 +518,14 @@ function EmbedRecord({ record }: { record: AppBskyEmbedRecord.View['record'] }) 
       return date.toLocaleDateString();
     };
 
-    return (
-      <a
-        href={`https://bsky.app/profile/${author.handle}/post/${viewRecord.uri.split('/').pop()}`}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="mt-2 block border border-gray-200 dark:border-gray-700 rounded-xl p-3 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors"
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* Quoted post header */}
-        <div className="flex items-center gap-2">
-          {author.avatar ? (
-            <img
-              src={author.avatar}
-              alt={author.displayName || author.handle}
-              className="w-5 h-5 rounded-full"
-            />
-          ) : (
-            <div className="w-5 h-5 rounded-full bg-blue-500 flex items-center justify-center text-white text-xs font-bold">
-              {(author.displayName || author.handle)[0].toUpperCase()}
-            </div>
-          )}
-          <span className="font-medium text-sm text-gray-900 dark:text-gray-100 truncate">
-            {author.displayName || author.handle}
-          </span>
-          {isVerified && (
-            <span className="text-emerald-500 text-xs font-medium px-1 py-0.5 bg-emerald-50 dark:bg-emerald-900/30 rounded">
-              Researcher
-            </span>
-          )}
-          <span className="text-gray-500 text-sm truncate">@{author.handle}</span>
-          <span className="text-gray-400 text-sm">·</span>
-          <span className="text-gray-400 text-sm">{formatDate(postRecord.createdAt)}</span>
-        </div>
-
-        {/* Quoted post text */}
-        {postRecord.text && (
-          <p className="mt-2 text-sm text-gray-700 dark:text-gray-300 line-clamp-4 whitespace-pre-wrap">
-            {postRecord.text}
-          </p>
-        )}
-
-        {/* Quoted post embeds (images only for nested embeds) */}
-        {viewRecord.embeds && viewRecord.embeds.length > 0 && (
-          <div className="mt-2">
-            {viewRecord.embeds.map((embed, i) => {
-              if ('images' in embed && Array.isArray((embed as AppBskyEmbedImages.View).images)) {
-                const images = (embed as AppBskyEmbedImages.View).images;
-                return (
-                  <div key={i} className="flex gap-1 rounded-lg overflow-hidden">
-                    {images.slice(0, 4).map((img, j) => (
-                      <img
-                        key={j}
-                        src={img.thumb}
-                        alt={img.alt || ''}
-                        className="h-20 object-cover flex-1"
-                        style={{ maxWidth: `${100 / Math.min(images.length, 4)}%` }}
-                      />
-                    ))}
-                  </div>
-                );
-              }
-              if ('external' in embed && (embed as AppBskyEmbedExternal.View).external) {
-                const external = (embed as AppBskyEmbedExternal.View).external;
-                return (
-                  <div key={i} className="flex items-center gap-2 p-2 bg-gray-100 dark:bg-gray-800 rounded-lg">
-                    {external.thumb && (
-                      <img src={external.thumb} alt="" className="w-12 h-12 object-cover rounded" />
-                    )}
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs text-gray-500 truncate">{new URL(external.uri).hostname}</p>
-                      <p className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">{external.title}</p>
-                    </div>
-                  </div>
-                );
-              }
-              return null;
-            })}
-          </div>
-        )}
-      </a>
-    );
+    return <QuotePost
+      author={author}
+      postRecord={postRecord}
+      viewRecord={viewRecord}
+      isVerified={isVerified}
+      formatDate={formatDate}
+      onOpenThread={onOpenThread}
+    />;
   }
 
   // Fallback for other record types (feeds, lists, etc.)
@@ -415,8 +536,36 @@ function EmbedRecord({ record }: { record: AppBskyEmbedRecord.View['record'] }) 
   );
 }
 
+// Video embed renderer
+function EmbedVideo({ video }: { video: AppBskyEmbedVideo.View }) {
+  const playlist = video.playlist;
+  const thumbnail = video.thumbnail;
+  const aspectRatio = video.aspectRatio;
+
+  // Calculate aspect ratio for sizing
+  const ratio = aspectRatio ? aspectRatio.width / aspectRatio.height : 16 / 9;
+  const paddingBottom = `${(1 / ratio) * 100}%`;
+
+  return (
+    <div className="mt-2 rounded-xl overflow-hidden bg-black">
+      <div className="relative" style={{ paddingBottom }}>
+        <video
+          className="absolute inset-0 w-full h-full object-contain"
+          src={playlist}
+          poster={thumbnail}
+          controls
+          preload="metadata"
+          playsInline
+        >
+          Your browser does not support the video tag.
+        </video>
+      </div>
+    </div>
+  );
+}
+
 // Main embed renderer
-function PostEmbed({ embed }: { embed: AppBskyFeedDefs.PostView['embed'] }) {
+function PostEmbed({ embed, onOpenThread }: { embed: AppBskyFeedDefs.PostView['embed']; onOpenThread?: (uri: string) => void }) {
   if (!embed) return null;
 
   // Images
@@ -431,13 +580,19 @@ function PostEmbed({ embed }: { embed: AppBskyFeedDefs.PostView['embed'] }) {
     return <EmbedExternal external={externalEmbed.external} />;
   }
 
+  // Video
+  if ('playlist' in embed && (embed as AppBskyEmbedVideo.View).playlist) {
+    const videoEmbed = embed as AppBskyEmbedVideo.View;
+    return <EmbedVideo video={videoEmbed} />;
+  }
+
   // Quoted post (record embed)
   if ('record' in embed && (embed as AppBskyEmbedRecord.View).record) {
     const recordEmbed = embed as AppBskyEmbedRecord.View;
-    return <EmbedRecord record={recordEmbed.record} />;
+    return <EmbedRecord record={recordEmbed.record} onOpenThread={onOpenThread} />;
   }
 
-  // Record with media (quote + images)
+  // Record with media (quote + images/video)
   if ('media' in embed && (embed as AppBskyEmbedRecordWithMedia.View).media) {
     const recordWithMedia = embed as AppBskyEmbedRecordWithMedia.View;
     const media = recordWithMedia.media;
@@ -451,8 +606,11 @@ function PostEmbed({ embed }: { embed: AppBskyFeedDefs.PostView['embed'] }) {
         {'external' in media && (media as AppBskyEmbedExternal.View).external && (
           <EmbedExternal external={(media as AppBskyEmbedExternal.View).external} />
         )}
+        {'playlist' in media && (media as AppBskyEmbedVideo.View).playlist && (
+          <EmbedVideo video={media as AppBskyEmbedVideo.View} />
+        )}
         {/* Render the quoted record */}
-        {recordWithMedia.record && <EmbedRecord record={recordWithMedia.record.record} />}
+        {recordWithMedia.record && <EmbedRecord record={recordWithMedia.record.record} onOpenThread={onOpenThread} />}
       </>
     );
   }
@@ -513,6 +671,9 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
     if (bookmarked) {
       removeBookmark(post.uri);
     } else {
+      // Extract paper info if this post contains a paper link
+      const paperInfo = extractPaperInfo(record.text, post.embed);
+
       const bookmarkData: BookmarkedPost = {
         uri: post.uri,
         cid: post.cid,
@@ -522,6 +683,9 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
         text: record.text,
         createdAt: record.createdAt,
         bookmarkedAt: new Date().toISOString(),
+        paperUrl: paperInfo.url,
+        paperDoi: paperInfo.doi,
+        paperTitle: paperInfo.title,
       };
       addBookmark(bookmarkData);
     }
@@ -702,7 +866,7 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
           </p>
 
           {/* Embedded content (images, links, etc.) */}
-          <PostEmbed embed={post.embed} />
+          <PostEmbed embed={post.embed} onOpenThread={onOpenThread} />
 
           {/* Reply context indicator */}
           {record.reply && onOpenThread && (

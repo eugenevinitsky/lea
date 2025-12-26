@@ -1,15 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getCommunityListUri, getVerifiedOnlyListUri, getPersonalListUri } from '@/lib/services/list-manager';
+import { getVerifiedOnlyListUri, getPersonalListUri } from '@/lib/services/list-manager';
 
 export async function GET(request: NextRequest) {
   try {
-    const type = request.nextUrl.searchParams.get('type') || 'community';
+    const type = request.nextUrl.searchParams.get('type') || 'verified';
     const did = request.nextUrl.searchParams.get('did');
 
     let listUri: string | null;
-    if (type === 'verified') {
-      listUri = await getVerifiedOnlyListUri();
-    } else if (type === 'personal') {
+    if (type === 'personal') {
       if (!did) {
         return NextResponse.json(
           { error: 'did parameter required for personal list' },
@@ -18,7 +16,8 @@ export async function GET(request: NextRequest) {
       }
       listUri = await getPersonalListUri(did);
     } else {
-      listUri = await getCommunityListUri();
+      // Default to verified list
+      listUri = await getVerifiedOnlyListUri();
     }
 
     if (!listUri) {

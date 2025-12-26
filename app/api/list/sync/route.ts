@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { syncListMembers, getBotAgent } from '@/lib/services/list-manager';
+import { syncVerifiedOnlyList, getBotAgent } from '@/lib/services/list-manager';
 
 export async function POST(request: NextRequest) {
   try {
@@ -11,7 +11,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const result = await syncListMembers(agent);
+    const result = await syncVerifiedOnlyList(agent);
     return NextResponse.json(result);
   } catch (error) {
     console.error('List sync error:', error);

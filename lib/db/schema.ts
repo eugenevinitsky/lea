@@ -9,7 +9,7 @@ import {
   index,
 } from 'drizzle-orm/pg-core';
 
-// Verified researchers (hop 0)
+// Verified researchers
 export const verifiedResearchers = pgTable(
   'verified_researchers',
   {
@@ -25,7 +25,7 @@ export const verifiedResearchers = pgTable(
     verificationMethod: varchar('verification_method', { length: 50 }).notNull(), // 'auto' | 'vouched' | 'manual'
     vouchedBy: varchar('vouched_by', { length: 36 }), // FK to verified_researchers.id
     isActive: boolean('is_active').default(true).notNull(),
-    // Personal community list for this researcher's 1-hop connections
+    // Personal community list for this researcher's connections
     personalListUri: varchar('personal_list_uri', { length: 500 }),
     personalListSyncedAt: timestamp('personal_list_synced_at'),
   },
@@ -48,25 +48,6 @@ export const socialGraph = pgTable(
     primaryKey({ columns: [table.followerId, table.followingId] }),
     index('social_graph_follower_idx').on(table.followerId),
     index('social_graph_following_idx').on(table.followingId),
-  ]
-);
-
-// Community members (computed: people within N hops)
-export const communityMembers = pgTable(
-  'community_members',
-  {
-    id: varchar('id', { length: 36 }).primaryKey(),
-    did: varchar('did', { length: 255 }).notNull().unique(),
-    handle: varchar('handle', { length: 255 }),
-    hopDistance: integer('hop_distance').notNull(), // 0 = verified, 1 = 1-hop, 2 = 2-hop
-    closestVerifiedDid: varchar('closest_verified_did', { length: 255 }),
-    computedAt: timestamp('computed_at').defaultNow().notNull(),
-    addedToListAt: timestamp('added_to_list_at'),
-    listItemUri: varchar('list_item_uri', { length: 500 }),
-  },
-  (table) => [
-    index('community_members_did_idx').on(table.did),
-    index('community_members_hop_idx').on(table.hopDistance),
   ]
 );
 
@@ -115,6 +96,5 @@ export const syncState = pgTable('sync_state', {
 export type VerifiedResearcher = typeof verifiedResearchers.$inferSelect;
 export type NewVerifiedResearcher = typeof verifiedResearchers.$inferInsert;
 export type SocialGraphEdge = typeof socialGraph.$inferSelect;
-export type CommunityMember = typeof communityMembers.$inferSelect;
 export type VouchRequest = typeof vouchRequests.$inferSelect;
 export type BlueskyList = typeof blueskyLists.$inferSelect;
