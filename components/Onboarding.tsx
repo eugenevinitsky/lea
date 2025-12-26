@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useFeeds, SUGGESTED_FEEDS, PinnedFeed } from '@/lib/feeds';
 import { useSettings } from '@/lib/settings';
-import { followUser, getSession, getActorStarterPacks, StarterPackView } from '@/lib/bluesky';
+import { followUser, getSession, getActorStarterPacks, getStarterPackMembers, StarterPackView } from '@/lib/bluesky';
 
 interface OnboardingProps {
   onComplete: () => void;
@@ -91,6 +91,8 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
   const [starterPacks, setStarterPacks] = useState<StarterPackView[]>([]);
   const [loadingStarterPacks, setLoadingStarterPacks] = useState(false);
   const [starterPackSearch, setStarterPackSearch] = useState('');
+  const [followingPack, setFollowingPack] = useState<string | null>(null);
+  const [followedPacks, setFollowedPacks] = useState<Set<string>>(new Set());
 
   // Fetch all researchers when entering step 3
   useEffect(() => {
@@ -210,6 +212,32 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
       pack.creator.handle.toLowerCase().includes(query)
     );
     setStarterPacks(filtered);
+  };
+
+  // Follow all members of a starter pack
+  const handleFollowStarterPack = async (pack: StarterPackView) => {
+    setFollowingPack(pack.uri);
+    try {
+      const members = await getStarterPackMembers(pack.record.list);
+      const session = getSession();
+      const toFollow = members.filter(m => m.did !== session?.did && !followedDids.has(m.did));
+
+      for (const member of toFollow) {
+        try {
+          await followUser(member.did);
+          setFollowedDids(prev => new Set(prev).add(member.did));
+          // Small delay to avoid rate limiting
+          await new Promise(resolve => setTimeout(resolve, 150));
+        } catch (error) {
+          console.error(`Failed to follow ${member.handle}:`, error);
+        }
+      }
+      setFollowedPacks(prev => new Set(prev).add(pack.uri));
+    } catch (error) {
+      console.error('Failed to follow starter pack:', error);
+    } finally {
+      setFollowingPack(null);
+    }
   };
 
   const toggleTopic = (topic: string) => {
@@ -874,12 +902,9 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
               ) : (
                 <div className="space-y-3 max-h-[350px] overflow-y-auto">
                   {starterPacks.map(pack => (
-                    <a
+                    <div
                       key={pack.uri}
-                      href={`https://bsky.app/starter-pack/${pack.creator.handle}/${pack.uri.split('/').pop()}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="block p-4 bg-gray-50 dark:bg-gray-800 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                      className="p-4 bg-gray-50 dark:bg-gray-800 rounded-xl"
                     >
                       <div className="flex items-start gap-3">
                         {pack.creator.avatar && (
@@ -900,24 +925,47 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                           )}
                           <div className="flex items-center gap-3 mt-2 text-xs text-gray-400">
                             <span>by @{pack.creator.handle}</span>
-                            {pack.listItemCount && (
-                              <span>{pack.listItemCount} people</span>
-                            )}
                           </div>
                         </div>
-                        <svg className="w-5 h-5 text-gray-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                        </svg>
                       </div>
-                    </a>
+                      <div className="flex items-center gap-2 mt-3">
+                        <button
+                          onClick={() => handleFollowStarterPack(pack)}
+                          disabled={followingPack === pack.uri || followedPacks.has(pack.uri)}
+                          className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-colors ${
+                            followedPacks.has(pack.uri)
+                              ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400'
+                              : followingPack === pack.uri
+                              ? 'bg-gray-200 dark:bg-gray-700 text-gray-500'
+                              : 'bg-blue-500 hover:bg-blue-600 text-white'
+                          }`}
+                        >
+                          {followingPack === pack.uri ? (
+                            <span className="flex items-center justify-center gap-2">
+                              <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
+                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                              </svg>
+                              Following...
+                            </span>
+                          ) : followedPacks.has(pack.uri) ? (
+                            'Followed all'
+                          ) : (
+                            'Follow all'
+                          )}
+                        </button>
+                        <a
+                          href={`https://bsky.app/starter-pack/${pack.creator.handle}/${pack.uri.split('/').pop()}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="py-2 px-3 rounded-lg text-sm font-medium border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                        >
+                          View
+                        </a>
+                      </div>
+                    </div>
                   ))}
                 </div>
-              )}
-
-              {starterPacks.length > 0 && (
-                <p className="text-xs text-gray-400 text-center mt-4">
-                  Click a starter pack to view and follow on Bluesky
-                </p>
               )}
 
               <div className="flex gap-3 mt-6">

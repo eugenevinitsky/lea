@@ -632,3 +632,33 @@ export async function getStarterPack(uri: string): Promise<StarterPackView | nul
     return null;
   }
 }
+
+// Get all members from a starter pack's list
+export async function getStarterPackMembers(listUri: string): Promise<{ did: string; handle: string }[]> {
+  if (!agent) return [];
+  try {
+    const members: { did: string; handle: string }[] = [];
+    let cursor: string | undefined;
+
+    // Paginate through all members (starter packs can have up to 150)
+    do {
+      const response = await agent.api.app.bsky.graph.getList({
+        list: listUri,
+        limit: 100,
+        cursor
+      });
+      for (const item of response.data.items) {
+        members.push({
+          did: item.subject.did,
+          handle: item.subject.handle,
+        });
+      }
+      cursor = response.data.cursor;
+    } while (cursor);
+
+    return members;
+  } catch (error) {
+    console.error('Failed to get starter pack members:', error);
+    return [];
+  }
+}
