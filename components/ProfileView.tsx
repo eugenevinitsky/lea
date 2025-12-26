@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { AppBskyFeedDefs } from '@atproto/api';
 import type { ProfileLink, ProfilePaper } from '@/lib/db/schema';
-import { getAuthorFeed } from '@/lib/bluesky';
+import { getAuthorFeed, getBlueskyProfile } from '@/lib/bluesky';
 import Post from './Post';
 
 interface ResearcherInfo {
@@ -49,12 +49,15 @@ interface ProfileViewProps {
   inline?: boolean;
 }
 
-export default function ProfileView({ did, avatar, displayName, handle, onClose, onOpenProfile, inline = false }: ProfileViewProps) {
+export default function ProfileView({ did, avatar: avatarProp, displayName, handle, onClose, onOpenProfile, inline = false }: ProfileViewProps) {
   const [researcher, setResearcher] = useState<ResearcherInfo | null>(null);
   const [profile, setProfile] = useState<ProfileData | null>(null);
   const [coAuthors, setCoAuthors] = useState<CoAuthor[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  
+  // Bluesky profile data (avatar, etc.)
+  const [bskyProfile, setBskyProfile] = useState<{ avatar?: string; displayName?: string; handle: string } | null>(null);
   
   // Posts state
   const [activeTab, setActiveTab] = useState<'profile' | 'posts'>('profile');
@@ -67,6 +70,14 @@ export default function ProfileView({ did, avatar, displayName, handle, onClose,
   useEffect(() => {
     async function fetchProfile() {
       try {
+        // Fetch Bluesky profile for avatar if not passed as prop
+        if (!avatarProp) {
+          const bskyData = await getBlueskyProfile(did);
+          if (bskyData) {
+            setBskyProfile(bskyData);
+          }
+        }
+        
         const res = await fetch(`/api/profile?did=${encodeURIComponent(did)}`);
         if (res.status === 404) {
           setError('not_verified');
@@ -110,7 +121,7 @@ export default function ProfileView({ did, avatar, displayName, handle, onClose,
     }
     
     fetchProfile();
-  }, [did]);
+  }, [did, avatarProp]);
   
   // Fetch posts when switching to posts tab
   useEffect(() => {
@@ -152,8 +163,10 @@ export default function ProfileView({ did, avatar, displayName, handle, onClose,
     }
   };
 
-  const finalDisplayName = researcher?.name || displayName || handle || 'Unknown';
-  const finalHandle = researcher?.handle || handle;
+  // Use prop values first, then fetched Bluesky profile, then researcher data
+  const avatar = avatarProp || bskyProfile?.avatar;
+  const finalDisplayName = researcher?.name || displayName || bskyProfile?.displayName || handle || bskyProfile?.handle || 'Unknown';
+  const finalHandle = researcher?.handle || handle || bskyProfile?.handle;
 
   // Shared content rendering
   const renderTabs = () => (
@@ -235,7 +248,7 @@ export default function ProfileView({ did, avatar, displayName, handle, onClose,
           ) : (
             <>
               {/* Profile Header Card */}
-              <div className="mx-4 -mt-8 mb-4 bg-white dark:bg-gray-900 rounded-2xl shadow-lg p-4">
+              <div className="mx-4 mt-4 mb-4 bg-white dark:bg-gray-900 rounded-2xl shadow-lg p-4">
                 <div className="flex items-start gap-4">
                   {avatar ? (
                     <img src={avatar} alt="" className="w-20 h-20 rounded-2xl flex-shrink-0 ring-4 ring-white dark:ring-gray-900 shadow-md" />

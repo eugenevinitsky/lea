@@ -592,6 +592,22 @@ export async function unmuteConvo(convoId: string): Promise<{ convo: Convo }> {
   return response.data as { convo: Convo };
 }
 
+// Get a user's Bluesky profile (avatar, displayName, etc.)
+export async function getBlueskyProfile(actor: string): Promise<{ avatar?: string; displayName?: string; handle: string } | null> {
+  if (!agent) return null;
+  try {
+    const response = await agent.getProfile({ actor });
+    return {
+      avatar: response.data.avatar,
+      displayName: response.data.displayName,
+      handle: response.data.handle,
+    };
+  } catch (error) {
+    console.error('Failed to fetch Bluesky profile:', error);
+    return null;
+  }
+}
+
 // Get posts by an author
 export async function getAuthorFeed(
   actor: string,
