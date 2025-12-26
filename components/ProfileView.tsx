@@ -23,6 +23,16 @@ interface ProfileData {
   updatedAt: string;
 }
 
+interface CoAuthor {
+  openAlexId: string;
+  name: string;
+  count: number;
+  verified?: {
+    did: string;
+    handle: string | null;
+  };
+}
+
 interface ProfileViewProps {
   did: string;
   // Bluesky profile data (avatar, displayName) passed from parent
@@ -30,11 +40,13 @@ interface ProfileViewProps {
   displayName?: string;
   handle?: string;
   onClose: () => void;
+  onOpenProfile?: (did: string) => void;
 }
 
-export default function ProfileView({ did, avatar, displayName, handle, onClose }: ProfileViewProps) {
+export default function ProfileView({ did, avatar, displayName, handle, onClose, onOpenProfile }: ProfileViewProps) {
   const [researcher, setResearcher] = useState<ResearcherInfo | null>(null);
   const [profile, setProfile] = useState<ProfileData | null>(null);
+  const [coAuthors, setCoAuthors] = useState<CoAuthor[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -51,6 +63,11 @@ export default function ProfileView({ did, avatar, displayName, handle, onClose 
         const data = await res.json();
         setResearcher(data.researcher);
         setProfile(data.profile);
+        
+        // Fetch co-authors if we have an ORCID
+        if (data.researcher?.orcid) {
+          fetchCoAuthors(data.researcher.orcid);
+        }
       } catch (err) {
         console.error('Failed to fetch profile:', err);
         setError('error');
@@ -58,6 +75,26 @@ export default function ProfileView({ did, avatar, displayName, handle, onClose 
         setLoading(false);
       }
     }
+    
+    async function fetchCoAuthors(orcid: string) {
+      try {
+        // First get OpenAlex author ID from ORCID
+        const authorRes = await fetch(`/api/openalex/author?orcid=${encodeURIComponent(orcid)}`);
+        if (!authorRes.ok) return;
+        const authorData = await authorRes.json();
+        const openAlexId = authorData.results?.[0]?.id;
+        if (!openAlexId) return;
+        
+        // Then fetch co-authors
+        const coAuthorsRes = await fetch(`/api/openalex/coauthors?authorId=${encodeURIComponent(openAlexId)}`);
+        if (!coAuthorsRes.ok) return;
+        const coAuthorsData = await coAuthorsRes.json();
+        setCoAuthors(coAuthorsData.coAuthors || []);
+      } catch (err) {
+        console.error('Failed to fetch co-authors:', err);
+      }
+    }
+    
     fetchProfile();
   }, [did]);
 
@@ -258,6 +295,58 @@ export default function ProfileView({ did, avatar, displayName, handle, onClose 
                 </div>
               )}
 
+              {/* Frequent Co-Authors */}
+              {coAuthors.length > 0 && (
+                <div className="mb-6">
+                  <h4 className="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2">
+                    Frequent Co-Authors
+                  </h4>
+                  <div className="space-y-2">
+                    {coAuthors.slice(0, 5).map((coAuthor) => (
+                      <div
+                        key={coAuthor.openAlexId}
+                        className="flex items-center justify-between py-1"
+                      >
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm text-gray-700 dark:text-gray-300">
+                            {coAuthor.name}
+                          </span>
+                          {coAuthor.verified && (
+                            <span
+                              className="inline-flex items-center justify-center w-4 h-4 bg-emerald-500 rounded-full flex-shrink-0"
+                              title="Verified Researcher on Lea"
+                            >
+                              <svg className="w-2.5 h-2.5 text-white" fill="currentColor" viewBox="0 0 20 20">
+                                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                              </svg>
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs text-gray-400">
+                            {coAuthor.count} paper{coAuthor.count !== 1 ? 's' : ''}
+                          </span>
+                          {coAuthor.verified?.handle && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (onOpenProfile) {
+                                  onClose();
+                                  onOpenProfile(coAuthor.verified!.did);
+                                }
+                              }}
+                              className="text-xs text-blue-500 hover:text-blue-600"
+                            >
+                              @{coAuthor.verified.handle}
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {/* Empty profile message */}
               {!profile?.shortBio && 
                (!profile?.disciplines || profile.disciplines.length === 0) &&
@@ -284,17 +373,24 @@ function PaperCard({ paper }: { paper: ProfilePaper }) {
       href={paper.url}
       target="_blank"
       rel="noopener noreferrer"
-      className="block p-3 bg-gray-50 dark:bg-gray-800 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+      className="block p-3 bg-gray-50 dark:bg-gray-800 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors group"
     >
-      <p className="font-medium text-gray-900 dark:text-gray-100 text-sm">
-        {paper.title}
-      </p>
+      <div className="flex items-start justify-between gap-2">
+        <p className="font-medium text-gray-900 dark:text-gray-100 text-sm group-hover:text-blue-600 dark:group-hover:text-blue-400">
+          {paper.title}
+        </p>
+        <svg className="w-4 h-4 text-gray-400 group-hover:text-blue-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+        </svg>
+      </div>
       {paper.authors && (
         <p className="text-xs text-gray-500 mt-1 line-clamp-1">{paper.authors}</p>
       )}
-      {paper.year && (
-        <p className="text-xs text-gray-400 mt-1">{paper.year}</p>
-      )}
+      <div className="flex items-center gap-2 mt-1 text-xs text-gray-400">
+        {paper.venue && <span>{paper.venue}</span>}
+        {paper.venue && paper.year && <span>·</span>}
+        {paper.year && <span>{paper.year}</span>}
+      </div>
     </a>
   );
 }

@@ -137,4 +137,5 @@ export interface ProfilePaper {
   url: string;
   authors: string;
   year: number | string;
+  venue?: string;
 }

@@ -459,10 +459,10 @@ function PaperInput({ paper, onChange, onRemove }: PaperInputProps) {
       />
       <div className="flex gap-2">
         <input
-          type="url"
-          value={paper.url}
-          onChange={(e) => onChange('url', e.target.value)}
-          placeholder="URL (https://...)"
+          type="text"
+          value={paper.venue || ''}
+          onChange={(e) => onChange('venue', e.target.value)}
+          placeholder="Venue (e.g., NeurIPS 2024)"
           className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
         />
         <input
@@ -473,6 +473,13 @@ function PaperInput({ paper, onChange, onRemove }: PaperInputProps) {
           className="w-20 px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
         />
       </div>
+      <input
+        type="url"
+        value={paper.url}
+        onChange={(e) => onChange('url', e.target.value)}
+        placeholder="Link to paper (https://...)"
+        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+      />
     </div>
   );
 }
