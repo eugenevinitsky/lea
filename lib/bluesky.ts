@@ -592,6 +592,61 @@ export async function unmuteConvo(convoId: string): Promise<{ convo: Convo }> {
   return response.data as { convo: Convo };
 }
 
+// Get a user's Bluesky profile (avatar, displayName, etc.)
+export async function getBlueskyProfile(actor: string): Promise<{ avatar?: string; displayName?: string; handle: string } | null> {
+  if (!agent) return null;
+  try {
+    const response = await agent.getProfile({ actor });
+    return {
+      avatar: response.data.avatar,
+      displayName: response.data.displayName,
+      handle: response.data.handle,
+    };
+  } catch (error) {
+    console.error('Failed to fetch Bluesky profile:', error);
+    return null;
+  }
+}
+
+// Get posts by an author
+export async function getAuthorFeed(
+  actor: string,
+  cursor?: string,
+  filter: 'posts_and_author_threads' | 'posts_no_replies' | 'posts_with_media' = 'posts_no_replies'
+): Promise<{ feed: AppBskyFeedDefs.FeedViewPost[]; cursor?: string; pinnedPost?: AppBskyFeedDefs.PostView }> {
+  if (!agent) throw new Error('Not logged in');
+  
+  // First, get the profile to check for pinned post
+  let pinnedPost: AppBskyFeedDefs.PostView | undefined;
+  try {
+    const profileRes = await agent.getProfile({ actor });
+    const pinnedUri = profileRes.data.pinnedPost?.uri;
+    if (pinnedUri) {
+      // Fetch the pinned post
+      const postsRes = await agent.getPosts({ uris: [pinnedUri] });
+      if (postsRes.data.posts.length > 0) {
+        pinnedPost = postsRes.data.posts[0];
+      }
+    }
+  } catch (error) {
+    console.error('Failed to fetch pinned post:', error);
+  }
+  
+  // Get the author's feed
+  const response = await agent.getAuthorFeed({
+    actor,
+    limit: 30,
+    cursor,
+    filter,
+  });
+  
+  return {
+    feed: response.data.feed,
+    cursor: response.data.cursor,
+    pinnedPost,
+  };
+}
+
 // Starter Pack types and functions
 export interface StarterPackView {
   uri: string;

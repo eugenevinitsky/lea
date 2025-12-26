@@ -14,6 +14,9 @@ import ThreadView from '@/components/ThreadView';
 import DMSidebar from '@/components/DMSidebar';
 import FeedDiscovery from '@/components/FeedDiscovery';
 import Onboarding from '@/components/Onboarding';
+import ProfileEditor from '@/components/ProfileEditor';
+import ProfileView from '@/components/ProfileView';
+import ResearcherSearch from '@/components/ResearcherSearch';
 
 function AppContent() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -22,8 +25,10 @@ function AppContent() {
   const [refreshKey, setRefreshKey] = useState(0);
   const [showSettings, setShowSettings] = useState(false);
   const [showFeedDiscovery, setShowFeedDiscovery] = useState(false);
+  const [showProfileEditor, setShowProfileEditor] = useState(false);
   const [activeFeedUri, setActiveFeedUri] = useState<string | null>(null);
   const [threadUri, setThreadUri] = useState<string | null>(null);
+  const [viewingProfileDid, setViewingProfileDid] = useState<string | null>(null);
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
   const [isVerified, setIsVerified] = useState(false);
@@ -109,20 +114,32 @@ function AppContent() {
       <header className="sticky top-0 z-20 bg-white/80 dark:bg-black/80 backdrop-blur border-b border-gray-200 dark:border-gray-800">
         <div className="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between">
           <h1 className="text-xl font-bold text-blue-500">Lea</h1>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
+            <ResearcherSearch onSelectResearcher={setViewingProfileDid} />
             <span className="text-sm text-gray-600 dark:text-gray-400">
               @{session?.handle}
             </span>
             {isVerified ? (
-              <span
-                className="flex items-center gap-1 px-3 py-1.5 text-sm font-medium text-emerald-600 dark:text-emerald-500 bg-emerald-50 dark:bg-emerald-900/20 rounded-full"
-                title="You are a verified researcher"
-              >
-                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                  <path fillRule="evenodd" d="M8.603 3.799A4.49 4.49 0 0112 2.25c1.357 0 2.573.6 3.397 1.549a4.49 4.49 0 013.498 1.307 4.491 4.491 0 011.307 3.497A4.49 4.49 0 0121.75 12a4.49 4.49 0 01-1.549 3.397 4.491 4.491 0 01-1.307 3.497 4.491 4.491 0 01-3.497 1.307A4.49 4.49 0 0112 21.75a4.49 4.49 0 01-3.397-1.549 4.49 4.49 0 01-3.498-1.306 4.491 4.491 0 01-1.307-3.498A4.49 4.49 0 012.25 12c0-1.357.6-2.573 1.549-3.397a4.49 4.49 0 011.307-3.497 4.49 4.49 0 013.497-1.307zm7.007 6.387a.75.75 0 10-1.22-.872l-3.236 4.53L9.53 12.22a.75.75 0 00-1.06 1.06l2.25 2.25a.75.75 0 001.14-.094l3.75-5.25z" clipRule="evenodd" />
-                </svg>
-                Verified
-              </span>
+              <>
+                <span
+                  className="flex items-center gap-1 px-3 py-1.5 text-sm font-medium text-emerald-600 dark:text-emerald-500 bg-emerald-50 dark:bg-emerald-900/20 rounded-full"
+                  title="You are a verified researcher"
+                >
+                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                    <path fillRule="evenodd" d="M8.603 3.799A4.49 4.49 0 0112 2.25c1.357 0 2.573.6 3.397 1.549a4.49 4.49 0 013.498 1.307 4.491 4.491 0 011.307 3.497A4.49 4.49 0 0121.75 12a4.49 4.49 0 01-1.549 3.397 4.491 4.491 0 01-1.307 3.497 4.491 4.491 0 01-3.497 1.307A4.49 4.49 0 0112 21.75a4.49 4.49 0 01-3.397-1.549 4.49 4.49 0 01-3.498-1.306 4.491 4.491 0 01-1.307-3.498A4.49 4.49 0 012.25 12c0-1.357.6-2.573 1.549-3.397a4.49 4.49 0 011.307-3.497 4.49 4.49 0 013.497-1.307zm7.007 6.387a.75.75 0 10-1.22-.872l-3.236 4.53L9.53 12.22a.75.75 0 00-1.06 1.06l2.25 2.25a.75.75 0 001.14-.094l3.75-5.25z" clipRule="evenodd" />
+                  </svg>
+                  Verified
+                </span>
+                <button
+                  onClick={() => setShowProfileEditor(true)}
+                  className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full"
+                  title="Edit Profile"
+                >
+                  <svg className="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                  </svg>
+                </button>
+              </>
             ) : (
               <a
                 href="https://lea-verify.vercel.app/"
@@ -262,8 +279,15 @@ function AppContent() {
             </button>
           </div>
 
-          {/* Feed Content */}
-          {activeFeedUri && (() => {
+          {/* Feed Content or Profile View */}
+          {viewingProfileDid ? (
+            <ProfileView
+              did={viewingProfileDid}
+              onClose={() => setViewingProfileDid(null)}
+              onOpenProfile={setViewingProfileDid}
+              inline
+            />
+          ) : activeFeedUri && (() => {
             const activeFeed = pinnedFeeds.find(f => f.uri === activeFeedUri);
             return (
               <Feed
@@ -273,6 +297,7 @@ function AppContent() {
                 feedType={activeFeed?.type}
                 keyword={activeFeed?.keyword}
                 refreshKey={refreshKey}
+                onOpenProfile={setViewingProfileDid}
               />
             );
           })()}
@@ -289,6 +314,9 @@ function AppContent() {
 
       {/* Feed Discovery modal */}
       {showFeedDiscovery && <FeedDiscovery onClose={() => setShowFeedDiscovery(false)} />}
+
+      {/* Profile Editor modal */}
+      {showProfileEditor && <ProfileEditor onClose={() => setShowProfileEditor(false)} />}
     </div>
   );
 }
