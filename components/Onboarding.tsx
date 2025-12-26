@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useFeeds, SUGGESTED_FEEDS, PinnedFeed } from '@/lib/feeds';
 import { useSettings } from '@/lib/settings';
-import { followUser, getSession } from '@/lib/bluesky';
+import { followUser, getSession, searchStarterPacks, StarterPackView } from '@/lib/bluesky';
 
 interface OnboardingProps {
   onComplete: () => void;
@@ -87,6 +87,11 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
   const [bulkFollowing, setBulkFollowing] = useState(false);
   const [selectedForBulk, setSelectedForBulk] = useState<Set<string>>(new Set());
 
+  // Starter pack state
+  const [starterPacks, setStarterPacks] = useState<StarterPackView[]>([]);
+  const [loadingStarterPacks, setLoadingStarterPacks] = useState(false);
+  const [starterPackSearch, setStarterPackSearch] = useState('');
+
   // Fetch all researchers when entering step 3
   useEffect(() => {
     if (step === 3 && allResearchers.length === 0) {
@@ -155,6 +160,51 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
     const debounce = setTimeout(fetchSuggestions, 300);
     return () => clearTimeout(debounce);
   }, [selectedTopics]);
+
+  // Fetch starter packs when entering step 4 based on selected topics
+  useEffect(() => {
+    if (step === 4) {
+      const fetchStarterPacks = async () => {
+        setLoadingStarterPacks(true);
+        try {
+          // Search for starter packs based on selected topics or default academic terms
+          const searchTerms = selectedTopics.size > 0
+            ? Array.from(selectedTopics).slice(0, 3)
+            : ['science', 'academic', 'research'];
+
+          const allPacks: StarterPackView[] = [];
+          for (const term of searchTerms) {
+            const packs = await searchStarterPacks(term, 5);
+            for (const pack of packs) {
+              if (!allPacks.some(p => p.uri === pack.uri)) {
+                allPacks.push(pack);
+              }
+            }
+          }
+          setStarterPacks(allPacks.slice(0, 12));
+        } catch (error) {
+          console.error('Failed to fetch starter packs:', error);
+        } finally {
+          setLoadingStarterPacks(false);
+        }
+      };
+      fetchStarterPacks();
+    }
+  }, [step, selectedTopics]);
+
+  // Search starter packs manually
+  const handleStarterPackSearch = async () => {
+    if (!starterPackSearch.trim()) return;
+    setLoadingStarterPacks(true);
+    try {
+      const packs = await searchStarterPacks(starterPackSearch, 10);
+      setStarterPacks(packs);
+    } catch (error) {
+      console.error('Failed to search starter packs:', error);
+    } finally {
+      setLoadingStarterPacks(false);
+    }
+  };
 
   const toggleTopic = (topic: string) => {
     setSelectedTopics(prev => {
@@ -276,7 +326,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
       <div className="w-full max-w-2xl">
         {/* Progress indicator */}
         <div className="flex justify-center gap-2 mb-8">
-          {[1, 2, 3, 4].map(s => (
+          {[1, 2, 3, 4, 5].map(s => (
             <div
               key={s}
               className={`w-2.5 h-2.5 rounded-full transition-colors ${
@@ -765,8 +815,119 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
             </div>
           )}
 
-          {/* Step 4: Additional Settings */}
+          {/* Step 4: Starter Packs */}
           {step === 4 && (
+            <div className="p-8">
+              <div className="text-center mb-6">
+                <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
+                  Discover Starter Packs
+                </h2>
+                <p className="mt-2 text-gray-600 dark:text-gray-400">
+                  Find curated lists of accounts to follow based on your interests
+                </p>
+              </div>
+
+              {/* Search box */}
+              <div className="mb-6">
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={starterPackSearch}
+                    onChange={(e) => setStarterPackSearch(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && handleStarterPackSearch()}
+                    placeholder="Search starter packs..."
+                    className="flex-1 px-4 py-2 border border-gray-200 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                  <button
+                    onClick={handleStarterPackSearch}
+                    disabled={loadingStarterPacks}
+                    className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-xl font-medium transition-colors disabled:opacity-50"
+                  >
+                    Search
+                  </button>
+                </div>
+                {selectedTopics.size > 0 && (
+                  <p className="text-xs text-gray-500 mt-2">
+                    Showing results for: {Array.from(selectedTopics).slice(0, 3).join(', ')}
+                  </p>
+                )}
+              </div>
+
+              {/* Starter packs list */}
+              {loadingStarterPacks ? (
+                <div className="flex justify-center py-8">
+                  <div className="animate-spin w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full"></div>
+                </div>
+              ) : starterPacks.length === 0 ? (
+                <p className="text-center text-gray-500 py-8">
+                  No starter packs found. Try a different search term.
+                </p>
+              ) : (
+                <div className="space-y-3 max-h-[350px] overflow-y-auto">
+                  {starterPacks.map(pack => (
+                    <a
+                      key={pack.uri}
+                      href={`https://bsky.app/starter-pack/${pack.creator.handle}/${pack.uri.split('/').pop()}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="block p-4 bg-gray-50 dark:bg-gray-800 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                    >
+                      <div className="flex items-start gap-3">
+                        {pack.creator.avatar && (
+                          <img
+                            src={pack.creator.avatar}
+                            alt=""
+                            className="w-10 h-10 rounded-full flex-shrink-0"
+                          />
+                        )}
+                        <div className="flex-1 min-w-0">
+                          <h3 className="font-medium text-gray-900 dark:text-gray-100 truncate">
+                            {pack.record.name}
+                          </h3>
+                          {pack.record.description && (
+                            <p className="text-sm text-gray-500 mt-1 line-clamp-2">
+                              {pack.record.description}
+                            </p>
+                          )}
+                          <div className="flex items-center gap-3 mt-2 text-xs text-gray-400">
+                            <span>by @{pack.creator.handle}</span>
+                            {pack.listItemCount && (
+                              <span>{pack.listItemCount} people</span>
+                            )}
+                          </div>
+                        </div>
+                        <svg className="w-5 h-5 text-gray-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                        </svg>
+                      </div>
+                    </a>
+                  ))}
+                </div>
+              )}
+
+              <p className="text-xs text-gray-400 text-center mt-4">
+                Click a starter pack to view and follow on Bluesky
+              </p>
+
+              <div className="flex gap-3 mt-6">
+                <button
+                  onClick={() => setStep(3)}
+                  className="flex-1 py-3.5 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 font-medium rounded-xl hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+                >
+                  Back
+                </button>
+                <button
+                  onClick={() => setStep(5)}
+                  className="flex-1 py-3.5 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-semibold rounded-xl transition-all"
+                >
+                  Continue
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Step 5: Additional Settings */}
+          {step === 5 && (
             <div className="p-8">
               <div className="text-center mb-8">
                 <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
@@ -812,7 +973,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
 
               <div className="flex gap-3 mt-6">
                 <button
-                  onClick={() => setStep(3)}
+                  onClick={() => setStep(4)}
                   className="flex-1 py-3.5 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 font-medium rounded-xl hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
                 >
                   Back

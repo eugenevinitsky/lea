@@ -579,3 +579,57 @@ export async function unmuteConvo(convoId: string): Promise<{ convo: Convo }> {
   );
   return response.data as { convo: Convo };
 }
+
+// Starter Pack types and functions
+export interface StarterPackView {
+  uri: string;
+  cid: string;
+  record: {
+    name: string;
+    description?: string;
+    list: string;
+    createdAt: string;
+  };
+  creator: {
+    did: string;
+    handle: string;
+    displayName?: string;
+    avatar?: string;
+  };
+  listItemCount?: number;
+  joinedWeekCount?: number;
+  joinedAllTimeCount?: number;
+  indexedAt: string;
+}
+
+// Search starter packs by query
+export async function searchStarterPacks(query: string, limit: number = 10): Promise<StarterPackView[]> {
+  try {
+    const response = await fetch(
+      `https://public.api.bsky.app/xrpc/app.bsky.graph.searchStarterPacks?` +
+      new URLSearchParams({ q: query, limit: String(limit) })
+    );
+    if (!response.ok) return [];
+    const data = await response.json();
+    return data.starterPacks || [];
+  } catch (error) {
+    console.error('Failed to search starter packs:', error);
+    return [];
+  }
+}
+
+// Get a specific starter pack by URI
+export async function getStarterPack(uri: string): Promise<StarterPackView | null> {
+  try {
+    const response = await fetch(
+      `https://public.api.bsky.app/xrpc/app.bsky.graph.getStarterPack?` +
+      new URLSearchParams({ starterPack: uri })
+    );
+    if (!response.ok) return null;
+    const data = await response.json();
+    return data.starterPack || null;
+  } catch (error) {
+    console.error('Failed to get starter pack:', error);
+    return null;
+  }
+}

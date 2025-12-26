@@ -1,0 +1,127 @@
+[
+  {
+    "did": "did:plc:3tmaleaxipegsectvamyrkyi",
+    "handle": "mmitchell.bsky.social",
+    "displayName": "Margaret Mitchell",
+    "orcid": "0000-0002-0303-6768",
+    "orcidUrl": "https://orcid.org/0000-0002-0303-6768",
+    "researchInterests": [],
+    "orcidBiography": null,
+    "recentWorkTitles": [],
+    "followedByCount": 19
+  },
+  {
+    "did": "did:plc:3igkkqe5nkm66olc4y2syzpy",
+    "handle": "markriedl.bsky.social",
+    "displayName": "Mark Riedl",
+    "orcid": "0000-0001-5283-6588",
+    "orcidUrl": "https://orcid.org/0000-0001-5283-6588",
+    "researchInterests": [],
+    "orcidBiography": null,
+    "recentWorkTitles": [
+      "Seamful XAI: Operationalizing Seamful Design in Explainable AI",
+      "Beyond Prompts: Exploring the Design Space of Mixed-Initiative Co-Creativity Systems",
+      "Examining Hard and Soft Skill Prioritization in HighSchool Engineering Education",
+      "Problem-solving or Solved Problems: Constricting design challenges in high-school engineering education to avoid (disruptive) failures",
+      "Situated Dialogue Learning through Procedural Environment Generation"
+    ],
+    "followedByCount": 19
+  },
+  {
+    "did": "did:plc:p72jkscm4rt4xuep3lzv6doh",
+    "handle": "melaniemitchell.bsky.social",
+    "displayName": "Melanie Mitchell",
+    "orcid": "0000-0002-9314-1675",
+    "orcidUrl": "https://orcid.org/0000-0002-9314-1675",
+    "researchInterests": [],
+    "orcidBiography": null,
+    "recentWorkTitles": [],
+    "followedByCount": 19
+  },
+  {
+    "did": "did:plc:tbqqvyv6pjjww44glrmycaxl",
+    "handle": "carlbergstrom.com",
+    "displayName": "Carl T. Bergstrom",
+    "orcid": "0000-0002-2070-385X",
+    "orcidUrl": "https://orcid.org/0000-0002-2070-385X",
+    "researchInterests": [
+      "evolution, network theory, bibliometrics, behavioral ecology, game theory, misinformation"
+    ],
+    "orcidBiography": "Carl Bergstrom is an evolutionary biologist who uses mathematical models to study the flow of information through biological and social systems.",
+    "recentWorkTitles": [
+      "AI, peer review and the human activity of science",
+      "Partial honesty in a hummingbird polymorphism provides evidence for a hybrid equilibrium",
+      "How should the advancement of large language models affect the practice of science?",
+      "Support US OCTOPUS Act to keep octopuses wild",
+      "Rationalizing risk aversion in science: Why incentives to work hard clash with incentives to take risks"
+    ],
+    "followedByCount": 16
+  },
+  {
+    "did": "did:plc:h3imi5zmcoqinwouamcnuh7m",
+    "handle": "randomwalker.bsky.social",
+    "displayName": "Arvind Narayanan",
+    "orcid": "0000-0002-2870-6350",
+    "orcidUrl": "https://orcid.org/0000-0002-2870-6350",
+    "researchInterests": [],
+    "orcidBiography": null,
+    "recentWorkTitles": [],
+    "followedByCount": 16
+  },
+  {
+    "did": "did:plc:23e6dsev72e5hvxzi2c7tvyz",
+    "handle": "lucy3.bsky.social",
+    "displayName": "Lucy Li",
+    "orcid": "0009-0005-0568-408X",
+    "orcidUrl": "https://orcid.org/0009-0005-0568-408X",
+    "researchInterests": [],
+    "orcidBiography": null,
+    "recentWorkTitles": [],
+    "followedByCount": 16
+  },
+  {
+    "did": "did:plc:xl4nejvjc52uhp25mceh3f7q",
+    "handle": "kylelo.bsky.social",
+    "displayName": "Kyle Lo",
+    "orcid": "0000-0002-1804-2853",
+    "orcidUrl": "https://orcid.org/0000-0002-1804-2853",
+    "researchInterests": [],
+    "orcidBiography": null,
+    "recentWorkTitles": [
+      "Accelerating Scientific Paper Skimming with Augmented Intelligence Through Customizable Faceted Highlights",
+      "The Semantic Reader Project",
+      "Know Your Audience: The benefits and pitfalls of generating plain language summaries beyond the \"general\" audience",
+      "LIMEADE: From AI Explanations to Advice Taking",
+      "Paper Plain : Making Medical Research Papers Approachable to Healthcare Consumers with Natural Language Processing"
+    ],
+    "followedByCount": 16
+  },
+  {
+    "did": "did:plc:so5r7asbd26pmnnoerksklor",
+    "handle": "meredithmeredith.bsky.social",
+    "displayName": "Meredith Whittaker ",
+    "orcid": "0009-0006-8618-0525",
+    "orcidUrl": "https://orcid.org/0009-0006-8618-0525",
+    "researchInterests": [],
+    "orcidBiography": null,
+    "recentWorkTitles": [],
+    "followedByCount": 15
+  },
+  {
+    "did": "did:plc:l3vbx3e2lqnlja7q64wfrrzq",
+    "handle": "nsaphra.bsky.social",
+    "displayName": "Naomi Saphra",
+    "orcid": "0000-0001-8607-3515",
+    "orcidUrl": "https://orcid.org/0000-0001-8607-3515",
+    "researchInterests": [],
+    "orcidBiography": null,
+    "recentWorkTitles": [
+      "Sudden Drops in the Loss: Syntax Acquisition, Phase Transitions, and Simplicity Bias in MLMs",
+      "TRAM: Bridging Trust Regions and Sharpness Aware Minimization",
+      "Latent State Models of Training Dynamics",
+      "Linear Connectivity Reveals Generalization Strategies",
+      "Shapley interactions for complex feature attribution"
+    ],
+    "followedByCount": 16
+  }
+]
