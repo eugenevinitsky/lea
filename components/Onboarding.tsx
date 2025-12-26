@@ -44,11 +44,15 @@ interface ResearcherSuggestion {
 
 const FEED_OPTIONS = [
   {
-    ...SUGGESTED_FEEDS[0], // Paper Skygest
+    ...SUGGESTED_FEEDS[0], // Verified Researchers
     recommended: true,
   },
   {
-    ...SUGGESTED_FEEDS[1], // For You
+    ...SUGGESTED_FEEDS[1], // Paper Skygest
+    recommended: true,
+  },
+  {
+    ...SUGGESTED_FEEDS[2], // For You
     recommended: true,
   },
   {
@@ -56,15 +60,14 @@ const FEED_OPTIONS = [
     displayName: 'Timeline',
     description: 'Posts from people you follow',
     acceptsInteractions: false,
-    recommended: true,
   },
-  ...SUGGESTED_FEEDS.slice(2), // Mutuals, Quiet Posters, Academic Jobs
+  ...SUGGESTED_FEEDS.slice(3), // Mutuals, Quiet Posters, Academic Jobs
 ];
 
 export default function Onboarding({ onComplete }: OnboardingProps) {
   const [step, setStep] = useState(1);
   const [selectedFeeds, setSelectedFeeds] = useState<Set<string>>(
-    new Set(['at://did:plc:uaadt6f5bbda6cycbmatcm3z/app.bsky.feed.generator/preprintdigest', 'timeline'])
+    new Set([SUGGESTED_FEEDS[0].uri, SUGGESTED_FEEDS[1].uri, SUGGESTED_FEEDS[2].uri]) // Verified Researchers, Paper Skygest, For You
   );
   const { addFeed, pinnedFeeds } = useFeeds();
   const { settings, updateSettings } = useSettings();
