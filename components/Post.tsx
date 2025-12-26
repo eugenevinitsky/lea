@@ -540,7 +540,41 @@ function EmbedRecord({ record, onOpenThread }: { record: AppBskyEmbedRecord.View
     />;
   }
 
-  // Fallback for other record types (feeds, lists, etc.)
+  // Handle feed generator embeds
+  if (record.$type === 'app.bsky.feed.defs#generatorView') {
+    const feed = record as unknown as { displayName?: string; description?: string; uri?: string };
+    return (
+      <div className="mt-2 p-3 border border-gray-200 dark:border-gray-700 rounded-xl bg-gray-50 dark:bg-gray-800/50">
+        <p className="text-sm font-medium text-gray-700 dark:text-gray-300">{feed.displayName || 'Feed'}</p>
+        {feed.description && <p className="text-xs text-gray-500 mt-1">{feed.description}</p>}
+      </div>
+    );
+  }
+
+  // Handle list embeds
+  if (record.$type === 'app.bsky.graph.defs#listView') {
+    const list = record as unknown as { name?: string; description?: string };
+    return (
+      <div className="mt-2 p-3 border border-gray-200 dark:border-gray-700 rounded-xl bg-gray-50 dark:bg-gray-800/50">
+        <p className="text-sm font-medium text-gray-700 dark:text-gray-300">{list.name || 'List'}</p>
+        {list.description && <p className="text-xs text-gray-500 mt-1">{list.description}</p>}
+      </div>
+    );
+  }
+
+  // Handle starter pack embeds
+  if (record.$type === 'app.bsky.graph.defs#starterPackViewBasic') {
+    const pack = record as unknown as { record?: { name?: string; description?: string } };
+    return (
+      <div className="mt-2 p-3 border border-gray-200 dark:border-gray-700 rounded-xl bg-gray-50 dark:bg-gray-800/50">
+        <p className="text-sm font-medium text-gray-700 dark:text-gray-300">{pack.record?.name || 'Starter Pack'}</p>
+        {pack.record?.description && <p className="text-xs text-gray-500 mt-1">{pack.record.description}</p>}
+      </div>
+    );
+  }
+
+  // Fallback for other record types - show type for debugging
+  console.log('Unknown embed record type:', record.$type, record);
   return (
     <div className="mt-2 p-3 border border-gray-200 dark:border-gray-700 rounded-xl bg-gray-50 dark:bg-gray-800/50">
       <p className="text-sm text-gray-500">Embedded content</p>
