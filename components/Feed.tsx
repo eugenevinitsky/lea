@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { AppBskyFeedDefs, AppBskyFeedPost, AppBskyEmbedExternal } from '@atproto/api';
-import { getTimeline, getFeed, searchPosts, FEEDS, FeedId, isVerifiedResearcher, Label } from '@/lib/bluesky';
+import { getTimeline, getFeed, getListFeed, searchPosts, FEEDS, FeedId, isVerifiedResearcher, Label } from '@/lib/bluesky';
 import { useSettings } from '@/lib/settings';
 import { detectPaperLink } from '@/lib/papers';
 import Post from './Post';
@@ -14,8 +14,8 @@ interface FeedProps {
   feedName?: string;
   acceptsInteractions?: boolean;
   refreshKey?: number;
-  // For keyword feeds
-  feedType?: 'feed' | 'keyword';
+  // Feed type: 'feed' for generators, 'keyword' for search, 'list' for list feeds
+  feedType?: 'feed' | 'keyword' | 'list';
   keyword?: string;
 }
 
@@ -36,6 +36,7 @@ export default function Feed({ feedId, feedUri, feedName, acceptsInteractions, r
   const isPapersFeed = feedId === 'papers';
   const isVerifiedFeed = feedId === 'verified';
   const isKeywordFeed = feedType === 'keyword' || (feedUri?.startsWith('keyword:') ?? false);
+  const isListFeed = feedType === 'list' || (effectiveFeedUri?.includes('/app.bsky.graph.list/') ?? false);
   const effectiveKeyword = keyword || (feedUri?.startsWith('keyword:') ? feedUri.slice(8).replace(/-/g, ' ') : null);
 
   const loadFeed = async (loadMore = false, currentCursor?: string) => {
@@ -52,6 +53,11 @@ export default function Feed({ feedId, feedUri, feedName, acceptsInteractions, r
         // Convert PostView[] to FeedViewPost[] format
         feedPosts = searchResult.posts.map(post => ({ post }));
         newCursor = searchResult.cursor;
+      } else if (isListFeed && effectiveFeedUri) {
+        // List feed - posts from list members
+        const response = await getListFeed(effectiveFeedUri, loadMore ? (currentCursor || cursor) : undefined);
+        feedPosts = response.data.feed;
+        newCursor = response.data.cursor;
       } else if (effectiveFeedUri && effectiveFeedUri !== 'timeline') {
         // Custom feed (like Paper Skygest)
         const response = await getFeed(effectiveFeedUri, loadMore ? (currentCursor || cursor) : undefined);

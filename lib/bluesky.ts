@@ -64,6 +64,12 @@ export async function getFeed(feedUri: string, cursor?: string) {
   return agent.app.bsky.feed.getFeed({ feed: feedUri, limit: 30, cursor });
 }
 
+// Fetch posts from a list (all posts from list members)
+export async function getListFeed(listUri: string, cursor?: string) {
+  if (!agent) throw new Error('Not logged in');
+  return agent.app.bsky.feed.getListFeed({ list: listUri, limit: 30, cursor });
+}
+
 // Feed generator info type
 export interface FeedGeneratorInfo {
   uri: string;

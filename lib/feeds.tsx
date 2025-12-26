@@ -4,8 +4,19 @@ import { createContext, useContext, useState, useEffect, ReactNode } from 'react
 
 const FEEDS_STORAGE_KEY = 'lea-pinned-feeds';
 
+// Verified researchers list URI
+export const VERIFIED_RESEARCHERS_LIST = 'at://did:plc:7c7tx56n64jhzezlwox5dja6/app.bsky.graph.list/3masawnn3xj23';
+
 // Suggested feeds for researchers
 export const SUGGESTED_FEEDS = [
+  {
+    uri: VERIFIED_RESEARCHERS_LIST,
+    displayName: 'Verified Researchers',
+    description: 'Posts from verified researchers in the LEA community',
+    avatar: undefined,
+    acceptsInteractions: false,
+    type: 'list' as const,
+  },
   {
     uri: 'at://did:plc:uaadt6f5bbda6cycbmatcm3z/app.bsky.feed.generator/preprintdigest',
     displayName: 'Paper Skygest',
@@ -67,8 +78,8 @@ export interface PinnedFeed {
   displayName: string;
   avatar?: string;
   acceptsInteractions: boolean;
-  // For keyword feeds
-  type?: 'feed' | 'keyword';
+  // Feed type: 'feed' for feed generators, 'keyword' for search, 'list' for list feeds
+  type?: 'feed' | 'keyword' | 'list';
   keyword?: string;
 }
 
