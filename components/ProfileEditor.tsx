@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { getSession } from '@/lib/bluesky';
 import type { ProfileLink, ProfilePaper } from '@/lib/db/schema';
+import ProfileView from './ProfileView';
 
 interface ProfileEditorProps {
   onClose: () => void;
@@ -27,6 +28,7 @@ export default function ProfileEditor({ onClose }: ProfileEditorProps) {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const [notVerified, setNotVerified] = useState(false);
+  const [showPreview, setShowPreview] = useState(false);
 
   const [profile, setProfile] = useState<ProfileData>({
     shortBio: '',
@@ -188,20 +190,44 @@ export default function ProfileEditor({ onClose }: ProfileEditorProps) {
     setProfile({ ...profile, [list]: profile[list].filter((_, i) => i !== index) });
   };
 
+  // Show profile preview
+  if (showPreview && session?.did) {
+    return (
+      <ProfileView
+        did={session.did}
+        onClose={() => setShowPreview(false)}
+      />
+    );
+  }
+
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
       <div className="bg-white dark:bg-gray-900 rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
         {/* Header */}
         <div className="sticky top-0 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 p-4 flex items-center justify-between">
           <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">Edit Profile</h2>
-          <button
-            onClick={onClose}
-            className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full"
-          >
-            <svg className="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
+          <div className="flex items-center gap-2">
+            {!loading && !notVerified && (
+              <button
+                onClick={() => setShowPreview(true)}
+                className="flex items-center gap-1 px-3 py-1.5 text-sm text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                </svg>
+                View Profile
+              </button>
+            )}
+            <button
+              onClick={onClose}
+              className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full"
+            >
+              <svg className="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
         </div>
 
         <div className="p-4">
