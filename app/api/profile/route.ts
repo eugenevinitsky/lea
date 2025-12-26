@@ -33,6 +33,7 @@ export async function GET(request: NextRequest) {
     // Parse JSON fields
     const profileData = profile ? {
       shortBio: profile.shortBio,
+      affiliation: profile.affiliation,
       disciplines: profile.disciplines ? JSON.parse(profile.disciplines) : [],
       links: profile.links ? JSON.parse(profile.links) : [],
       publicationVenues: profile.publicationVenues ? JSON.parse(profile.publicationVenues) : [],
@@ -63,7 +64,7 @@ export async function GET(request: NextRequest) {
 export async function PUT(request: NextRequest) {
   try {
     const body = await request.json();
-    const { did, shortBio, disciplines, links, publicationVenues, favoriteOwnPapers, favoriteReadPapers } = body;
+    const { did, shortBio, affiliation, disciplines, links, publicationVenues, favoriteOwnPapers, favoriteReadPapers } = body;
 
     if (!did) {
       return NextResponse.json({ error: 'DID required' }, { status: 400 });
@@ -130,6 +131,7 @@ export async function PUT(request: NextRequest) {
 
     const profileData = {
       shortBio: shortBio || null,
+      affiliation: affiliation || null,
       disciplines: disciplines ? JSON.stringify(disciplines) : null,
       links: links ? JSON.stringify(links) : null,
       publicationVenues: publicationVenues ? JSON.stringify(publicationVenues) : null,

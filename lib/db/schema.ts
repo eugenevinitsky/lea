@@ -109,6 +109,7 @@ export const communityMembers = pgTable('community_members', {
 export const researcherProfiles = pgTable('researcher_profiles', {
   did: varchar('did', { length: 255 }).primaryKey(), // Must be a verified researcher
   shortBio: text('short_bio'), // ~280 chars
+  affiliation: varchar('affiliation', { length: 255 }), // Institution/company
   disciplines: text('disciplines'), // JSON array of strings, max 5
   links: text('links'), // JSON array of {title, url}, max 3
   publicationVenues: text('publication_venues'), // JSON array of strings, max 5

@@ -15,6 +15,7 @@ interface ResearcherInfo {
 
 interface ProfileData {
   shortBio: string | null;
+  affiliation: string | null;
   disciplines: string[];
   links: ProfileLink[];
   publicationVenues: string[];
@@ -172,8 +173,10 @@ export default function ProfileView({ did, avatar, displayName, handle, onClose,
                   {finalHandle && (
                     <p className="text-sm text-gray-500">@{finalHandle}</p>
                   )}
-                  {researcher?.institution && (
-                    <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">{researcher.institution}</p>
+                  {(profile?.affiliation || researcher?.institution) && (
+                    <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                      {profile?.affiliation || researcher?.institution}
+                    </p>
                   )}
                   {researcher?.orcid && (
                     <a
@@ -194,7 +197,7 @@ export default function ProfileView({ did, avatar, displayName, handle, onClose,
               {/* Bio */}
               {profile?.shortBio && (
                 <div className="mb-6">
-                  <p className="text-gray-700 dark:text-gray-300">{profile.shortBio}</p>
+                  <p className="text-gray-700 dark:text-gray-300 whitespace-pre-wrap">{profile.shortBio}</p>
                 </div>
               )}
 

@@ -10,6 +10,7 @@ interface ProfileEditorProps {
 
 interface ProfileData {
   shortBio: string;
+  affiliation: string;
   disciplines: string[];
   links: ProfileLink[];
   publicationVenues: string[];
@@ -29,6 +30,7 @@ export default function ProfileEditor({ onClose }: ProfileEditorProps) {
 
   const [profile, setProfile] = useState<ProfileData>({
     shortBio: '',
+    affiliation: '',
     disciplines: [],
     links: [],
     publicationVenues: [],
@@ -71,6 +73,7 @@ export default function ProfileEditor({ onClose }: ProfileEditorProps) {
 
         setProfile({
           shortBio: data.profile?.shortBio || '',
+          affiliation: data.profile?.affiliation || data.researcher?.institution || '',
           disciplines: disciplines,
           links: data.profile?.links || [],
           publicationVenues: data.profile?.publicationVenues || [],
@@ -125,6 +128,7 @@ export default function ProfileEditor({ onClose }: ProfileEditorProps) {
         body: JSON.stringify({
           did: session.did,
           shortBio: profile.shortBio || null,
+          affiliation: profile.affiliation || null,
           disciplines: disciplines.length > 0 ? disciplines : null,
           links: links.length > 0 ? links : null,
           publicationVenues: publicationVenues.length > 0 ? publicationVenues : null,
@@ -243,7 +247,22 @@ export default function ProfileEditor({ onClose }: ProfileEditorProps) {
                   rows={3}
                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
-                <p className="text-xs text-gray-400 mt-1">{profile.shortBio.length}/500</p>
+              <p className="text-xs text-gray-400 mt-1">{profile.shortBio.length}/500</p>
+              </div>
+
+              {/* Affiliation */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Affiliation
+                </label>
+                <input
+                  type="text"
+                  value={profile.affiliation}
+                  onChange={(e) => setProfile({ ...profile, affiliation: e.target.value })}
+                  placeholder="e.g., Stanford University, Google Research"
+                  maxLength={255}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
               </div>
 
               {/* Research Topics */}
