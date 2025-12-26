@@ -72,7 +72,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
   const { addFeed, pinnedFeeds } = useFeeds();
   const { settings, updateSettings } = useSettings();
 
-  const [threadgateChoice, setThreadgateChoice] = useState<'open' | 'following' | 'verified'>('open');
+  const [threadgateChoice, setThreadgateChoice] = useState<'open' | 'following' | 'researchers'>('open');
   const [dimNonVerified, setDimNonVerified] = useState(false);
 
   // Research interests state
@@ -372,9 +372,9 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                 </button>
 
                 <button
-                  onClick={() => setThreadgateChoice('verified')}
+                  onClick={() => setThreadgateChoice('researchers')}
                   className={`w-full p-4 rounded-xl border-2 text-left transition-all ${
-                    threadgateChoice === 'verified'
+                    threadgateChoice === 'researchers'
                       ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
                       : 'border-gray-200 dark:border-gray-700 hover:border-gray-300'
                   }`}
