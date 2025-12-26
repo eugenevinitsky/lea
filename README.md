@@ -7,9 +7,11 @@ A Bluesky client with protective defaults for researchers.
 | Feature | Description |
 |---------|-------------|
 | **ORCID Verification** | Link ORCID to verify researcher identity |
-| **Reply Restrictions** | Auto-restrict replies to followers, verified researchers, or your personal 1-hop community |
+| **Reply Restrictions** | Auto-restrict replies to followers, verified researchers, or your connections |
 | **Papers Feed** | Timeline filtered to academic paper links only |
-| **Full Client** | Post, reply, like, repost, quote, view threads |
+| **Bookmarks + Export** | Save posts, export paper citations to BibTeX/RIS for Zotero |
+| **Direct Messages** | Built-in DM support |
+| **Feed Discovery** | Browse and pin custom Bluesky feeds |
 
 **Live:** https://client-kappa-weld-68.vercel.app
 
@@ -27,9 +29,10 @@ Verify your researcher identity by linking your ORCID account at `/verify`.
 - Valid ORCID linked to OpenAlex
 
 Verified researchers:
+- Get labeled via the LEA labeler (`lea-community.bsky.social`)
 - Get added to the "Verified Researchers" Bluesky list
-- Get a personal community list created with their 1-hop connections
-- Can restrict replies to only verified researchers or their personal community
+- Get a personal connections list created
+- Can restrict replies to only verified researchers or their connections
 
 ### Protective Threadgates
 
@@ -39,10 +42,8 @@ When posting, auto-apply reply restrictions:
 |--------|--------------|
 | People you follow | Only accounts you follow |
 | Verified researchers only | Only ORCID-verified researchers |
-| My community | Verified researchers + YOUR direct followers/following (1-hop from you) |
+| My connections | Verified researchers + your followers/following |
 | Anyone | No restrictions |
-
-**Key difference:** "My community" is personal to YOU - it's people who follow you or that you follow, not a global community list.
 
 ### Papers Feed
 
@@ -52,7 +53,25 @@ Automatically filters your timeline to posts containing academic links:
 - Semantic Scholar, OpenReview, ACL Anthology
 - Nature, Science, PNAS, IEEE, ACM, Springer, Wiley
 
-Auto-scans 5+ pages on load to find papers in your network.
+### Bookmarks & Citation Export
+
+- Bookmark any post for later
+- Export paper bookmarks to **BibTeX** (fetches real metadata from CrossRef/arXiv)
+- Export to **RIS** for Zotero, Mendeley, EndNote
+- Export raw **JSON** for backup
+
+### Feed Discovery
+
+- Browse popular Bluesky feeds
+- Search for feeds by keyword
+- Pin your favorite feeds to the sidebar
+- Includes Paper Skygest (curated preprint digest)
+
+### Direct Messages
+
+- View and send DMs
+- Real-time polling for new messages
+- Integrated in the sidebar
 
 ### Full Bluesky Interactions
 
@@ -60,7 +79,7 @@ Auto-scans 5+ pages on load to find papers in your network.
 - **Like/Unlike** - Heart button with count
 - **Repost/Unrepost** - Repost toggle
 - **Quote Post** - Quote with your commentary + preview
-- **Thread View** - Click any post to see full thread context (parents + replies)
+- **Thread View** - Click any post to see full thread context
 
 ### Additional Protections
 
@@ -89,6 +108,10 @@ npx vercel --prod
 LEA_BOT_HANDLE="your-bot.bsky.social"
 LEA_BOT_PASSWORD="app-password-here"
 
+# Bluesky labeler account
+LEA_LABELER_HANDLE="your-labeler.bsky.social"
+LEA_LABELER_PASSWORD="app-password-here"
+
 # ORCID OAuth (for verification)
 ORCID_CLIENT_ID="APP-XXXXXXXXX"
 ORCID_CLIENT_SECRET="..."
@@ -114,6 +137,24 @@ npx drizzle-kit push
 - **Vercel Postgres** + Drizzle ORM
 - **@atproto/api** for Bluesky
 
+### Real-Time Sync with Jetstream
+
+Instead of polling, LEA uses Bluesky's Jetstream for real-time label sync:
+
+```
+You label someone on Ozone
+        ↓
+Bluesky broadcasts event (<1 second)
+        ↓
+Jetstream listener receives it
+        ↓
+POSTs to /api/labeler/sync-to-db
+        ↓
+Researcher appears in LEA instantly
+```
+
+See `scripts/README.md` for Jetstream listener setup.
+
 ### Project Structure
 
 ```
@@ -122,14 +163,20 @@ app/
 ├── verify/page.tsx          # Verification flow
 └── api/
     ├── researchers/         # Verified researcher CRUD
-    ├── vouching/            # Vouch system (API ready)
-    ├── community/           # Membership queries
+    │   ├── verify/          # Complete verification
+    │   ├── suggestions/     # Researcher suggestions
+    │   ├── manual-update/   # Admin updates
+    │   ├── lookup-orcids/   # Batch ORCID lookup
+    │   └── backfill-topics/ # Backfill research topics
+    ├── labeler/             # Labeler integration
+    │   ├── sync-to-db/      # Sync labels to database
+    │   ├── sync-from-ozone/ # Pull from Ozone
+    │   └── add-to-list/     # Add to Bluesky list
+    ├── vouching/            # Vouch system
     ├── graph/               # Social graph sync
     ├── list/                # Bluesky list management
-    │   ├── uri/             # Get list URIs
-    │   ├── sync/            # Sync community list
-    │   └── personal/sync/   # Sync personal list on-demand
-    ├── cron/                # Daily sync job
+    ├── cron/                # Scheduled sync jobs
+    ├── openalex/            # OpenAlex API proxy
     └── orcid/               # OAuth callbacks
 
 components/
@@ -138,37 +185,26 @@ components/
 ├── Post.tsx                # Post + interactions
 ├── ThreadView.tsx          # Thread modal
 ├── Composer.tsx            # Post composer
+├── Bookmarks.tsx           # Bookmarks panel
+├── DirectMessages.tsx      # DM interface
+├── FeedBrowser.tsx         # Feed discovery
 └── Settings.tsx            # Settings panel
 
 lib/
 ├── bluesky.ts              # Bluesky API wrapper
+├── bookmarks.tsx           # Bookmarks + export (BibTeX, RIS)
 ├── settings.tsx            # Settings context
-├── papers.ts               # Paper detection
 ├── verification.ts         # Auto-approval logic
 ├── openalex.ts             # OpenAlex API client
 ├── db/schema.ts            # Database schema
 └── services/
     ├── graph-sync.ts       # Fetch follows from Bluesky
-    ├── hop-computation.ts  # BFS for N-hop
     └── list-manager.ts     # Sync to Bluesky lists
+
+scripts/
+├── jetstream-listener.js  # Real-time label sync
+└── README.md              # Deployment instructions
 ```
-
-### How Personal Community Lists Work
-
-Each verified researcher gets their own personal community list:
-
-1. **Graph Sync** - Fetches followers/following for each verified researcher
-2. **Personal Hop Computation** - Finds everyone 1-hop from that specific user (their followers + who they follow)
-3. **Personal List Sync** - Each user's community members added to their personal Bluesky list
-4. **Threadgate** - Posts use the user's personal list to restrict replies
-
-**Why per-user?** This ensures "My community" means YOUR network, not everyone connected to any verified researcher. You control who can reply based on your own social graph.
-
-### Sync Schedule
-
-- **Cron job**: Runs daily via Vercel cron (`GET /api/cron/sync-all`)
-- **On verification**: Personal list synced immediately when you verify
-- **On-demand**: `POST /api/list/personal/sync` with `{ "did": "..." }`
 
 ---
 
@@ -176,11 +212,10 @@ Each verified researcher gets their own personal community list:
 
 | Table | Purpose |
 |-------|---------|
-| `verified_researchers` | ORCID-verified accounts + personal list URIs |
+| `verified_researchers` | ORCID-verified accounts + personal list URIs + research topics |
 | `social_graph` | Follow relationships (edges) |
-| `community_members` | Computed N-hop membership (global) |
 | `bluesky_lists` | Managed list metadata |
-| `vouch_requests` | Vouching system (pending UI) |
+| `vouch_requests` | Vouching system |
 | `sync_state` | Pagination cursors |
 
 ---
@@ -193,9 +228,8 @@ Each verified researcher gets their own personal community list:
 |----------|--------|-------------|
 | `/api/list/uri?type=verified` | GET | Get verified-only list URI |
 | `/api/list/uri?type=personal&did=X` | GET | Get user's personal list URI |
-| `/api/list/uri?type=community` | GET | Get global community list URI |
 | `/api/list/personal/sync` | POST | Sync personal list for a user |
-| `/api/list/sync` | POST | Sync global community list |
+| `/api/list/sync` | POST | Sync verified list |
 
 ### Researchers
 
@@ -203,36 +237,43 @@ Each verified researcher gets their own personal community list:
 |----------|--------|-------------|
 | `/api/researchers` | GET | List all verified researchers |
 | `/api/researchers/verify` | POST | Complete verification |
+| `/api/researchers/suggestions` | GET | Get researcher suggestions by topic |
+| `/api/researchers/manual-update` | POST | Update researcher (ORCID or OpenAlex ID) |
+| `/api/researchers/lookup-orcids` | POST | Batch lookup missing ORCIDs |
+| `/api/researchers/backfill-topics` | POST | Backfill research topics from OpenAlex |
 
-### Community
+### Labeler
 
 | Endpoint | Method | Description |
 |----------|--------|-------------|
-| `/api/community/members` | GET | List community members |
-| `/api/community/check?did=X` | GET | Check if DID is community member |
+| `/api/labeler/sync-to-db` | POST | Sync labels to database (full or single-DID) |
+| `/api/labeler/sync-from-ozone` | POST | Pull labels from Ozone |
 
 ---
 
 ## Limitations
 
-- **Incremental Sync**: Graph syncs in batches due to API rate limits. Full sync requires multiple cron cycles.
-- **Database**: Using Vercel Postgres for MVP. Consider migrating for production scale.
-- **Vouching UI**: API routes exist but no frontend yet.
-- **Personal List Size**: Large networks may take multiple sync cycles to fully populate.
+- **Vouching UI**: API routes exist but no frontend yet
+- **Profile View**: Not yet implemented
+- **Notifications**: Not yet implemented
 
 ---
 
 ## Roadmap
 
 - [x] ORCID verification
-- [x] N-hop reply restrictions
-- [x] Per-user personal community lists
+- [x] Reply restrictions (followers, verified, connections)
+- [x] Per-user personal connections lists
 - [x] Papers feed
 - [x] Reply, like, repost, quote
 - [x] Thread view
+- [x] Labeler integration
+- [x] Bookmarks with BibTeX/RIS export
+- [x] Direct messages
+- [x] Feed discovery and pinning
+- [x] Real-time sync via Jetstream
 - [ ] Vouching UI
 - [ ] Notifications
-- [ ] Labeler service integration
 - [ ] Profile view
 
 ---
