@@ -14,6 +14,7 @@
     "@vercel/postgres": "^0.10.0",
     "dotenv": "^17.2.3",
     "drizzle-orm": "^0.45.1",
+    "hls.js": "^1.6.15",
     "nanoid": "^5.1.6",
     "next": "16.1.1",
     "react": "19.2.3",

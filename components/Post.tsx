@@ -1,7 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { AppBskyFeedDefs, AppBskyFeedPost, AppBskyEmbedExternal, AppBskyEmbedImages, AppBskyEmbedRecord, AppBskyEmbedRecordWithMedia, AppBskyEmbedVideo } from '@atproto/api';
+import Hls from 'hls.js';
 import { isVerifiedResearcher, Label, createPost, ReplyRef, QuoteRef, likePost, unlikePost, repost, deleteRepost, sendFeedInteraction, InteractionEvent } from '@/lib/bluesky';
 import { useSettings } from '@/lib/settings';
 import { useBookmarks, BookmarkedPost } from '@/lib/bookmarks';
@@ -610,8 +611,10 @@ function EmbedRecord({ record, onOpenThread }: { record: AppBskyEmbedRecord.View
   );
 }
 
-// Video embed renderer
+// Video embed renderer with HLS support
 function EmbedVideo({ video }: { video: AppBskyEmbedVideo.View }) {
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const hlsRef = useRef<Hls | null>(null);
   const playlist = video.playlist;
   const thumbnail = video.thumbnail;
   const aspectRatio = video.aspectRatio;
@@ -620,12 +623,38 @@ function EmbedVideo({ video }: { video: AppBskyEmbedVideo.View }) {
   const ratio = aspectRatio ? aspectRatio.width / aspectRatio.height : 16 / 9;
   const paddingBottom = `${(1 / ratio) * 100}%`;
 
+  useEffect(() => {
+    const videoElement = videoRef.current;
+    if (!videoElement || !playlist) return;
+
+    // Check if HLS is supported natively (Safari)
+    if (videoElement.canPlayType('application/vnd.apple.mpegurl')) {
+      videoElement.src = playlist;
+    } else if (Hls.isSupported()) {
+      // Use hls.js for other browsers
+      const hls = new Hls({
+        enableWorker: true,
+        lowLatencyMode: true,
+      });
+      hlsRef.current = hls;
+      hls.loadSource(playlist);
+      hls.attachMedia(videoElement);
+    }
+
+    return () => {
+      if (hlsRef.current) {
+        hlsRef.current.destroy();
+        hlsRef.current = null;
+      }
+    };
+  }, [playlist]);
+
   return (
     <div className="mt-2 rounded-xl overflow-hidden bg-black">
       <div className="relative" style={{ paddingBottom }}>
         <video
+          ref={videoRef}
           className="absolute inset-0 w-full h-full object-contain"
-          src={playlist}
           poster={thumbnail}
           controls
           preload="metadata"
