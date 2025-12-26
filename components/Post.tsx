@@ -472,6 +472,34 @@ function QuotePost({
                 </div>
               );
             }
+            // Handle nested quote (record embed within quoted post)
+            if ('record' in embed && (embed as AppBskyEmbedRecord.View).record) {
+              const recordEmbed = embed as AppBskyEmbedRecord.View;
+              return <EmbedRecord key={i} record={recordEmbed.record} onOpenThread={onOpenThread} />;
+            }
+            // Handle recordWithMedia (quote + images in quoted post)
+            if ('media' in embed && (embed as AppBskyEmbedRecordWithMedia.View).media) {
+              const rwm = embed as AppBskyEmbedRecordWithMedia.View;
+              const media = rwm.media;
+              return (
+                <div key={i}>
+                  {'images' in media && Array.isArray((media as AppBskyEmbedImages.View).images) && (
+                    <div className="flex gap-1 rounded-lg overflow-hidden mb-2">
+                      {(media as AppBskyEmbedImages.View).images.slice(0, 4).map((img, j) => (
+                        <img
+                          key={j}
+                          src={img.thumb}
+                          alt={img.alt || ''}
+                          className="object-cover flex-1 h-20"
+                          style={{ maxWidth: `${100 / Math.min((media as AppBskyEmbedImages.View).images.length, 4)}%` }}
+                        />
+                      ))}
+                    </div>
+                  )}
+                  {rwm.record && <EmbedRecord record={rwm.record.record} onOpenThread={onOpenThread} />}
+                </div>
+              );
+            }
             return null;
           })}
         </div>
