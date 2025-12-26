@@ -41,6 +41,10 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     if (stored) {
       try {
         const parsed = JSON.parse(stored);
+        // Migrate old 'verified' threadgateType to 'researchers'
+        if (parsed.threadgateType === 'verified') {
+          parsed.threadgateType = 'researchers';
+        }
         setSettings({ ...DEFAULT_SETTINGS, ...parsed });
       } catch {
         // Invalid JSON, use defaults
