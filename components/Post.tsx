@@ -660,13 +660,8 @@ function PostEmbed({ embed, onOpenThread }: { embed: AppBskyFeedDefs.PostView['e
     return <EmbedVideo video={videoEmbed} />;
   }
 
-  // Quoted post (record embed)
-  if ('record' in embed && (embed as AppBskyEmbedRecord.View).record) {
-    const recordEmbed = embed as AppBskyEmbedRecord.View;
-    return <EmbedRecord record={recordEmbed.record} onOpenThread={onOpenThread} />;
-  }
-
-  // Record with media (quote + images/video)
+  // Record with media (quote + images/video) - check BEFORE pure record embed
+  // because recordWithMedia has both 'record' and 'media' properties
   if ('media' in embed && (embed as AppBskyEmbedRecordWithMedia.View).media) {
     const recordWithMedia = embed as AppBskyEmbedRecordWithMedia.View;
     const media = recordWithMedia.media;
@@ -687,6 +682,12 @@ function PostEmbed({ embed, onOpenThread }: { embed: AppBskyFeedDefs.PostView['e
         {recordWithMedia.record && <EmbedRecord record={recordWithMedia.record.record} onOpenThread={onOpenThread} />}
       </>
     );
+  }
+
+  // Quoted post (pure record embed, no media)
+  if ('record' in embed && (embed as AppBskyEmbedRecord.View).record) {
+    const recordEmbed = embed as AppBskyEmbedRecord.View;
+    return <EmbedRecord record={recordEmbed.record} onOpenThread={onOpenThread} />;
   }
 
   return null;
