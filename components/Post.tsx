@@ -90,12 +90,24 @@ function extractPaperInfo(text: string, embed?: AppBskyFeedDefs.PostView['embed'
   }
 
   // Fall back to extracting URL from text
+  // First try URLs with protocol
   const urlRegex = /https?:\/\/[^\s<>"{}|\\^`[\]]+/gi;
   const urls = text.match(urlRegex) || [];
 
   for (const url of urls) {
     const result = checkUrl(url);
     if (result) return result;
+  }
+
+  // Also try URLs without protocol (e.g., "arxiv.org/abs/...")
+  for (const domain of PAPER_DOMAINS) {
+    const domainRegex = new RegExp(`${domain.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}[^\\s<>"{}|\\\\^\`\\[\\]]*`, 'gi');
+    const domainMatches = text.match(domainRegex) || [];
+    for (const match of domainMatches) {
+      const fullUrl = `https://${match}`;
+      const result = checkUrl(fullUrl);
+      if (result) return result;
+    }
   }
 
   return {};

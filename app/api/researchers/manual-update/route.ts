@@ -2,23 +2,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db, verifiedResearchers } from '@/lib/db';
 import { eq } from 'drizzle-orm';
 
-// Fetch research topics from OpenAlex for an ORCID
-async function fetchTopicsForOrcid(orcid: string): Promise<string[]> {
+// Fetch research topics from OpenAlex by author ID
+async function fetchTopicsForOpenAlexId(openalexId: string): Promise<string[]> {
   try {
-    const authorResponse = await fetch(
-      `https://api.openalex.org/authors?filter=orcid:${orcid}`,
-      { headers: { 'User-Agent': 'Lea/1.0 (mailto:contact@lea.app)' } }
-    );
-
-    if (!authorResponse.ok) return [];
-
-    const authorData = await authorResponse.json();
-    if (!authorData.results || authorData.results.length === 0) return [];
-
-    const author = authorData.results[0];
-
     const worksResponse = await fetch(
-      `https://api.openalex.org/works?filter=author.id:${author.id}&per_page=100&sort=publication_year:desc`,
+      `https://api.openalex.org/works?filter=author.id:${openalexId}&per_page=100&sort=publication_year:desc`,
       { headers: { 'User-Agent': 'Lea/1.0 (mailto:contact@lea.app)' } }
     );
 
@@ -50,6 +38,27 @@ async function fetchTopicsForOrcid(orcid: string): Promise<string[]> {
       .slice(0, 20)
       .map(([topic]) => topic);
   } catch (error) {
+    console.error(`Failed to fetch topics for OpenAlex ID ${openalexId}:`, error);
+    return [];
+  }
+}
+
+// Fetch research topics from OpenAlex for an ORCID
+async function fetchTopicsForOrcid(orcid: string): Promise<string[]> {
+  try {
+    const authorResponse = await fetch(
+      `https://api.openalex.org/authors?filter=orcid:${orcid}`,
+      { headers: { 'User-Agent': 'Lea/1.0 (mailto:contact@lea.app)' } }
+    );
+
+    if (!authorResponse.ok) return [];
+
+    const authorData = await authorResponse.json();
+    if (!authorData.results || authorData.results.length === 0) return [];
+
+    const author = authorData.results[0];
+    return fetchTopicsForOpenAlexId(author.id);
+  } catch (error) {
     console.error(`Failed to fetch topics for ORCID ${orcid}:`, error);
     return [];
   }
@@ -58,11 +67,18 @@ async function fetchTopicsForOrcid(orcid: string): Promise<string[]> {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { handle, orcid } = body;
+    const { handle, orcid, openalexId } = body;
 
-    if (!handle || !orcid) {
+    if (!handle) {
       return NextResponse.json(
-        { error: 'handle and orcid required' },
+        { error: 'handle required' },
+        { status: 400 }
+      );
+    }
+
+    if (!orcid && !openalexId) {
+      return NextResponse.json(
+        { error: 'orcid or openalexId required' },
         { status: 400 }
       );
     }
@@ -81,22 +97,32 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Fetch topics
-    const topics = await fetchTopicsForOrcid(orcid);
+    // Fetch topics - prefer OpenAlex ID if provided, otherwise use ORCID
+    let topics: string[] = [];
+    if (openalexId) {
+      topics = await fetchTopicsForOpenAlexId(openalexId);
+    } else if (orcid) {
+      topics = await fetchTopicsForOrcid(orcid);
+    }
 
-    // Update
+    // Update - only update orcid if provided
+    const updateData: { orcid?: string; researchTopics: string | null } = {
+      researchTopics: topics.length > 0 ? JSON.stringify(topics) : null,
+    };
+    if (orcid) {
+      updateData.orcid = orcid;
+    }
+
     await db
       .update(verifiedResearchers)
-      .set({
-        orcid,
-        researchTopics: topics.length > 0 ? JSON.stringify(topics) : null,
-      })
+      .set(updateData)
       .where(eq(verifiedResearchers.handle, handle));
 
     return NextResponse.json({
       success: true,
       handle,
-      orcid,
+      orcid: orcid || researchers[0].orcid,
+      openalexId,
       topicsCount: topics.length,
     });
   } catch (error) {
