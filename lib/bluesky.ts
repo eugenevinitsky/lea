@@ -8,6 +8,16 @@ let personalListUri: string | null = null;
 
 const SESSION_KEY = 'lea-bsky-session';
 
+// LEA Labeler DID - needed for receiving verified researcher labels
+const LEA_LABELER_DID_CONFIG = 'did:plc:7c7tx56n64jhzezlwox5dja6';
+
+// Configure agent to receive labels from LEA labeler
+function configureLabeler() {
+  if (agent) {
+    agent.configureLabelersHeader([LEA_LABELER_DID_CONFIG]);
+  }
+}
+
 export function getAgent(): BskyAgent | null {
   return agent;
 }
@@ -25,6 +35,7 @@ export async function restoreSession(): Promise<boolean> {
     const sessionData = JSON.parse(stored);
     agent = new BskyAgent({ service: 'https://bsky.social' });
     await agent.resumeSession(sessionData);
+    configureLabeler(); // Enable LEA labeler to show verified badges
     return true;
   } catch (error) {
     console.error('Failed to restore session:', error);
@@ -36,6 +47,7 @@ export async function restoreSession(): Promise<boolean> {
 export async function login(identifier: string, password: string): Promise<BskyAgent> {
   agent = new BskyAgent({ service: 'https://bsky.social' });
   await agent.login({ identifier, password });
+  configureLabeler(); // Enable LEA labeler to show verified badges
 
   // Persist session to localStorage
   if (typeof window !== 'undefined' && agent.session) {
