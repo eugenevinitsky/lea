@@ -20,26 +20,41 @@ async function getLabelerAgent(): Promise<BskyAgent | null> {
   return agent;
 }
 
-// Fetch labels from the labeler's subscription endpoint
-async function fetchLabelsFromStream(): Promise<Map<string, boolean>> {
+// Fetch labels from the Ozone labeler instance
+async function fetchLabelsFromOzone(): Promise<Map<string, boolean>> {
   // Map of DID -> isLabeled (true = has label, false = label negated)
   const labeledUsers = new Map<string, boolean>();
 
+  // Get the labeler's service endpoint from PLC directory
+  let ozoneEndpoint = process.env.OZONE_ENDPOINT;
+
+  if (!ozoneEndpoint) {
+    try {
+      const plcResponse = await fetch(`https://plc.directory/${LABELER_DID}`);
+      if (plcResponse.ok) {
+        const plcData = await plcResponse.json();
+        const labelerService = plcData.service?.find((s: { id: string }) => s.id === '#atproto_labeler');
+        ozoneEndpoint = labelerService?.serviceEndpoint;
+      }
+    } catch (error) {
+      console.error('Error fetching labeler endpoint from PLC:', error);
+    }
+  }
+
+  if (!ozoneEndpoint) {
+    console.error('Could not find Ozone endpoint');
+    return labeledUsers;
+  }
+
   try {
-    // Use the label query endpoint with the labeler's own auth
-    // This queries the labeler's emitted labels
+    // Query labels directly from the Ozone instance
     const response = await fetch(
-      `https://bsky.social/xrpc/com.atproto.label.queryLabels?` +
+      `${ozoneEndpoint}/xrpc/com.atproto.label.queryLabels?` +
       new URLSearchParams({
         uriPatterns: 'did:*',
         sources: LABELER_DID,
         limit: '250',
-      }),
-      {
-        headers: {
-          // Public endpoint, no auth needed for querying
-        },
-      }
+      })
     );
 
     if (response.ok) {
@@ -53,26 +68,11 @@ async function fetchLabelsFromStream(): Promise<Map<string, boolean>> {
           }
         }
       }
+    } else {
+      console.error('Failed to query Ozone labels:', response.status, await response.text());
     }
   } catch (error) {
-    console.error('Error querying labels:', error);
-  }
-
-  // If the query didn't work, try subscribing to get labels
-  if (labeledUsers.size === 0) {
-    try {
-      // Try to get labels from the labeler's own PLC directory or service
-      // The labeler might expose labels via its service endpoint
-      const labelerServiceUrl = `https://bsky.social/xrpc/app.bsky.labeler.getServices?dids=${LABELER_DID}&detailed=true`;
-      const serviceResponse = await fetch(labelerServiceUrl);
-
-      if (serviceResponse.ok) {
-        const serviceData = await serviceResponse.json();
-        console.log('Labeler service info retrieved, but labels are streamed via subscription');
-      }
-    } catch (error) {
-      console.error('Error fetching labeler service:', error);
-    }
+    console.error('Error querying Ozone labels:', error);
   }
 
   return labeledUsers;
@@ -175,9 +175,9 @@ export async function POST(request: NextRequest) {
 
     const listUri = existingList[0].listUri;
 
-    // Get labeled users from stream
-    const labeledUsers = await fetchLabelsFromStream();
-    console.log(`Found ${labeledUsers.size} labeled users from stream`);
+    // Get labeled users from Ozone
+    const labeledUsers = await fetchLabelsFromOzone();
+    console.log(`Found ${labeledUsers.size} labeled users from Ozone`);
 
     // Get current list members
     const currentMembers = await getExistingListMembers(agent, listUri);
