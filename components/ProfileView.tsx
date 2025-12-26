@@ -161,43 +161,30 @@ export default function ProfileView({ did, avatar, displayName, handle, onClose 
                 </div>
               )}
 
-              {/* Disciplines */}
-              {profile?.disciplines && profile.disciplines.length > 0 && (
-                <div className="mb-6">
-                  <h4 className="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2">
-                    Disciplines
-                  </h4>
-                  <div className="flex flex-wrap gap-2">
-                    {profile.disciplines.map((discipline, i) => (
-                      <span
-                        key={i}
-                        className="px-3 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded-full text-sm"
-                      >
-                        {discipline}
-                      </span>
-                    ))}
+              {/* Research Topics - show profile disciplines if set, otherwise auto-populated topics */}
+              {(() => {
+                const topics = (profile?.disciplines && profile.disciplines.length > 0)
+                  ? profile.disciplines 
+                  : researcher?.researchTopics;
+                if (!topics || topics.length === 0) return null;
+                return (
+                  <div className="mb-6">
+                    <h4 className="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2">
+                      Research Topics
+                    </h4>
+                    <div className="flex flex-wrap gap-2">
+                      {topics.slice(0, 8).map((topic, i) => (
+                        <span
+                          key={i}
+                          className="px-3 py-1 bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 rounded-full text-sm"
+                        >
+                          {topic}
+                        </span>
+                      ))}
+                    </div>
                   </div>
-                </div>
-              )}
-
-              {/* Research Topics (from verification) */}
-              {researcher?.researchTopics && researcher.researchTopics.length > 0 && (
-                <div className="mb-6">
-                  <h4 className="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2">
-                    Research Topics
-                  </h4>
-                  <div className="flex flex-wrap gap-2">
-                    {researcher.researchTopics.slice(0, 8).map((topic, i) => (
-                      <span
-                        key={i}
-                        className="px-3 py-1 bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 rounded-full text-sm"
-                      >
-                        {topic}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              )}
+                );
+              })()}
 
               {/* Links */}
               {profile?.links && profile.links.length > 0 && (
@@ -274,6 +261,7 @@ export default function ProfileView({ did, avatar, displayName, handle, onClose 
               {/* Empty profile message */}
               {!profile?.shortBio && 
                (!profile?.disciplines || profile.disciplines.length === 0) &&
+               (!researcher?.researchTopics || researcher.researchTopics.length === 0) &&
                (!profile?.links || profile.links.length === 0) &&
                (!profile?.publicationVenues || profile.publicationVenues.length === 0) &&
                (!profile?.favoriteOwnPapers || profile.favoriteOwnPapers.length === 0) &&

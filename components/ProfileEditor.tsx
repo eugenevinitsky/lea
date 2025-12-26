@@ -39,6 +39,9 @@ export default function ProfileEditor({ onClose }: ProfileEditorProps) {
   // Temp state for comma-separated inputs
   const [disciplinesInput, setDisciplinesInput] = useState('');
   const [venuesInput, setVenuesInput] = useState('');
+  
+  // Track if topics were auto-populated from OpenAlex
+  const [topicsAutoPopulated, setTopicsAutoPopulated] = useState(false);
 
   const session = getSession();
 
@@ -56,18 +59,26 @@ export default function ProfileEditor({ onClose }: ProfileEditorProps) {
         if (!res.ok) throw new Error('Failed to fetch profile');
         const data = await res.json();
 
-        if (data.profile) {
-          setProfile({
-            shortBio: data.profile.shortBio || '',
-            disciplines: data.profile.disciplines || [],
-            links: data.profile.links || [],
-            publicationVenues: data.profile.publicationVenues || [],
-            favoriteOwnPapers: data.profile.favoriteOwnPapers || [],
-            favoriteReadPapers: data.profile.favoriteReadPapers || [],
-          });
-          setDisciplinesInput((data.profile.disciplines || []).join(', '));
-          setVenuesInput((data.profile.publicationVenues || []).join(', '));
+        // Use profile disciplines if set, otherwise fall back to auto-populated research topics
+        const disciplines = data.profile?.disciplines?.length > 0 
+          ? data.profile.disciplines 
+          : (data.researcher?.researchTopics || []);
+        
+        // Track if we're using auto-populated topics
+        if (!data.profile?.disciplines?.length && data.researcher?.researchTopics?.length > 0) {
+          setTopicsAutoPopulated(true);
         }
+
+        setProfile({
+          shortBio: data.profile?.shortBio || '',
+          disciplines: disciplines,
+          links: data.profile?.links || [],
+          publicationVenues: data.profile?.publicationVenues || [],
+          favoriteOwnPapers: data.profile?.favoriteOwnPapers || [],
+          favoriteReadPapers: data.profile?.favoriteReadPapers || [],
+        });
+        setDisciplinesInput(disciplines.join(', '));
+        setVenuesInput((data.profile?.publicationVenues || []).join(', '));
       } catch (err) {
         console.error('Failed to fetch profile:', err);
         setError('Failed to load profile');
@@ -235,19 +246,26 @@ export default function ProfileEditor({ onClose }: ProfileEditorProps) {
                 <p className="text-xs text-gray-400 mt-1">{profile.shortBio.length}/500</p>
               </div>
 
-              {/* Disciplines */}
+              {/* Research Topics */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Disciplines / Topics
+                  Research Topics
                 </label>
                 <input
                   type="text"
                   value={disciplinesInput}
-                  onChange={(e) => setDisciplinesInput(e.target.value)}
+                  onChange={(e) => {
+                    setDisciplinesInput(e.target.value);
+                    setTopicsAutoPopulated(false);
+                  }}
                   placeholder="e.g., NLP, Computational Social Science, HCI"
                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
-                <p className="text-xs text-gray-400 mt-1">Comma-separated, max 5</p>
+                <p className="text-xs text-gray-400 mt-1">
+                  {topicsAutoPopulated 
+                    ? 'Auto-populated from your publications (edit to customize)' 
+                    : 'Comma-separated, max 5'}
+                </p>
               </div>
 
               {/* Links */}
