@@ -460,13 +460,12 @@ export default function ProfileView({ did, avatar, displayName, handle, onClose,
                 <>
                   {/* Pinned Post */}
                   {pinnedPost && (
-                    <div className="border-b border-gray-200 dark:border-gray-800">
-                      <div className="flex items-center gap-1 px-4 pt-2 text-xs text-gray-500">
-                        <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-                          <path d="M9.828 3.172a4 4 0 015.657 5.657l-.707.707a1 1 0 01-1.414-1.414l.707-.707a2 2 0 00-2.829-2.829l-3 3a2 2 0 002.829 2.829l.586-.586a1 1 0 111.414 1.414l-.586.586a4 4 0 01-5.657-5.657l3-3z" />
-                          <path d="M10.172 16.828a4 4 0 01-5.657-5.657l.707-.707a1 1 0 011.414 1.414l-.707.707a2 2 0 002.829 2.829l3-3a2 2 0 00-2.829-2.829l-.586.586a1 1 0 11-1.414-1.414l.586-.586a4 4 0 015.657 5.657l-3 3z" />
+                    <div className="border-b-2 border-blue-200 dark:border-blue-800 bg-blue-50/50 dark:bg-blue-900/10">
+                      <div className="flex items-center gap-1.5 px-4 pt-3 pb-1">
+                        <svg className="w-4 h-4 text-blue-500" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M3 6a3 3 0 013-3h10a1 1 0 01.8 1.6L14.25 8l2.55 3.4A1 1 0 0116 13H6a1 1 0 00-1 1v3a1 1 0 11-2 0V6z" clipRule="evenodd" />
                         </svg>
-                        Pinned
+                        <span className="text-sm font-medium text-blue-600 dark:text-blue-400">Pinned Post</span>
                       </div>
                       <Post post={pinnedPost} />
                     </div>
