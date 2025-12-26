@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { BskyAgent } from '@atproto/api';
 import { db, verifiedResearchers } from '@/lib/db';
+import { eq } from 'drizzle-orm';
 import { nanoid } from 'nanoid';
 
 const VERIFIED_RESEARCHER_LABEL = 'verified-researcher';
@@ -79,12 +80,100 @@ async function getProfile(agent: BskyAgent, did: string): Promise<{ handle: stri
   }
 }
 
+// Handle single-DID sync from Jetstream listener
+async function handleSingleDid(agent: BskyAgent, did: string, action: 'add' | 'remove') {
+  console.log(`Single-DID sync: ${action} ${did}`);
+
+  if (action === 'remove') {
+    // Mark researcher as inactive
+    const result = await db
+      .update(verifiedResearchers)
+      .set({ isActive: false })
+      .where(eq(verifiedResearchers.did, did));
+
+    return NextResponse.json({
+      message: `Deactivated researcher`,
+      did,
+      action: 'remove',
+    });
+  }
+
+  // Action is 'add' - check if already exists
+  const existing = await db
+    .select({ did: verifiedResearchers.did, isActive: verifiedResearchers.isActive })
+    .from(verifiedResearchers)
+    .where(eq(verifiedResearchers.did, did))
+    .limit(1);
+
+  if (existing.length > 0) {
+    // Researcher exists - reactivate if needed
+    if (!existing[0].isActive) {
+      await db
+        .update(verifiedResearchers)
+        .set({ isActive: true })
+        .where(eq(verifiedResearchers.did, did));
+
+      return NextResponse.json({
+        message: `Reactivated existing researcher`,
+        did,
+        action: 'reactivate',
+      });
+    }
+
+    return NextResponse.json({
+      message: `Researcher already exists and is active`,
+      did,
+      action: 'none',
+    });
+  }
+
+  // New researcher - get profile and insert
+  const profile = await getProfile(agent, did);
+  if (!profile) {
+    return NextResponse.json(
+      { error: `Could not fetch profile for ${did}` },
+      { status: 400 }
+    );
+  }
+
+  const researcherId = nanoid();
+  await db.insert(verifiedResearchers).values({
+    id: researcherId,
+    did,
+    handle: profile.handle,
+    orcid: '',
+    name: profile.displayName || profile.handle,
+    verificationMethod: 'manual',
+    isActive: true,
+  });
+
+  return NextResponse.json({
+    message: `Added new researcher`,
+    did,
+    handle: profile.handle,
+    action: 'add',
+  });
+}
+
 export async function POST(request: NextRequest) {
   try {
     // Create a public agent for profile lookups
     const agent = new BskyAgent({ service: 'https://public.api.bsky.app' });
 
-    // Fetch all labeled DIDs from the labeler's service endpoint
+    // Check if this is a single-DID sync from Jetstream
+    let body: { did?: string; action?: 'add' | 'remove' } = {};
+    try {
+      body = await request.json();
+    } catch {
+      // No body or invalid JSON - do full sync
+    }
+
+    // Single-DID sync (from Jetstream listener)
+    if (body.did && body.action) {
+      return handleSingleDid(agent, body.did, body.action);
+    }
+
+    // Full sync - fetch all labeled DIDs
     const labeledDids = await fetchLabeledDids();
     console.log(`Found ${labeledDids.length} labeled DIDs from labeler`);
 
