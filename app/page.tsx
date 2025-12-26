@@ -13,16 +13,20 @@ import Bookmarks from '@/components/Bookmarks';
 import ThreadView from '@/components/ThreadView';
 import DMSidebar from '@/components/DMSidebar';
 import FeedDiscovery from '@/components/FeedDiscovery';
+import Onboarding from '@/components/Onboarding';
 
 function AppContent() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [showOnboarding, setShowOnboarding] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
   const [showSettings, setShowSettings] = useState(false);
   const [showFeedDiscovery, setShowFeedDiscovery] = useState(false);
   const [activeFeedUri, setActiveFeedUri] = useState<string | null>(null);
   const [threadUri, setThreadUri] = useState<string | null>(null);
-  const { pinnedFeeds, removeFeed } = useFeeds();
+  const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
+  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
+  const { pinnedFeeds, removeFeed, reorderFeeds } = useFeeds();
 
   // Set active feed to first pinned feed when feeds load
   useEffect(() => {
@@ -36,13 +40,27 @@ function AppContent() {
     restoreSession().then((restored) => {
       if (restored) {
         setIsLoggedIn(true);
+        // Check if onboarding was completed
+        const onboardingComplete = localStorage.getItem('lea-onboarding-complete');
+        if (!onboardingComplete) {
+          setShowOnboarding(true);
+        }
       }
       setIsLoading(false);
     });
   }, []);
 
-  const handleLogin = () => {
+  const handleLogin = (forceOnboarding?: boolean) => {
     setIsLoggedIn(true);
+    // Check if this is a first-time user or if onboarding is forced
+    const onboardingComplete = localStorage.getItem('lea-onboarding-complete');
+    if (forceOnboarding || !onboardingComplete) {
+      setShowOnboarding(true);
+    }
+  };
+
+  const handleOnboardingComplete = () => {
+    setShowOnboarding(false);
   };
 
   const handleLogout = () => {
@@ -66,6 +84,10 @@ function AppContent() {
 
   if (!isLoggedIn) {
     return <Login onLogin={handleLogin} />;
+  }
+
+  if (showOnboarding) {
+    return <Onboarding onComplete={handleOnboardingComplete} />;
   }
 
   return (
@@ -125,13 +147,41 @@ function AppContent() {
 
           {/* Feed Tabs */}
           <div className="flex border-b border-gray-200 dark:border-gray-800">
-            {pinnedFeeds.map((feed) => {
+            {pinnedFeeds.map((feed, index) => {
               const isActive = activeFeedUri === feed.uri;
               const isSkygest = feed.uri.includes('preprintdigest');
+              const isKeyword = feed.type === 'keyword';
+              const isDragging = draggedIndex === index;
+              const isDragOver = dragOverIndex === index && draggedIndex !== index;
 
               return (
                 <button
                   key={feed.uri}
+                  draggable
+                  onDragStart={(e) => {
+                    setDraggedIndex(index);
+                    e.dataTransfer.effectAllowed = 'move';
+                  }}
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    e.dataTransfer.dropEffect = 'move';
+                    setDragOverIndex(index);
+                  }}
+                  onDragLeave={() => {
+                    setDragOverIndex(null);
+                  }}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    if (draggedIndex !== null && draggedIndex !== index) {
+                      reorderFeeds(draggedIndex, index);
+                    }
+                    setDraggedIndex(null);
+                    setDragOverIndex(null);
+                  }}
+                  onDragEnd={() => {
+                    setDraggedIndex(null);
+                    setDragOverIndex(null);
+                  }}
                   onClick={() => setActiveFeedUri(feed.uri)}
                   onContextMenu={(e) => {
                     e.preventDefault();
@@ -142,23 +192,35 @@ function AppContent() {
                       }
                     }
                   }}
-                  className={`flex-1 py-3 text-sm font-medium transition-colors relative flex items-center justify-center gap-1.5 group ${
+                  className={`flex-1 py-3 text-sm font-medium transition-colors relative flex items-center justify-center gap-1.5 group cursor-grab active:cursor-grabbing ${
+                    isDragging ? 'opacity-50' : ''
+                  } ${
+                    isDragOver ? 'bg-blue-50 dark:bg-blue-900/20' : ''
+                  } ${
                     isActive
-                      ? isSkygest ? 'text-purple-500' : 'text-blue-500'
+                      ? (isSkygest || isKeyword) ? 'text-purple-500' : 'text-blue-500'
                       : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
                   }`}
-                  title="Right-click to unpin"
+                  title="Drag to reorder • Right-click to unpin"
                 >
                   {isSkygest && (
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                     </svg>
                   )}
+                  {isKeyword && (
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                    </svg>
+                  )}
                   <span className="truncate max-w-[80px]">{feed.displayName}</span>
                   {isActive && (
                     <div className={`absolute bottom-0 left-0 right-0 h-0.5 ${
-                      isSkygest ? 'bg-purple-500' : 'bg-blue-500'
+                      (isSkygest || isKeyword) ? 'bg-purple-500' : 'bg-blue-500'
                     }`} />
+                  )}
+                  {isDragOver && (
+                    <div className="absolute left-0 top-0 bottom-0 w-0.5 bg-blue-500" />
                   )}
                 </button>
               );
@@ -176,14 +238,19 @@ function AppContent() {
           </div>
 
           {/* Feed Content */}
-          {activeFeedUri && (
-            <Feed
-              feedUri={activeFeedUri}
-              feedName={pinnedFeeds.find(f => f.uri === activeFeedUri)?.displayName}
-              acceptsInteractions={pinnedFeeds.find(f => f.uri === activeFeedUri)?.acceptsInteractions}
-              refreshKey={refreshKey}
-            />
-          )}
+          {activeFeedUri && (() => {
+            const activeFeed = pinnedFeeds.find(f => f.uri === activeFeedUri);
+            return (
+              <Feed
+                feedUri={activeFeedUri}
+                feedName={activeFeed?.displayName}
+                acceptsInteractions={activeFeed?.acceptsInteractions}
+                feedType={activeFeed?.type}
+                keyword={activeFeed?.keyword}
+                refreshKey={refreshKey}
+              />
+            );
+          })()}
         </main>
       </div>
 

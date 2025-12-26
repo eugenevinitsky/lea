@@ -8,6 +8,48 @@ interface FeedDiscoveryProps {
   onClose: () => void;
 }
 
+function KeywordFeedCreator({ onAdd }: { onAdd: (keyword: string) => void }) {
+  const [keyword, setKeyword] = useState('');
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (keyword.trim()) {
+      onAdd(keyword.trim());
+      setKeyword('');
+    }
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="p-3 bg-purple-50 dark:bg-purple-900/20 border-b border-purple-200 dark:border-purple-800">
+      <h3 className="text-xs font-medium text-purple-700 dark:text-purple-300 mb-2 flex items-center gap-1.5">
+        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+        </svg>
+        Create Keyword Feed
+      </h3>
+      <div className="flex gap-2">
+        <input
+          type="text"
+          value={keyword}
+          onChange={(e) => setKeyword(e.target.value)}
+          placeholder="e.g., ICLR, machine learning, climate..."
+          className="flex-1 px-3 py-1.5 bg-white dark:bg-gray-800 border border-purple-200 dark:border-purple-700 rounded-lg text-sm text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500"
+        />
+        <button
+          type="submit"
+          disabled={!keyword.trim()}
+          className="px-3 py-1.5 bg-purple-500 text-white text-sm font-medium rounded-lg hover:bg-purple-600 disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          Add
+        </button>
+      </div>
+      <p className="text-[10px] text-purple-600 dark:text-purple-400 mt-1.5">
+        Creates a feed showing posts matching your keyword via search
+      </p>
+    </form>
+  );
+}
+
 function FeedCard({ feed, isPinned, onTogglePin }: {
   feed: {
     uri: string;
@@ -135,9 +177,27 @@ export default function FeedDiscovery({ onClose }: FeedDiscoveryProps) {
         displayName: feed.displayName,
         avatar: feed.avatar,
         acceptsInteractions: feed.acceptsInteractions || false,
+        type: 'feed',
       };
       addFeed(pinnedFeed);
     }
+  };
+
+  const handleAddKeywordFeed = (keyword: string) => {
+    // Create a unique URI for keyword feeds
+    const uri = `keyword:${keyword.toLowerCase().replace(/\s+/g, '-')}`;
+
+    // Don't add if already exists
+    if (isPinned(uri)) return;
+
+    const pinnedFeed: PinnedFeed = {
+      uri,
+      displayName: keyword,
+      acceptsInteractions: false,
+      type: 'keyword',
+      keyword,
+    };
+    addFeed(pinnedFeed);
   };
 
   const displayFeeds = searchQuery.trim() ? searchResults : suggestedFeeds;
@@ -179,6 +239,11 @@ export default function FeedDiscovery({ onClose }: FeedDiscoveryProps) {
           </div>
         </div>
 
+        {/* Keyword feed creator */}
+        {!isSearching && (
+          <KeywordFeedCreator onAdd={handleAddKeywordFeed} />
+        )}
+
         {/* Pinned feeds section */}
         {pinnedFeeds.length > 0 && !isSearching && (
           <div className="p-3 bg-gray-50 dark:bg-gray-800/50 border-b border-gray-200 dark:border-gray-800">
@@ -187,8 +252,17 @@ export default function FeedDiscovery({ onClose }: FeedDiscoveryProps) {
               {pinnedFeeds.map((feed) => (
                 <span
                   key={feed.uri}
-                  className="inline-flex items-center gap-1 px-2 py-1 bg-white dark:bg-gray-700 rounded-full text-xs text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-600"
+                  className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs border ${
+                    feed.type === 'keyword'
+                      ? 'bg-purple-50 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 border-purple-200 dark:border-purple-700'
+                      : 'bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-600'
+                  }`}
                 >
+                  {feed.type === 'keyword' && (
+                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                    </svg>
+                  )}
                   {feed.displayName}
                   <button
                     onClick={() => removeFeed(feed.uri)}

@@ -172,6 +172,37 @@ export function checkVerificationEligibility(
   };
 }
 
+// Extract research topics from works for storage
+// Returns a deduplicated list of topic names at different levels of specificity
+export function extractResearchTopics(works: OpenAlexWork[]): string[] {
+  const topicCounts = new Map<string, number>();
+
+  for (const work of works) {
+    if (work.topics) {
+      for (const topic of work.topics) {
+        // Add topic name (most specific)
+        if (topic.display_name) {
+          topicCounts.set(topic.display_name, (topicCounts.get(topic.display_name) || 0) + 1);
+        }
+        // Add subfield (medium specificity)
+        if (topic.subfield?.display_name) {
+          topicCounts.set(topic.subfield.display_name, (topicCounts.get(topic.subfield.display_name) || 0) + 1);
+        }
+        // Add field (broad category)
+        if (topic.field?.display_name) {
+          topicCounts.set(topic.field.display_name, (topicCounts.get(topic.field.display_name) || 0) + 1);
+        }
+      }
+    }
+  }
+
+  // Sort by count and return top topics (limit to 20 to keep it manageable)
+  return Array.from(topicCounts.entries())
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 20)
+    .map(([topic]) => topic);
+}
+
 // Get display-friendly summary of verification status
 export function getVerificationSummary(result: VerificationResult): string {
   const { details } = result;

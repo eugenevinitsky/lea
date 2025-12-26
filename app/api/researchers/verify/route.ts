@@ -6,7 +6,7 @@ import { nanoid } from 'nanoid';
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { did, handle, orcid, name, institution, verificationMethod = 'auto' } = body;
+    const { did, handle, orcid, name, institution, researchTopics, verificationMethod = 'auto' } = body;
 
     if (!did || !orcid) {
       return NextResponse.json(
@@ -53,6 +53,7 @@ export async function POST(request: NextRequest) {
       orcid,
       name,
       institution,
+      researchTopics: researchTopics ? JSON.stringify(researchTopics) : null,
       verificationMethod,
     });
 

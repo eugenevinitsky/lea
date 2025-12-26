@@ -4,7 +4,7 @@ import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { getAuthorByOrcid, getAuthorWorks, OpenAlexAuthor, OpenAlexWork } from '@/lib/openalex';
-import { checkVerificationEligibility, VerificationResult, ESTABLISHED_VENUES } from '@/lib/verification';
+import { checkVerificationEligibility, VerificationResult, ESTABLISHED_VENUES, extractResearchTopics } from '@/lib/verification';
 import { getSession, restoreSession } from '@/lib/bluesky';
 
 type VerificationStep = 'input' | 'loading' | 'result';
@@ -100,6 +100,9 @@ function VerifyContent() {
     setError(null);
 
     try {
+      // Extract research topics from works
+      const researchTopics = extractResearchTopics(works);
+
       const response = await fetch('/api/researchers/verify', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -109,6 +112,7 @@ function VerifyContent() {
           orcid: orcid,
           name: author?.display_name || authenticatedName,
           institution: author?.last_known_institution?.display_name,
+          researchTopics,
           verificationMethod: 'auto',
         }),
       });

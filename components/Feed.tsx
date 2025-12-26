@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { AppBskyFeedDefs, AppBskyFeedPost, AppBskyEmbedExternal } from '@atproto/api';
-import { getTimeline, getFeed, FEEDS, FeedId, isVerifiedResearcher, Label } from '@/lib/bluesky';
+import { getTimeline, getFeed, searchPosts, FEEDS, FeedId, isVerifiedResearcher, Label } from '@/lib/bluesky';
 import { useSettings } from '@/lib/settings';
 import { detectPaperLink } from '@/lib/papers';
 import Post from './Post';
@@ -14,9 +14,12 @@ interface FeedProps {
   feedName?: string;
   acceptsInteractions?: boolean;
   refreshKey?: number;
+  // For keyword feeds
+  feedType?: 'feed' | 'keyword';
+  keyword?: string;
 }
 
-export default function Feed({ feedId, feedUri, feedName, acceptsInteractions, refreshKey }: FeedProps) {
+export default function Feed({ feedId, feedUri, feedName, acceptsInteractions, refreshKey, feedType, keyword }: FeedProps) {
   const { settings } = useSettings();
   const [posts, setPosts] = useState<AppBskyFeedDefs.FeedViewPost[]>([]);
   const [loading, setLoading] = useState(true);
@@ -32,29 +35,43 @@ export default function Feed({ feedId, feedUri, feedName, acceptsInteractions, r
   const effectiveAcceptsInteractions = acceptsInteractions ?? feedConfig?.acceptsInteractions ?? false;
   const isPapersFeed = feedId === 'papers';
   const isVerifiedFeed = feedId === 'verified';
+  const isKeywordFeed = feedType === 'keyword' || (feedUri?.startsWith('keyword:') ?? false);
+  const effectiveKeyword = keyword || (feedUri?.startsWith('keyword:') ? feedUri.slice(8).replace(/-/g, ' ') : null);
 
   const loadFeed = async (loadMore = false, currentCursor?: string) => {
     try {
       setLoading(true);
       setError(null);
 
-      let response;
-      if (effectiveFeedUri && effectiveFeedUri !== 'timeline') {
+      let feedPosts: AppBskyFeedDefs.FeedViewPost[];
+      let newCursor: string | undefined;
+
+      if (isKeywordFeed && effectiveKeyword) {
+        // Keyword feed - use search API
+        const searchResult = await searchPosts(effectiveKeyword, loadMore ? (currentCursor || cursor) : undefined);
+        // Convert PostView[] to FeedViewPost[] format
+        feedPosts = searchResult.posts.map(post => ({ post }));
+        newCursor = searchResult.cursor;
+      } else if (effectiveFeedUri && effectiveFeedUri !== 'timeline') {
         // Custom feed (like Paper Skygest)
-        response = await getFeed(effectiveFeedUri, loadMore ? (currentCursor || cursor) : undefined);
+        const response = await getFeed(effectiveFeedUri, loadMore ? (currentCursor || cursor) : undefined);
+        feedPosts = response.data.feed;
+        newCursor = response.data.cursor;
       } else {
         // User's timeline
-        response = await getTimeline(loadMore ? (currentCursor || cursor) : undefined);
+        const response = await getTimeline(loadMore ? (currentCursor || cursor) : undefined);
+        feedPosts = response.data.feed;
+        newCursor = response.data.cursor;
       }
 
       if (loadMore) {
-        setPosts(prev => [...prev, ...response.data.feed]);
+        setPosts(prev => [...prev, ...feedPosts]);
       } else {
-        setPosts(response.data.feed);
+        setPosts(feedPosts);
       }
-      setCursor(response.data.cursor);
+      setCursor(newCursor);
       setLoadedPages(prev => prev + 1);
-      return response.data.cursor;
+      return newCursor;
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load feed');
       return undefined;
@@ -85,7 +102,7 @@ export default function Feed({ feedId, feedUri, feedName, acceptsInteractions, r
     } else {
       loadFeed();
     }
-  }, [feedId, feedUri, refreshKey]);
+  }, [feedId, feedUri, refreshKey, isKeywordFeed, effectiveKeyword]);
 
   // Filter posts based on settings and feed type
   const { filteredPosts, hiddenCount, totalScanned } = useMemo(() => {
@@ -173,6 +190,14 @@ export default function Feed({ feedId, feedUri, feedName, acceptsInteractions, r
             {isVerifiedFeed && (
               <p className="text-xs text-gray-500">
                 {filteredPosts.length} post{filteredPosts.length !== 1 ? 's' : ''} from verified researchers in {totalScanned} scanned
+              </p>
+            )}
+            {isKeywordFeed && effectiveKeyword && (
+              <p className="text-xs text-purple-500 flex items-center gap-1">
+                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+                Search: &quot;{effectiveKeyword}&quot;
               </p>
             )}
           </div>

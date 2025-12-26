@@ -19,6 +19,8 @@ export const verifiedResearchers = pgTable(
     orcid: varchar('orcid', { length: 19 }).notNull(),
     name: varchar('name', { length: 255 }),
     institution: varchar('institution', { length: 500 }),
+    // Research topics extracted from OpenAlex (JSON array of strings)
+    researchTopics: text('research_topics'), // JSON array: ["Machine Learning", "Computer Vision", ...]
     verifiedAt: timestamp('verified_at').defaultNow().notNull(),
     verificationMethod: varchar('verification_method', { length: 50 }).notNull(), // 'auto' | 'vouched' | 'manual'
     vouchedBy: varchar('vouched_by', { length: 36 }), // FK to verified_researchers.id

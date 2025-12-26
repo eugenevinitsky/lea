@@ -67,6 +67,9 @@ export interface PinnedFeed {
   displayName: string;
   avatar?: string;
   acceptsInteractions: boolean;
+  // For keyword feeds
+  type?: 'feed' | 'keyword';
+  keyword?: string;
 }
 
 interface FeedsContextType {
@@ -74,6 +77,7 @@ interface FeedsContextType {
   addFeed: (feed: PinnedFeed) => void;
   removeFeed: (uri: string) => void;
   moveFeed: (uri: string, direction: 'up' | 'down') => void;
+  reorderFeeds: (fromIndex: number, toIndex: number) => void;
   isPinned: (uri: string) => boolean;
 }
 
@@ -131,12 +135,25 @@ export function FeedsProvider({ children }: { children: ReactNode }) {
     });
   };
 
+  const reorderFeeds = (fromIndex: number, toIndex: number) => {
+    setPinnedFeeds(prev => {
+      if (fromIndex === toIndex) return prev;
+      if (fromIndex < 0 || fromIndex >= prev.length) return prev;
+      if (toIndex < 0 || toIndex >= prev.length) return prev;
+
+      const newFeeds = [...prev];
+      const [removed] = newFeeds.splice(fromIndex, 1);
+      newFeeds.splice(toIndex, 0, removed);
+      return newFeeds;
+    });
+  };
+
   const isPinned = (uri: string) => {
     return pinnedFeeds.some(f => f.uri === uri);
   };
 
   return (
-    <FeedsContext.Provider value={{ pinnedFeeds, addFeed, removeFeed, moveFeed, isPinned }}>
+    <FeedsContext.Provider value={{ pinnedFeeds, addFeed, removeFeed, moveFeed, reorderFeeds, isPinned }}>
       {children}
     </FeedsContext.Provider>
   );

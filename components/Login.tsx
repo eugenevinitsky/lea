@@ -2,9 +2,10 @@
 
 import { useState } from 'react';
 import { login } from '@/lib/bluesky';
+import NewUserGuide from './NewUserGuide';
 
 interface LoginProps {
-  onLogin: () => void;
+  onLogin: (forceOnboarding?: boolean) => void;
 }
 
 function FeatureCard({ icon, title, description, color }: {
@@ -31,6 +32,8 @@ export default function Login({ onLogin }: LoginProps) {
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [forceOnboarding, setForceOnboarding] = useState(false);
+  const [showNewUserGuide, setShowNewUserGuide] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -40,13 +43,17 @@ export default function Login({ onLogin }: LoginProps) {
       setLoading(true);
       setError(null);
       await login(identifier, password);
-      onLogin();
+      onLogin(forceOnboarding);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Login failed');
     } finally {
       setLoading(false);
     }
   };
+
+  if (showNewUserGuide) {
+    return <NewUserGuide onBack={() => setShowNewUserGuide(false)} />;
+  }
 
   return (
     <div className="min-h-screen flex bg-gradient-to-br from-blue-50 via-white to-purple-50 dark:from-gray-950 dark:via-gray-900 dark:to-gray-950">
@@ -212,6 +219,19 @@ export default function Login({ onLogin }: LoginProps) {
                 </p>
               </div>
 
+              {/* Test checkbox for forcing onboarding */}
+              <label className="flex items-center gap-2 p-3 bg-amber-50 dark:bg-amber-900/20 rounded-lg border border-amber-200 dark:border-amber-800 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={forceOnboarding}
+                  onChange={(e) => setForceOnboarding(e.target.checked)}
+                  className="w-4 h-4 text-amber-500 border-gray-300 rounded focus:ring-amber-500"
+                />
+                <span className="text-sm text-amber-700 dark:text-amber-300">
+                  Show onboarding flow (testing)
+                </span>
+              </label>
+
               <button
                 type="submit"
                 disabled={!identifier || !password || loading}
@@ -250,6 +270,17 @@ export default function Login({ onLogin }: LoginProps) {
               </svg>
               Get verified as a researcher
             </a>
+
+            {/* New to Bluesky link */}
+            <button
+              onClick={() => setShowNewUserGuide(true)}
+              className="flex items-center justify-center gap-2 w-full py-3 text-gray-500 dark:text-gray-400 hover:text-blue-500 dark:hover:text-blue-400 font-medium transition-colors"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              No Bluesky account? Get started here
+            </button>
           </div>
 
           {/* Footer info */}

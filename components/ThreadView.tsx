@@ -48,11 +48,26 @@ function collectReplies(thread: ThreadViewPost): AppBskyFeedDefs.PostView[] {
 }
 
 export default function ThreadView({ uri, onClose }: ThreadViewProps) {
+  const [currentUri, setCurrentUri] = useState(uri);
+  const [history, setHistory] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [parents, setParents] = useState<AppBskyFeedDefs.PostView[]>([]);
   const [mainPost, setMainPost] = useState<AppBskyFeedDefs.PostView | null>(null);
   const [replies, setReplies] = useState<AppBskyFeedDefs.PostView[]>([]);
+
+  const navigateToThread = (newUri: string) => {
+    setHistory(prev => [...prev, currentUri]);
+    setCurrentUri(newUri);
+  };
+
+  const goBack = () => {
+    if (history.length > 0) {
+      const prevUri = history[history.length - 1];
+      setHistory(prev => prev.slice(0, -1));
+      setCurrentUri(prevUri);
+    }
+  };
 
   useEffect(() => {
     async function loadThread() {
@@ -60,7 +75,7 @@ export default function ThreadView({ uri, onClose }: ThreadViewProps) {
         setLoading(true);
         setError(null);
 
-        const response = await getThread(uri);
+        const response = await getThread(currentUri);
         const thread = response.data.thread;
 
         if (!isThreadViewPost(thread)) {
@@ -79,14 +94,27 @@ export default function ThreadView({ uri, onClose }: ThreadViewProps) {
     }
 
     loadThread();
-  }, [uri]);
+  }, [currentUri]);
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-start justify-center z-50 p-4 overflow-y-auto">
       <div className="bg-white dark:bg-gray-950 rounded-2xl max-w-xl w-full my-8 max-h-[90vh] overflow-y-auto">
         {/* Header */}
         <div className="sticky top-0 bg-white dark:bg-gray-950 border-b border-gray-200 dark:border-gray-800 p-4 flex items-center justify-between z-10">
-          <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100">Thread</h2>
+          <div className="flex items-center gap-2">
+            {history.length > 0 && (
+              <button
+                onClick={goBack}
+                className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full"
+                title="Go back"
+              >
+                <svg className="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                </svg>
+              </button>
+            )}
+            <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100">Thread</h2>
+          </div>
           <button
             onClick={onClose}
             className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full"
@@ -116,12 +144,12 @@ export default function ThreadView({ uri, onClose }: ThreadViewProps) {
             {/* Parent posts (context) */}
             {parents.length > 0 && (
               <div className="border-l-2 border-blue-300 dark:border-blue-700 ml-6">
-                {parents.map((post, index) => (
+                {parents.map((post) => (
                   <div key={post.uri} className="relative">
                     {/* Connector line */}
                     <div className="absolute left-0 top-0 bottom-0 w-0.5 bg-blue-300 dark:bg-blue-700 -ml-[1px]" />
                     <div className="pl-4 opacity-80">
-                      <Post post={post} />
+                      <Post post={post} onOpenThread={navigateToThread} />
                     </div>
                   </div>
                 ))}
@@ -140,7 +168,11 @@ export default function ThreadView({ uri, onClose }: ThreadViewProps) {
                   {replies.length} {replies.length === 1 ? 'reply' : 'replies'}
                 </div>
                 {replies.map((post) => (
-                  <Post key={post.uri} post={post} />
+                  <Post
+                    key={post.uri}
+                    post={post}
+                    onOpenThread={navigateToThread}
+                  />
                 ))}
               </div>
             )}

@@ -1,4 +1,4 @@
-import { BskyAgent, RichText } from '@atproto/api';
+import { BskyAgent, RichText, AppBskyFeedDefs } from '@atproto/api';
 
 let agent: BskyAgent | null = null;
 
@@ -122,6 +122,25 @@ export async function getFeedGenerators(feedUris: string[]): Promise<FeedGenerat
   if (!agent) throw new Error('Not logged in');
   const response = await agent.app.bsky.feed.getFeedGenerators({ feeds: feedUris });
   return response.data.feeds as FeedGeneratorInfo[];
+}
+
+// Search posts by keyword
+export async function searchPosts(
+  query: string,
+  cursor?: string,
+  sort: 'top' | 'latest' = 'latest'
+): Promise<{ posts: AppBskyFeedDefs.PostView[]; cursor?: string }> {
+  if (!agent) throw new Error('Not logged in');
+  const response = await agent.app.bsky.feed.searchPosts({
+    q: query,
+    limit: 30,
+    cursor,
+    sort,
+  });
+  return {
+    posts: response.data.posts,
+    cursor: response.data.cursor,
+  };
 }
 
 // Feed definitions
@@ -387,6 +406,19 @@ export async function repost(uri: string, cid: string): Promise<{ uri: string }>
 export async function deleteRepost(repostUri: string): Promise<void> {
   if (!agent) throw new Error('Not logged in');
   await agent.deleteRepost(repostUri);
+}
+
+// Follow a user
+export async function followUser(did: string): Promise<{ uri: string }> {
+  if (!agent) throw new Error('Not logged in');
+  const result = await agent.follow(did);
+  return result;
+}
+
+// Unfollow a user
+export async function unfollowUser(followUri: string): Promise<void> {
+  if (!agent) throw new Error('Not logged in');
+  await agent.deleteFollow(followUri);
 }
 
 // Label utilities
