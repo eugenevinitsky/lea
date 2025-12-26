@@ -287,19 +287,50 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // Get existing researchers from DB
+    // Get existing researchers from DB with their ORCID status
     const existingResearchers = await db
-      .select({ did: verifiedResearchers.did })
+      .select({
+        did: verifiedResearchers.did,
+        orcid: verifiedResearchers.orcid,
+        name: verifiedResearchers.name,
+        researchTopics: verifiedResearchers.researchTopics,
+      })
       .from(verifiedResearchers);
 
-    const existingDids = new Set(existingResearchers.map(r => r.did));
-    console.log(`${existingDids.size} researchers already in database`);
+    const existingByDid = new Map(existingResearchers.map(r => [r.did, r]));
+    console.log(`${existingByDid.size} researchers already in database`);
 
     const results: { did: string; handle?: string; status: string; orcid?: string; topicsCount?: number }[] = [];
 
     for (const did of labeledDids) {
-      // Skip if already in database
-      if (existingDids.has(did)) {
+      const existing = existingByDid.get(did);
+
+      // Check if exists but needs ORCID backfill
+      if (existing) {
+        if (!existing.orcid && existing.name) {
+          // Try to backfill ORCID for existing researcher
+          console.log(`Backfilling ORCID for ${existing.name}...`);
+          const foundOrcid = await searchOrcidByName(existing.name);
+          if (foundOrcid) {
+            const researchTopics = await fetchResearchTopics(foundOrcid);
+            await db
+              .update(verifiedResearchers)
+              .set({
+                orcid: foundOrcid,
+                researchTopics: researchTopics.length > 0 ? JSON.stringify(researchTopics) : null,
+              })
+              .where(eq(verifiedResearchers.did, did));
+
+            results.push({
+              did,
+              status: 'backfilled',
+              orcid: foundOrcid,
+              topicsCount: researchTopics.length
+            });
+            await new Promise(resolve => setTimeout(resolve, 500));
+            continue;
+          }
+        }
         results.push({ did, status: 'already_exists' });
         continue;
       }
@@ -356,13 +387,15 @@ export async function POST(request: NextRequest) {
     }
 
     const added = results.filter(r => r.status === 'added').length;
+    const backfilled = results.filter(r => r.status === 'backfilled').length;
     const skipped = results.filter(r => r.status === 'already_exists').length;
     const failed = results.filter(r => r.status.includes('failed')).length;
 
     return NextResponse.json({
-      message: `Sync complete: ${added} added, ${skipped} already existed, ${failed} failed`,
+      message: `Sync complete: ${added} added, ${backfilled} backfilled, ${skipped} already existed, ${failed} failed`,
       totalLabeled: labeledDids.length,
       added,
+      backfilled,
       skipped,
       failed,
       results,
