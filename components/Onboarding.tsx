@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useFeeds, SUGGESTED_FEEDS, PinnedFeed } from '@/lib/feeds';
 import { useSettings } from '@/lib/settings';
-import { followUser, getSession, searchStarterPacks, StarterPackView } from '@/lib/bluesky';
+import { followUser, getSession, getActorStarterPacks, StarterPackView } from '@/lib/bluesky';
 
 interface OnboardingProps {
   onComplete: () => void;
@@ -161,27 +161,32 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
     return () => clearTimeout(debounce);
   }, [selectedTopics]);
 
-  // Fetch starter packs when entering step 4 based on selected topics
+  // All starter packs from verified researchers (cached)
+  const [allStarterPacks, setAllStarterPacks] = useState<StarterPackView[]>([]);
+
+  // Fetch starter packs from verified researchers when entering step 4
   useEffect(() => {
-    if (step === 4) {
+    if (step === 4 && allStarterPacks.length === 0) {
       const fetchStarterPacks = async () => {
         setLoadingStarterPacks(true);
         try {
-          // Search for starter packs based on selected topics or default academic terms
-          const searchTerms = selectedTopics.size > 0
-            ? Array.from(selectedTopics).slice(0, 3)
-            : ['science', 'academic', 'research'];
+          // Get starter packs from all verified researchers
+          const response = await fetch('/api/researchers');
+          const data = await response.json();
+          const researchers = data.researchers || [];
 
-          const allPacks: StarterPackView[] = [];
-          for (const term of searchTerms) {
-            const packs = await searchStarterPacks(term, 5);
-            for (const pack of packs) {
-              if (!allPacks.some(p => p.uri === pack.uri)) {
-                allPacks.push(pack);
+          const packs: StarterPackView[] = [];
+          // Check first 30 researchers for starter packs
+          for (const r of researchers.slice(0, 30)) {
+            const actorPacks = await getActorStarterPacks(r.handle);
+            for (const pack of actorPacks) {
+              if (!packs.some(p => p.uri === pack.uri)) {
+                packs.push(pack);
               }
             }
           }
-          setStarterPacks(allPacks.slice(0, 12));
+          setAllStarterPacks(packs);
+          setStarterPacks(packs);
         } catch (error) {
           console.error('Failed to fetch starter packs:', error);
         } finally {
@@ -190,20 +195,21 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
       };
       fetchStarterPacks();
     }
-  }, [step, selectedTopics]);
+  }, [step, allStarterPacks.length]);
 
-  // Search starter packs manually
-  const handleStarterPackSearch = async () => {
-    if (!starterPackSearch.trim()) return;
-    setLoadingStarterPacks(true);
-    try {
-      const packs = await searchStarterPacks(starterPackSearch, 10);
-      setStarterPacks(packs);
-    } catch (error) {
-      console.error('Failed to search starter packs:', error);
-    } finally {
-      setLoadingStarterPacks(false);
+  // Filter starter packs by search term
+  const handleStarterPackSearch = () => {
+    const query = starterPackSearch.trim().toLowerCase();
+    if (!query) {
+      setStarterPacks(allStarterPacks);
+      return;
     }
+    const filtered = allStarterPacks.filter(pack =>
+      pack.record.name.toLowerCase().includes(query) ||
+      pack.record.description?.toLowerCase().includes(query) ||
+      pack.creator.handle.toLowerCase().includes(query)
+    );
+    setStarterPacks(filtered);
   };
 
   const toggleTopic = (topic: string) => {
@@ -833,9 +839,14 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                   <input
                     type="text"
                     value={starterPackSearch}
-                    onChange={(e) => setStarterPackSearch(e.target.value)}
+                    onChange={(e) => {
+                      setStarterPackSearch(e.target.value);
+                      if (!e.target.value.trim()) {
+                        setStarterPacks(allStarterPacks);
+                      }
+                    }}
                     onKeyDown={(e) => e.key === 'Enter' && handleStarterPackSearch()}
-                    placeholder="Search starter packs..."
+                    placeholder="Filter by name or topic..."
                     className="flex-1 px-4 py-2 border border-gray-200 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                   <button
@@ -843,14 +854,12 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                     disabled={loadingStarterPacks}
                     className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-xl font-medium transition-colors disabled:opacity-50"
                   >
-                    Search
+                    Filter
                   </button>
                 </div>
-                {selectedTopics.size > 0 && (
-                  <p className="text-xs text-gray-500 mt-2">
-                    Showing results for: {Array.from(selectedTopics).slice(0, 3).join(', ')}
-                  </p>
-                )}
+                <p className="text-xs text-gray-500 mt-2">
+                  Showing starter packs created by verified researchers
+                </p>
               </div>
 
               {/* Starter packs list */}
@@ -905,9 +914,11 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                 </div>
               )}
 
-              <p className="text-xs text-gray-400 text-center mt-4">
-                Click a starter pack to view and follow on Bluesky
-              </p>
+              {starterPacks.length > 0 && (
+                <p className="text-xs text-gray-400 text-center mt-4">
+                  Click a starter pack to view and follow on Bluesky
+                </p>
+              )}
 
               <div className="flex gap-3 mt-6">
                 <button

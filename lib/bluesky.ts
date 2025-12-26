@@ -602,17 +602,17 @@ export interface StarterPackView {
   indexedAt: string;
 }
 
-// Search starter packs by query (requires authentication)
-export async function searchStarterPacks(query: string, limit: number = 10): Promise<StarterPackView[]> {
+// Get starter packs from a specific user
+export async function getActorStarterPacks(handle: string): Promise<StarterPackView[]> {
   if (!agent) {
-    console.error('Not logged in - cannot search starter packs');
+    console.error('Not logged in - cannot get starter packs');
     return [];
   }
   try {
-    const response = await agent.api.app.bsky.graph.searchStarterPacks({ q: query, limit });
+    const response = await agent.api.app.bsky.graph.getActorStarterPacks({ actor: handle, limit: 25 });
     return (response.data.starterPacks || []) as StarterPackView[];
   } catch (error) {
-    console.error('Failed to search starter packs:', error);
+    // Silently fail for users without starter packs
     return [];
   }
 }
