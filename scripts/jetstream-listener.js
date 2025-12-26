@@ -1,10 +1,10 @@
 #!/usr/bin/env node
 
 /**
- * Jetstream Listener for LEA
+ * Label Subscription Listener for LEA
  *
- * Subscribes to Bluesky's Jetstream firehose and listens for label events
- * from the LEA labeler. When a verified-researcher label is added or removed,
+ * Subscribes to the LEA labeler's label stream and listens for
+ * verified-researcher labels. When a label is added or removed,
  * it notifies the Vercel app to sync the database.
  *
  * Usage:
@@ -13,26 +13,25 @@
  * Environment variables:
  *   LEA_APP_URL - Your Vercel app URL (default: https://client-kappa-weld-68.vercel.app)
  *   LEA_LABELER_DID - The labeler's DID (default: did:plc:7c7tx56n64jhzezlwox5dja6)
- *   LEA_SYNC_SECRET - Optional secret to authenticate sync requests
  *
  * Run with pm2 for production:
- *   pm2 start jetstream-listener.js --name lea-jetstream
+ *   pm2 start jetstream-listener.js --name lea-labels
  */
 
 const WebSocket = require('ws');
+const cbor = require('cbor');
 
 // Configuration
 const CONFIG = {
-  jetstreamUrl: 'wss://jetstream2.us-east.bsky.network/subscribe',
   labelerDid: process.env.LEA_LABELER_DID || 'did:plc:7c7tx56n64jhzezlwox5dja6',
   appUrl: process.env.LEA_APP_URL || 'https://client-kappa-weld-68.vercel.app',
-  syncSecret: process.env.LEA_SYNC_SECRET || '',
-  reconnectDelay: 5000, // 5 seconds
+  reconnectDelay: 5000,
   labelValue: 'verified-researcher',
 };
 
 let ws = null;
 let reconnectTimeout = null;
+let labelerEndpoint = null;
 
 function log(message, data = null) {
   const timestamp = new Date().toISOString();
@@ -40,6 +39,22 @@ function log(message, data = null) {
     console.log(`[${timestamp}] ${message}`, JSON.stringify(data));
   } else {
     console.log(`[${timestamp}] ${message}`);
+  }
+}
+
+// Get the labeler's service endpoint from PLC directory
+async function getLabelerEndpoint() {
+  try {
+    const response = await fetch(`https://plc.directory/${CONFIG.labelerDid}`);
+    if (!response.ok) return null;
+
+    const data = await response.json();
+    // Look for the labeler service endpoint
+    const labelerService = data.service?.find(s => s.id === '#atproto_labeler');
+    return labelerService?.serviceEndpoint || null;
+  } catch (error) {
+    log(`Error fetching labeler endpoint: ${error.message}`);
+    return null;
   }
 }
 
@@ -52,11 +67,10 @@ async function notifySync(subjectDid, action) {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        ...(CONFIG.syncSecret && { 'Authorization': `Bearer ${CONFIG.syncSecret}` }),
       },
       body: JSON.stringify({
         did: subjectDid,
-        action, // 'add' or 'remove'
+        action,
       }),
     });
 
@@ -71,62 +85,91 @@ async function notifySync(subjectDid, action) {
   }
 }
 
-function connect() {
-  // Build subscription URL with filter for label events
-  // We want all label events, then filter by source DID in the handler
-  const url = new URL(CONFIG.jetstreamUrl);
-  url.searchParams.set('wantedCollections', 'com.atproto.label.label');
+// Decode CBOR message
+function decodeMessage(data) {
+  try {
+    // Ensure we have a Buffer
+    const buffer = Buffer.isBuffer(data) ? data : Buffer.from(data);
 
-  log(`Connecting to Jetstream...`);
-  log(`Filtering for labels from: ${CONFIG.labelerDid}`);
+    // AT Protocol subscriptions send framed messages with header + body
+    // Try decoding all CBOR items in the message
+    const decoded = cbor.decodeAllSync(buffer);
 
-  ws = new WebSocket(url.toString());
+    // Usually returns [header, body] where body contains the labels
+    if (decoded.length >= 2) {
+      return { header: decoded[0], body: decoded[1] };
+    } else if (decoded.length === 1) {
+      return decoded[0];
+    }
+    return null;
+  } catch (error) {
+    log(`CBOR decode error: ${error.message}`);
+    // Log first few bytes for debugging
+    const buffer = Buffer.isBuffer(data) ? data : Buffer.from(data);
+    log(`First 20 bytes: ${buffer.slice(0, 20).toString('hex')}`);
+    return null;
+  }
+}
+
+async function connect() {
+  // Get labeler endpoint if not cached
+  if (!labelerEndpoint) {
+    labelerEndpoint = await getLabelerEndpoint();
+    if (!labelerEndpoint) {
+      log('Could not find labeler endpoint, retrying...');
+      scheduleReconnect();
+      return;
+    }
+    log(`Found labeler endpoint: ${labelerEndpoint}`);
+  }
+
+  // Subscribe to label stream
+  const wsUrl = labelerEndpoint.replace('https://', 'wss://') + '/xrpc/com.atproto.label.subscribeLabels';
+  log(`Connecting to ${wsUrl}...`);
+
+  ws = new WebSocket(wsUrl);
 
   ws.on('open', () => {
-    log('Connected to Jetstream');
+    log('Connected to labeler subscription');
   });
 
   ws.on('message', (data) => {
     try {
-      const event = JSON.parse(data.toString());
+      const message = decodeMessage(data);
+      if (!message) {
+        return;
+      }
 
-      // We're looking for label events
-      if (event.kind !== 'commit') return;
-      if (event.commit?.collection !== 'com.atproto.label.label') return;
+      // Log the message structure for debugging
+      log(`Received message`, message);
 
-      // Check if this label is from our labeler
-      // Labels have a 'src' field indicating who created them
-      const record = event.commit?.record;
-      if (!record) return;
+      // Handle label message - structure may vary
+      const labels = message.labels || (message.body?.labels) || [];
 
-      // For label events, the 'did' field is the labeler
-      // and the record contains the label details
-      if (event.did !== CONFIG.labelerDid) return;
+      for (const label of labels) {
+        // Check if it's our label type
+        if (label.val === CONFIG.labelValue) {
+          // Subject DID is in 'uri' field (the account being labeled)
+          const subjectDid = label.uri;
+          // 'neg' field indicates label removal (negation)
+          const action = label.neg ? 'remove' : 'add';
 
-      // Check if it's a verified-researcher label
-      if (record.val !== CONFIG.labelValue) return;
+          log(`Label event detected!`, {
+            subject: subjectDid,
+            label: label.val,
+            action,
+          });
 
-      const subjectDid = record.uri?.split('/')[2] || record.sub;
-      if (!subjectDid) return;
-
-      const action = event.commit.operation === 'delete' ? 'remove' : 'add';
-
-      log(`Label event detected`, {
-        subject: subjectDid,
-        label: record.val,
-        action,
-      });
-
-      // Notify the app
-      notifySync(subjectDid, action);
-
+          notifySync(subjectDid, action);
+        }
+      }
     } catch (error) {
-      // Ignore parse errors for malformed messages
+      log(`Message processing error: ${error.message}`);
     }
   });
 
   ws.on('close', (code, reason) => {
-    log(`Disconnected from Jetstream: ${code} ${reason}`);
+    log(`Disconnected: ${code} ${reason}`);
     scheduleReconnect();
   });
 
@@ -161,7 +204,7 @@ process.on('SIGTERM', () => {
 });
 
 // Start
-log('LEA Jetstream Listener starting...');
+log('LEA Label Listener starting...');
 log(`App URL: ${CONFIG.appUrl}`);
 log(`Labeler DID: ${CONFIG.labelerDid}`);
 connect();
