@@ -85,6 +85,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
   const [followingDid, setFollowingDid] = useState<string | null>(null);
   const [followMode, setFollowMode] = useState<'all' | 'topics' | 'individual'>('topics');
   const [bulkFollowing, setBulkFollowing] = useState(false);
+  const [selectedForBulk, setSelectedForBulk] = useState<Set<string>>(new Set());
 
   // Fetch all researchers when entering step 3
   useEffect(() => {
@@ -107,6 +108,8 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                 matchedTopics: [],
               }));
             setAllResearchers(mapped);
+            // Initialize all researchers as selected for bulk follow
+            setSelectedForBulk(new Set(mapped.map((r: ResearcherSuggestion) => r.did)));
           }
         } catch (error) {
           console.error('Failed to fetch researchers:', error);
@@ -191,6 +194,26 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
       }
     }
     setBulkFollowing(false);
+  };
+
+  const toggleBulkSelection = (did: string) => {
+    setSelectedForBulk(prev => {
+      const next = new Set(prev);
+      if (next.has(did)) {
+        next.delete(did);
+      } else {
+        next.add(did);
+      }
+      return next;
+    });
+  };
+
+  const selectAllForBulk = () => {
+    setSelectedForBulk(new Set(allResearchers.map(r => r.did)));
+  };
+
+  const deselectAllForBulk = () => {
+    setSelectedForBulk(new Set());
   };
 
   const getResearchersToShow = () => {
@@ -483,7 +506,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                 </div>
               )}
 
-              {/* Bulk follow button for 'all' mode */}
+              {/* Bulk follow with selectable list for 'all' mode */}
               {followMode === 'all' && (
                 <div className="mb-6">
                   {loadingAllResearchers ? (
@@ -491,31 +514,98 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                       <div className="animate-spin w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full"></div>
                     </div>
                   ) : (
-                    <div className="text-center">
-                      <button
-                        onClick={() => handleBulkFollow(allResearchers)}
-                        disabled={bulkFollowing || allResearchers.every(r => followedDids.has(r.did))}
-                        className={`px-6 py-3 rounded-xl font-medium transition-colors ${
-                          allResearchers.every(r => followedDids.has(r.did))
-                            ? 'bg-gray-200 dark:bg-gray-700 text-gray-500'
-                            : 'bg-blue-500 hover:bg-blue-600 text-white'
-                        }`}
-                      >
-                        {bulkFollowing ? (
-                          <span className="flex items-center gap-2">
-                            <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
-                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                            </svg>
-                            Following... ({followedDids.size}/{allResearchers.length})
-                          </span>
-                        ) : allResearchers.every(r => followedDids.has(r.did)) ? (
-                          `Following all ${allResearchers.length} researchers`
-                        ) : (
-                          `Follow all ${allResearchers.length} researchers`
-                        )}
-                      </button>
-                    </div>
+                    <>
+                      <div className="flex items-center justify-between mb-3">
+                        <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                          {selectedForBulk.size} of {allResearchers.length} selected
+                        </h3>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={selectAllForBulk}
+                            className="text-xs text-blue-500 hover:text-blue-600"
+                          >
+                            Select all
+                          </button>
+                          <span className="text-gray-300">|</span>
+                          <button
+                            onClick={deselectAllForBulk}
+                            className="text-xs text-gray-500 hover:text-gray-600"
+                          >
+                            Deselect all
+                          </button>
+                        </div>
+                      </div>
+                      <div className="space-y-2 max-h-[250px] overflow-y-auto mb-4">
+                        {allResearchers.map(researcher => (
+                          <div
+                            key={researcher.did}
+                            onClick={() => !followedDids.has(researcher.did) && toggleBulkSelection(researcher.did)}
+                            className={`flex items-center gap-3 p-2 rounded-lg cursor-pointer transition-colors ${
+                              followedDids.has(researcher.did)
+                                ? 'bg-gray-100 dark:bg-gray-800 opacity-50 cursor-not-allowed'
+                                : selectedForBulk.has(researcher.did)
+                                ? 'bg-blue-50 dark:bg-blue-900/20'
+                                : 'bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700'
+                            }`}
+                          >
+                            <div className={`w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 ${
+                              followedDids.has(researcher.did)
+                                ? 'border-gray-300 bg-gray-300 dark:border-gray-600 dark:bg-gray-600'
+                                : selectedForBulk.has(researcher.did)
+                                ? 'border-blue-500 bg-blue-500'
+                                : 'border-gray-300 dark:border-gray-600'
+                            }`}>
+                              {(selectedForBulk.has(researcher.did) || followedDids.has(researcher.did)) && (
+                                <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
+                                  <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                                </svg>
+                              )}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2">
+                                <span className="font-medium text-sm text-gray-900 dark:text-gray-100 truncate">
+                                  {researcher.name || researcher.handle}
+                                </span>
+                                <span className="flex-shrink-0 w-3.5 h-3.5 bg-emerald-500 rounded-full flex items-center justify-center">
+                                  <svg className="w-2 h-2 text-white" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                                  </svg>
+                                </span>
+                              </div>
+                              <p className="text-xs text-gray-500 truncate">@{researcher.handle}</p>
+                            </div>
+                            {followedDids.has(researcher.did) && (
+                              <span className="text-xs text-gray-400">Following</span>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                      <div className="text-center">
+                        <button
+                          onClick={() => handleBulkFollow(allResearchers.filter(r => selectedForBulk.has(r.did)))}
+                          disabled={bulkFollowing || selectedForBulk.size === 0 || allResearchers.filter(r => selectedForBulk.has(r.did)).every(r => followedDids.has(r.did))}
+                          className={`px-6 py-3 rounded-xl font-medium transition-colors ${
+                            selectedForBulk.size === 0 || allResearchers.filter(r => selectedForBulk.has(r.did)).every(r => followedDids.has(r.did))
+                              ? 'bg-gray-200 dark:bg-gray-700 text-gray-500'
+                              : 'bg-blue-500 hover:bg-blue-600 text-white'
+                          }`}
+                        >
+                          {bulkFollowing ? (
+                            <span className="flex items-center gap-2">
+                              <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
+                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                              </svg>
+                              Following...
+                            </span>
+                          ) : allResearchers.filter(r => selectedForBulk.has(r.did)).every(r => followedDids.has(r.did)) ? (
+                            `Following all selected`
+                          ) : (
+                            `Follow ${selectedForBulk.size} researcher${selectedForBulk.size !== 1 ? 's' : ''}`
+                          )}
+                        </button>
+                      </div>
+                    </>
                   )}
                 </div>
               )}
