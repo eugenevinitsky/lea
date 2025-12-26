@@ -93,6 +93,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
   const [starterPackSearch, setStarterPackSearch] = useState('');
   const [followingPack, setFollowingPack] = useState<string | null>(null);
   const [followedPacks, setFollowedPacks] = useState<Set<string>>(new Set());
+  const [packFollowProgress, setPackFollowProgress] = useState<{ current: number; total: number } | null>(null);
 
   // Fetch all researchers when entering step 3
   useEffect(() => {
@@ -166,9 +167,9 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
   // All starter packs from verified researchers (cached)
   const [allStarterPacks, setAllStarterPacks] = useState<StarterPackView[]>([]);
 
-  // Fetch starter packs from verified researchers when entering step 4
+  // Pre-cache starter packs early (start fetching at step 2 so they're ready by step 4)
   useEffect(() => {
-    if (step === 4 && allStarterPacks.length === 0) {
+    if (step >= 2 && allStarterPacks.length === 0 && !loadingStarterPacks) {
       const fetchStarterPacks = async () => {
         setLoadingStarterPacks(true);
         try {
@@ -197,7 +198,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
       };
       fetchStarterPacks();
     }
-  }, [step, allStarterPacks.length]);
+  }, [step, allStarterPacks.length, loadingStarterPacks]);
 
   // Filter starter packs by search term
   const handleStarterPackSearch = () => {
@@ -217,19 +218,26 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
   // Follow all members of a starter pack
   const handleFollowStarterPack = async (pack: StarterPackView) => {
     setFollowingPack(pack.uri);
+    setPackFollowProgress({ current: 0, total: 0 });
     try {
       const members = await getStarterPackMembers(pack.record.list);
       const session = getSession();
       const toFollow = members.filter(m => m.did !== session?.did && !followedDids.has(m.did));
 
-      for (const member of toFollow) {
+      setPackFollowProgress({ current: 0, total: toFollow.length });
+
+      for (let i = 0; i < toFollow.length; i++) {
+        const member = toFollow[i];
         try {
           await followUser(member.did);
           setFollowedDids(prev => new Set(prev).add(member.did));
+          setPackFollowProgress({ current: i + 1, total: toFollow.length });
           // Small delay to avoid rate limiting
           await new Promise(resolve => setTimeout(resolve, 150));
         } catch (error) {
           console.error(`Failed to follow ${member.handle}:`, error);
+          // Still update progress even on error
+          setPackFollowProgress({ current: i + 1, total: toFollow.length });
         }
       }
       setFollowedPacks(prev => new Set(prev).add(pack.uri));
@@ -237,6 +245,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
       console.error('Failed to follow starter pack:', error);
     } finally {
       setFollowingPack(null);
+      setPackFollowProgress(null);
     }
   };
 
@@ -928,40 +937,59 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                           </div>
                         </div>
                       </div>
-                      <div className="flex items-center gap-2 mt-3">
-                        <button
-                          onClick={() => handleFollowStarterPack(pack)}
-                          disabled={followingPack === pack.uri || followedPacks.has(pack.uri)}
-                          className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-colors ${
-                            followedPacks.has(pack.uri)
-                              ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400'
-                              : followingPack === pack.uri
-                              ? 'bg-gray-200 dark:bg-gray-700 text-gray-500'
-                              : 'bg-blue-500 hover:bg-blue-600 text-white'
-                          }`}
-                        >
-                          {followingPack === pack.uri ? (
-                            <span className="flex items-center justify-center gap-2">
-                              <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
-                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                              </svg>
-                              Following...
-                            </span>
-                          ) : followedPacks.has(pack.uri) ? (
-                            'Followed all'
-                          ) : (
-                            'Follow all'
-                          )}
-                        </button>
-                        <a
-                          href={`https://bsky.app/starter-pack/${pack.creator.handle}/${pack.uri.split('/').pop()}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="py-2 px-3 rounded-lg text-sm font-medium border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-                        >
-                          View
-                        </a>
+                      <div className="mt-3">
+                        {/* Progress bar when following this pack */}
+                        {followingPack === pack.uri && packFollowProgress && packFollowProgress.total > 0 && (
+                          <div className="mb-2">
+                            <div className="flex justify-between text-xs text-gray-500 mb-1">
+                              <span>Following...</span>
+                              <span>{packFollowProgress.current} / {packFollowProgress.total}</span>
+                            </div>
+                            <div className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                              <div
+                                className="h-full bg-blue-500 transition-all duration-150"
+                                style={{ width: `${(packFollowProgress.current / packFollowProgress.total) * 100}%` }}
+                              />
+                            </div>
+                          </div>
+                        )}
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => handleFollowStarterPack(pack)}
+                            disabled={followingPack === pack.uri || followedPacks.has(pack.uri)}
+                            className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-colors ${
+                              followedPacks.has(pack.uri)
+                                ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400'
+                                : followingPack === pack.uri
+                                ? 'bg-gray-200 dark:bg-gray-700 text-gray-500'
+                                : 'bg-blue-500 hover:bg-blue-600 text-white'
+                            }`}
+                          >
+                            {followingPack === pack.uri ? (
+                              <span className="flex items-center justify-center gap-2">
+                                <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
+                                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                                </svg>
+                                {packFollowProgress && packFollowProgress.total > 0
+                                  ? `${packFollowProgress.current}/${packFollowProgress.total}`
+                                  : 'Loading...'}
+                              </span>
+                            ) : followedPacks.has(pack.uri) ? (
+                              'Followed all'
+                            ) : (
+                              'Follow all'
+                            )}
+                          </button>
+                          <a
+                            href={`https://bsky.app/starter-pack/${pack.creator.handle}/${pack.uri.split('/').pop()}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="py-2 px-3 rounded-lg text-sm font-medium border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                          >
+                            View
+                          </a>
+                        </div>
                       </div>
                     </div>
                   ))}
