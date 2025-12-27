@@ -105,7 +105,20 @@ export function FeedsProvider({ children }: { children: ReactNode }) {
       try {
         const parsed = JSON.parse(stored);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          setPinnedFeeds(parsed);
+          // Migrate old list-based Verified Researchers feed to new timeline-filtered version
+          const migrated = parsed.map((feed: PinnedFeed) => {
+            if (feed.uri === VERIFIED_RESEARCHERS_LIST ||
+                (feed.displayName === 'Verified Researchers' && feed.type === 'list')) {
+              return {
+                uri: 'verified-following',
+                displayName: 'Verified Researchers',
+                acceptsInteractions: false,
+                type: 'verified' as const,
+              };
+            }
+            return feed;
+          });
+          setPinnedFeeds(migrated);
         }
       } catch (e) {
         console.error('Failed to parse stored feeds:', e);

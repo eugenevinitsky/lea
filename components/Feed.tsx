@@ -56,8 +56,9 @@ export default function Feed({ feedId, feedUri, feedName, acceptsInteractions, r
         feedPosts = searchResult.posts.map(post => ({ post }));
         newCursor = searchResult.cursor;
       } else if (isVerifiedFeed) {
-        // Verified feed - get timeline and filter for verified researchers
-        const response = await getTimeline(loadMore ? (currentCursor || cursor) : undefined);
+        // Verified feed - get posts from all verified researchers list, then filter to only those you follow
+        const VERIFIED_LIST = 'at://did:plc:7c7tx56n64jhzezlwox5dja6/app.bsky.graph.list/3masawnn3xj23';
+        const response = await getListFeed(VERIFIED_LIST, loadMore ? (currentCursor || cursor) : undefined);
         feedPosts = response.data.feed;
         newCursor = response.data.cursor;
       } else if (isListFeed && effectiveFeedUri) {
@@ -143,19 +144,17 @@ export default function Feed({ feedId, feedUri, feedName, acceptsInteractions, r
       filtered = papers;
     }
 
-    // Apply verified researcher filtering for Verified feed
-    // Only show posts from verified researchers you actually follow
+    // Apply following filter for Verified feed
+    // Posts are already from verified researchers (loaded from list), just filter to those you follow
     if (isVerifiedFeed) {
-      const verified: AppBskyFeedDefs.FeedViewPost[] = [];
+      const followed: AppBskyFeedDefs.FeedViewPost[] = [];
       for (const item of posts) {
         const author = item.post.author as AppBskyFeedDefs.PostView['author'] & { viewer?: { following?: string } };
-        const labels = author.labels as Label[] | undefined;
-        // Check both: is verified AND you follow them
-        if (isVerifiedResearcher(labels) && author.viewer?.following) {
-          verified.push(item);
+        if (author.viewer?.following) {
+          followed.push(item);
         }
       }
-      filtered = verified;
+      filtered = followed;
     }
 
     // Apply high-follower filter
