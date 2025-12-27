@@ -760,10 +760,15 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
     if (sendingInteraction) return;
     setSendingInteraction(true);
     try {
+      console.log('Sending feed interaction:', { postUri: post.uri, event, feedContext, reqId });
       await sendFeedInteraction(post.uri, event, feedContext, reqId);
+      console.log('Feed interaction sent successfully');
       setInteractionSent(event);
     } catch (err) {
       console.error('Failed to send interaction:', err);
+      // Show brief error feedback
+      setInteractionSent(event);
+      setTimeout(() => setInteractionSent(null), 2000);
     } finally {
       setSendingInteraction(false);
     }
