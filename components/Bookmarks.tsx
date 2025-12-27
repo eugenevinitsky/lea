@@ -6,6 +6,7 @@ import { useBookmarks, BookmarkedPost, exportToRIS, exportToBibTeX, exportToJSON
 
 interface BookmarksProps {
   onOpenPost?: (uri: string) => void;
+  onOpenProfile?: (did: string) => void;
 }
 
 function formatDate(dateString: string) {
@@ -23,10 +24,11 @@ function formatDate(dateString: string) {
   return date.toLocaleDateString();
 }
 
-function BookmarkItem({ bookmark, onRemove, onOpen }: {
+function BookmarkItem({ bookmark, onRemove, onOpen, onOpenProfile }: {
   bookmark: BookmarkedPost;
   onRemove: () => void;
   onOpen?: () => void;
+  onOpenProfile?: () => void;
 }) {
   return (
     <div
@@ -38,16 +40,35 @@ function BookmarkItem({ bookmark, onRemove, onOpen }: {
           <img
             src={bookmark.authorAvatar}
             alt={bookmark.authorHandle}
-            className="w-8 h-8 rounded-full flex-shrink-0"
+            className="w-8 h-8 rounded-full flex-shrink-0 hover:ring-2 hover:ring-blue-400 transition-all"
+            onClick={(e) => {
+              e.stopPropagation();
+              onOpenProfile?.();
+            }}
+            title="View profile"
           />
         ) : (
-          <div className="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
+          <div
+            className="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center text-white text-xs font-bold flex-shrink-0 hover:ring-2 hover:ring-blue-400 transition-all"
+            onClick={(e) => {
+              e.stopPropagation();
+              onOpenProfile?.();
+            }}
+            title="View profile"
+          >
             {(bookmark.authorDisplayName || bookmark.authorHandle)[0].toUpperCase()}
           </div>
         )}
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-1 text-xs">
-            <span className="font-medium text-gray-900 dark:text-gray-100 truncate">
+            <span
+              className="font-medium text-gray-900 dark:text-gray-100 truncate hover:text-blue-500 hover:underline"
+              onClick={(e) => {
+                e.stopPropagation();
+                onOpenProfile?.();
+              }}
+              title="View profile"
+            >
               {bookmark.authorDisplayName || bookmark.authorHandle}
             </span>
             <span className="text-gray-400">·</span>
@@ -74,7 +95,7 @@ function BookmarkItem({ bookmark, onRemove, onOpen }: {
   );
 }
 
-export default function Bookmarks({ onOpenPost }: BookmarksProps) {
+export default function Bookmarks({ onOpenPost, onOpenProfile }: BookmarksProps) {
   const { bookmarks, removeBookmark } = useBookmarks();
   const [showExportMenu, setShowExportMenu] = useState(false);
   const [mounted, setMounted] = useState(false);
@@ -201,6 +222,7 @@ export default function Bookmarks({ onOpenPost }: BookmarksProps) {
               bookmark={bookmark}
               onRemove={() => removeBookmark(bookmark.uri)}
               onOpen={() => onOpenPost?.(bookmark.uri)}
+              onOpenProfile={() => onOpenProfile?.(bookmark.authorDid)}
             />
           ))
         )}

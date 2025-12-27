@@ -178,7 +178,7 @@ function AppContent() {
       <div className="max-w-5xl mx-auto flex gap-4 px-4">
         {/* Left Sidebar - Bookmarks & Messages */}
         <aside className="hidden lg:block w-72 flex-shrink-0 sticky top-16 h-fit pt-4 space-y-4">
-          <Bookmarks onOpenPost={setThreadUri} />
+          <Bookmarks onOpenPost={setThreadUri} onOpenProfile={setViewingProfileDid} />
           <DMSidebar />
         </aside>
 

@@ -785,6 +785,7 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
       const bookmarkData: BookmarkedPost = {
         uri: post.uri,
         cid: post.cid,
+        authorDid: author.did,
         authorHandle: author.handle,
         authorDisplayName: author.displayName,
         authorAvatar: author.avatar,

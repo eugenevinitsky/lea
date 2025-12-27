@@ -5,6 +5,7 @@ import { useState, useEffect, createContext, useContext, ReactNode } from 'react
 export interface BookmarkedPost {
   uri: string;
   cid: string;
+  authorDid: string;
   authorHandle: string;
   authorDisplayName?: string;
   authorAvatar?: string;
