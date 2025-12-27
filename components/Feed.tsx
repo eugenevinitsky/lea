@@ -14,8 +14,8 @@ interface FeedProps {
   feedName?: string;
   acceptsInteractions?: boolean;
   refreshKey?: number;
-  // Feed type: 'feed' for generators, 'keyword' for search, 'list' for list feeds
-  feedType?: 'feed' | 'keyword' | 'list';
+  // Feed type: 'feed' for generators, 'keyword' for search, 'list' for list feeds, 'verified' for timeline filtered to verified researchers
+  feedType?: 'feed' | 'keyword' | 'list' | 'verified';
   keyword?: string;
   // Callback to open a profile in the main view
   onOpenProfile?: (did: string) => void;
@@ -36,9 +36,9 @@ export default function Feed({ feedId, feedUri, feedName, acceptsInteractions, r
   const effectiveFeedName = feedName || feedConfig?.name || 'Feed';
   const effectiveAcceptsInteractions = acceptsInteractions ?? feedConfig?.acceptsInteractions ?? false;
   const isPapersFeed = feedId === 'papers';
-  const isVerifiedFeed = feedId === 'verified';
+  const isVerifiedFeed = feedId === 'verified' || feedType === 'verified' || feedUri === 'verified-following';
   const isKeywordFeed = feedType === 'keyword' || (feedUri?.startsWith('keyword:') ?? false);
-  const isListFeed = feedType === 'list' || (effectiveFeedUri?.includes('/app.bsky.graph.list/') ?? false);
+  const isListFeed = (feedType === 'list' || (effectiveFeedUri?.includes('/app.bsky.graph.list/') ?? false)) && !isVerifiedFeed;
   const effectiveKeyword = keyword || (feedUri?.startsWith('keyword:') ? feedUri.slice(8).replace(/-/g, ' ') : null);
 
   const loadFeed = async (loadMore = false, currentCursor?: string) => {
@@ -55,12 +55,17 @@ export default function Feed({ feedId, feedUri, feedName, acceptsInteractions, r
         // Convert PostView[] to FeedViewPost[] format
         feedPosts = searchResult.posts.map(post => ({ post }));
         newCursor = searchResult.cursor;
+      } else if (isVerifiedFeed) {
+        // Verified feed - get timeline and filter for verified researchers
+        const response = await getTimeline(loadMore ? (currentCursor || cursor) : undefined);
+        feedPosts = response.data.feed;
+        newCursor = response.data.cursor;
       } else if (isListFeed && effectiveFeedUri) {
         // List feed - posts from list members
         const response = await getListFeed(effectiveFeedUri, loadMore ? (currentCursor || cursor) : undefined);
         feedPosts = response.data.feed;
         newCursor = response.data.cursor;
-      } else if (effectiveFeedUri && effectiveFeedUri !== 'timeline') {
+      } else if (effectiveFeedUri && effectiveFeedUri !== 'timeline' && effectiveFeedUri !== 'verified-following') {
         // Custom feed (like Paper Skygest)
         const response = await getFeed(effectiveFeedUri, loadMore ? (currentCursor || cursor) : undefined);
         feedPosts = response.data.feed;

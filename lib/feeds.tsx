@@ -10,12 +10,12 @@ export const VERIFIED_RESEARCHERS_LIST = 'at://did:plc:7c7tx56n64jhzezlwox5dja6/
 // Suggested feeds for researchers
 export const SUGGESTED_FEEDS = [
   {
-    uri: VERIFIED_RESEARCHERS_LIST,
+    uri: 'verified-following',
     displayName: 'Verified Researchers',
-    description: 'Posts from verified researchers in the LEA community',
+    description: 'Posts from verified researchers you follow',
     avatar: undefined,
     acceptsInteractions: false,
-    type: 'list' as const,
+    type: 'verified' as const,
   },
   {
     uri: 'at://did:plc:uaadt6f5bbda6cycbmatcm3z/app.bsky.feed.generator/preprintdigest',
@@ -78,8 +78,8 @@ export interface PinnedFeed {
   displayName: string;
   avatar?: string;
   acceptsInteractions: boolean;
-  // Feed type: 'feed' for feed generators, 'keyword' for search, 'list' for list feeds
-  type?: 'feed' | 'keyword' | 'list';
+  // Feed type: 'feed' for feed generators, 'keyword' for search, 'list' for list feeds, 'verified' for timeline filtered to verified researchers
+  type?: 'feed' | 'keyword' | 'list' | 'verified';
   keyword?: string;
 }
 
