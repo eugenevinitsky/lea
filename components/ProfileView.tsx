@@ -450,8 +450,9 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
                 </div>
               </div>
 
-              {/* Profile Content */}
-              <div className="px-4 pb-4 space-y-4">
+              {/* Profile Tab Content */}
+              {activeTab === 'profile' && (
+                <div className="px-4 pb-4 space-y-4">
                   {/* Bio Card - show Lea profile bio, or fallback to Bluesky bio */}
                   {(profile?.shortBio || bskyProfile?.description) && (
                     <div className="bg-white dark:bg-gray-900 rounded-xl p-4 shadow-sm">
@@ -606,7 +607,91 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
                     </div>
                   )}
                 </div>
+              )}
             </>
+          )}
+          
+          {/* Posts Tab */}
+          {activeTab === 'posts' && !loading && !error && (
+            <div>
+              {postsLoading && posts.length === 0 ? (
+                <div className="flex items-center justify-center py-12"><div className="animate-spin w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full" /></div>
+              ) : postsError ? (
+                <div className="text-center py-8 text-red-500">{postsError}</div>
+              ) : (
+                <>
+                  {pinnedPost && (
+                    <div className="border-b-2 border-blue-200 dark:border-blue-800 bg-blue-50/50 dark:bg-blue-900/10">
+                      <div className="flex items-center gap-1.5 px-4 pt-3 pb-1">
+                        <svg className="w-4 h-4 text-blue-500" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M3 6a3 3 0 013-3h10a1 1 0 01.8 1.6L14.25 8l2.55 3.4A1 1 0 0116 13H6a1 1 0 00-1 1v3a1 1 0 11-2 0V6z" clipRule="evenodd" /></svg>
+                        <span className="text-sm font-medium text-blue-600 dark:text-blue-400">Pinned Post</span>
+                      </div>
+                      <Post post={pinnedPost} />
+                    </div>
+                  )}
+                  {posts.length === 0 && !pinnedPost ? (
+                    <div className="text-center py-8 text-gray-500">No posts yet</div>
+                  ) : (
+                    <>
+                      {posts.filter(item => item.post.uri !== pinnedPost?.uri).map((item) => (
+                        <div key={item.post.uri} className="border-b border-gray-200 dark:border-gray-800 last:border-b-0"><Post post={item.post} /></div>
+                      ))}
+                      {postsCursor && (
+                        <div className="p-4 text-center">
+                          <button onClick={loadMorePosts} disabled={postsLoading} className="px-4 py-2 text-sm text-blue-500 hover:text-blue-600 disabled:opacity-50">{postsLoading ? 'Loading...' : 'Load more'}</button>
+                        </div>
+                      )}
+                    </>
+                  )}
+                </>
+              )}
+            </div>
+          )}
+          
+          {/* Papers Tab */}
+          {activeTab === 'papers' && !loading && !error && (
+            <div>
+              {postsLoading && posts.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-12 gap-3">
+                  <div className="animate-spin w-8 h-8 border-4 border-purple-500 border-t-transparent rounded-full" />
+                  <p className="text-sm text-gray-500">Scanning posts for papers...</p>
+                </div>
+              ) : postsError ? (
+                <div className="text-center py-8 text-red-500">{postsError}</div>
+              ) : paperPosts.length === 0 ? (
+                <div className="text-center py-12 px-4">
+                  <div className="w-16 h-16 mx-auto mb-4 bg-purple-100 dark:bg-purple-900/30 rounded-full flex items-center justify-center">
+                    <svg className="w-8 h-8 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                  </div>
+                  <p className="text-gray-500 mb-2">No paper posts found</p>
+                  <p className="text-sm text-gray-400 mb-1">Scanned {posts.length} post{posts.length !== 1 ? 's' : ''}</p>
+                  <p className="text-xs text-gray-400">Posts with links to arXiv, DOI, bioRxiv, etc. will appear here</p>
+                  {postsCursor && (
+                    <button onClick={loadMorePosts} disabled={postsLoading} className="mt-4 px-4 py-2 text-sm bg-purple-500 text-white rounded-full hover:bg-purple-600 disabled:opacity-50">
+                      {postsLoading ? 'Scanning...' : 'Load more posts'}
+                    </button>
+                  )}
+                </div>
+              ) : (
+                <>
+                  <div className="px-4 py-2 bg-purple-50 dark:bg-purple-900/20 border-b border-purple-100 dark:border-purple-800">
+                    <p className="text-xs text-purple-600 dark:text-purple-400">
+                      {paperPosts.length} paper{paperPosts.length !== 1 ? 's' : ''} found in {posts.length} posts
+                    </p>
+                  </div>
+                  {paperPosts.map((item) => (
+                    <div key={item.post.uri} className="border-b border-gray-200 dark:border-gray-800 last:border-b-0"><Post post={item.post} /></div>
+                  ))}
+                  {postsCursor && (
+                    <div className="p-4 text-center">
+                      <button onClick={loadMorePosts} disabled={postsLoading} className="px-4 py-2 text-sm text-purple-500 hover:text-purple-600 disabled:opacity-50">{postsLoading ? 'Scanning...' : 'Load more'}</button>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
           )}
         </div>
       </div>

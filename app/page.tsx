@@ -187,9 +187,10 @@ function AppContent() {
           {/* Composer */}
           <Composer onPost={handlePost} />
 
-          {/* Feed Tabs - sticky below header when scrolling */}
-          <div className="flex border-b border-gray-200 dark:border-gray-800 sticky top-14 z-10 bg-white dark:bg-gray-950">
-            {pinnedFeeds.map((feed, index) => {
+          {/* Feed Tabs - sticky below header when scrolling (hidden when viewing profile) */}
+          {!viewingProfileDid && (
+            <div className="flex border-b border-gray-200 dark:border-gray-800 sticky top-14 z-10 bg-white dark:bg-gray-950">
+              {pinnedFeeds.map((feed, index) => {
               const isActive = activeFeedUri === feed.uri;
               const isSkygest = feed.uri.includes('preprintdigest');
               const isKeyword = feed.type === 'keyword';
@@ -276,8 +277,9 @@ function AppContent() {
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
               </svg>
-            </button>
-          </div>
+              </button>
+            </div>
+          )}
 
           {/* Feed Content or Profile View */}
           {viewingProfileDid ? (
