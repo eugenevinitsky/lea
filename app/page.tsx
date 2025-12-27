@@ -113,7 +113,10 @@ function AppContent() {
       {/* Header */}
       <header className="sticky top-0 z-20 bg-white/80 dark:bg-black/80 backdrop-blur border-b border-gray-200 dark:border-gray-800">
         <div className="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between">
-          <h1 className="text-xl font-bold text-blue-500">Lea</h1>
+          <h1 
+            className="text-xl font-bold text-blue-500 cursor-pointer hover:text-blue-600 transition-colors"
+            onClick={() => setViewingProfileDid(null)}
+          >Lea</h1>
           <div className="flex items-center gap-3">
             <ResearcherSearch onSelectResearcher={setViewingProfileDid} />
             <span className="text-sm text-gray-600 dark:text-gray-400">
