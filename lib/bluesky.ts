@@ -627,8 +627,8 @@ export async function unmuteConvo(convoId: string): Promise<{ convo: Convo }> {
   return response.data as { convo: Convo };
 }
 
-// Get a user's Bluesky profile (avatar, displayName, etc.)
-export async function getBlueskyProfile(actor: string): Promise<{
+// Full Bluesky profile data
+export interface BlueskyProfile {
   did: string;
   handle: string;
   displayName?: string;
@@ -641,7 +641,10 @@ export async function getBlueskyProfile(actor: string): Promise<{
     following?: string;
     followedBy?: string;
   };
-} | null> {
+}
+
+// Get a user's Bluesky profile (avatar, displayName, etc.)
+export async function getBlueskyProfile(actor: string): Promise<BlueskyProfile | null> {
   if (!agent) return null;
   try {
     const response = await agent.getProfile({ actor });
@@ -665,22 +668,36 @@ export async function getBlueskyProfile(actor: string): Promise<{
   }
 }
 
+// Known followers result type
+export interface KnownFollowersResult {
+  followers: { did: string; handle: string; displayName?: string; avatar?: string }[];
+  count?: number; // Total count if available from the subject
+}
+
 // Get known followers (people you follow who also follow this account)
-export async function getKnownFollowers(actor: string, limit: number = 10): Promise<{ did: string; handle: string; displayName?: string; avatar?: string }[]> {
-  if (!agent) return [];
+export async function getKnownFollowers(actor: string, limit: number = 50): Promise<KnownFollowersResult> {
+  if (!agent) return { followers: [] };
   try {
     // Use the getKnownFollowers endpoint
     const response = await agent.api.app.bsky.graph.getKnownFollowers({ actor, limit });
-    return (response.data.followers || []).map(f => ({
+    const followers = (response.data.followers || []).map(f => ({
       did: f.did,
       handle: f.handle,
       displayName: f.displayName,
       avatar: f.avatar,
     }));
+    
+    // The subject might have a knownFollowers count
+    const subject = response.data.subject as { knownFollowers?: number } | undefined;
+    
+    return {
+      followers,
+      count: subject?.knownFollowers,
+    };
   } catch (error) {
     // API might not exist or user has no known followers
     console.error('Failed to fetch known followers:', error);
-    return [];
+    return { followers: [] };
   }
 }
 

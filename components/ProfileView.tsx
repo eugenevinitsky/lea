@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { AppBskyFeedDefs, AppBskyFeedPost, AppBskyEmbedExternal } from '@atproto/api';
 import type { ProfileLink, ProfilePaper } from '@/lib/db/schema';
-import { getAuthorFeed, getBlueskyProfile, getKnownFollowers, followUser, unfollowUser } from '@/lib/bluesky';
+import { getAuthorFeed, getBlueskyProfile, getKnownFollowers, BlueskyProfile, KnownFollowersResult, followUser, unfollowUser } from '@/lib/bluesky';
 import { detectPaperLink } from '@/lib/papers';
 import Post from './Post';
 
@@ -74,7 +74,7 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
   } | null>(null);
   
   // Known followers (people you follow who also follow this account)
-  const [knownFollowers, setKnownFollowers] = useState<{ did: string; handle: string; displayName?: string; avatar?: string }[]>([]);
+  const [knownFollowers, setKnownFollowers] = useState<KnownFollowersResult>({ followers: [] });
 
   // Follow state
   const [isFollowing, setIsFollowing] = useState(false);
@@ -107,7 +107,7 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
         }
         
         // Fetch known followers (people you follow who follow this account)
-        const known = await getKnownFollowers(did, 10);
+        const known = await getKnownFollowers(did, 50);
         setKnownFollowers(known);
         
         const res = await fetch(`/api/profile?did=${encodeURIComponent(did)}`);
@@ -469,14 +469,14 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
                   )}
                   
                   {/* Known Followers - people you follow who follow this account */}
-                  {knownFollowers.length > 0 && (
+                  {knownFollowers.followers.length > 0 && (
                     <div className="bg-white dark:bg-gray-900 rounded-xl p-4 shadow-sm">
                       <h4 className="text-sm font-semibold text-blue-600 dark:text-blue-400 uppercase tracking-wide mb-3 flex items-center gap-2">
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z" /></svg>
                         Followed by people you know
                       </h4>
                       <div className="flex flex-wrap gap-2">
-                        {knownFollowers.slice(0, 8).map((follower) => (
+                        {knownFollowers.followers.slice(0, 8).map((follower) => (
                           <button
                             key={follower.did}
                             onClick={() => onOpenProfile?.(follower.did)}
@@ -492,8 +492,8 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
                             </span>
                           </button>
                         ))}
-                        {knownFollowers.length > 8 && (
-                          <span className="text-xs text-gray-500 px-2 py-1">+{knownFollowers.length - 8} more</span>
+                        {knownFollowers.followers.length > 8 && (
+                          <span className="text-xs text-gray-500 px-2 py-1">+more</span>
                         )}
                       </div>
                     </div>
