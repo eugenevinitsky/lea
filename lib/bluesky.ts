@@ -592,19 +592,60 @@ export async function unmuteConvo(convoId: string): Promise<{ convo: Convo }> {
   return response.data as { convo: Convo };
 }
 
-// Get a user's Bluesky profile (avatar, displayName, etc.)
-export async function getBlueskyProfile(actor: string): Promise<{ avatar?: string; displayName?: string; handle: string } | null> {
+// Full Bluesky profile data
+export interface BlueskyProfile {
+  did: string;
+  handle: string;
+  displayName?: string;
+  description?: string;
+  avatar?: string;
+  followersCount?: number;
+  followsCount?: number;
+  postsCount?: number;
+  viewer?: {
+    following?: string;
+    followedBy?: string;
+  };
+}
+
+// Get a user's Bluesky profile (avatar, displayName, bio, follower counts, etc.)
+export async function getBlueskyProfile(actor: string): Promise<BlueskyProfile | null> {
   if (!agent) return null;
   try {
     const response = await agent.getProfile({ actor });
     return {
-      avatar: response.data.avatar,
-      displayName: response.data.displayName,
+      did: response.data.did,
       handle: response.data.handle,
+      displayName: response.data.displayName,
+      description: response.data.description,
+      avatar: response.data.avatar,
+      followersCount: response.data.followersCount,
+      followsCount: response.data.followsCount,
+      postsCount: response.data.postsCount,
+      viewer: response.data.viewer,
     };
   } catch (error) {
     console.error('Failed to fetch Bluesky profile:', error);
     return null;
+  }
+}
+
+// Get known followers (people you follow who also follow this account)
+export async function getKnownFollowers(actor: string, limit: number = 10): Promise<{ did: string; handle: string; displayName?: string; avatar?: string }[]> {
+  if (!agent) return [];
+  try {
+    // Use the getKnownFollowers endpoint
+    const response = await agent.api.app.bsky.graph.getKnownFollowers({ actor, limit });
+    return (response.data.followers || []).map(f => ({
+      did: f.did,
+      handle: f.handle,
+      displayName: f.displayName,
+      avatar: f.avatar,
+    }));
+  } catch (error) {
+    // API might not exist or user has no known followers
+    console.error('Failed to fetch known followers:', error);
+    return [];
   }
 }
 

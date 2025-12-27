@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { AppBskyFeedDefs, AppBskyFeedPost, AppBskyEmbedExternal } from '@atproto/api';
 import type { ProfileLink, ProfilePaper } from '@/lib/db/schema';
-import { getAuthorFeed, getBlueskyProfile } from '@/lib/bluesky';
+import { getAuthorFeed, getBlueskyProfile, getKnownFollowers, BlueskyProfile } from '@/lib/bluesky';
 import { detectPaperLink } from '@/lib/papers';
 import Post from './Post';
 
@@ -57,8 +57,11 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   
-  // Bluesky profile data (avatar, etc.)
-  const [bskyProfile, setBskyProfile] = useState<{ avatar?: string; displayName?: string; handle: string } | null>(null);
+  // Bluesky profile data (avatar, bio, follower counts, etc.)
+  const [bskyProfile, setBskyProfile] = useState<BlueskyProfile | null>(null);
+  
+  // Known followers (people you follow who also follow this account)
+  const [knownFollowers, setKnownFollowers] = useState<{ did: string; handle: string; displayName?: string; avatar?: string }[]>([]);
   
   // Posts state
   const [activeTab, setActiveTab] = useState<'profile' | 'posts' | 'papers'>('profile');
@@ -71,13 +74,15 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
   useEffect(() => {
     async function fetchProfile() {
       try {
-        // Fetch Bluesky profile for avatar if not passed as prop
-        if (!avatarProp) {
-          const bskyData = await getBlueskyProfile(did);
-          if (bskyData) {
-            setBskyProfile(bskyData);
-          }
+        // Always fetch full Bluesky profile for bio, follower counts, etc.
+        const bskyData = await getBlueskyProfile(did);
+        if (bskyData) {
+          setBskyProfile(bskyData);
         }
+        
+        // Fetch known followers (people you follow who follow this account)
+        const known = await getKnownFollowers(did, 10);
+        setKnownFollowers(known);
         
         const res = await fetch(`/api/profile?did=${encodeURIComponent(did)}`);
         if (res.status === 404) {
@@ -122,7 +127,7 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
     }
     
     fetchProfile();
-  }, [did, avatarProp]);
+  }, [did]);
   
   // Fetch posts when switching to posts or papers tab
   useEffect(() => {
@@ -332,6 +337,19 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
                         {profile?.affiliation || researcher?.institution}
                       </p>
                     )}
+                    
+                    {/* Follower/Following counts */}
+                    {bskyProfile && (
+                      <div className="flex items-center gap-4 mt-2 text-sm">
+                        <span className="text-gray-600 dark:text-gray-400">
+                          <span className="font-semibold text-gray-900 dark:text-gray-100">{bskyProfile.followersCount?.toLocaleString() || 0}</span> followers
+                        </span>
+                        <span className="text-gray-600 dark:text-gray-400">
+                          <span className="font-semibold text-gray-900 dark:text-gray-100">{bskyProfile.followsCount?.toLocaleString() || 0}</span> following
+                        </span>
+                      </div>
+                    )}
+                    
                     {researcher?.orcid && (
                       <a
                         href={`https://orcid.org/${researcher.orcid}`}
@@ -352,10 +370,43 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
               {/* Profile Tab Content */}
               {activeTab === 'profile' && (
                 <div className="px-4 pb-4 space-y-4">
-                  {/* Bio Card */}
-                  {profile?.shortBio && (
+                  {/* Bio Card - show Lea profile bio, or fallback to Bluesky bio */}
+                  {(profile?.shortBio || bskyProfile?.description) && (
                     <div className="bg-white dark:bg-gray-900 rounded-xl p-4 shadow-sm">
-                      <p className="text-gray-700 dark:text-gray-300 whitespace-pre-wrap">{profile.shortBio}</p>
+                      <p className="text-gray-700 dark:text-gray-300 whitespace-pre-wrap">
+                        {profile?.shortBio || bskyProfile?.description}
+                      </p>
+                    </div>
+                  )}
+                  
+                  {/* Known Followers - people you follow who follow this account */}
+                  {knownFollowers.length > 0 && (
+                    <div className="bg-white dark:bg-gray-900 rounded-xl p-4 shadow-sm">
+                      <h4 className="text-sm font-semibold text-blue-600 dark:text-blue-400 uppercase tracking-wide mb-3 flex items-center gap-2">
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z" /></svg>
+                        Followed by people you know
+                      </h4>
+                      <div className="flex flex-wrap gap-2">
+                        {knownFollowers.slice(0, 8).map((follower) => (
+                          <button
+                            key={follower.did}
+                            onClick={() => onOpenProfile?.(follower.did)}
+                            className="flex items-center gap-2 px-2 py-1 bg-blue-50 dark:bg-blue-900/20 rounded-full hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors"
+                          >
+                            {follower.avatar ? (
+                              <img src={follower.avatar} alt="" className="w-5 h-5 rounded-full" />
+                            ) : (
+                              <div className="w-5 h-5 rounded-full bg-gray-300 dark:bg-gray-600" />
+                            )}
+                            <span className="text-xs text-blue-600 dark:text-blue-400 font-medium truncate max-w-[100px]">
+                              {follower.displayName || follower.handle}
+                            </span>
+                          </button>
+                        ))}
+                        {knownFollowers.length > 8 && (
+                          <span className="text-xs text-gray-500 px-2 py-1">+{knownFollowers.length - 8} more</span>
+                        )}
+                      </div>
                     </div>
                   )}
                   
