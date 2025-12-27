@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useCallback, useEffect } from 'react';
-import { getSession, logout, restoreSession } from '@/lib/bluesky';
+import { useRouter } from 'next/navigation';
+import { getSession, logout, restoreSession, getBlueskyProfile } from '@/lib/bluesky';
 import { SettingsProvider } from '@/lib/settings';
 import { BookmarksProvider } from '@/lib/bookmarks';
 import { FeedsProvider, useFeeds } from '@/lib/feeds';
@@ -15,10 +16,10 @@ import DMSidebar from '@/components/DMSidebar';
 import FeedDiscovery from '@/components/FeedDiscovery';
 import Onboarding from '@/components/Onboarding';
 import ProfileEditor from '@/components/ProfileEditor';
-import ProfileView from '@/components/ProfileView';
 import ResearcherSearch from '@/components/ResearcherSearch';
 
 function AppContent() {
+  const router = useRouter();
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [showOnboarding, setShowOnboarding] = useState(false);
@@ -28,7 +29,6 @@ function AppContent() {
   const [showProfileEditor, setShowProfileEditor] = useState(false);
   const [activeFeedUri, setActiveFeedUri] = useState<string | null>(null);
   const [threadUri, setThreadUri] = useState<string | null>(null);
-  const [viewingProfileDid, setViewingProfileDid] = useState<string | null>(null);
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
   const [isVerified, setIsVerified] = useState(false);
@@ -90,6 +90,18 @@ function AppContent() {
     setRefreshKey(k => k + 1);
   }, []);
 
+  // Navigate to a profile by DID - resolves handle for URL
+  const navigateToProfile = useCallback(async (did: string) => {
+    try {
+      const profile = await getBlueskyProfile(did);
+      if (profile?.handle) {
+        router.push(`/${profile.handle}`);
+      }
+    } catch (err) {
+      console.error('Failed to navigate to profile:', err);
+    }
+  }, [router]);
+
   const session = getSession();
 
   if (isLoading) {
@@ -113,12 +125,9 @@ function AppContent() {
       {/* Header */}
       <header className="sticky top-0 z-20 bg-white/80 dark:bg-black/80 backdrop-blur border-b border-gray-200 dark:border-gray-800">
         <div className="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between">
-          <h1 
-            className="text-xl font-bold text-blue-500 cursor-pointer hover:text-blue-600 transition-colors"
-            onClick={() => setViewingProfileDid(null)}
-          >Lea</h1>
+          <h1 className="text-xl font-bold text-blue-500">Lea</h1>
           <div className="flex items-center gap-3">
-            <ResearcherSearch onSelectResearcher={setViewingProfileDid} />
+            <ResearcherSearch onSelectResearcher={navigateToProfile} />
             <span className="text-sm text-gray-600 dark:text-gray-400">
               @{session?.handle}
             </span>
@@ -181,7 +190,7 @@ function AppContent() {
       <div className="max-w-5xl mx-auto flex gap-4 px-4">
         {/* Left Sidebar - Bookmarks & Messages */}
         <aside className="hidden lg:block w-72 flex-shrink-0 sticky top-16 h-fit pt-4 space-y-4">
-          <Bookmarks onOpenPost={setThreadUri} onOpenProfile={setViewingProfileDid} />
+          <Bookmarks onOpenPost={setThreadUri} onOpenProfile={navigateToProfile} />
           <DMSidebar />
         </aside>
 
@@ -190,10 +199,9 @@ function AppContent() {
           {/* Composer */}
           <Composer onPost={handlePost} />
 
-          {/* Feed Tabs - sticky below header when scrolling (hidden when viewing profile) */}
-          {!viewingProfileDid && (
-            <div className="flex border-b border-gray-200 dark:border-gray-800 sticky top-14 z-10 bg-white dark:bg-gray-950">
-              {pinnedFeeds.map((feed, index) => {
+          {/* Feed Tabs - sticky below header when scrolling */}
+          <div className="flex border-b border-gray-200 dark:border-gray-800 sticky top-14 z-10 bg-white dark:bg-gray-950">
+            {pinnedFeeds.map((feed, index) => {
               const isActive = activeFeedUri === feed.uri;
               const isSkygest = feed.uri.includes('preprintdigest');
               const isKeyword = feed.type === 'keyword';
@@ -279,20 +287,12 @@ function AppContent() {
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-              </svg>
-              </button>
-            </div>
-          )}
+            </svg>
+            </button>
+          </div>
 
-          {/* Feed Content or Profile View */}
-          {viewingProfileDid ? (
-            <ProfileView
-              did={viewingProfileDid}
-              onClose={() => setViewingProfileDid(null)}
-              onOpenProfile={setViewingProfileDid}
-              inline
-            />
-          ) : activeFeedUri && (() => {
+          {/* Feed Content */}
+          {activeFeedUri && (() => {
             const activeFeed = pinnedFeeds.find(f => f.uri === activeFeedUri);
             return (
               <Feed
@@ -302,7 +302,7 @@ function AppContent() {
                 feedType={activeFeed?.type}
                 keyword={activeFeed?.keyword}
                 refreshKey={refreshKey}
-                onOpenProfile={setViewingProfileDid}
+                onOpenProfile={navigateToProfile}
               />
             );
           })()}
