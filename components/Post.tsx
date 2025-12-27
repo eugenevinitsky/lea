@@ -13,6 +13,7 @@ interface PostProps {
   feedContext?: string;
   reqId?: string;
   supportsInteractions?: boolean;
+  feedGeneratorDid?: string;
 }
 
 // Paper link detection
@@ -723,7 +724,7 @@ function PostEmbed({ embed, onOpenThread }: { embed: AppBskyFeedDefs.PostView['e
   return null;
 }
 
-export default function Post({ post, onReply, onOpenThread, feedContext, reqId, supportsInteractions, onOpenProfile }: PostProps & { onReply?: () => void; onOpenThread?: (uri: string) => void; onOpenProfile?: (did: string) => void }) {
+export default function Post({ post, onReply, onOpenThread, feedContext, reqId, supportsInteractions, feedGeneratorDid, onOpenProfile }: PostProps & { onReply?: () => void; onOpenThread?: (uri: string) => void; onOpenProfile?: (did: string) => void }) {
   const { settings } = useSettings();
   const { addBookmark, removeBookmark, isBookmarked } = useBookmarks();
   const [showReplyComposer, setShowReplyComposer] = useState(false);
@@ -760,15 +761,12 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
     if (sendingInteraction) return;
     setSendingInteraction(true);
     try {
-      console.log('Sending feed interaction:', { postUri: post.uri, event, feedContext, reqId });
-      await sendFeedInteraction(post.uri, event, feedContext, reqId);
+      console.log('Sending feed interaction:', { postUri: post.uri, event, feedContext, reqId, feedGeneratorDid });
+      await sendFeedInteraction(post.uri, event, feedContext, reqId, feedGeneratorDid);
       console.log('Feed interaction sent successfully');
       setInteractionSent(event);
     } catch (err) {
       console.error('Failed to send interaction:', err);
-      // Show brief error feedback
-      setInteractionSent(event);
-      setTimeout(() => setInteractionSent(null), 2000);
     } finally {
       setSendingInteraction(false);
     }

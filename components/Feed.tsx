@@ -35,6 +35,11 @@ export default function Feed({ feedId, feedUri, feedName, acceptsInteractions, r
   const effectiveFeedUri = feedUri || feedConfig?.uri || null;
   const effectiveFeedName = feedName || feedConfig?.name || 'Feed';
   const effectiveAcceptsInteractions = acceptsInteractions ?? feedConfig?.acceptsInteractions ?? false;
+
+  // Extract feed generator DID from feed URI (e.g., at://did:plc:xxx/app.bsky.feed.generator/name)
+  const feedGeneratorDid = effectiveFeedUri?.startsWith('at://')
+    ? effectiveFeedUri.split('/')[2]
+    : undefined;
   const isPapersFeed = feedId === 'papers';
   const isVerifiedFeed = feedId === 'verified' || feedType === 'verified' || feedUri === 'verified-following';
   const isKeywordFeed = feedType === 'keyword' || (feedUri?.startsWith('keyword:') ?? false);
@@ -297,6 +302,7 @@ export default function Feed({ feedId, feedUri, feedName, acceptsInteractions, r
           feedContext={item.feedContext}
           reqId={item.reqId}
           supportsInteractions={effectiveAcceptsInteractions}
+          feedGeneratorDid={feedGeneratorDid}
           onOpenProfile={onOpenProfile}
         />
       ))}

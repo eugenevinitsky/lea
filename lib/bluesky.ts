@@ -203,7 +203,8 @@ export async function sendFeedInteraction(
   postUri: string,
   event: InteractionEvent,
   feedContext?: string,
-  reqId?: string
+  reqId?: string,
+  feedGeneratorDid?: string
 ) {
   if (!agent) throw new Error('Not logged in');
 
@@ -211,14 +212,25 @@ export async function sendFeedInteraction(
     ? 'app.bsky.feed.defs#requestMore'
     : 'app.bsky.feed.defs#requestLess';
 
-  return agent.api.app.bsky.feed.sendInteractions({
-    interactions: [{
-      item: postUri,
-      event: eventType,
-      feedContext,
-      reqId,
-    }],
-  });
+  // Build request options with proxy header if we have the feed generator DID
+  const options: { headers?: Record<string, string> } = {};
+  if (feedGeneratorDid) {
+    options.headers = {
+      'atproto-proxy': `${feedGeneratorDid}#bsky_fg`
+    };
+  }
+
+  return agent.api.app.bsky.feed.sendInteractions(
+    {
+      interactions: [{
+        item: postUri,
+        event: eventType,
+        feedContext,
+        reqId,
+      }],
+    },
+    options
+  );
 }
 
 export async function getThread(uri: string, depth = 10) {
