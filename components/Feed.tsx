@@ -147,11 +147,14 @@ export default function Feed({ feedId, feedUri, feedName, acceptsInteractions, r
 
     // Apply following filter for Verified feed
     // Posts are already from verified researchers (loaded from list), just filter to those you follow
+    // Also exclude replies - only show top-level posts
     if (isVerifiedFeed) {
       const followed: AppBskyFeedDefs.FeedViewPost[] = [];
       for (const item of posts) {
         const author = item.post.author as AppBskyFeedDefs.PostView['author'] & { viewer?: { following?: string } };
-        if (author.viewer?.following) {
+        const record = item.post.record as AppBskyFeedPost.Record;
+        // Only include if: user follows the author AND it's not a reply
+        if (author.viewer?.following && !record.reply) {
           followed.push(item);
         }
       }
