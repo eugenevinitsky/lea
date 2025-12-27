@@ -199,12 +199,15 @@ export type FeedId = keyof typeof FEEDS;
 // Send feed interaction (show more/less like this)
 export type InteractionEvent = 'requestMore' | 'requestLess';
 
+// Cache for feed generator DIDs
+const feedGeneratorDidCache = new Map<string, string>();
+
 export async function sendFeedInteraction(
   postUri: string,
   event: InteractionEvent,
   feedContext?: string,
   reqId?: string,
-  feedGeneratorDid?: string
+  feedUri?: string
 ) {
   if (!agent) throw new Error('Not logged in');
 
@@ -212,11 +215,31 @@ export async function sendFeedInteraction(
     ? 'app.bsky.feed.defs#requestMore'
     : 'app.bsky.feed.defs#requestLess';
 
-  // Build request options with proxy header if we have the feed generator DID
+  // Get the feed generator's service DID (not the repo DID from the URI)
+  let proxyDid: string | undefined;
+  if (feedUri && feedUri.startsWith('at://')) {
+    // Check cache first
+    if (feedGeneratorDidCache.has(feedUri)) {
+      proxyDid = feedGeneratorDidCache.get(feedUri);
+    } else {
+      // Fetch feed generator info to get the service DID
+      try {
+        const feedGenInfo = await agent.api.app.bsky.feed.getFeedGenerator({ feed: feedUri });
+        proxyDid = feedGenInfo.data.view.did;
+        if (proxyDid) {
+          feedGeneratorDidCache.set(feedUri, proxyDid);
+        }
+      } catch (err) {
+        console.error('Failed to get feed generator info:', err);
+      }
+    }
+  }
+
+  // Build request options with proxy header if we have the service DID
   const options: { headers?: Record<string, string> } = {};
-  if (feedGeneratorDid) {
+  if (proxyDid) {
     options.headers = {
-      'atproto-proxy': `${feedGeneratorDid}#bsky_fg`
+      'atproto-proxy': `${proxyDid}#bsky_fg`
     };
   }
 
