@@ -2,27 +2,39 @@ import { OpenAlexAuthor, OpenAlexWork } from './openalex';
 
 // Established venues for auto-approval
 // Works at these venues count toward the 3-work requirement
+// Include both acronyms AND full names as they appear in OpenAlex
 export const ESTABLISHED_VENUES: Record<string, string[]> = {
   // NLP/CL
   'NLP': [
-    'acl', 'emnlp', 'naacl', 'eacl', 'coling', 'conll',
+    'acl', 'association for computational linguistics',
+    'emnlp', 'empirical methods in natural language processing',
+    'naacl', 'north american chapter',
+    'eacl', 'european chapter',
+    'coling', 'conll',
     'tacl', 'computational linguistics',
     'findings of acl', 'findings of emnlp', 'findings of naacl',
   ],
   // ML/AI
   'ML/AI': [
-    'neurips', 'nips', 'icml', 'iclr', 'aaai', 'ijcai',
+    'neurips', 'nips', 'neural information processing systems',
+    'icml', 'international conference on machine learning',
+    'iclr', 'international conference on learning representations',
+    'aaai', 'ijcai',
     'jmlr', 'journal of machine learning research',
     'artificial intelligence', 'machine learning',
   ],
   // HCI
   'HCI': [
-    'chi', 'cscw', 'uist', 'ubicomp', 'imwut',
-    'human-computer interaction', 'computer supported cooperative work',
+    'chi', 'human factors in computing systems',
+    'cscw', 'computer supported cooperative work',
+    'uist', 'ubicomp', 'imwut',
+    'human-computer interaction',
   ],
   // Computer Vision
   'Vision': [
-    'cvpr', 'iccv', 'eccv',
+    'cvpr', 'computer vision and pattern recognition',
+    'iccv', 'international conference on computer vision',
+    'eccv', 'european conference on computer vision',
     'ieee transactions on pattern analysis',
   ],
   // Other CS
