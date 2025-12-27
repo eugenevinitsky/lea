@@ -1,9 +1,10 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { AppBskyFeedDefs } from '@atproto/api';
+import { useState, useEffect, useMemo } from 'react';
+import { AppBskyFeedDefs, AppBskyFeedPost, AppBskyEmbedExternal } from '@atproto/api';
 import type { ProfileLink, ProfilePaper } from '@/lib/db/schema';
 import { getAuthorFeed, getBlueskyProfile } from '@/lib/bluesky';
+import { detectPaperLink } from '@/lib/papers';
 import Post from './Post';
 
 interface ResearcherInfo {
@@ -60,7 +61,7 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
   const [bskyProfile, setBskyProfile] = useState<{ avatar?: string; displayName?: string; handle: string } | null>(null);
   
   // Posts state
-  const [activeTab, setActiveTab] = useState<'profile' | 'posts'>('profile');
+  const [activeTab, setActiveTab] = useState<'profile' | 'posts' | 'papers'>('profile');
   const [posts, setPosts] = useState<AppBskyFeedDefs.FeedViewPost[]>([]);
   const [pinnedPost, setPinnedPost] = useState<AppBskyFeedDefs.PostView | null>(null);
   const [postsLoading, setPostsLoading] = useState(false);
@@ -123,10 +124,10 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
     fetchProfile();
   }, [did, avatarProp]);
   
-  // Fetch posts when switching to posts tab
+  // Fetch posts when switching to posts or papers tab
   useEffect(() => {
     async function fetchPosts() {
-      if (activeTab !== 'posts' || posts.length > 0) return;
+      if ((activeTab !== 'posts' && activeTab !== 'papers') || posts.length > 0) return;
       
       setPostsLoading(true);
       setPostsError(null);
@@ -162,6 +163,24 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
       setPostsLoading(false);
     }
   };
+  
+  // Filter posts to those containing paper links
+  const paperPosts = useMemo(() => {
+    return posts.filter(item => {
+      const record = item.post.record as AppBskyFeedPost.Record;
+      const embed = item.post.embed;
+      
+      // Get embed URL if it's an external link
+      let embedUri: string | undefined;
+      if (embed && 'external' in embed) {
+        const external = embed as AppBskyEmbedExternal.View;
+        embedUri = external.external?.uri;
+      }
+      
+      const { hasPaper } = detectPaperLink(record.text, embedUri);
+      return hasPaper;
+    });
+  }, [posts]);
 
   // Use prop values first, then fetched Bluesky profile, then researcher data
   const avatar = avatarProp || bskyProfile?.avatar;
@@ -190,6 +209,19 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
         }`}
       >
         Posts
+      </button>
+      <button
+        onClick={() => setActiveTab('papers')}
+        className={`flex-1 py-3 text-sm font-medium transition-colors flex items-center justify-center gap-1 ${
+          activeTab === 'papers'
+            ? 'text-purple-500 border-b-2 border-purple-500'
+            : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
+        }`}
+      >
+        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+        </svg>
+        Papers
       </button>
     </div>
   );
@@ -455,6 +487,48 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
                         </div>
                       )}
                     </>
+                  )}
+                </>
+              )}
+            </div>
+          )}
+          
+          {/* Papers Tab */}
+          {activeTab === 'papers' && !loading && !error && (
+            <div>
+              {postsLoading && posts.length === 0 ? (
+                <div className="flex items-center justify-center py-12"><div className="animate-spin w-8 h-8 border-4 border-purple-500 border-t-transparent rounded-full" /></div>
+              ) : postsError ? (
+                <div className="text-center py-8 text-red-500">{postsError}</div>
+              ) : paperPosts.length === 0 ? (
+                <div className="text-center py-12 px-4">
+                  <div className="w-16 h-16 mx-auto mb-4 bg-purple-100 dark:bg-purple-900/30 rounded-full flex items-center justify-center">
+                    <svg className="w-8 h-8 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                  </div>
+                  <p className="text-gray-500 mb-2">No paper posts found yet</p>
+                  <p className="text-sm text-gray-400">Posts with links to arXiv, DOI, bioRxiv, etc. will appear here</p>
+                  {postsCursor && (
+                    <button onClick={loadMorePosts} disabled={postsLoading} className="mt-4 px-4 py-2 text-sm bg-purple-500 text-white rounded-full hover:bg-purple-600 disabled:opacity-50">
+                      {postsLoading ? 'Loading...' : 'Load more posts'}
+                    </button>
+                  )}
+                </div>
+              ) : (
+                <>
+                  <div className="px-4 py-2 bg-purple-50 dark:bg-purple-900/20 border-b border-purple-100 dark:border-purple-800">
+                    <p className="text-xs text-purple-600 dark:text-purple-400">
+                      {paperPosts.length} paper{paperPosts.length !== 1 ? 's' : ''} shared
+                    </p>
+                  </div>
+                  {paperPosts.map((item) => (
+                    <div key={item.post.uri} className="border-b border-gray-200 dark:border-gray-800 last:border-b-0"><Post post={item.post} /></div>
+                  ))}
+                  {postsCursor && (
+                    <div className="p-4 text-center">
+                      <button onClick={loadMorePosts} disabled={postsLoading} className="px-4 py-2 text-sm text-purple-500 hover:text-purple-600 disabled:opacity-50">{postsLoading ? 'Loading...' : 'Load more'}</button>
+                    </div>
                   )}
                 </>
               )}
