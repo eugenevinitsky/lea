@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useFeeds, SUGGESTED_FEEDS, PinnedFeed } from '@/lib/feeds';
 import { useSettings } from '@/lib/settings';
-import { followUser, getSession, getActorStarterPacks, getStarterPackMembers, StarterPackView } from '@/lib/bluesky';
+import { followUser, getSession } from '@/lib/bluesky';
 
 interface OnboardingProps {
   onComplete: () => void;
@@ -87,14 +87,6 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
   const [bulkFollowing, setBulkFollowing] = useState(false);
   const [selectedForBulk, setSelectedForBulk] = useState<Set<string>>(new Set());
 
-  // Starter pack state
-  const [starterPacks, setStarterPacks] = useState<StarterPackView[]>([]);
-  const [loadingStarterPacks, setLoadingStarterPacks] = useState(false);
-  const [starterPackSearch, setStarterPackSearch] = useState('');
-  const [followingPack, setFollowingPack] = useState<string | null>(null);
-  const [followedPacks, setFollowedPacks] = useState<Set<string>>(new Set());
-  const [packFollowProgress, setPackFollowProgress] = useState<{ current: number; total: number } | null>(null);
-
   // Fetch all researchers when entering step 3
   useEffect(() => {
     if (step === 3 && allResearchers.length === 0) {
@@ -163,91 +155,6 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
     const debounce = setTimeout(fetchSuggestions, 300);
     return () => clearTimeout(debounce);
   }, [selectedTopics]);
-
-  // All starter packs from verified researchers (cached)
-  const [allStarterPacks, setAllStarterPacks] = useState<StarterPackView[]>([]);
-
-  // Pre-cache starter packs early (start fetching at step 2 so they're ready by step 4)
-  useEffect(() => {
-    if (step >= 2 && allStarterPacks.length === 0 && !loadingStarterPacks) {
-      const fetchStarterPacks = async () => {
-        setLoadingStarterPacks(true);
-        try {
-          // Get starter packs from all verified researchers
-          const response = await fetch('/api/researchers');
-          const data = await response.json();
-          const researchers = data.researchers || [];
-
-          const packs: StarterPackView[] = [];
-          // Check first 30 researchers for starter packs
-          for (const r of researchers.slice(0, 30)) {
-            const actorPacks = await getActorStarterPacks(r.handle);
-            for (const pack of actorPacks) {
-              if (!packs.some(p => p.uri === pack.uri)) {
-                packs.push(pack);
-              }
-            }
-          }
-          setAllStarterPacks(packs);
-          setStarterPacks(packs);
-        } catch (error) {
-          console.error('Failed to fetch starter packs:', error);
-        } finally {
-          setLoadingStarterPacks(false);
-        }
-      };
-      fetchStarterPacks();
-    }
-  }, [step, allStarterPacks.length, loadingStarterPacks]);
-
-  // Filter starter packs by search term
-  const handleStarterPackSearch = () => {
-    const query = starterPackSearch.trim().toLowerCase();
-    if (!query) {
-      setStarterPacks(allStarterPacks);
-      return;
-    }
-    const filtered = allStarterPacks.filter(pack =>
-      pack.record.name.toLowerCase().includes(query) ||
-      pack.record.description?.toLowerCase().includes(query) ||
-      pack.creator.handle.toLowerCase().includes(query)
-    );
-    setStarterPacks(filtered);
-  };
-
-  // Follow all members of a starter pack
-  const handleFollowStarterPack = async (pack: StarterPackView) => {
-    setFollowingPack(pack.uri);
-    setPackFollowProgress({ current: 0, total: 0 });
-    try {
-      const members = await getStarterPackMembers(pack.record.list);
-      const session = getSession();
-      const toFollow = members.filter(m => m.did !== session?.did && !followedDids.has(m.did));
-
-      setPackFollowProgress({ current: 0, total: toFollow.length });
-
-      for (let i = 0; i < toFollow.length; i++) {
-        const member = toFollow[i];
-        try {
-          await followUser(member.did);
-          setFollowedDids(prev => new Set(prev).add(member.did));
-          setPackFollowProgress({ current: i + 1, total: toFollow.length });
-          // Small delay to avoid rate limiting
-          await new Promise(resolve => setTimeout(resolve, 150));
-        } catch (error) {
-          console.error(`Failed to follow ${member.handle}:`, error);
-          // Still update progress even on error
-          setPackFollowProgress({ current: i + 1, total: toFollow.length });
-        }
-      }
-      setFollowedPacks(prev => new Set(prev).add(pack.uri));
-    } catch (error) {
-      console.error('Failed to follow starter pack:', error);
-    } finally {
-      setFollowingPack(null);
-      setPackFollowProgress(null);
-    }
-  };
 
   const toggleTopic = (topic: string) => {
     setSelectedTopics(prev => {
@@ -369,7 +276,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
       <div className="w-full max-w-2xl">
         {/* Progress indicator */}
         <div className="flex justify-center gap-2 mb-8">
-          {[1, 2, 3, 4, 5].map(s => (
+          {[1, 2, 3, 4].map(s => (
             <div
               key={s}
               className={`w-2.5 h-2.5 rounded-full transition-colors ${
@@ -858,163 +765,8 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
             </div>
           )}
 
-          {/* Step 4: Starter Packs */}
+          {/* Step 4: Additional Settings */}
           {step === 4 && (
-            <div className="p-8">
-              <div className="text-center mb-6">
-                <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-                  Discover Starter Packs
-                </h2>
-                <p className="mt-2 text-gray-600 dark:text-gray-400">
-                  Find curated lists of accounts to follow based on your interests
-                </p>
-              </div>
-
-              {/* Search box */}
-              <div className="mb-6">
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    value={starterPackSearch}
-                    onChange={(e) => {
-                      setStarterPackSearch(e.target.value);
-                      if (!e.target.value.trim()) {
-                        setStarterPacks(allStarterPacks);
-                      }
-                    }}
-                    onKeyDown={(e) => e.key === 'Enter' && handleStarterPackSearch()}
-                    placeholder="Filter by name or topic..."
-                    className="flex-1 px-4 py-2 border border-gray-200 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                  <button
-                    onClick={handleStarterPackSearch}
-                    disabled={loadingStarterPacks}
-                    className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-xl font-medium transition-colors disabled:opacity-50"
-                  >
-                    Filter
-                  </button>
-                </div>
-                <p className="text-xs text-gray-500 mt-2">
-                  Showing starter packs created by verified researchers
-                </p>
-              </div>
-
-              {/* Starter packs list */}
-              {loadingStarterPacks ? (
-                <div className="flex justify-center py-8">
-                  <div className="animate-spin w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full"></div>
-                </div>
-              ) : starterPacks.length === 0 ? (
-                <p className="text-center text-gray-500 py-8">
-                  No starter packs found. Try a different search term.
-                </p>
-              ) : (
-                <div className="space-y-3 max-h-[350px] overflow-y-auto">
-                  {starterPacks.map(pack => (
-                    <div
-                      key={pack.uri}
-                      className="p-4 bg-gray-50 dark:bg-gray-800 rounded-xl"
-                    >
-                      <div className="flex items-start gap-3">
-                        {pack.creator.avatar && (
-                          <img
-                            src={pack.creator.avatar}
-                            alt=""
-                            className="w-10 h-10 rounded-full flex-shrink-0"
-                          />
-                        )}
-                        <div className="flex-1 min-w-0">
-                          <h3 className="font-medium text-gray-900 dark:text-gray-100 truncate">
-                            {pack.record.name}
-                          </h3>
-                          {pack.record.description && (
-                            <p className="text-sm text-gray-500 mt-1 line-clamp-2">
-                              {pack.record.description}
-                            </p>
-                          )}
-                          <div className="flex items-center gap-3 mt-2 text-xs text-gray-400">
-                            <span>by @{pack.creator.handle}</span>
-                          </div>
-                        </div>
-                      </div>
-                      <div className="mt-3">
-                        {/* Progress bar when following this pack */}
-                        {followingPack === pack.uri && packFollowProgress && packFollowProgress.total > 0 && (
-                          <div className="mb-2">
-                            <div className="flex justify-between text-xs text-gray-500 mb-1">
-                              <span>Following...</span>
-                              <span>{packFollowProgress.current} / {packFollowProgress.total}</span>
-                            </div>
-                            <div className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
-                              <div
-                                className="h-full bg-blue-500 transition-all duration-150"
-                                style={{ width: `${(packFollowProgress.current / packFollowProgress.total) * 100}%` }}
-                              />
-                            </div>
-                          </div>
-                        )}
-                        <div className="flex items-center gap-2">
-                          <button
-                            onClick={() => handleFollowStarterPack(pack)}
-                            disabled={followingPack === pack.uri || followedPacks.has(pack.uri)}
-                            className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-colors ${
-                              followedPacks.has(pack.uri)
-                                ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400'
-                                : followingPack === pack.uri
-                                ? 'bg-gray-200 dark:bg-gray-700 text-gray-500'
-                                : 'bg-blue-500 hover:bg-blue-600 text-white'
-                            }`}
-                          >
-                            {followingPack === pack.uri ? (
-                              <span className="flex items-center justify-center gap-2">
-                                <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
-                                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                                </svg>
-                                {packFollowProgress && packFollowProgress.total > 0
-                                  ? `${packFollowProgress.current}/${packFollowProgress.total}`
-                                  : 'Loading...'}
-                              </span>
-                            ) : followedPacks.has(pack.uri) ? (
-                              'Followed all'
-                            ) : (
-                              'Follow all'
-                            )}
-                          </button>
-                          <a
-                            href={`https://bsky.app/starter-pack/${pack.creator.handle}/${pack.uri.split('/').pop()}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="py-2 px-3 rounded-lg text-sm font-medium border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-                          >
-                            View
-                          </a>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              <div className="flex gap-3 mt-6">
-                <button
-                  onClick={() => setStep(3)}
-                  className="flex-1 py-3.5 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 font-medium rounded-xl hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
-                >
-                  Back
-                </button>
-                <button
-                  onClick={() => setStep(5)}
-                  className="flex-1 py-3.5 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-semibold rounded-xl transition-all"
-                >
-                  Continue
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* Step 5: Additional Settings */}
-          {step === 5 && (
             <div className="p-8">
               <div className="text-center mb-8">
                 <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
@@ -1060,7 +812,7 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
 
               <div className="flex gap-3 mt-6">
                 <button
-                  onClick={() => setStep(4)}
+                  onClick={() => setStep(3)}
                   className="flex-1 py-3.5 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 font-medium rounded-xl hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
                 >
                   Back
