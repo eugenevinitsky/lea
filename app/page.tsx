@@ -187,8 +187,8 @@ function AppContent() {
           {/* Composer */}
           <Composer onPost={handlePost} />
 
-          {/* Feed Tabs */}
-          <div className="flex border-b border-gray-200 dark:border-gray-800">
+          {/* Feed Tabs - sticky at top when scrolling */}
+          <div className="flex border-b border-gray-200 dark:border-gray-800 sticky top-0 z-10 bg-white dark:bg-gray-950">
             {pinnedFeeds.map((feed, index) => {
               const isActive = activeFeedUri === feed.uri;
               const isSkygest = feed.uri.includes('preprintdigest');
