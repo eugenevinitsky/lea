@@ -199,11 +199,15 @@ export type FeedId = keyof typeof FEEDS;
 // Send feed interaction (show more/less like this)
 export type InteractionEvent = 'requestMore' | 'requestLess';
 
+// Cache for feed generator DIDs
+const feedGeneratorDidCache = new Map<string, string>();
+
 export async function sendFeedInteraction(
   postUri: string,
   event: InteractionEvent,
   feedContext?: string,
-  reqId?: string
+  reqId?: string,
+  feedUri?: string
 ) {
   if (!agent) throw new Error('Not logged in');
 
@@ -211,14 +215,45 @@ export async function sendFeedInteraction(
     ? 'app.bsky.feed.defs#requestMore'
     : 'app.bsky.feed.defs#requestLess';
 
-  return agent.api.app.bsky.feed.sendInteractions({
-    interactions: [{
-      item: postUri,
-      event: eventType,
-      feedContext,
-      reqId,
-    }],
-  });
+  // Get the feed generator's service DID (not the repo DID from the URI)
+  let proxyDid: string | undefined;
+  if (feedUri && feedUri.startsWith('at://')) {
+    // Check cache first
+    if (feedGeneratorDidCache.has(feedUri)) {
+      proxyDid = feedGeneratorDidCache.get(feedUri);
+    } else {
+      // Fetch feed generator info to get the service DID
+      try {
+        const feedGenInfo = await agent.api.app.bsky.feed.getFeedGenerator({ feed: feedUri });
+        proxyDid = feedGenInfo.data.view.did;
+        if (proxyDid) {
+          feedGeneratorDidCache.set(feedUri, proxyDid);
+        }
+      } catch (err) {
+        console.error('Failed to get feed generator info:', err);
+      }
+    }
+  }
+
+  // Build request options with proxy header if we have the service DID
+  const options: { headers?: Record<string, string> } = {};
+  if (proxyDid) {
+    options.headers = {
+      'atproto-proxy': `${proxyDid}#bsky_fg`
+    };
+  }
+
+  return agent.api.app.bsky.feed.sendInteractions(
+    {
+      interactions: [{
+        item: postUri,
+        event: eventType,
+        feedContext,
+        reqId,
+      }],
+    },
+    options
+  );
 }
 
 export async function getThread(uri: string, depth = 10) {
@@ -592,8 +627,8 @@ export async function unmuteConvo(convoId: string): Promise<{ convo: Convo }> {
   return response.data as { convo: Convo };
 }
 
-// Full Bluesky profile data
-export interface BlueskyProfile {
+// Get a user's Bluesky profile (avatar, displayName, etc.)
+export async function getBlueskyProfile(actor: string): Promise<{
   did: string;
   handle: string;
   displayName?: string;
@@ -606,10 +641,7 @@ export interface BlueskyProfile {
     following?: string;
     followedBy?: string;
   };
-}
-
-// Get a user's Bluesky profile (avatar, displayName, bio, follower counts, etc.)
-export async function getBlueskyProfile(actor: string): Promise<BlueskyProfile | null> {
+} | null> {
   if (!agent) return null;
   try {
     const response = await agent.getProfile({ actor });
@@ -622,7 +654,10 @@ export async function getBlueskyProfile(actor: string): Promise<BlueskyProfile |
       followersCount: response.data.followersCount,
       followsCount: response.data.followsCount,
       postsCount: response.data.postsCount,
-      viewer: response.data.viewer,
+      viewer: response.data.viewer ? {
+        following: response.data.viewer.following,
+        followedBy: response.data.viewer.followedBy,
+      } : undefined,
     };
   } catch (error) {
     console.error('Failed to fetch Bluesky profile:', error);

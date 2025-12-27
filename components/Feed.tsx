@@ -14,8 +14,8 @@ interface FeedProps {
   feedName?: string;
   acceptsInteractions?: boolean;
   refreshKey?: number;
-  // Feed type: 'feed' for generators, 'keyword' for search, 'list' for list feeds
-  feedType?: 'feed' | 'keyword' | 'list';
+  // Feed type: 'feed' for generators, 'keyword' for search, 'list' for list feeds, 'verified' for timeline filtered to verified researchers
+  feedType?: 'feed' | 'keyword' | 'list' | 'verified';
   keyword?: string;
   // Callback to open a profile in the main view
   onOpenProfile?: (did: string) => void;
@@ -35,10 +35,11 @@ export default function Feed({ feedId, feedUri, feedName, acceptsInteractions, r
   const effectiveFeedUri = feedUri || feedConfig?.uri || null;
   const effectiveFeedName = feedName || feedConfig?.name || 'Feed';
   const effectiveAcceptsInteractions = acceptsInteractions ?? feedConfig?.acceptsInteractions ?? false;
+
   const isPapersFeed = feedId === 'papers';
-  const isVerifiedFeed = feedId === 'verified';
+  const isVerifiedFeed = feedId === 'verified' || feedType === 'verified' || feedUri === 'verified-following';
   const isKeywordFeed = feedType === 'keyword' || (feedUri?.startsWith('keyword:') ?? false);
-  const isListFeed = feedType === 'list' || (effectiveFeedUri?.includes('/app.bsky.graph.list/') ?? false);
+  const isListFeed = (feedType === 'list' || (effectiveFeedUri?.includes('/app.bsky.graph.list/') ?? false)) && !isVerifiedFeed;
   const effectiveKeyword = keyword || (feedUri?.startsWith('keyword:') ? feedUri.slice(8).replace(/-/g, ' ') : null);
 
   const loadFeed = async (loadMore = false, currentCursor?: string) => {
@@ -55,12 +56,18 @@ export default function Feed({ feedId, feedUri, feedName, acceptsInteractions, r
         // Convert PostView[] to FeedViewPost[] format
         feedPosts = searchResult.posts.map(post => ({ post }));
         newCursor = searchResult.cursor;
+      } else if (isVerifiedFeed) {
+        // Verified feed - get posts from all verified researchers list, then filter to only those you follow
+        const VERIFIED_LIST = 'at://did:plc:7c7tx56n64jhzezlwox5dja6/app.bsky.graph.list/3masawnn3xj23';
+        const response = await getListFeed(VERIFIED_LIST, loadMore ? (currentCursor || cursor) : undefined);
+        feedPosts = response.data.feed;
+        newCursor = response.data.cursor;
       } else if (isListFeed && effectiveFeedUri) {
         // List feed - posts from list members
         const response = await getListFeed(effectiveFeedUri, loadMore ? (currentCursor || cursor) : undefined);
         feedPosts = response.data.feed;
         newCursor = response.data.cursor;
-      } else if (effectiveFeedUri && effectiveFeedUri !== 'timeline') {
+      } else if (effectiveFeedUri && effectiveFeedUri !== 'timeline' && effectiveFeedUri !== 'verified-following') {
         // Custom feed (like Paper Skygest)
         const response = await getFeed(effectiveFeedUri, loadMore ? (currentCursor || cursor) : undefined);
         feedPosts = response.data.feed;
@@ -138,17 +145,17 @@ export default function Feed({ feedId, feedUri, feedName, acceptsInteractions, r
       filtered = papers;
     }
 
-    // Apply verified researcher filtering for Verified feed
+    // Apply following filter for Verified feed
+    // Posts are already from verified researchers (loaded from list), just filter to those you follow
     if (isVerifiedFeed) {
-      const verified: AppBskyFeedDefs.FeedViewPost[] = [];
+      const followed: AppBskyFeedDefs.FeedViewPost[] = [];
       for (const item of posts) {
-        const author = item.post.author;
-        const labels = author.labels as Label[] | undefined;
-        if (isVerifiedResearcher(labels)) {
-          verified.push(item);
+        const author = item.post.author as AppBskyFeedDefs.PostView['author'] & { viewer?: { following?: string } };
+        if (author.viewer?.following) {
+          followed.push(item);
         }
       }
-      filtered = verified;
+      filtered = followed;
     }
 
     // Apply high-follower filter
@@ -291,6 +298,7 @@ export default function Feed({ feedId, feedUri, feedName, acceptsInteractions, r
           feedContext={item.feedContext}
           reqId={item.reqId}
           supportsInteractions={effectiveAcceptsInteractions}
+          feedUri={effectiveFeedUri || undefined}
           onOpenProfile={onOpenProfile}
         />
       ))}
