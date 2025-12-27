@@ -132,11 +132,29 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
       setPostsLoading(true);
       setPostsError(null);
       try {
+        // Initial fetch
         const result = await getAuthorFeed(did);
         setPosts(result.feed);
         setPostsCursor(result.cursor);
         if (result.pinnedPost) {
           setPinnedPost(result.pinnedPost);
+        }
+        
+        // For Papers tab, auto-load more batches to find paper posts
+        if (activeTab === 'papers' && result.cursor) {
+          let currentCursor: string | undefined = result.cursor;
+          let allPosts = result.feed;
+          const MIN_PAGES = 5; // Load up to 5 pages (~150 posts) to find papers
+          
+          for (let i = 1; i < MIN_PAGES && currentCursor; i++) {
+            await new Promise(resolve => setTimeout(resolve, 100)); // Small delay between requests
+            const moreResult = await getAuthorFeed(did, currentCursor);
+            allPosts = [...allPosts, ...moreResult.feed];
+            currentCursor = moreResult.cursor;
+          }
+          
+          setPosts(allPosts);
+          setPostsCursor(currentCursor);
         }
       } catch (err) {
         console.error('Failed to fetch posts:', err);
@@ -497,7 +515,10 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
           {activeTab === 'papers' && !loading && !error && (
             <div>
               {postsLoading && posts.length === 0 ? (
-                <div className="flex items-center justify-center py-12"><div className="animate-spin w-8 h-8 border-4 border-purple-500 border-t-transparent rounded-full" /></div>
+                <div className="flex flex-col items-center justify-center py-12 gap-3">
+                  <div className="animate-spin w-8 h-8 border-4 border-purple-500 border-t-transparent rounded-full" />
+                  <p className="text-sm text-gray-500">Scanning posts for papers...</p>
+                </div>
               ) : postsError ? (
                 <div className="text-center py-8 text-red-500">{postsError}</div>
               ) : paperPosts.length === 0 ? (
@@ -507,11 +528,12 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                     </svg>
                   </div>
-                  <p className="text-gray-500 mb-2">No paper posts found yet</p>
-                  <p className="text-sm text-gray-400">Posts with links to arXiv, DOI, bioRxiv, etc. will appear here</p>
+                  <p className="text-gray-500 mb-2">No paper posts found</p>
+                  <p className="text-sm text-gray-400 mb-1">Scanned {posts.length} post{posts.length !== 1 ? 's' : ''}</p>
+                  <p className="text-xs text-gray-400">Posts with links to arXiv, DOI, bioRxiv, etc. will appear here</p>
                   {postsCursor && (
                     <button onClick={loadMorePosts} disabled={postsLoading} className="mt-4 px-4 py-2 text-sm bg-purple-500 text-white rounded-full hover:bg-purple-600 disabled:opacity-50">
-                      {postsLoading ? 'Loading...' : 'Load more posts'}
+                      {postsLoading ? 'Scanning...' : 'Load more posts'}
                     </button>
                   )}
                 </div>
@@ -519,7 +541,7 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
                 <>
                   <div className="px-4 py-2 bg-purple-50 dark:bg-purple-900/20 border-b border-purple-100 dark:border-purple-800">
                     <p className="text-xs text-purple-600 dark:text-purple-400">
-                      {paperPosts.length} paper{paperPosts.length !== 1 ? 's' : ''} shared
+                      {paperPosts.length} paper{paperPosts.length !== 1 ? 's' : ''} found in {posts.length} posts
                     </p>
                   </div>
                   {paperPosts.map((item) => (
@@ -527,7 +549,7 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
                   ))}
                   {postsCursor && (
                     <div className="p-4 text-center">
-                      <button onClick={loadMorePosts} disabled={postsLoading} className="px-4 py-2 text-sm text-purple-500 hover:text-purple-600 disabled:opacity-50">{postsLoading ? 'Loading...' : 'Load more'}</button>
+                      <button onClick={loadMorePosts} disabled={postsLoading} className="px-4 py-2 text-sm text-purple-500 hover:text-purple-600 disabled:opacity-50">{postsLoading ? 'Scanning...' : 'Load more'}</button>
                     </div>
                   )}
                 </>
