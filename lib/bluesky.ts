@@ -628,7 +628,18 @@ export async function unmuteConvo(convoId: string): Promise<{ convo: Convo }> {
 }
 
 // Get a user's Bluesky profile (avatar, displayName, etc.)
-export async function getBlueskyProfile(actor: string): Promise<{ avatar?: string; displayName?: string; handle: string } | null> {
+export async function getBlueskyProfile(actor: string): Promise<{
+  avatar?: string;
+  displayName?: string;
+  handle: string;
+  description?: string;
+  followersCount?: number;
+  followsCount?: number;
+  viewer?: {
+    following?: string;
+    followedBy?: string;
+  };
+} | null> {
   if (!agent) return null;
   try {
     const response = await agent.getProfile({ actor });
@@ -636,6 +647,13 @@ export async function getBlueskyProfile(actor: string): Promise<{ avatar?: strin
       avatar: response.data.avatar,
       displayName: response.data.displayName,
       handle: response.data.handle,
+      description: response.data.description,
+      followersCount: response.data.followersCount,
+      followsCount: response.data.followsCount,
+      viewer: response.data.viewer ? {
+        following: response.data.viewer.following,
+        followedBy: response.data.viewer.followedBy,
+      } : undefined,
     };
   } catch (error) {
     console.error('Failed to fetch Bluesky profile:', error);

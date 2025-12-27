@@ -7,6 +7,7 @@ import { isVerifiedResearcher, Label, createPost, ReplyRef, QuoteRef, likePost, 
 import { useSettings } from '@/lib/settings';
 import { useBookmarks, BookmarkedPost } from '@/lib/bookmarks';
 import ProfileView from './ProfileView';
+import ProfileHoverCard from './ProfileHoverCard';
 
 interface PostProps {
   post: AppBskyFeedDefs.PostView;
@@ -928,10 +929,9 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
     <article className={`border-b border-gray-200 dark:border-gray-800 p-4 hover:bg-gray-50 dark:hover:bg-gray-900/50 transition-colors ${dimmed ? 'opacity-60' : ''}`}>
       <div className="flex gap-3">
         {/* Avatar */}
-        <button
-          className="flex-shrink-0 relative cursor-pointer"
-          onClick={(e) => {
-            e.stopPropagation();
+        <ProfileHoverCard
+          did={author.did}
+          onOpenProfile={() => {
             if (onOpenProfile) {
               onOpenProfile(author.did);
             } else {
@@ -939,33 +939,44 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
             }
           }}
         >
-          {author.avatar ? (
-            <img
-              src={author.avatar}
-              alt={author.displayName || author.handle}
-              className="w-12 h-12 rounded-full hover:opacity-80 transition-opacity"
-            />
-          ) : (
-            <div className="w-12 h-12 rounded-full bg-blue-500 flex items-center justify-center text-white font-bold hover:opacity-80 transition-opacity">
-              {(author.displayName || author.handle)[0].toUpperCase()}
-            </div>
-          )}
-          {/* Badge on avatar */}
-          {isVerified && (
-            <div className="absolute -bottom-1 -right-1">
-              <VerifiedBadge />
-            </div>
-          )}
-        </button>
+          <button
+            className="flex-shrink-0 relative cursor-pointer"
+            onClick={(e) => {
+              e.stopPropagation();
+              if (onOpenProfile) {
+                onOpenProfile(author.did);
+              } else {
+                setShowProfile(true);
+              }
+            }}
+          >
+            {author.avatar ? (
+              <img
+                src={author.avatar}
+                alt={author.displayName || author.handle}
+                className="w-12 h-12 rounded-full hover:opacity-80 transition-opacity"
+              />
+            ) : (
+              <div className="w-12 h-12 rounded-full bg-blue-500 flex items-center justify-center text-white font-bold hover:opacity-80 transition-opacity">
+                {(author.displayName || author.handle)[0].toUpperCase()}
+              </div>
+            )}
+            {/* Badge on avatar */}
+            {isVerified && (
+              <div className="absolute -bottom-1 -right-1">
+                <VerifiedBadge />
+              </div>
+            )}
+          </button>
+        </ProfileHoverCard>
 
         {/* Content */}
         <div className="flex-1 min-w-0">
           {/* Header */}
           <div className="flex items-center gap-1 text-sm flex-wrap">
-            <button
-              className="font-semibold text-gray-900 dark:text-gray-100 truncate hover:underline"
-              onClick={(e) => {
-                e.stopPropagation();
+            <ProfileHoverCard
+              did={author.did}
+              onOpenProfile={() => {
                 if (onOpenProfile) {
                   onOpenProfile(author.did);
                 } else {
@@ -973,8 +984,20 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
                 }
               }}
             >
-              {author.displayName || author.handle}
-            </button>
+              <button
+                className="font-semibold text-gray-900 dark:text-gray-100 truncate hover:underline"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (onOpenProfile) {
+                    onOpenProfile(author.did);
+                  } else {
+                    setShowProfile(true);
+                  }
+                }}
+              >
+                {author.displayName || author.handle}
+              </button>
+            </ProfileHoverCard>
             {isVerified && (
               <span className="text-emerald-500 text-xs font-medium px-1.5 py-0.5 bg-emerald-50 dark:bg-emerald-900/30 rounded">
                 Researcher
