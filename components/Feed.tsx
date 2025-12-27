@@ -144,12 +144,14 @@ export default function Feed({ feedId, feedUri, feedName, acceptsInteractions, r
     }
 
     // Apply verified researcher filtering for Verified feed
+    // Only show posts from verified researchers you actually follow
     if (isVerifiedFeed) {
       const verified: AppBskyFeedDefs.FeedViewPost[] = [];
       for (const item of posts) {
-        const author = item.post.author;
+        const author = item.post.author as AppBskyFeedDefs.PostView['author'] & { viewer?: { following?: string } };
         const labels = author.labels as Label[] | undefined;
-        if (isVerifiedResearcher(labels)) {
+        // Check both: is verified AND you follow them
+        if (isVerifiedResearcher(labels) && author.viewer?.following) {
           verified.push(item);
         }
       }
