@@ -449,6 +449,9 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
                   </div>
                 </div>
               </div>
+              
+              {/* Profile/Posts/Papers Tabs */}
+              {renderTabs()}
 
               {/* Profile Tab Content */}
               {activeTab === 'profile' && (
