@@ -182,9 +182,12 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
     }
   };
   
-  // Filter posts to those containing paper links
+  // Filter posts to those containing paper links AND authored by this profile owner
   const paperPosts = useMemo(() => {
     return posts.filter(item => {
+      // Only include posts actually authored by this user (not reposts of others)
+      if (item.post.author.did !== did) return false;
+      
       const record = item.post.record as AppBskyFeedPost.Record;
       const embed = item.post.embed;
       
@@ -198,7 +201,7 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
       const { hasPaper } = detectPaperLink(record.text, embedUri);
       return hasPaper;
     });
-  }, [posts]);
+  }, [posts, did]);
 
   // Use prop values first, then fetched Bluesky profile, then researcher data
   const avatar = avatarProp || bskyProfile?.avatar;
