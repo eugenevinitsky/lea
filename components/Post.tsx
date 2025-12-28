@@ -11,7 +11,7 @@ import ProfileEditor from './ProfileEditor';
 import ProfileHoverCard from './ProfileHoverCard';
 import QuotesView from './QuotesView';
 import Link from 'next/link';
-import { extractPaperUrl, getPaperIdFromUrl, PAPER_DOMAINS } from '@/lib/papers';
+import { extractPaperUrl, getPaperIdFromUrl, PAPER_DOMAINS, LinkFacet } from '@/lib/papers';
 
 interface PostProps {
   post: AppBskyFeedDefs.PostView;
@@ -823,7 +823,8 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
   const effectiveEmbedUri = embedUri || mediaEmbedUri;
   
   // Try to extract paper URL - if we're from paper feed, always try even if hasPaper was false from detection
-  const paperUrl = hasPaper ? extractPaperUrl(record.text, effectiveEmbedUri) : null;
+  // Pass facets to extractPaperUrl so it can find URLs in link facets (handles truncated URLs in text)
+  const paperUrl = hasPaper ? extractPaperUrl(record.text, effectiveEmbedUri, record.facets as LinkFacet[] | undefined) : null;
   const paperId = paperUrl ? getPaperIdFromUrl(paperUrl) : null;
 
   const handleBookmark = () => {

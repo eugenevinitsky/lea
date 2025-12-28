@@ -127,11 +127,19 @@ export function getArxivUrl(arxivId: string): string {
 }
 
 /**
- * Extract paper URL from post text and embed
+ * Facet type for link extraction
+ */
+export interface LinkFacet {
+  index: { byteStart: number; byteEnd: number };
+  features: Array<{ $type: string; uri?: string }>;
+}
+
+/**
+ * Extract paper URL from post text, embed, and facets
  * Returns the first paper URL found
  */
-export function extractPaperUrl(text: string, embedUri?: string): string | null {
-  // Check embed first (more reliable)
+export function extractPaperUrl(text: string, embedUri?: string, facets?: LinkFacet[]): string | null {
+  // Check embed first (most reliable)
   if (embedUri) {
     for (const domain of PAPER_DOMAINS) {
       if (embedUri.toLowerCase().includes(domain)) {
@@ -140,7 +148,22 @@ export function extractPaperUrl(text: string, embedUri?: string): string | null 
     }
   }
 
-  // Check text for URLs
+  // Check facets for link URIs (second most reliable - contains full URLs even when text is truncated)
+  if (facets) {
+    for (const facet of facets) {
+      for (const feature of facet.features) {
+        if (feature.$type === 'app.bsky.richtext.facet#link' && feature.uri) {
+          for (const domain of PAPER_DOMAINS) {
+            if (feature.uri.toLowerCase().includes(domain)) {
+              return feature.uri;
+            }
+          }
+        }
+      }
+    }
+  }
+
+  // Check text for URLs (fallback)
   const urlRegex = /https?:\/\/[^\s<>"{}|\\^`[\]]+/gi;
   const urls = text.match(urlRegex) || [];
   
