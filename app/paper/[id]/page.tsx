@@ -53,7 +53,7 @@ function PaperPageContent() {
     setError(null);
     
     try {
-      let result = { posts: [] as AppBskyFeedDefs.PostView[], cursor: undefined as string | undefined };
+      let result: { posts: AppBskyFeedDefs.PostView[]; cursor?: string } = { posts: [], cursor: undefined };
       
       // Strategy 1: Search for the original full URL (most accurate for finding link shares)
       if (!loadMore && originalUrl) {
