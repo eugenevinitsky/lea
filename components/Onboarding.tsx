@@ -7,6 +7,7 @@ import { followUser, getSession, getMyFollows } from '@/lib/bluesky';
 
 interface OnboardingProps {
   onComplete: () => void;
+  startAtStep?: number;
 }
 
 // Predefined research topics for selection
@@ -64,8 +65,8 @@ const FEED_OPTIONS = [
   ...SUGGESTED_FEEDS.slice(3), // Mutuals, Quiet Posters, Academic Jobs
 ];
 
-export default function Onboarding({ onComplete }: OnboardingProps) {
-  const [step, setStep] = useState(1);
+export default function Onboarding({ onComplete, startAtStep = 1 }: OnboardingProps) {
+  const [step, setStep] = useState(startAtStep);
   const [selectedFeeds, setSelectedFeeds] = useState<Set<string>>(
     new Set([SUGGESTED_FEEDS[0].uri, SUGGESTED_FEEDS[1].uri, SUGGESTED_FEEDS[2].uri]) // Verified Researchers, Paper Skygest, For You
   );
@@ -316,17 +317,19 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 dark:from-gray-950 dark:via-gray-900 dark:to-gray-950 flex items-center justify-center p-4">
       <div className="w-full max-w-2xl">
-        {/* Progress indicator */}
-        <div className="flex justify-center gap-2 mb-8">
-          {[1, 2, 3, 4].map(s => (
-            <div
-              key={s}
-              className={`w-2.5 h-2.5 rounded-full transition-colors ${
-                s === step ? 'bg-blue-500' : s < step ? 'bg-blue-300' : 'bg-gray-300 dark:bg-gray-700'
-              }`}
-            />
-          ))}
-        </div>
+        {/* Progress indicator - only show for full onboarding flow */}
+        {startAtStep === 1 && (
+          <div className="flex justify-center gap-2 mb-8">
+            {[1, 2, 3, 4].map(s => (
+              <div
+                key={s}
+                className={`w-2.5 h-2.5 rounded-full transition-colors ${
+                  s === step ? 'bg-blue-500' : s < step ? 'bg-blue-300' : 'bg-gray-300 dark:bg-gray-700'
+                }`}
+              />
+            ))}
+          </div>
+        )}
 
         <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-xl border border-gray-100 dark:border-gray-800 overflow-hidden">
           {/* Step 1: Welcome & Feed Selection */}
@@ -843,17 +846,26 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
               )}
 
               <div className="flex gap-3 mt-6">
+                {startAtStep < 3 ? (
+                  <button
+                    onClick={() => setStep(2)}
+                    className="flex-1 py-3.5 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 font-medium rounded-xl hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+                  >
+                    Back
+                  </button>
+                ) : (
+                  <button
+                    onClick={onComplete}
+                    className="flex-1 py-3.5 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 font-medium rounded-xl hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+                  >
+                    Close
+                  </button>
+                )}
                 <button
-                  onClick={() => setStep(2)}
-                  className="flex-1 py-3.5 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 font-medium rounded-xl hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
-                >
-                  Back
-                </button>
-                <button
-                  onClick={() => setStep(4)}
+                  onClick={() => startAtStep >= 3 ? onComplete() : setStep(4)}
                   className="flex-1 py-3.5 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-semibold rounded-xl transition-all"
                 >
-                  Continue
+                  {startAtStep >= 3 ? 'Done' : 'Continue'}
                 </button>
               </div>
             </div>

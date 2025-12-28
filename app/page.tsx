@@ -23,6 +23,7 @@ function AppContent() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [showOnboarding, setShowOnboarding] = useState(false);
+  const [onboardingStartStep, setOnboardingStartStep] = useState(1);
   const [refreshKey, setRefreshKey] = useState(0);
   const [showSettings, setShowSettings] = useState(false);
   const [showFeedDiscovery, setShowFeedDiscovery] = useState(false);
@@ -79,6 +80,7 @@ function AppContent() {
 
   const handleOnboardingComplete = () => {
     setShowOnboarding(false);
+    setOnboardingStartStep(1); // Reset for next time
   };
 
   const handleLogout = () => {
@@ -117,7 +119,7 @@ function AppContent() {
   }
 
   if (showOnboarding) {
-    return <Onboarding onComplete={handleOnboardingComplete} />;
+    return <Onboarding onComplete={handleOnboardingComplete} startAtStep={onboardingStartStep} />;
   }
 
   return (
@@ -170,7 +172,10 @@ function AppContent() {
               </a>
             )}
             <button
-              onClick={() => setShowOnboarding(true)}
+              onClick={() => {
+                setOnboardingStartStep(3);
+                setShowOnboarding(true);
+              }}
               className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full"
               title="Discover Researchers"
             >
