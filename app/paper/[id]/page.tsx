@@ -53,35 +53,51 @@ function PaperPageContent() {
     setError(null);
     
     try {
-      // Get the search query for this paper type
-      const searchQuery = getSearchQueryForPaper(paperId);
-      console.log('[Paper Search] Primary query:', searchQuery);
+      let result = { posts: [] as AppBskyFeedDefs.PostView[], cursor: undefined as string | undefined };
       
-      let result = await searchPosts(searchQuery, loadMore ? cursor : undefined, 'latest');
-      console.log('[Paper Search] Primary results:', result.posts.length);
-      
-      // If no results with the simplified query, try searching for the original URL
-      if (!loadMore && result.posts.length === 0 && originalUrl) {
-        // Try searching for the original URL without protocol
-        const urlWithoutProtocol = originalUrl.replace(/^https?:\/\//, '');
-        console.log('[Paper Search] Fallback 1 (original URL):', urlWithoutProtocol);
-        result = await searchPosts(urlWithoutProtocol, undefined, 'latest');
-        console.log('[Paper Search] Fallback 1 results:', result.posts.length);
+      // Strategy 1: Search for the original full URL (most accurate for finding link shares)
+      if (!loadMore && originalUrl) {
+        console.log('[Paper Search] Strategy 1 (full URL):', originalUrl);
+        result = await searchPosts(originalUrl, undefined, 'latest');
+        console.log('[Paper Search] Strategy 1 results:', result.posts.length);
       }
       
-      // If still no results, try a more targeted search with key parts of the URL
+      // Strategy 2: Try the URL without query params
+      if (!loadMore && result.posts.length === 0 && originalUrl) {
+        const urlNoParams = originalUrl.replace(/\?.*$/, '');
+        if (urlNoParams !== originalUrl) {
+          console.log('[Paper Search] Strategy 2 (URL without params):', urlNoParams);
+          result = await searchPosts(urlNoParams, undefined, 'latest');
+          console.log('[Paper Search] Strategy 2 results:', result.posts.length);
+        }
+      }
+      
+      // Strategy 3: Search for the DOI or paper ID
+      if (result.posts.length === 0 || loadMore) {
+        const searchQuery = getSearchQueryForPaper(paperId);
+        console.log('[Paper Search] Strategy 3 (paper ID):', searchQuery);
+        const idResult = await searchPosts(searchQuery, loadMore ? cursor : undefined, 'latest');
+        console.log('[Paper Search] Strategy 3 results:', idResult.posts.length);
+        if (loadMore || result.posts.length === 0) {
+          result = idResult;
+        }
+      }
+      
+      // Strategy 4: Try domain search as last resort
       if (!loadMore && result.posts.length === 0) {
         const fallbackUrl = originalUrl || getUrlFromPaperId(paperId);
-        // Extract domain and last path segment for a targeted search
-        const urlWithoutProtocol = fallbackUrl.replace(/^https?:\/\//, '').replace(/\?.*$/, '');
-        const parts = urlWithoutProtocol.split('/');
-        // Try domain + last meaningful segment (usually the ID)
-        const lastPart = parts.filter(p => p && !['abs', 'full', 'pdf', 'doi', 'article'].includes(p.toLowerCase())).pop();
-        if (lastPart && lastPart !== parts[0]) {
-          const fallbackQuery = `${parts[0]} ${lastPart}`;
-          console.log('[Paper Search] Fallback 2 (domain + id):', fallbackQuery);
-          result = await searchPosts(fallbackQuery, undefined, 'latest');
-          console.log('[Paper Search] Fallback 2 results:', result.posts.length);
+        const domainMatch = fallbackUrl.match(/https?:\/\/([^/]+)/);
+        if (domainMatch) {
+          const domainQuery = `domain:${domainMatch[1]}`;
+          // Also try to find a unique ID from the URL path
+          const pathParts = fallbackUrl.replace(/^https?:\/\/[^/]+/, '').split('/').filter(p => p && p.length > 3);
+          const lastPart = pathParts[pathParts.length - 1]?.replace(/\?.*$/, '');
+          if (lastPart) {
+            const combinedQuery = `${domainQuery} ${lastPart}`;
+            console.log('[Paper Search] Strategy 4 (domain + id):', combinedQuery);
+            result = await searchPosts(combinedQuery, undefined, 'latest');
+            console.log('[Paper Search] Strategy 4 results:', result.posts.length);
+          }
         }
       }
       
