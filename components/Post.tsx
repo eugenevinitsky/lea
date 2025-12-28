@@ -36,10 +36,14 @@ const PAPER_DOMAINS = [
   'nature.com',
   'science.org',
   'pnas.org',
-  'acm.org/doi',
+  'acm.org',
+  'dl.acm.org',
   'ieee.org',
+  'ieeexplore.ieee.org',
   'springer.com',
+  'link.springer.com',
   'wiley.com',
+  'onlinelibrary.wiley.com',
 ];
 
 function containsPaperLink(text: string, embed?: AppBskyFeedDefs.PostView['embed']): { hasPaper: boolean; domain?: string } {
