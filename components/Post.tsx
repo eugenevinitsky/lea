@@ -11,7 +11,7 @@ import ProfileEditor from './ProfileEditor';
 import ProfileHoverCard from './ProfileHoverCard';
 import QuotesView from './QuotesView';
 import Link from 'next/link';
-import { extractPaperUrl, getPaperIdFromUrl } from '@/lib/papers';
+import { extractPaperUrl, getPaperIdFromUrl, PAPER_DOMAINS } from '@/lib/papers';
 
 interface PostProps {
   post: AppBskyFeedDefs.PostView;
@@ -22,29 +22,6 @@ interface PostProps {
   // Repost reason - if present, shows "Reposted by X" header
   reason?: AppBskyFeedDefs.ReasonRepost | AppBskyFeedDefs.ReasonPin | { $type: string };
 }
-
-// Paper link detection
-const PAPER_DOMAINS = [
-  'arxiv.org',
-  'doi.org',
-  'semanticscholar.org',
-  'aclanthology.org',
-  'openreview.net',
-  'biorxiv.org',
-  'medrxiv.org',
-  'ssrn.com',
-  'nature.com',
-  'science.org',
-  'pnas.org',
-  'acm.org',
-  'dl.acm.org',
-  'ieee.org',
-  'ieeexplore.ieee.org',
-  'springer.com',
-  'link.springer.com',
-  'wiley.com',
-  'onlinelibrary.wiley.com',
-];
 
 function containsPaperLink(text: string, embed?: AppBskyFeedDefs.PostView['embed']): { hasPaper: boolean; domain?: string } {
   // Check text for paper URLs
