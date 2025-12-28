@@ -122,47 +122,59 @@ export default function Onboarding({ onComplete, startAtStep = 1 }: OnboardingPr
     setShowTopicSuggestions(false);
   };
 
-  // Fetch all researchers and existing follows when entering step 3
-  useEffect(() => {
-    if (step === 3 && allResearchers.length === 0) {
-      const fetchAllResearchers = async () => {
-        setLoadingAllResearchers(true);
-        try {
-          // Fetch existing follows first
-          const existingFollows = await getMyFollows();
-          setFollowedDids(existingFollows);
+  // Fetch researchers data
+  const fetchResearchersData = async () => {
+    if (loadingAllResearchers) return; // Prevent duplicate fetches
+    setLoadingAllResearchers(true);
+    try {
+      // Fetch existing follows first
+      const existingFollows = await getMyFollows();
+      setFollowedDids(existingFollows);
 
-          const session = getSession();
-          const response = await fetch('/api/researchers');
-          const data = await response.json();
-          if (data.researchers) {
-            const mapped = data.researchers
-              .filter((r: { did: string }) => r.did !== session?.did)
-              .map((r: { did: string; handle: string; name: string; institution: string; researchTopics: string | null }) => ({
-                did: r.did,
-                handle: r.handle,
-                name: r.name,
-                institution: r.institution,
-                researchTopics: r.researchTopics ? JSON.parse(r.researchTopics) : [],
-                matchedTopics: [],
-              }));
-            setAllResearchers(mapped);
-            // Initialize only non-followed researchers as selected for bulk follow
-            setSelectedForBulk(new Set(
-              mapped
-                .filter((r: ResearcherSuggestion) => !existingFollows.has(r.did))
-                .map((r: ResearcherSuggestion) => r.did)
-            ));
-          }
-        } catch (error) {
-          console.error('Failed to fetch researchers:', error);
-        } finally {
-          setLoadingAllResearchers(false);
-        }
-      };
-      fetchAllResearchers();
+      const session = getSession();
+      const response = await fetch('/api/researchers');
+      const data = await response.json();
+      if (data.researchers) {
+        const mapped = data.researchers
+          .filter((r: { did: string }) => r.did !== session?.did)
+          .map((r: { did: string; handle: string; name: string; institution: string; researchTopics: string | null }) => ({
+            did: r.did,
+            handle: r.handle,
+            name: r.name,
+            institution: r.institution,
+            researchTopics: r.researchTopics ? JSON.parse(r.researchTopics) : [],
+            matchedTopics: [],
+          }));
+        setAllResearchers(mapped);
+        // Initialize only non-followed researchers as selected for bulk follow
+        setSelectedForBulk(new Set(
+          mapped
+            .filter((r: ResearcherSuggestion) => !existingFollows.has(r.did))
+            .map((r: ResearcherSuggestion) => r.did)
+        ));
+      }
+    } catch (error) {
+      console.error('Failed to fetch researchers:', error);
+    } finally {
+      setLoadingAllResearchers(false);
     }
-  }, [step, allResearchers.length]);
+  };
+
+  // Fetch on mount if starting at step 3
+  useEffect(() => {
+    if (startAtStep >= 3) {
+      fetchResearchersData();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Fetch when navigating to step 3 during normal flow
+  useEffect(() => {
+    if (step === 3 && allResearchers.length === 0 && startAtStep < 3) {
+      fetchResearchersData();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [step]);
 
   // Fetch suggestions when topics change
   useEffect(() => {
