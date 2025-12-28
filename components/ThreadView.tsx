@@ -164,7 +164,7 @@ export default function ThreadView({ uri, onClose }: ThreadViewProps) {
 
             {/* Main post (highlighted) */}
             <div className="bg-blue-50 dark:bg-blue-900/20 border-l-4 border-blue-500">
-              <Post post={mainPost} />
+              <Post post={mainPost} onOpenThread={navigateToThread} />
             </div>
 
             {/* Replies */}
