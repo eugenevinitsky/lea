@@ -61,9 +61,12 @@ function AffiliationPageContent() {
             onClick={() => router.push('/')}
           >Lea</h1>
           <div className="flex items-center gap-3">
-            <span className="text-sm text-gray-600 dark:text-gray-400">
+            <button
+              onClick={() => router.push(`/${session?.handle}`)}
+              className="text-sm text-gray-600 dark:text-gray-400 hover:text-blue-500 dark:hover:text-blue-400 transition-colors"
+            >
               @{session?.handle}
-            </span>
+            </button>
           </div>
         </div>
       </header>
