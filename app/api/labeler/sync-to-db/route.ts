@@ -105,46 +105,66 @@ async function getLabelerServiceEndpoint(): Promise<string | null> {
 
 // Fetch all DIDs with verified-researcher label from the labeler's own endpoint
 async function fetchLabeledDids(): Promise<string[]> {
-  const labeledDids: string[] = [];
+  const labeledDids = new Set<string>();
+  const negatedDids = new Set<string>();
 
   try {
     // Get labeler's service endpoint
     const labelerEndpoint = await getLabelerServiceEndpoint();
     if (!labelerEndpoint) {
       console.error('Could not find labeler service endpoint');
-      return labeledDids;
+      return [];
     }
 
     console.log(`Querying labels from: ${labelerEndpoint}`);
 
-    // Query labels directly from the labeler's service
-    const response = await fetch(
-      `${labelerEndpoint}/xrpc/com.atproto.label.queryLabels?` +
-      new URLSearchParams({
+    // Paginate through all labels
+    let cursor: string | undefined;
+    do {
+      const params = new URLSearchParams({
         uriPatterns: 'did:*',
         sources: LABELER_DID,
         limit: '250',
-      })
-    );
+      });
+      if (cursor) params.set('cursor', cursor);
 
-    if (response.ok) {
+      const response = await fetch(
+        `${labelerEndpoint}/xrpc/com.atproto.label.queryLabels?${params}`
+      );
+
+      if (!response.ok) {
+        console.error('Label query failed:', response.status, await response.text());
+        break;
+      }
+
       const data = await response.json();
       for (const label of data.labels || []) {
-        if (label.val === VERIFIED_RESEARCHER_LABEL && !label.neg) {
+        if (label.val === VERIFIED_RESEARCHER_LABEL) {
           const did = label.uri;
-          if (did.startsWith('did:') && !labeledDids.includes(did)) {
-            labeledDids.push(did);
+          if (did.startsWith('did:')) {
+            if (label.neg) {
+              negatedDids.add(did);
+            } else {
+              labeledDids.add(did);
+            }
           }
         }
       }
-    } else {
-      console.error('Label query failed:', response.status, await response.text());
+
+      cursor = data.cursor;
+      console.log(`Fetched batch, total so far: ${labeledDids.size}, cursor: ${cursor || 'none'}`);
+    } while (cursor);
+
+    // Remove negated DIDs
+    for (const did of negatedDids) {
+      labeledDids.delete(did);
     }
+
   } catch (error) {
     console.error('Error querying labels:', error);
   }
 
-  return labeledDids;
+  return Array.from(labeledDids);
 }
 
 // Get profile info for a DID
