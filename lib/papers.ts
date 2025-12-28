@@ -125,3 +125,120 @@ export function extractArxivIdFromPost(text: string, embedUri?: string): string 
 export function getArxivUrl(arxivId: string): string {
   return `https://arxiv.org/abs/${arxivId}`;
 }
+
+/**
+ * Extract paper URL from post text and embed
+ * Returns the first paper URL found
+ */
+export function extractPaperUrl(text: string, embedUri?: string): string | null {
+  // Check embed first (more reliable)
+  if (embedUri) {
+    for (const domain of PAPER_DOMAINS) {
+      if (embedUri.toLowerCase().includes(domain)) {
+        return embedUri;
+      }
+    }
+  }
+
+  // Check text for URLs
+  const urlRegex = /https?:\/\/[^\s<>"{}|\\^`[\]]+/gi;
+  const urls = text.match(urlRegex) || [];
+  
+  for (const url of urls) {
+    for (const domain of PAPER_DOMAINS) {
+      if (url.toLowerCase().includes(domain)) {
+        return url;
+      }
+    }
+  }
+
+  return null;
+}
+
+/**
+ * Generate a URL-safe paper ID from a paper URL
+ * This normalizes URLs to create consistent IDs
+ */
+export function getPaperIdFromUrl(url: string): string {
+  // For arXiv, use the arXiv ID
+  const arxivId = extractArxivId(url);
+  if (arxivId) {
+    return `arxiv:${arxivId}`;
+  }
+
+  // For DOI URLs, extract the DOI
+  const doiMatch = url.match(/(?:doi\.org\/|dx\.doi\.org\/)(10\.[^\s&?#]+)/i);
+  if (doiMatch) {
+    // URL-encode the DOI for safe use in URLs
+    return `doi:${encodeURIComponent(doiMatch[1])}`;
+  }
+
+  // For other URLs, create a hash-like ID from the URL
+  // Remove protocol, trailing slashes, and query params for consistency
+  let normalized = url
+    .replace(/^https?:\/\//, '')
+    .replace(/\?.*$/, '')
+    .replace(/\/$/, '');
+  
+  // URL-encode the entire thing for safe use
+  return `url:${encodeURIComponent(normalized)}`;
+}
+
+/**
+ * Get the display URL for a paper ID
+ */
+export function getUrlFromPaperId(paperId: string): string {
+  if (paperId.startsWith('arxiv:')) {
+    return `https://arxiv.org/abs/${paperId.slice(6)}`;
+  }
+  if (paperId.startsWith('doi:')) {
+    return `https://doi.org/${decodeURIComponent(paperId.slice(4))}`;
+  }
+  if (paperId.startsWith('url:')) {
+    return `https://${decodeURIComponent(paperId.slice(4))}`;
+  }
+  // Fallback - assume it's a raw URL
+  return paperId;
+}
+
+/**
+ * Get the search query to find posts about a paper
+ */
+export function getSearchQueryForPaper(paperId: string): string {
+  if (paperId.startsWith('arxiv:')) {
+    // Search for arXiv URL pattern
+    return `arxiv.org/abs/${paperId.slice(6)}`;
+  }
+  if (paperId.startsWith('doi:')) {
+    // Search for DOI
+    const doi = decodeURIComponent(paperId.slice(4));
+    return doi;
+  }
+  if (paperId.startsWith('url:')) {
+    // Search for the domain + path
+    const urlPath = decodeURIComponent(paperId.slice(4));
+    // Use just the path portion for better search results
+    return urlPath;
+  }
+  return paperId;
+}
+
+/**
+ * Get paper type label from paper ID
+ */
+export function getPaperTypeFromId(paperId: string): string {
+  if (paperId.startsWith('arxiv:')) return 'arXiv';
+  if (paperId.startsWith('doi:')) return 'DOI';
+  
+  // For URL-based IDs, determine type from the URL
+  if (paperId.startsWith('url:')) {
+    const url = decodeURIComponent(paperId.slice(4));
+    for (const domain of PAPER_DOMAINS) {
+      if (url.includes(domain)) {
+        return getPaperLabel(domain);
+      }
+    }
+  }
+  
+  return 'Paper';
+}

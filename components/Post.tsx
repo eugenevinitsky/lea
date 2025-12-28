@@ -11,7 +11,7 @@ import ProfileEditor from './ProfileEditor';
 import ProfileHoverCard from './ProfileHoverCard';
 import QuotesView from './QuotesView';
 import Link from 'next/link';
-import { extractArxivIdFromPost } from '@/lib/papers';
+import { extractPaperUrl, getPaperIdFromUrl } from '@/lib/papers';
 
 interface PostProps {
   post: AppBskyFeedDefs.PostView;
@@ -787,11 +787,12 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
   const { hasPaper, domain } = containsPaperLink(record.text, post.embed);
   const bookmarked = isBookmarked(post.uri);
   
-  // Extract arXiv ID for paper discussion link
+  // Extract paper ID for paper discussion link
   const embedUri = post.embed && 'external' in post.embed 
     ? (post.embed as AppBskyEmbedExternal.View).external?.uri 
     : undefined;
-  const arxivId = hasPaper ? extractArxivIdFromPost(record.text, embedUri) : null;
+  const paperUrl = hasPaper ? extractPaperUrl(record.text, embedUri) : null;
+  const paperId = paperUrl ? getPaperIdFromUrl(paperUrl) : null;
 
   const handleBookmark = () => {
     if (bookmarked) {
@@ -1024,9 +1025,9 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
             {hasPaper && settings.showPaperHighlights && (
               <>
                 <PaperIndicator domain={domain} />
-                {arxivId && (
+                {paperId && (
                   <Link
-                    href={`/paper/${arxivId}`}
+                    href={`/paper/${encodeURIComponent(paperId)}`}
                     onClick={(e) => e.stopPropagation()}
                     className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400 rounded-full hover:bg-purple-100 dark:hover:bg-purple-900/40 transition-colors"
                     title="View paper discussion"

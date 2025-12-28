@@ -4,7 +4,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { useState, useEffect, useCallback } from 'react';
 import { AppBskyFeedDefs, AppBskyEmbedExternal } from '@atproto/api';
 import { restoreSession, getSession, searchPosts, getBlueskyProfile } from '@/lib/bluesky';
-import { getArxivUrl } from '@/lib/papers';
+import { getUrlFromPaperId, getSearchQueryForPaper, getPaperTypeFromId } from '@/lib/papers';
 import { SettingsProvider } from '@/lib/settings';
 import { BookmarksProvider } from '@/lib/bookmarks';
 import { FeedsProvider } from '@/lib/feeds';
@@ -20,8 +20,9 @@ interface PaperInfo {
 function PaperPageContent() {
   const params = useParams();
   const router = useRouter();
-  // The ID might contain slashes for old-format arXiv IDs (e.g., hep-th/9901001)
-  const arxivId = Array.isArray(params.id) ? params.id.join('/') : (params.id as string);
+  // The ID is URL-encoded and might contain special characters
+  const rawId = Array.isArray(params.id) ? params.id.join('/') : (params.id as string);
+  const paperId = decodeURIComponent(rawId);
   
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -43,16 +44,14 @@ function PaperPageContent() {
 
   // Search for posts mentioning this paper
   const searchForPosts = useCallback(async (loadMore = false) => {
-    if (!arxivId) return;
+    if (!paperId) return;
     
     setPostsLoading(true);
     setError(null);
     
     try {
-      // Search for the arXiv URL
-      const arxivUrl = getArxivUrl(arxivId);
-      // Also search for common variations
-      const searchQuery = `arxiv.org/abs/${arxivId}`;
+      // Get the search query for this paper type
+      const searchQuery = getSearchQueryForPaper(paperId);
       
       const result = await searchPosts(searchQuery, loadMore ? cursor : undefined, 'latest');
       
@@ -80,14 +79,14 @@ function PaperPageContent() {
     } finally {
       setPostsLoading(false);
     }
-  }, [arxivId, cursor]);
+  }, [paperId, cursor]);
 
   // Initial search when logged in
   useEffect(() => {
-    if (isLoggedIn && arxivId) {
+    if (isLoggedIn && paperId) {
       searchForPosts();
     }
-  }, [isLoggedIn, arxivId, searchForPosts]);
+  }, [isLoggedIn, paperId, searchForPosts]);
 
   const handleLogin = () => {
     setIsLoggedIn(true);
@@ -175,11 +174,11 @@ function PaperPageContent() {
                     </h2>
                   ) : (
                     <h2 className="font-semibold text-gray-900 dark:text-gray-100 mb-1">
-                      arXiv:{arxivId}
+                      {getPaperTypeFromId(paperId)} Paper
                     </h2>
                   )}
                   <a
-                    href={getArxivUrl(arxivId)}
+                    href={getUrlFromPaperId(paperId)}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="inline-flex items-center gap-1 text-sm text-purple-600 hover:text-purple-700 dark:text-purple-400 dark:hover:text-purple-300"
@@ -187,7 +186,7 @@ function PaperPageContent() {
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
                     </svg>
-                    View on arXiv
+                    View on {getPaperTypeFromId(paperId)}
                   </a>
                 </div>
               </div>
