@@ -795,6 +795,34 @@ export async function getKnownFollowers(actor: string, limit: number = 50): Prom
   }
 }
 
+// Search for actors (all Bluesky users)
+export interface ActorSearchResult {
+  did: string;
+  handle: string;
+  displayName?: string;
+  avatar?: string;
+  description?: string;
+  labels?: Label[];
+}
+
+export async function searchActors(query: string, limit: number = 10): Promise<ActorSearchResult[]> {
+  if (!agent) return [];
+  try {
+    const response = await agent.searchActorsTypeahead({ q: query, limit });
+    return (response.data.actors || []).map(actor => ({
+      did: actor.did,
+      handle: actor.handle,
+      displayName: actor.displayName,
+      avatar: actor.avatar,
+      description: (actor as { description?: string }).description,
+      labels: actor.labels as Label[] | undefined,
+    }));
+  } catch (error) {
+    console.error('Failed to search actors:', error);
+    return [];
+  }
+}
+
 // Get posts by an author
 export async function getAuthorFeed(
   actor: string,

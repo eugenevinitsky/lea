@@ -1,12 +1,22 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import { searchActors, isVerifiedResearcher, ActorSearchResult, Label } from '@/lib/bluesky';
 
 interface Researcher {
   did: string;
   handle: string;
   name: string | null;
   institution: string | null;
+}
+
+interface SearchResult {
+  did: string;
+  handle: string;
+  displayName: string | null;
+  subtitle: string | null;
+  avatar?: string;
+  isVerified: boolean;
 }
 
 interface ResearcherSearchProps {
@@ -16,9 +26,10 @@ interface ResearcherSearchProps {
 export default function ResearcherSearch({ onSelectResearcher }: ResearcherSearchProps) {
   const [query, setQuery] = useState('');
   const [researchers, setResearchers] = useState<Researcher[]>([]);
-  const [filteredResults, setFilteredResults] = useState<Researcher[]>([]);
+  const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const [isOpen, setIsOpen] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [searching, setSearching] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -42,24 +53,68 @@ export default function ResearcherSearch({ onSelectResearcher }: ResearcherSearc
     fetchResearchers();
   }, []);
 
-  // Filter results when query changes
+  // Search when query changes - combine local verified researchers with Bluesky search
   useEffect(() => {
     if (!query.trim()) {
-      setFilteredResults([]);
+      setSearchResults([]);
       setIsOpen(false);
       return;
     }
 
     const lowerQuery = query.toLowerCase();
-    const filtered = researchers.filter(r => 
-      r.name?.toLowerCase().includes(lowerQuery) ||
-      r.handle?.toLowerCase().includes(lowerQuery) ||
-      r.institution?.toLowerCase().includes(lowerQuery)
-    ).slice(0, 8); // Limit to 8 results
+    
+    // Search local verified researchers
+    const verifiedResults: SearchResult[] = researchers
+      .filter(r => 
+        r.name?.toLowerCase().includes(lowerQuery) ||
+        r.handle?.toLowerCase().includes(lowerQuery) ||
+        r.institution?.toLowerCase().includes(lowerQuery)
+      )
+      .slice(0, 5)
+      .map(r => ({
+        did: r.did,
+        handle: r.handle,
+        displayName: r.name,
+        subtitle: r.institution,
+        isVerified: true,
+      }));
 
-    setFilteredResults(filtered);
-    setIsOpen(filtered.length > 0);
+    // Show local results immediately
+    setSearchResults(verifiedResults);
+    setIsOpen(verifiedResults.length > 0);
     setSelectedIndex(0);
+
+    // Debounce the Bluesky API search
+    const timeoutId = setTimeout(async () => {
+      setSearching(true);
+      try {
+        const bskyResults = await searchActors(query, 8);
+        
+        // Combine results: verified first, then other Bluesky users
+        const verifiedDids = new Set(verifiedResults.map(r => r.did));
+        
+        const otherResults: SearchResult[] = bskyResults
+          .filter(actor => !verifiedDids.has(actor.did))
+          .map(actor => ({
+            did: actor.did,
+            handle: actor.handle,
+            displayName: actor.displayName || null,
+            subtitle: actor.description?.slice(0, 60) || null,
+            avatar: actor.avatar,
+            isVerified: isVerifiedResearcher(actor.labels as Label[] | undefined),
+          }));
+
+        const combined = [...verifiedResults, ...otherResults].slice(0, 10);
+        setSearchResults(combined);
+        setIsOpen(combined.length > 0);
+      } catch (err) {
+        console.error('Failed to search Bluesky actors:', err);
+      } finally {
+        setSearching(false);
+      }
+    }, 200);
+
+    return () => clearTimeout(timeoutId);
   }, [query, researchers]);
 
   // Close dropdown when clicking outside
@@ -73,8 +128,8 @@ export default function ResearcherSearch({ onSelectResearcher }: ResearcherSearc
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const handleSelect = (researcher: Researcher) => {
-    onSelectResearcher(researcher.did);
+  const handleSelect = (result: SearchResult) => {
+    onSelectResearcher(result.did);
     setQuery('');
     setIsOpen(false);
     inputRef.current?.blur();
@@ -85,14 +140,14 @@ export default function ResearcherSearch({ onSelectResearcher }: ResearcherSearc
 
     if (e.key === 'ArrowDown') {
       e.preventDefault();
-      setSelectedIndex(i => Math.min(i + 1, filteredResults.length - 1));
+      setSelectedIndex(i => Math.min(i + 1, searchResults.length - 1));
     } else if (e.key === 'ArrowUp') {
       e.preventDefault();
       setSelectedIndex(i => Math.max(i - 1, 0));
     } else if (e.key === 'Enter') {
       e.preventDefault();
-      if (filteredResults[selectedIndex]) {
-        handleSelect(filteredResults[selectedIndex]);
+      if (searchResults[selectedIndex]) {
+        handleSelect(searchResults[selectedIndex]);
       }
     } else if (e.key === 'Escape') {
       setIsOpen(false);
@@ -120,12 +175,12 @@ export default function ResearcherSearch({ onSelectResearcher }: ResearcherSearc
           type="text"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          onFocus={() => query.trim() && filteredResults.length > 0 && setIsOpen(true)}
+          onFocus={() => query.trim() && searchResults.length > 0 && setIsOpen(true)}
           onKeyDown={handleKeyDown}
-          placeholder="Search researchers..."
+          placeholder="Search users..."
           className="w-48 pl-9 pr-3 py-1.5 text-sm bg-gray-100 dark:bg-gray-800 border border-transparent focus:border-blue-500 focus:bg-white dark:focus:bg-gray-900 rounded-full outline-none transition-all focus:w-64 text-gray-900 dark:text-gray-100 placeholder-gray-500"
         />
-        {loading && (
+        {(loading || searching) && (
           <div className="absolute right-3 top-1/2 -translate-y-1/2">
             <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
           </div>
@@ -134,36 +189,70 @@ export default function ResearcherSearch({ onSelectResearcher }: ResearcherSearc
 
       {/* Dropdown */}
       {isOpen && (
-        <div className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-gray-900 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 overflow-hidden z-50">
-          {filteredResults.map((researcher, index) => (
+        <div className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-gray-900 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 overflow-hidden z-50 min-w-64">
+          {searchResults.map((result, index) => (
             <button
-              key={researcher.did}
-              onClick={() => handleSelect(researcher)}
+              key={result.did}
+              onClick={() => handleSelect(result)}
               className={`w-full px-4 py-3 flex items-center gap-3 text-left transition-colors ${
                 index === selectedIndex
                   ? 'bg-blue-50 dark:bg-blue-900/30'
                   : 'hover:bg-gray-50 dark:hover:bg-gray-800'
               }`}
             >
-              <div className="w-10 h-10 rounded-full bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center flex-shrink-0">
-                <svg className="w-5 h-5 text-emerald-600 dark:text-emerald-400" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                </svg>
-              </div>
+              {/* Avatar or verified badge */}
+              {result.avatar ? (
+                <div className="relative flex-shrink-0">
+                  <img
+                    src={result.avatar}
+                    alt=""
+                    className="w-10 h-10 rounded-full"
+                  />
+                  {result.isVerified && (
+                    <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-emerald-500 rounded-full flex items-center justify-center ring-2 ring-white dark:ring-gray-900">
+                      <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                      </svg>
+                    </div>
+                  )}
+                </div>
+              ) : result.isVerified ? (
+                <div className="w-10 h-10 rounded-full bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center flex-shrink-0">
+                  <svg className="w-5 h-5 text-emerald-600 dark:text-emerald-400" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                  </svg>
+                </div>
+              ) : (
+                <div className="w-10 h-10 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center flex-shrink-0">
+                  <span className="text-gray-500 dark:text-gray-400 font-medium">
+                    {(result.displayName || result.handle)[0].toUpperCase()}
+                  </span>
+                </div>
+              )}
               <div className="flex-1 min-w-0">
-                <p className="font-medium text-gray-900 dark:text-gray-100 truncate">
-                  {researcher.name || researcher.handle}
-                </p>
+                <div className="flex items-center gap-1.5">
+                  <p className="font-medium text-gray-900 dark:text-gray-100 truncate">
+                    {result.displayName || result.handle}
+                  </p>
+                  {result.isVerified && !result.avatar && (
+                    <span className="text-xs text-emerald-600 dark:text-emerald-400 font-medium">Researcher</span>
+                  )}
+                </div>
                 <p className="text-sm text-gray-500 truncate">
-                  @{researcher.handle}
-                  {researcher.institution && ` · ${researcher.institution}`}
+                  @{result.handle}
+                  {result.subtitle && ` · ${result.subtitle}`}
                 </p>
               </div>
             </button>
           ))}
-          {filteredResults.length === 0 && query.trim() && (
+          {searchResults.length === 0 && query.trim() && !searching && (
             <div className="px-4 py-3 text-sm text-gray-500 text-center">
-              No verified researchers found
+              No users found
+            </div>
+          )}
+          {searching && searchResults.length === 0 && (
+            <div className="px-4 py-3 text-sm text-gray-500 text-center">
+              Searching...
             </div>
           )}
         </div>
