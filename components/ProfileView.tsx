@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { AppBskyFeedDefs, AppBskyFeedPost, AppBskyEmbedExternal } from '@atproto/api';
 import type { ProfileLink, ProfilePaper } from '@/lib/db/schema';
-import { getAuthorFeed, getBlueskyProfile, getKnownFollowers, BlueskyProfile, KnownFollowersResult, followUser, unfollowUser, getSession } from '@/lib/bluesky';
+import { getAuthorFeed, getBlueskyProfile, getKnownFollowers, BlueskyProfile, KnownFollowersResult, followUser, unfollowUser, getSession, searchPosts } from '@/lib/bluesky';
 import { detectPaperLink, getPaperIdFromUrl } from '@/lib/papers';
 import Post from './Post';
 import ThreadView from './ThreadView';
@@ -87,13 +87,24 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
   const [followLoading, setFollowLoading] = useState(false);
   
   // Posts state
-  const [activeTab, setActiveTab] = useState<'profile' | 'posts' | 'papers'>('profile');
+  const [activeTab, setActiveTab] = useState<'profile' | 'posts' | 'papers' | 'interactions'>('profile');
   const [posts, setPosts] = useState<AppBskyFeedDefs.FeedViewPost[]>([]);
   const [pinnedPost, setPinnedPost] = useState<AppBskyFeedDefs.PostView | null>(null);
   const [postsLoading, setPostsLoading] = useState(false);
   const [postsCursor, setPostsCursor] = useState<string | undefined>();
   const [postsError, setPostsError] = useState<string | null>(null);
   const [threadUri, setThreadUri] = useState<string | null>(null);
+  
+  // Interactions state
+  const [interactions, setInteractions] = useState<{
+    theirRepliesToMe: AppBskyFeedDefs.PostView[];
+    myRepliesToThem: AppBskyFeedDefs.PostView[];
+    theirMentionsOfMe: AppBskyFeedDefs.PostView[];
+    myMentionsOfThem: AppBskyFeedDefs.PostView[];
+  }>({ theirRepliesToMe: [], myRepliesToThem: [], theirMentionsOfMe: [], myMentionsOfThem: [] });
+  const [interactionsLoading, setInteractionsLoading] = useState(false);
+  const [interactionsError, setInteractionsError] = useState<string | null>(null);
+  const [interactionsLoaded, setInteractionsLoaded] = useState(false);
 
   useEffect(() => {
     async function fetchProfile() {
@@ -225,6 +236,78 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
       setPostsLoading(false);
     }
   };
+  
+  // Fetch interactions when switching to interactions tab
+  useEffect(() => {
+    async function fetchInteractions() {
+      if (activeTab !== 'interactions' || interactionsLoaded) return;
+      
+      const session = getSession();
+      if (!session?.handle || !bskyProfile?.handle) {
+        setInteractionsError('Unable to load interactions');
+        return;
+      }
+      
+      // Don't show interactions for your own profile
+      if (session.did === did) {
+        setInteractionsError('This is your own profile');
+        return;
+      }
+      
+      setInteractionsLoading(true);
+      setInteractionsError(null);
+      
+      const myHandle = session.handle;
+      const theirHandle = bskyProfile.handle;
+      
+      try {
+        // Fetch all interaction types in parallel
+        const [theirRepliesToMeResult, myRepliesToThemResult, theirMentionsResult, myMentionsResult] = await Promise.all([
+          // Their replies to me: posts from them that are replies, then filter to my posts
+          searchPosts(`from:${theirHandle}`, undefined, 'latest'),
+          // My replies to them: posts from me that are replies, then filter to their posts
+          searchPosts(`from:${myHandle}`, undefined, 'latest'),
+          // Their mentions of me
+          searchPosts(`from:${theirHandle} mentions:${myHandle}`, undefined, 'latest'),
+          // My mentions of them
+          searchPosts(`from:${myHandle} mentions:${theirHandle}`, undefined, 'latest'),
+        ]);
+        
+        // Filter replies - their replies to my posts
+        const theirRepliesToMe = theirRepliesToMeResult.posts.filter(post => {
+          const record = post.record as AppBskyFeedPost.Record;
+          if (!record.reply) return false;
+          // Check if reply parent is from me
+          const parentUri = record.reply.parent?.uri || '';
+          return parentUri.includes(session.did);
+        });
+        
+        // Filter replies - my replies to their posts  
+        const myRepliesToThem = myRepliesToThemResult.posts.filter(post => {
+          const record = post.record as AppBskyFeedPost.Record;
+          if (!record.reply) return false;
+          // Check if reply parent is from them
+          const parentUri = record.reply.parent?.uri || '';
+          return parentUri.includes(did);
+        });
+        
+        setInteractions({
+          theirRepliesToMe,
+          myRepliesToThem,
+          theirMentionsOfMe: theirMentionsResult.posts,
+          myMentionsOfThem: myMentionsResult.posts,
+        });
+        setInteractionsLoaded(true);
+      } catch (err) {
+        console.error('Failed to fetch interactions:', err);
+        setInteractionsError('Failed to load interactions');
+      } finally {
+        setInteractionsLoading(false);
+      }
+    }
+    
+    fetchInteractions();
+  }, [activeTab, interactionsLoaded, did, bskyProfile?.handle]);
 
   // Follow/unfollow handlers
   const handleFollow = async () => {
@@ -351,8 +434,136 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
         </svg>
         Papers
       </button>
+      {/* Only show Interactions tab for other users, not own profile */}
+      {!isOwnProfile && (
+        <button
+          onClick={() => setActiveTab('interactions')}
+          className={`flex-1 py-3 text-sm font-medium transition-colors flex items-center justify-center gap-1 ${
+            activeTab === 'interactions'
+              ? 'text-green-500 border-b-2 border-green-500'
+              : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
+          }`}
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+          </svg>
+          Us
+        </button>
+      )}
     </div>
   );
+  
+  // Render interactions tab content
+  const renderInteractionsTab = () => {
+    const totalInteractions = 
+      interactions.theirRepliesToMe.length + 
+      interactions.myRepliesToThem.length + 
+      interactions.theirMentionsOfMe.length + 
+      interactions.myMentionsOfThem.length;
+    
+    return (
+      <div className="divide-y divide-gray-200 dark:divide-gray-800">
+        {interactionsLoading ? (
+          <div className="flex flex-col items-center justify-center py-12 gap-3">
+            <div className="animate-spin w-8 h-8 border-4 border-green-500 border-t-transparent rounded-full" />
+            <p className="text-sm text-gray-500">Loading interactions...</p>
+          </div>
+        ) : interactionsError ? (
+          <div className="text-center py-12 px-4">
+            <div className="w-16 h-16 mx-auto mb-4 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center">
+              <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+              </svg>
+            </div>
+            <p className="text-gray-500">{interactionsError}</p>
+          </div>
+        ) : totalInteractions === 0 ? (
+          <div className="text-center py-12 px-4">
+            <div className="w-16 h-16 mx-auto mb-4 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center">
+              <svg className="w-8 h-8 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+              </svg>
+            </div>
+            <p className="text-gray-500 mb-2">No interactions yet</p>
+            <p className="text-sm text-gray-400">Replies and mentions between you will appear here</p>
+          </div>
+        ) : (
+          <>
+            {/* Summary */}
+            <div className="px-4 py-3 bg-green-50 dark:bg-green-900/20">
+              <p className="text-xs text-green-600 dark:text-green-400">
+                {totalInteractions} interaction{totalInteractions !== 1 ? 's' : ''} found
+              </p>
+            </div>
+            
+            {/* Their replies to me */}
+            {interactions.theirRepliesToMe.length > 0 && (
+              <div>
+                <div className="px-4 py-2 bg-gray-50 dark:bg-gray-800/50">
+                  <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                    Their replies to you ({interactions.theirRepliesToMe.length})
+                  </h4>
+                </div>
+                {interactions.theirRepliesToMe.map((post) => (
+                  <div key={post.uri} className="border-b border-gray-100 dark:border-gray-800 last:border-b-0">
+                    <Post post={post} onOpenThread={setThreadUri} onOpenProfile={onOpenProfile} />
+                  </div>
+                ))}
+              </div>
+            )}
+            
+            {/* My replies to them */}
+            {interactions.myRepliesToThem.length > 0 && (
+              <div>
+                <div className="px-4 py-2 bg-gray-50 dark:bg-gray-800/50">
+                  <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                    Your replies to them ({interactions.myRepliesToThem.length})
+                  </h4>
+                </div>
+                {interactions.myRepliesToThem.map((post) => (
+                  <div key={post.uri} className="border-b border-gray-100 dark:border-gray-800 last:border-b-0">
+                    <Post post={post} onOpenThread={setThreadUri} onOpenProfile={onOpenProfile} />
+                  </div>
+                ))}
+              </div>
+            )}
+            
+            {/* Their mentions of me */}
+            {interactions.theirMentionsOfMe.length > 0 && (
+              <div>
+                <div className="px-4 py-2 bg-gray-50 dark:bg-gray-800/50">
+                  <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                    They mentioned you ({interactions.theirMentionsOfMe.length})
+                  </h4>
+                </div>
+                {interactions.theirMentionsOfMe.map((post) => (
+                  <div key={post.uri} className="border-b border-gray-100 dark:border-gray-800 last:border-b-0">
+                    <Post post={post} onOpenThread={setThreadUri} onOpenProfile={onOpenProfile} />
+                  </div>
+                ))}
+              </div>
+            )}
+            
+            {/* My mentions of them */}
+            {interactions.myMentionsOfThem.length > 0 && (
+              <div>
+                <div className="px-4 py-2 bg-gray-50 dark:bg-gray-800/50">
+                  <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                    You mentioned them ({interactions.myMentionsOfThem.length})
+                  </h4>
+                </div>
+                {interactions.myMentionsOfThem.map((post) => (
+                  <div key={post.uri} className="border-b border-gray-100 dark:border-gray-800 last:border-b-0">
+                    <Post post={post} onOpenThread={setThreadUri} onOpenProfile={onOpenProfile} />
+                  </div>
+                ))}
+              </div>
+            )}
+          </>
+        )}
+      </div>
+    );
+  };
 
   // Inline mode - renders in main content area
   if (inline) {
@@ -504,6 +715,9 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
                   )}
                 </div>
               )}
+
+              {/* Interactions Tab */}
+              {activeTab === 'interactions' && renderInteractionsTab()}
             </>
           ) : error ? (
             <div className="text-center py-8 text-red-500 px-4">
@@ -862,6 +1076,9 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
               )}
             </div>
           )}
+          
+          {/* Interactions Tab */}
+          {activeTab === 'interactions' && !loading && !error && renderInteractionsTab()}
         </div>
       </div>
 
@@ -1023,6 +1240,9 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
                   )}
                 </div>
               )}
+
+              {/* Interactions Tab */}
+              {activeTab === 'interactions' && renderInteractionsTab()}
             </>
           ) : error ? (
             <div className="text-center py-8 text-red-500 px-4">
@@ -1336,6 +1556,9 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
               )}
             </div>
           )}
+          
+          {/* Interactions Tab */}
+          {activeTab === 'interactions' && !loading && !error && renderInteractionsTab()}
         </div>
       </div>
     </div>
