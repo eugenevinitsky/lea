@@ -156,6 +156,13 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
     fetchProfile();
   }, [did]);
   
+  // Switch to posts tab when viewing non-verified user
+  useEffect(() => {
+    if (error === 'not_verified' && activeTab === 'profile') {
+      setActiveTab('posts');
+    }
+  }, [error, activeTab]);
+
   // Fetch posts when switching to posts or papers tab
   useEffect(() => {
     async function fetchPosts() {
@@ -298,18 +305,20 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
   };
 
   // Shared content rendering
-  const renderTabs = () => (
+  const renderTabs = (includeProfile = true) => (
     <div className="flex border-b border-gray-200 dark:border-gray-800">
-      <button
-        onClick={() => setActiveTab('profile')}
-        className={`flex-1 py-3 text-sm font-medium transition-colors ${
-          activeTab === 'profile'
-            ? 'text-blue-500 border-b-2 border-blue-500'
-            : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
-        }`}
-      >
-        Profile
-      </button>
+      {includeProfile && (
+        <button
+          onClick={() => setActiveTab('profile')}
+          className={`flex-1 py-3 text-sm font-medium transition-colors ${
+            activeTab === 'profile'
+              ? 'text-blue-500 border-b-2 border-blue-500'
+              : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
+          }`}
+        >
+          Profile
+        </button>
+      )}
       <button
         onClick={() => setActiveTab('posts')}
         className={`flex-1 py-3 text-sm font-medium transition-colors ${
@@ -361,25 +370,131 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
               <div className="animate-spin w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full" />
             </div>
           ) : error === 'not_verified' ? (
-            <div className="text-center py-8 px-4">
-              <div className="flex items-center justify-center mb-4">
-                {avatar ? (
-                  <img src={avatar} alt="" className="w-16 h-16 rounded-full" />
-                ) : (
-                  <div className="w-16 h-16 rounded-full bg-gray-200 dark:bg-gray-700" />
-                )}
+            <>
+              {/* Non-verified profile header (inline mode) */}
+              <div className="mx-4 mt-4 mb-4 bg-white dark:bg-gray-900 rounded-2xl shadow-lg p-4">
+                <div className="flex items-start gap-4">
+                  {avatar ? (
+                    <img src={avatar} alt="" className="w-20 h-20 rounded-2xl flex-shrink-0 ring-4 ring-white dark:ring-gray-900 shadow-md" />
+                  ) : (
+                    <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-blue-400 to-purple-500 flex-shrink-0 ring-4 ring-white dark:ring-gray-900 shadow-md flex items-center justify-center text-white text-2xl font-bold">
+                      {(finalDisplayName)[0].toUpperCase()}
+                    </div>
+                  )}
+                  <div className="flex-1 min-w-0">
+                    <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100 truncate">
+                      {finalDisplayName}
+                    </h3>
+                    {finalHandle && (
+                      <p className="text-sm text-gray-500">@{finalHandle}</p>
+                    )}
+                    {/* Follower/Following counts */}
+                    {bskyProfile && (
+                      <div className="flex items-center gap-4 mt-2 text-sm">
+                        <span className="text-gray-600 dark:text-gray-400">
+                          <span className="font-semibold text-gray-900 dark:text-gray-100">{bskyProfile.followersCount?.toLocaleString() || 0}</span> followers
+                        </span>
+                        <span className="text-gray-600 dark:text-gray-400">
+                          <span className="font-semibold text-gray-900 dark:text-gray-100">{bskyProfile.followsCount?.toLocaleString() || 0}</span> following
+                        </span>
+                      </div>
+                    )}
+                    {bskyProfile?.description && (
+                      <p className="text-sm text-gray-600 dark:text-gray-400 mt-2 line-clamp-2">{bskyProfile.description}</p>
+                    )}
+                    <div className="mt-3">
+                      {renderFollowButton()}
+                    </div>
+                  </div>
+                </div>
               </div>
-              <p className="text-lg font-medium text-gray-900 dark:text-gray-100">{finalDisplayName}</p>
-              {finalHandle && (
-                <p className="text-sm text-gray-500">@{finalHandle}</p>
+
+              {/* Posts/Papers tabs for non-verified users */}
+              {renderTabs(false)}
+
+              {/* Posts Tab */}
+              {activeTab === 'posts' && (
+                <div>
+                  {postsLoading && posts.length === 0 ? (
+                    <div className="flex items-center justify-center py-12">
+                      <div className="animate-spin w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full" />
+                    </div>
+                  ) : postsError ? (
+                    <div className="text-center py-8 text-red-500">{postsError}</div>
+                  ) : posts.length === 0 ? (
+                    <div className="text-center py-8 text-gray-500">No posts yet</div>
+                  ) : (
+                    <>
+                      {posts.map((item) => (
+                        <div key={item.post.uri} className="border-b border-gray-200 dark:border-gray-800 last:border-b-0">
+                          <Post post={item.post} />
+                        </div>
+                      ))}
+                      {postsCursor && (
+                        <div className="p-4 text-center">
+                          <button
+                            onClick={loadMorePosts}
+                            disabled={postsLoading}
+                            className="px-4 py-2 text-sm text-blue-500 hover:text-blue-600 disabled:opacity-50"
+                          >
+                            {postsLoading ? 'Loading...' : 'Load more'}
+                          </button>
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
               )}
-              <div className="mt-4">
-                {renderFollowButton()}
-              </div>
-              <p className="mt-4 text-sm text-gray-500">
-                This user is not a verified researcher.
-              </p>
-            </div>
+
+              {/* Papers Tab */}
+              {activeTab === 'papers' && (
+                <div>
+                  {postsLoading && posts.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center py-12 gap-3">
+                      <div className="animate-spin w-8 h-8 border-4 border-purple-500 border-t-transparent rounded-full" />
+                      <p className="text-sm text-gray-500">Scanning posts for papers...</p>
+                    </div>
+                  ) : postsError ? (
+                    <div className="text-center py-8 text-red-500">{postsError}</div>
+                  ) : paperPosts.length === 0 ? (
+                    <div className="text-center py-12 px-4">
+                      <div className="w-16 h-16 mx-auto mb-4 bg-purple-100 dark:bg-purple-900/30 rounded-full flex items-center justify-center">
+                        <svg className="w-8 h-8 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                      </div>
+                      <p className="text-gray-500 mb-2">No paper posts found</p>
+                      <p className="text-sm text-gray-400 mb-1">Scanned {posts.length} post{posts.length !== 1 ? 's' : ''}</p>
+                      {postsCursor && (
+                        <button onClick={loadMorePosts} disabled={postsLoading} className="mt-4 px-4 py-2 text-sm bg-purple-500 text-white rounded-full hover:bg-purple-600 disabled:opacity-50">
+                          {postsLoading ? 'Scanning...' : 'Load more posts'}
+                        </button>
+                      )}
+                    </div>
+                  ) : (
+                    <>
+                      <div className="px-4 py-2 bg-purple-50 dark:bg-purple-900/20 border-b border-purple-100 dark:border-purple-800">
+                        <p className="text-xs text-purple-600 dark:text-purple-400">
+                          {paperPosts.length} paper{paperPosts.length !== 1 ? 's' : ''} found in {posts.length} posts
+                        </p>
+                      </div>
+                      {paperPosts.map((item) => (
+                        <div key={item.post.uri} className="border-b border-gray-200 dark:border-gray-800 last:border-b-0">
+                          <Post post={item.post} />
+                        </div>
+                      ))}
+                      {postsCursor && (
+                        <div className="p-4 text-center">
+                          <button onClick={loadMorePosts} disabled={postsLoading} className="px-4 py-2 text-sm text-purple-500 hover:text-purple-600 disabled:opacity-50">
+                            {postsLoading ? 'Scanning...' : 'Load more'}
+                          </button>
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
+              )}
+            </>
           ) : error ? (
             <div className="text-center py-8 text-red-500 px-4">
               Failed to load profile
@@ -746,25 +861,127 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
               <div className="animate-spin w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full" />
             </div>
           ) : error === 'not_verified' ? (
-            <div className="text-center py-8 px-4">
-              <div className="flex items-center justify-center mb-4">
+            <>
+              {/* Non-verified profile header */}
+              <div className="flex items-start gap-4 mb-4 p-4 pb-0">
                 {avatar ? (
-                  <img src={avatar} alt="" className="w-16 h-16 rounded-full" />
+                  <img src={avatar} alt="" className="w-20 h-20 rounded-full flex-shrink-0" />
                 ) : (
-                  <div className="w-16 h-16 rounded-full bg-gray-200 dark:bg-gray-700" />
+                  <div className="w-20 h-20 rounded-full bg-gray-200 dark:bg-gray-700 flex-shrink-0" />
                 )}
+                <div className="flex-1 min-w-0">
+                  <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100 truncate">
+                    {finalDisplayName}
+                  </h3>
+                  {finalHandle && (
+                    <p className="text-sm text-gray-500">@{finalHandle}</p>
+                  )}
+                  {/* Follower/Following counts */}
+                  {bskyProfile && (
+                    <div className="flex items-center gap-4 mt-2 text-sm">
+                      <span className="text-gray-600 dark:text-gray-400">
+                        <span className="font-semibold text-gray-900 dark:text-gray-100">{bskyProfile.followersCount?.toLocaleString() || 0}</span> followers
+                      </span>
+                      <span className="text-gray-600 dark:text-gray-400">
+                        <span className="font-semibold text-gray-900 dark:text-gray-100">{bskyProfile.followsCount?.toLocaleString() || 0}</span> following
+                      </span>
+                    </div>
+                  )}
+                  {bskyProfile?.description && (
+                    <p className="text-sm text-gray-600 dark:text-gray-400 mt-2 line-clamp-2">{bskyProfile.description}</p>
+                  )}
+                  <div className="mt-3">
+                    {renderFollowButton()}
+                  </div>
+                </div>
               </div>
-              <p className="text-lg font-medium text-gray-900 dark:text-gray-100">{finalDisplayName}</p>
-              {finalHandle && (
-                <p className="text-sm text-gray-500">@{finalHandle}</p>
+
+              {/* Posts/Papers tabs for non-verified users */}
+              {renderTabs(false)}
+
+              {/* Posts Tab */}
+              {activeTab === 'posts' && (
+                <div className="-mx-4">
+                  {postsLoading && posts.length === 0 ? (
+                    <div className="flex items-center justify-center py-12">
+                      <div className="animate-spin w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full" />
+                    </div>
+                  ) : postsError ? (
+                    <div className="text-center py-8 text-red-500">{postsError}</div>
+                  ) : posts.length === 0 ? (
+                    <div className="text-center py-8 text-gray-500">No posts yet</div>
+                  ) : (
+                    <>
+                      {posts.map((item) => (
+                        <div key={item.post.uri} className="border-b border-gray-200 dark:border-gray-800 last:border-b-0">
+                          <Post post={item.post} />
+                        </div>
+                      ))}
+                      {postsCursor && (
+                        <div className="p-4 text-center">
+                          <button
+                            onClick={loadMorePosts}
+                            disabled={postsLoading}
+                            className="px-4 py-2 text-sm text-blue-500 hover:text-blue-600 disabled:opacity-50"
+                          >
+                            {postsLoading ? 'Loading...' : 'Load more'}
+                          </button>
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
               )}
-              <div className="mt-4">
-                {renderFollowButton()}
-              </div>
-              <p className="mt-4 text-sm text-gray-500">
-                This user is not a verified researcher.
-              </p>
-            </div>
+
+              {/* Papers Tab */}
+              {activeTab === 'papers' && (
+                <div>
+                  {postsLoading && posts.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center py-12 gap-3">
+                      <div className="animate-spin w-8 h-8 border-4 border-purple-500 border-t-transparent rounded-full" />
+                      <p className="text-sm text-gray-500">Scanning posts for papers...</p>
+                    </div>
+                  ) : postsError ? (
+                    <div className="text-center py-8 text-red-500">{postsError}</div>
+                  ) : paperPosts.length === 0 ? (
+                    <div className="text-center py-12 px-4">
+                      <div className="w-16 h-16 mx-auto mb-4 bg-purple-100 dark:bg-purple-900/30 rounded-full flex items-center justify-center">
+                        <svg className="w-8 h-8 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                      </div>
+                      <p className="text-gray-500 mb-2">No paper posts found</p>
+                      <p className="text-sm text-gray-400 mb-1">Scanned {posts.length} post{posts.length !== 1 ? 's' : ''}</p>
+                      {postsCursor && (
+                        <button onClick={loadMorePosts} disabled={postsLoading} className="mt-4 px-4 py-2 text-sm bg-purple-500 text-white rounded-full hover:bg-purple-600 disabled:opacity-50">
+                          {postsLoading ? 'Scanning...' : 'Load more posts'}
+                        </button>
+                      )}
+                    </div>
+                  ) : (
+                    <>
+                      <div className="px-4 py-2 bg-purple-50 dark:bg-purple-900/20 border-b border-purple-100 dark:border-purple-800">
+                        <p className="text-xs text-purple-600 dark:text-purple-400">
+                          {paperPosts.length} paper{paperPosts.length !== 1 ? 's' : ''} found in {posts.length} posts
+                        </p>
+                      </div>
+                      {paperPosts.map((item) => (
+                        <div key={item.post.uri} className="border-b border-gray-200 dark:border-gray-800 last:border-b-0">
+                          <Post post={item.post} />
+                        </div>
+                      ))}
+                      {postsCursor && (
+                        <div className="p-4 text-center">
+                          <button onClick={loadMorePosts} disabled={postsLoading} className="px-4 py-2 text-sm text-purple-500 hover:text-purple-600 disabled:opacity-50">
+                            {postsLoading ? 'Scanning...' : 'Load more'}
+                          </button>
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
+              )}
+            </>
           ) : error ? (
             <div className="text-center py-8 text-red-500 px-4">
               Failed to load profile

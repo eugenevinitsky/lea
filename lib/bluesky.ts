@@ -82,6 +82,12 @@ export async function getListFeed(listUri: string, cursor?: string) {
   return agent.app.bsky.feed.getListFeed({ list: listUri, limit: 30, cursor });
 }
 
+// Get quote posts for a given post
+export async function getQuotes(uri: string, cursor?: string) {
+  if (!agent) throw new Error('Not logged in');
+  return agent.app.bsky.feed.getQuotes({ uri, limit: 25, cursor });
+}
+
 // Feed generator info type
 export interface FeedGeneratorInfo {
   uri: string;

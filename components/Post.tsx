@@ -8,6 +8,7 @@ import { useSettings } from '@/lib/settings';
 import { useBookmarks, BookmarkedPost } from '@/lib/bookmarks';
 import ProfileView from './ProfileView';
 import ProfileHoverCard from './ProfileHoverCard';
+import QuotesView from './QuotesView';
 
 interface PostProps {
   post: AppBskyFeedDefs.PostView;
@@ -758,6 +759,9 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
   // Profile view state
   const [showProfile, setShowProfile] = useState(false);
 
+  // Quotes view state
+  const [showQuotes, setShowQuotes] = useState(false);
+
   const handleFeedInteraction = async (event: InteractionEvent) => {
     if (sendingInteraction) return;
     setSendingInteraction(true);
@@ -1077,6 +1081,20 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
               </svg>
             </button>
 
+            {/* View quotes button */}
+            {(post.quoteCount ?? 0) > 0 && (
+              <button
+                onClick={() => setShowQuotes(true)}
+                className="flex items-center gap-1 hover:text-purple-500 transition-colors"
+                title="View quotes"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
+                </svg>
+                {post.quoteCount}
+              </button>
+            )}
+
             {/* Like button */}
             <button
               onClick={handleLike}
@@ -1254,6 +1272,15 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
           displayName={author.displayName}
           handle={author.handle}
           onClose={() => setShowProfile(false)}
+        />
+      )}
+
+      {/* Quotes modal */}
+      {showQuotes && (
+        <QuotesView
+          uri={post.uri}
+          onClose={() => setShowQuotes(false)}
+          onOpenThread={onOpenThread}
         />
       )}
     </article>
