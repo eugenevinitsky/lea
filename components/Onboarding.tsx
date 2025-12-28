@@ -504,7 +504,13 @@ export default function Onboarding({ onComplete, startAtStep = 1 }: OnboardingPr
                         : 'border-gray-200 dark:border-gray-700 hover:border-gray-300'
                     }`}
                   >
-                    <div className="font-medium text-gray-900 dark:text-gray-100">Follow all ({allResearchers.length})</div>
+                    <div className="font-medium text-gray-900 dark:text-gray-100">
+                      Follow all {loadingAllResearchers ? (
+                        <span className="inline-block w-4 h-4 border-2 border-gray-400 border-t-transparent rounded-full animate-spin align-middle ml-1"></span>
+                      ) : (
+                        `(${allResearchers.length})`
+                      )}
+                    </div>
                     <p className="text-sm text-gray-500 mt-0.5">Follow every verified researcher at once</p>
                   </button>
 
