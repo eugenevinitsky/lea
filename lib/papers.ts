@@ -203,21 +203,76 @@ export function getUrlFromPaperId(paperId: string): string {
 
 /**
  * Get the search query to find posts about a paper
+ * Returns a simplified query that works well with Bluesky's search
  */
 export function getSearchQueryForPaper(paperId: string): string {
   if (paperId.startsWith('arxiv:')) {
-    // Search for arXiv URL pattern
-    return `arxiv.org/abs/${paperId.slice(6)}`;
+    // Search for arXiv ID - this works well
+    const arxivId = paperId.slice(6);
+    return `arxiv ${arxivId}`;
   }
   if (paperId.startsWith('doi:')) {
-    // Search for DOI
+    // Search for DOI - use the numeric part
     const doi = decodeURIComponent(paperId.slice(4));
     return doi;
   }
   if (paperId.startsWith('url:')) {
-    // Search for the domain + path
+    // For URL-based papers, extract the most identifying part
     const urlPath = decodeURIComponent(paperId.slice(4));
-    // Use just the path portion for better search results
+    
+    // Try to extract article/paper ID from common URL patterns
+    // Nature: nature.com/articles/s41586-024-12345
+    const natureMatch = urlPath.match(/nature\.com\/articles\/([a-z0-9-]+)/i);
+    if (natureMatch) return `nature ${natureMatch[1]}`;
+    
+    // Science: science.org/doi/10.1126/science.xxx
+    const scienceDoiMatch = urlPath.match(/science\.org\/doi\/(10\.[^/]+\/[^/?]+)/i);
+    if (scienceDoiMatch) return scienceDoiMatch[1];
+    
+    // ACL Anthology: aclanthology.org/2024.acl-long.123
+    const aclMatch = urlPath.match(/aclanthology\.org\/([A-Z0-9.-]+)/i);
+    if (aclMatch) return `aclanthology ${aclMatch[1]}`;
+    
+    // OpenReview: openreview.net/forum?id=xxx
+    const openreviewMatch = urlPath.match(/openreview\.net.*[?&]id=([^&]+)/i);
+    if (openreviewMatch) return `openreview ${openreviewMatch[1]}`;
+    
+    // Semantic Scholar: semanticscholar.org/paper/xxx
+    const s2Match = urlPath.match(/semanticscholar\.org\/paper\/[^/]*\/([a-f0-9]+)/i);
+    if (s2Match) return s2Match[1];
+    
+    // PubMed: pubmed.ncbi.nlm.nih.gov/12345678
+    const pubmedMatch = urlPath.match(/pubmed\.ncbi\.nlm\.nih\.gov\/(\d+)/i);
+    if (pubmedMatch) return `pubmed ${pubmedMatch[1]}`;
+    
+    // bioRxiv/medRxiv: biorxiv.org/content/10.1101/2024.01.01.123456
+    const biorxivMatch = urlPath.match(/(bio|med)rxiv\.org\/content\/(10\.\d+\/[^/?]+)/i);
+    if (biorxivMatch) return biorxivMatch[2];
+    
+    // IEEE: ieeexplore.ieee.org/document/12345678
+    const ieeeMatch = urlPath.match(/ieeexplore\.ieee\.org\/document\/(\d+)/i);
+    if (ieeeMatch) return `ieee ${ieeeMatch[1]}`;
+    
+    // ACM: dl.acm.org/doi/10.1145/xxx
+    const acmMatch = urlPath.match(/dl\.acm\.org\/doi\/(10\.[^/?]+)/i);
+    if (acmMatch) return acmMatch[1];
+    
+    // Springer: link.springer.com/article/10.1007/xxx
+    const springerMatch = urlPath.match(/link\.springer\.com\/article\/(10\.[^/?]+)/i);
+    if (springerMatch) return springerMatch[1];
+    
+    // For other URLs, try to use the domain + key path segment
+    // This is a fallback that might not work as well
+    const parts = urlPath.split('/');
+    const domain = parts[0];
+    // Get the last meaningful path segment (skip common words)
+    const meaningfulParts = parts.slice(1).filter(p => 
+      p && !['article', 'articles', 'paper', 'papers', 'doi', 'abs', 'pdf', 'full', 'content'].includes(p.toLowerCase())
+    );
+    if (meaningfulParts.length > 0) {
+      return `${domain.split('.')[0]} ${meaningfulParts[meaningfulParts.length - 1]}`;
+    }
+    
     return urlPath;
   }
   return paperId;

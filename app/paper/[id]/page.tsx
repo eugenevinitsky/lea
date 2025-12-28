@@ -4,7 +4,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { useState, useEffect, useCallback } from 'react';
 import { AppBskyFeedDefs, AppBskyEmbedExternal } from '@atproto/api';
 import { restoreSession, getSession, searchPosts, getBlueskyProfile } from '@/lib/bluesky';
-import { getUrlFromPaperId, getSearchQueryForPaper, getPaperTypeFromId } from '@/lib/papers';
+import { getUrlFromPaperId, getSearchQueryForPaper, getPaperTypeFromId, extractPaperUrl, PAPER_DOMAINS } from '@/lib/papers';
 import { SettingsProvider } from '@/lib/settings';
 import { BookmarksProvider } from '@/lib/bookmarks';
 import { FeedsProvider } from '@/lib/feeds';
@@ -53,15 +53,34 @@ function PaperPageContent() {
       // Get the search query for this paper type
       const searchQuery = getSearchQueryForPaper(paperId);
       
-      const result = await searchPosts(searchQuery, loadMore ? cursor : undefined, 'latest');
+      let result = await searchPosts(searchQuery, loadMore ? cursor : undefined, 'latest');
+      
+      // If no results with the simplified query, try the full URL
+      if (!loadMore && result.posts.length === 0) {
+        const fullUrl = getUrlFromPaperId(paperId);
+        // Try searching for just the domain + path without protocol
+        const urlWithoutProtocol = fullUrl.replace(/^https?:\/\//, '');
+        result = await searchPosts(urlWithoutProtocol, undefined, 'latest');
+      }
+      
+      // Filter results to only include posts that actually contain paper links
+      // This helps when search returns unrelated results
+      const filteredPosts = result.posts.filter(post => {
+        const record = post.record as { text?: string };
+        const embedUri = post.embed && 'external' in post.embed 
+          ? (post.embed as AppBskyEmbedExternal.View).external?.uri 
+          : undefined;
+        const paperUrl = extractPaperUrl(record.text || '', embedUri);
+        return paperUrl !== null;
+      });
       
       if (loadMore) {
-        setPosts(prev => [...prev, ...result.posts]);
+        setPosts(prev => [...prev, ...filteredPosts]);
       } else {
-        setPosts(result.posts);
+        setPosts(filteredPosts);
         
         // Try to extract paper title from first post with embed
-        for (const post of result.posts) {
+        for (const post of filteredPosts) {
           if (post.embed && 'external' in post.embed) {
             const external = post.embed as AppBskyEmbedExternal.View;
             if (external.external?.title) {
@@ -253,8 +272,21 @@ function PaperPageContent() {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
                   </svg>
                 </div>
-                <p className="text-gray-500 mb-2">No discussions found yet</p>
-                <p className="text-sm text-gray-400">Be the first to post about this paper!</p>
+                <p className="text-gray-500 mb-2">No discussions found</p>
+                <p className="text-sm text-gray-400 mb-4">
+                  Bluesky&apos;s search may not have indexed all posts about this paper yet.
+                </p>
+                <a
+                  href={getUrlFromPaperId(paperId)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 px-4 py-2 text-sm bg-purple-500 text-white rounded-full hover:bg-purple-600 transition-colors"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                  </svg>
+                  View paper
+                </a>
               </div>
             ) : (
               <>
