@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db, researcherProfiles, verifiedResearchers } from '@/lib/db';
+import { db, researcherProfiles } from '@/lib/db';
+import { ozoneDb, verifiedMembers } from '@/lib/ozone-db';
 import { eq } from 'drizzle-orm';
 import type { ProfileLink, ProfilePaper } from '@/lib/db/schema';
 
@@ -12,18 +13,18 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    // Get verified researcher info
-    const [researcher] = await db
+    // Get verified researcher info from Ozone DB
+    const [member] = await ozoneDb
       .select()
-      .from(verifiedResearchers)
-      .where(eq(verifiedResearchers.did, did))
+      .from(verifiedMembers)
+      .where(eq(verifiedMembers.blueskyDid, did))
       .limit(1);
 
-    if (!researcher || !researcher.isActive) {
+    if (!member) {
       return NextResponse.json({ error: 'Researcher not found' }, { status: 404 });
     }
 
-    // Get profile data (may not exist yet)
+    // Get profile data from app DB (may not exist yet)
     const [profile] = await db
       .select()
       .from(researcherProfiles)
@@ -44,14 +45,14 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       researcher: {
-        did: researcher.did,
-        handle: researcher.handle,
-        name: researcher.name,
-        orcid: researcher.orcid,
-        openAlexId: researcher.openAlexId,
-        institution: researcher.institution,
-        researchTopics: researcher.researchTopics ? JSON.parse(researcher.researchTopics) : [],
-        verifiedAt: researcher.verifiedAt,
+        did: member.blueskyDid,
+        handle: member.blueskyHandle,
+        name: member.displayName,
+        orcid: member.orcidId || '',
+        institution: null, // Not in Ozone DB - could use profile.affiliation
+        researchTopics: [], // Would need to fetch from OpenAlex using member.openalexId
+        verifiedAt: member.verifiedAt,
+        openalexId: member.openalexId,
       },
       profile: profileData,
     });
@@ -71,14 +72,14 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: 'DID required' }, { status: 400 });
     }
 
-    // Verify this is a verified researcher
-    const [researcher] = await db
+    // Verify this is a verified researcher (check Ozone DB)
+    const [member] = await ozoneDb
       .select()
-      .from(verifiedResearchers)
-      .where(eq(verifiedResearchers.did, did))
+      .from(verifiedMembers)
+      .where(eq(verifiedMembers.blueskyDid, did))
       .limit(1);
 
-    if (!researcher || !researcher.isActive) {
+    if (!member) {
       return NextResponse.json({ error: 'Only verified researchers can update profiles' }, { status: 403 });
     }
 

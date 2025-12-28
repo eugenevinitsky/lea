@@ -1,14 +1,26 @@
 import { NextResponse } from 'next/server';
-import { db, verifiedResearchers } from '@/lib/db';
-import { eq } from 'drizzle-orm';
+import { ozoneDb, verifiedMembers } from '@/lib/ozone-db';
+import { desc } from 'drizzle-orm';
 
 export async function GET() {
   try {
-    const researchers = await db
+    const members = await ozoneDb
       .select()
-      .from(verifiedResearchers)
-      .where(eq(verifiedResearchers.isActive, true))
-      .orderBy(verifiedResearchers.verifiedAt);
+      .from(verifiedMembers)
+      .orderBy(desc(verifiedMembers.verifiedAt));
+
+    // Map to the format expected by the frontend
+    const researchers = members.map(m => ({
+      did: m.blueskyDid,
+      handle: m.blueskyHandle,
+      orcid: m.orcidId || '',
+      name: m.displayName,
+      institution: null, // Not in Ozone DB
+      researchTopics: null, // Will need to fetch from OpenAlex using openalexId
+      verifiedAt: m.verifiedAt,
+      isActive: true,
+      openalexId: m.openalexId,
+    }));
 
     return NextResponse.json({ researchers });
   } catch (error) {

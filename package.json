@@ -11,12 +11,14 @@
   "dependencies": {
     "@atproto/api": "^0.18.8",
     "@atproto/oauth-client-browser": "^0.3.37",
+    "@types/pg": "^8.16.0",
     "@vercel/postgres": "^0.10.0",
     "dotenv": "^17.2.3",
     "drizzle-orm": "^0.45.1",
     "hls.js": "^1.6.15",
     "nanoid": "^5.1.6",
     "next": "16.1.1",
+    "pg": "^8.16.3",
     "react": "19.2.3",
     "react-dom": "19.2.3"
   },
