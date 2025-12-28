@@ -413,6 +413,94 @@ export function getSession() {
   return agent?.session;
 }
 
+// Update threadgate for an existing post
+export async function updateThreadgate(
+  postUri: string,
+  threadgateType: ThreadgateType
+): Promise<void> {
+  if (!agent) throw new Error('Not logged in');
+  
+  const rkey = postUri.split('/').pop()!;
+  
+  // First, try to delete existing threadgate (if any)
+  try {
+    await agent.api.app.bsky.feed.threadgate.delete({
+      repo: agent.session!.did,
+      rkey,
+    });
+  } catch {
+    // Threadgate may not exist, that's fine
+  }
+  
+  // If setting to 'open', we're done (no threadgate means open)
+  if (threadgateType === 'open') {
+    return;
+  }
+  
+  // Build the allow rules
+  const allow: Array<{ $type: string; list?: string }> = [];
+  
+  if (threadgateType === 'following') {
+    allow.push({ $type: 'app.bsky.feed.threadgate#followingRule' });
+  } else if (threadgateType === 'verified') {
+    // Use the personal list (your connections + verified researchers)
+    const listUri = await getPersonalListUri();
+    if (listUri) {
+      allow.push({
+        $type: 'app.bsky.feed.threadgate#listRule',
+        list: listUri,
+      });
+    } else {
+      console.warn('Personal list not available, falling back to following');
+      allow.push({ $type: 'app.bsky.feed.threadgate#followingRule' });
+    }
+  } else if (threadgateType === 'researchers') {
+    // Use the verified-only list (only verified researchers)
+    const listUri = await getVerifiedOnlyListUri();
+    if (listUri) {
+      allow.push({
+        $type: 'app.bsky.feed.threadgate#listRule',
+        list: listUri,
+      });
+    } else {
+      console.warn('Verified-only list not available, falling back to following');
+      allow.push({ $type: 'app.bsky.feed.threadgate#followingRule' });
+    }
+  }
+  
+  // Create the new threadgate
+  if (allow.length > 0) {
+    await agent.api.app.bsky.feed.threadgate.create(
+      { repo: agent.session!.did, rkey },
+      {
+        post: postUri,
+        createdAt: new Date().toISOString(),
+        allow,
+      }
+    );
+  }
+}
+
+// Get current threadgate type for a post
+export function getThreadgateType(threadgate?: { allow?: Array<{ $type: string; list?: string }> }): ThreadgateType {
+  if (!threadgate?.allow || threadgate.allow.length === 0) {
+    return 'open';
+  }
+  
+  const rule = threadgate.allow[0];
+  if (rule.$type === 'app.bsky.feed.threadgate#followingRule') {
+    return 'following';
+  }
+  if (rule.$type === 'app.bsky.feed.threadgate#listRule') {
+    // Check if it's the verified list or personal list
+    // For now, we'll just return 'researchers' for any list-based rule
+    // since we can't easily distinguish between verified and personal list
+    return 'researchers';
+  }
+  
+  return 'open';
+}
+
 // Like a post
 export async function likePost(uri: string, cid: string): Promise<{ uri: string }> {
   if (!agent) throw new Error('Not logged in');

@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { AppBskyFeedDefs, AppBskyFeedPost, AppBskyEmbedExternal, AppBskyEmbedImages, AppBskyEmbedRecord, AppBskyEmbedRecordWithMedia, AppBskyEmbedVideo } from '@atproto/api';
 import Hls from 'hls.js';
-import { isVerifiedResearcher, Label, createPost, ReplyRef, QuoteRef, likePost, unlikePost, repost, deleteRepost, sendFeedInteraction, InteractionEvent } from '@/lib/bluesky';
+import { isVerifiedResearcher, Label, createPost, ReplyRef, QuoteRef, likePost, unlikePost, repost, deleteRepost, sendFeedInteraction, InteractionEvent, getSession, updateThreadgate, getThreadgateType, ThreadgateType } from '@/lib/bluesky';
 import { useSettings } from '@/lib/settings';
 import { useBookmarks, BookmarkedPost } from '@/lib/bookmarks';
 import ProfileView from './ProfileView';
@@ -766,6 +766,31 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
   // Quotes view state
   const [showQuotes, setShowQuotes] = useState(false);
 
+  // Threadgate editing state (for own posts)
+  const [showThreadgateEditor, setShowThreadgateEditor] = useState(false);
+  const [currentThreadgate, setCurrentThreadgate] = useState<ThreadgateType>(() => 
+    getThreadgateType(post.threadgate?.record as { allow?: Array<{ $type: string; list?: string }> } | undefined)
+  );
+  const [updatingThreadgate, setUpdatingThreadgate] = useState(false);
+  const [threadgateError, setThreadgateError] = useState<string | null>(null);
+
+  const handleThreadgateUpdate = async (newType: ThreadgateType) => {
+    if (updatingThreadgate || newType === currentThreadgate) return;
+    
+    setUpdatingThreadgate(true);
+    setThreadgateError(null);
+    try {
+      await updateThreadgate(post.uri, newType);
+      setCurrentThreadgate(newType);
+      setShowThreadgateEditor(false);
+    } catch (err) {
+      console.error('Failed to update threadgate:', err);
+      setThreadgateError(err instanceof Error ? err.message : 'Failed to update reply settings');
+    } finally {
+      setUpdatingThreadgate(false);
+    }
+  };
+
   const handleFeedInteraction = async (event: InteractionEvent) => {
     if (sendingInteraction) return;
     setSendingInteraction(true);
@@ -784,6 +809,10 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
   const record = post.record as AppBskyFeedPost.Record;
   const author = post.author;
   const isVerified = isVerifiedResearcher(author.labels as Label[] | undefined);
+  
+  // Check if this is the current user's post
+  const session = getSession();
+  const isOwnPost = session?.did === author.did;
   const { hasPaper, domain } = containsPaperLink(record.text, post.embed);
   const bookmarked = isBookmarked(post.uri);
   
@@ -1162,6 +1191,30 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
               </svg>
             </button>
 
+            {/* Reply settings button - only for own posts */}
+            {isOwnPost && (
+              <button
+                onClick={() => setShowThreadgateEditor(!showThreadgateEditor)}
+                className={`flex items-center gap-1 transition-colors ${
+                  currentThreadgate !== 'open'
+                    ? 'text-amber-500 hover:text-amber-600'
+                    : 'hover:text-amber-500'
+                }`}
+                title={`Reply settings: ${currentThreadgate === 'open' ? 'Anyone can reply' : 
+                  currentThreadgate === 'following' ? 'Only people you follow' :
+                  currentThreadgate === 'verified' ? 'Your community' : 'Verified researchers only'}`}
+              >
+                <svg
+                  className="w-4 h-4"
+                  fill={currentThreadgate !== 'open' ? 'currentColor' : 'none'}
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                </svg>
+              </button>
+            )}
+
             {/* Feed interaction buttons - only show for feeds that support interactions */}
             {supportsInteractions && (
               <>
@@ -1285,6 +1338,58 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
                   </button>
                 </div>
               </div>
+            </div>
+          )}
+
+          {/* Threadgate editor - only for own posts */}
+          {showThreadgateEditor && isOwnPost && (
+            <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-800">
+              <div className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Who can reply to this post?
+              </div>
+              <div className="space-y-2">
+                {[
+                  { value: 'open' as ThreadgateType, label: 'Anyone', desc: 'Anyone can reply' },
+                  { value: 'following' as ThreadgateType, label: 'People you follow', desc: 'Only people you follow can reply' },
+                  { value: 'verified' as ThreadgateType, label: 'My community', desc: 'Verified researchers + your connections' },
+                  { value: 'researchers' as ThreadgateType, label: 'Verified researchers only', desc: 'Only verified researchers can reply' },
+                ].map((option) => (
+                  <button
+                    key={option.value}
+                    onClick={() => handleThreadgateUpdate(option.value)}
+                    disabled={updatingThreadgate}
+                    className={`w-full text-left p-2 rounded-lg border transition-colors ${
+                      currentThreadgate === option.value
+                        ? 'border-amber-500 bg-amber-50 dark:bg-amber-900/20'
+                        : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
+                    } ${updatingThreadgate ? 'opacity-50 cursor-wait' : ''}`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <div className={`font-medium text-sm ${
+                          currentThreadgate === option.value
+                            ? 'text-amber-700 dark:text-amber-400'
+                            : 'text-gray-700 dark:text-gray-300'
+                        }`}>
+                          {option.label}
+                        </div>
+                        <div className="text-xs text-gray-500">{option.desc}</div>
+                      </div>
+                      {currentThreadgate === option.value && (
+                        <svg className="w-5 h-5 text-amber-500" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                        </svg>
+                      )}
+                    </div>
+                  </button>
+                ))}
+              </div>
+              {threadgateError && (
+                <p className="mt-2 text-xs text-red-500">{threadgateError}</p>
+              )}
+              {updatingThreadgate && (
+                <p className="mt-2 text-xs text-gray-500">Updating reply settings...</p>
+              )}
             </div>
           )}
         </div>
