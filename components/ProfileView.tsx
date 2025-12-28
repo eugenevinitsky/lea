@@ -5,8 +5,9 @@ import Link from 'next/link';
 import { AppBskyFeedDefs, AppBskyFeedPost, AppBskyEmbedExternal } from '@atproto/api';
 import type { ProfileLink, ProfilePaper } from '@/lib/db/schema';
 import { getAuthorFeed, getBlueskyProfile, getKnownFollowers, BlueskyProfile, KnownFollowersResult, followUser, unfollowUser, getSession } from '@/lib/bluesky';
-import { detectPaperLink } from '@/lib/papers';
+import { detectPaperLink, getPaperIdFromUrl } from '@/lib/papers';
 import Post from './Post';
+import ThreadView from './ThreadView';
 
 interface ResearcherInfo {
   did: string;
@@ -92,6 +93,7 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
   const [postsLoading, setPostsLoading] = useState(false);
   const [postsCursor, setPostsCursor] = useState<string | undefined>();
   const [postsError, setPostsError] = useState<string | null>(null);
+  const [threadUri, setThreadUri] = useState<string | null>(null);
 
   useEffect(() => {
     async function fetchProfile() {
@@ -434,7 +436,7 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
                     <>
                       {posts.map((item) => (
                         <div key={item.post.uri} className="border-b border-gray-200 dark:border-gray-800 last:border-b-0">
-                          <Post post={item.post} />
+                          <Post post={item.post} onOpenThread={setThreadUri} />
                         </div>
                       ))}
                       {postsCursor && (
@@ -487,7 +489,7 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
                       </div>
                       {paperPosts.map((item) => (
                         <div key={item.post.uri} className="border-b border-gray-200 dark:border-gray-800 last:border-b-0">
-                          <Post post={item.post} />
+                          <Post post={item.post} onOpenThread={setThreadUri} />
                         </div>
                       ))}
                       {postsCursor && (
@@ -792,7 +794,7 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
                         <svg className="w-4 h-4 text-blue-500" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M3 6a3 3 0 013-3h10a1 1 0 01.8 1.6L14.25 8l2.55 3.4A1 1 0 0116 13H6a1 1 0 00-1 1v3a1 1 0 11-2 0V6z" clipRule="evenodd" /></svg>
                         <span className="text-sm font-medium text-blue-600 dark:text-blue-400">Pinned Post</span>
                       </div>
-                      <Post post={pinnedPost} />
+                      <Post post={pinnedPost} onOpenThread={setThreadUri} />
                     </div>
                   )}
                   {posts.length === 0 && !pinnedPost ? (
@@ -800,7 +802,7 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
                   ) : (
                     <>
                       {posts.filter(item => item.post.uri !== pinnedPost?.uri).map((item) => (
-                        <div key={item.post.uri} className="border-b border-gray-200 dark:border-gray-800 last:border-b-0"><Post post={item.post} /></div>
+                        <div key={item.post.uri} className="border-b border-gray-200 dark:border-gray-800 last:border-b-0"><Post post={item.post} onOpenThread={setThreadUri} /></div>
                       ))}
                       {postsCursor && (
                         <div className="p-4 text-center">
@@ -848,7 +850,7 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
                     </p>
                   </div>
                   {paperPosts.map((item) => (
-                    <div key={item.post.uri} className="border-b border-gray-200 dark:border-gray-800 last:border-b-0"><Post post={item.post} /></div>
+                    <div key={item.post.uri} className="border-b border-gray-200 dark:border-gray-800 last:border-b-0"><Post post={item.post} onOpenThread={setThreadUri} /></div>
                   ))}
                   {postsCursor && (
                     <div className="p-4 text-center">
@@ -946,7 +948,7 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
                     <>
                       {posts.map((item) => (
                         <div key={item.post.uri} className="border-b border-gray-200 dark:border-gray-800 last:border-b-0">
-                          <Post post={item.post} />
+                          <Post post={item.post} onOpenThread={setThreadUri} />
                         </div>
                       ))}
                       {postsCursor && (
@@ -999,7 +1001,7 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
                       </div>
                       {paperPosts.map((item) => (
                         <div key={item.post.uri} className="border-b border-gray-200 dark:border-gray-800 last:border-b-0">
-                          <Post post={item.post} />
+                          <Post post={item.post} onOpenThread={setThreadUri} />
                         </div>
                       ))}
                       {postsCursor && (
@@ -1289,7 +1291,7 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
                         </svg>
                         <span className="text-sm font-medium text-blue-600 dark:text-blue-400">Pinned Post</span>
                       </div>
-                      <Post post={pinnedPost} />
+                      <Post post={pinnedPost} onOpenThread={setThreadUri} />
                     </div>
                   )}
                   
@@ -1304,7 +1306,7 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
                         .filter(item => item.post.uri !== pinnedPost?.uri) // Exclude pinned from list
                         .map((item) => (
                           <div key={item.post.uri} className="border-b border-gray-200 dark:border-gray-800 last:border-b-0">
-                            <Post post={item.post} />
+                            <Post post={item.post} onOpenThread={setThreadUri} />
                           </div>
                         ))}
                       
@@ -1352,18 +1354,19 @@ function PaperCard({ paper, color = 'gray' }: { paper: ProfilePaper; color?: 'gr
   };
   
   const c = colorClasses[color];
+  const paperId = paper.url ? getPaperIdFromUrl(paper.url) : null;
   
   return (
-    <a
-      href={paper.url}
-      target="_blank"
-      rel="noopener noreferrer"
-      className={`block p-3 rounded-lg transition-colors group ${c.bg}`}
-    >
+    <div className={`p-3 rounded-lg transition-colors group ${c.bg}`}>
       <div className="flex items-start justify-between gap-2">
-        <p className={`font-medium text-gray-900 dark:text-gray-100 text-sm ${c.hover}`}>
+        <a
+          href={paper.url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className={`font-medium text-gray-900 dark:text-gray-100 text-sm hover:underline ${c.hover}`}
+        >
           {paper.title}
-        </p>
+        </a>
         <svg className={`w-4 h-4 text-gray-400 flex-shrink-0 mt-0.5 ${c.icon}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
         </svg>
@@ -1375,7 +1378,18 @@ function PaperCard({ paper, color = 'gray' }: { paper: ProfilePaper; color?: 'gr
         {paper.venue && <span>{paper.venue}</span>}
         {paper.venue && paper.year && <span>·</span>}
         {paper.year && <span>{paper.year}</span>}
+        {paperId && (
+          <>
+            <span>·</span>
+            <Link
+              href={`/paper/${encodeURIComponent(paperId)}?url=${encodeURIComponent(paper.url)}`}
+              className="text-purple-500 hover:text-purple-600 hover:underline"
+            >
+              Discussion
+            </Link>
+          </>
+        )}
       </div>
-    </a>
+    </div>
   );
 }
