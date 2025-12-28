@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { AppBskyFeedDefs, AppBskyFeedPost, AppBskyEmbedExternal, AppBskyEmbedImages, AppBskyEmbedRecord, AppBskyEmbedRecordWithMedia, AppBskyEmbedVideo } from '@atproto/api';
 import Hls from 'hls.js';
-import { isVerifiedResearcher, Label, createPost, ReplyRef, QuoteRef, likePost, unlikePost, repost, deleteRepost, sendFeedInteraction, InteractionEvent, getSession, updateThreadgate, getThreadgateType, ThreadgateType } from '@/lib/bluesky';
+import { isVerifiedResearcher, Label, createPost, ReplyRef, QuoteRef, likePost, unlikePost, repost, deleteRepost, sendFeedInteraction, InteractionEvent, getSession, updateThreadgate, getThreadgateType, ThreadgateType, FEEDS } from '@/lib/bluesky';
 import { useSettings } from '@/lib/settings';
 import { useBookmarks, BookmarkedPost } from '@/lib/bookmarks';
 import ProfileView from './ProfileView';
@@ -800,14 +800,30 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
   // Check if this is the current user's post
   const session = getSession();
   const isOwnPost = session?.did === author.did;
-  const { hasPaper, domain } = containsPaperLink(record.text, post.embed);
+  
+  // Check if this post is from Paper Skygest feed - if so, it's definitely a paper post
+  const isFromPaperFeed = feedUri === FEEDS.skygest.uri;
+  
+  // Detect paper link from text/embed, or trust Paper Skygest feed
+  const detectedPaper = containsPaperLink(record.text, post.embed);
+  const hasPaper = detectedPaper.hasPaper || isFromPaperFeed;
+  const domain = detectedPaper.domain;
+  
   const bookmarked = isBookmarked(post.uri);
   
   // Extract paper ID for paper discussion link
+  // For embed, check external links
   const embedUri = post.embed && 'external' in post.embed 
     ? (post.embed as AppBskyEmbedExternal.View).external?.uri 
     : undefined;
-  const paperUrl = hasPaper ? extractPaperUrl(record.text, embedUri) : null;
+  // Also check recordWithMedia embeds (quote + external link)
+  const mediaEmbedUri = post.embed && 'media' in post.embed
+    ? ((post.embed as AppBskyEmbedRecordWithMedia.View).media as AppBskyEmbedExternal.View)?.external?.uri
+    : undefined;
+  const effectiveEmbedUri = embedUri || mediaEmbedUri;
+  
+  // Try to extract paper URL - if we're from paper feed, always try even if hasPaper was false from detection
+  const paperUrl = hasPaper ? extractPaperUrl(record.text, effectiveEmbedUri) : null;
   const paperId = paperUrl ? getPaperIdFromUrl(paperUrl) : null;
 
   const handleBookmark = () => {
