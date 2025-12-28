@@ -19,16 +19,21 @@ interface FeedProps {
   keyword?: string;
   // Callback to open a profile in the main view
   onOpenProfile?: (did: string) => void;
+  // Callback to open a thread (if provided, Feed won't render its own ThreadView)
+  onOpenThread?: (uri: string) => void;
 }
 
-export default function Feed({ feedId, feedUri, feedName, acceptsInteractions, refreshKey, feedType, keyword, onOpenProfile }: FeedProps) {
+export default function Feed({ feedId, feedUri, feedName, acceptsInteractions, refreshKey, feedType, keyword, onOpenProfile, onOpenThread }: FeedProps) {
   const { settings } = useSettings();
   const [posts, setPosts] = useState<AppBskyFeedDefs.FeedViewPost[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [cursor, setCursor] = useState<string | undefined>();
   const [loadedPages, setLoadedPages] = useState(0);
-  const [threadUri, setThreadUri] = useState<string | null>(null);
+  const [internalThreadUri, setInternalThreadUri] = useState<string | null>(null);
+
+  // Use external handler if provided, otherwise use internal state
+  const handleOpenThread = onOpenThread || setInternalThreadUri;
 
   // Support both old feedId-based and new feedUri-based props
   const feedConfig = feedId ? FEEDS[feedId] : null;
@@ -332,7 +337,7 @@ export default function Feed({ feedId, feedUri, feedName, acceptsInteractions, r
         <Post
           key={`${item.post.uri}-${index}`}
           post={item.post}
-          onOpenThread={setThreadUri}
+          onOpenThread={handleOpenThread}
           feedContext={item.feedContext}
           reqId={item.reqId}
           supportsInteractions={effectiveAcceptsInteractions}
@@ -342,9 +347,9 @@ export default function Feed({ feedId, feedUri, feedName, acceptsInteractions, r
         />
       ))}
 
-      {/* Thread View Modal */}
-      {threadUri && (
-        <ThreadView uri={threadUri} onClose={() => setThreadUri(null)} />
+      {/* Thread View Modal - only render if using internal state (no external handler) */}
+      {!onOpenThread && internalThreadUri && (
+        <ThreadView uri={internalThreadUri} onClose={() => setInternalThreadUri(null)} />
       )}
 
       {/* Load more - infinite scroll for all feeds */}
