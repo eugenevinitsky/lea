@@ -10,6 +10,8 @@ import ProfileView from './ProfileView';
 import ProfileEditor from './ProfileEditor';
 import ProfileHoverCard from './ProfileHoverCard';
 import QuotesView from './QuotesView';
+import Link from 'next/link';
+import { extractArxivIdFromPost } from '@/lib/papers';
 
 interface PostProps {
   post: AppBskyFeedDefs.PostView;
@@ -784,6 +786,12 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
   const isVerified = isVerifiedResearcher(author.labels as Label[] | undefined);
   const { hasPaper, domain } = containsPaperLink(record.text, post.embed);
   const bookmarked = isBookmarked(post.uri);
+  
+  // Extract arXiv ID for paper discussion link
+  const embedUri = post.embed && 'external' in post.embed 
+    ? (post.embed as AppBskyEmbedExternal.View).external?.uri 
+    : undefined;
+  const arxivId = hasPaper ? extractArxivIdFromPost(record.text, embedUri) : null;
 
   const handleBookmark = () => {
     if (bookmarked) {
@@ -1012,9 +1020,24 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
             <span className="text-gray-500 truncate">@{author.handle}</span>
             <span className="text-gray-500">·</span>
             <span className="text-gray-500">{formatDate(record.createdAt)}</span>
-            {/* Paper indicator */}
+            {/* Paper indicator and discussion link */}
             {hasPaper && settings.showPaperHighlights && (
-              <PaperIndicator domain={domain} />
+              <>
+                <PaperIndicator domain={domain} />
+                {arxivId && (
+                  <Link
+                    href={`/paper/${arxivId}`}
+                    onClick={(e) => e.stopPropagation()}
+                    className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400 rounded-full hover:bg-purple-100 dark:hover:bg-purple-900/40 transition-colors"
+                    title="View paper discussion"
+                  >
+                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8h2a2 2 0 012 2v6a2 2 0 01-2 2h-2v4l-4-4H9a1.994 1.994 0 01-1.414-.586m0 0L11 14h4a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2v4l.586-.586z" />
+                    </svg>
+                    Discussion
+                  </Link>
+                )}
+              </>
             )}
           </div>
 

@@ -73,3 +73,55 @@ export function getPaperLabel(domain: string): string {
   if (domain.includes('ssrn')) return 'SSRN';
   return 'Paper';
 }
+
+/**
+ * Extract arXiv ID from a URL or text
+ * Supports formats:
+ * - arxiv.org/abs/2312.12345
+ * - arxiv.org/pdf/2312.12345
+ * - arxiv.org/abs/2312.12345v1
+ * - Old format: arxiv.org/abs/hep-th/9901001
+ */
+export function extractArxivId(input: string): string | null {
+  // New format: YYMM.NNNNN (with optional version)
+  const newFormatMatch = input.match(/arxiv\.org\/(?:abs|pdf)\/([\d.]+(?:v\d+)?)/i);
+  if (newFormatMatch) {
+    // Remove version suffix for consistent ID
+    return newFormatMatch[1].replace(/v\d+$/, '');
+  }
+
+  // Old format: category/YYMMNNN
+  const oldFormatMatch = input.match(/arxiv\.org\/(?:abs|pdf)\/([a-z-]+\/\d+)/i);
+  if (oldFormatMatch) {
+    return oldFormatMatch[1];
+  }
+
+  // Also check for bare arXiv IDs in text (e.g., "arXiv:2312.12345")
+  const bareIdMatch = input.match(/arXiv:([\d.]+(?:v\d+)?)/i);
+  if (bareIdMatch) {
+    return bareIdMatch[1].replace(/v\d+$/, '');
+  }
+
+  return null;
+}
+
+/**
+ * Extract arXiv ID from post text and embed
+ */
+export function extractArxivIdFromPost(text: string, embedUri?: string): string | null {
+  // Check embed first (more reliable)
+  if (embedUri) {
+    const embedId = extractArxivId(embedUri);
+    if (embedId) return embedId;
+  }
+
+  // Check text
+  return extractArxivId(text);
+}
+
+/**
+ * Get arXiv URL from ID
+ */
+export function getArxivUrl(arxivId: string): string {
+  return `https://arxiv.org/abs/${arxivId}`;
+}
