@@ -92,6 +92,9 @@ export default function Onboarding({ onComplete, startAtStep = 1 }: OnboardingPr
   const [topicSearch, setTopicSearch] = useState('');
   const [showTopicSuggestions, setShowTopicSuggestions] = useState(false);
 
+  // Researcher search state
+  const [researcherSearch, setResearcherSearch] = useState('');
+
   // Compute all available topics (predefined + from researchers)
   const allAvailableTopics = useMemo(() => {
     const topicsSet = new Set(RESEARCH_TOPICS);
@@ -115,6 +118,16 @@ export default function Onboarding({ onComplete, startAtStep = 1 }: OnboardingPr
       )
       .slice(0, 10);
   }, [topicSearch, allAvailableTopics, selectedTopics]);
+
+  // Filter researchers based on search
+  const filteredResearchers = useMemo(() => {
+    if (!researcherSearch.trim()) return allResearchers;
+    const search = researcherSearch.toLowerCase();
+    return allResearchers.filter(r =>
+      (r.name && r.name.toLowerCase().includes(search)) ||
+      (r.handle && r.handle.toLowerCase().includes(search))
+    );
+  }, [researcherSearch, allResearchers]);
 
   const addTopic = (topic: string) => {
     setSelectedTopics(prev => new Set(prev).add(topic));
@@ -497,7 +510,7 @@ export default function Onboarding({ onComplete, startAtStep = 1 }: OnboardingPr
               <div className="mb-6">
                 <div className="space-y-2">
                   <button
-                    onClick={() => setFollowMode('all')}
+                    onClick={() => { setFollowMode('all'); setResearcherSearch(''); }}
                     className={`w-full p-3 rounded-xl border-2 text-left transition-all ${
                       followMode === 'all'
                         ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
@@ -515,7 +528,7 @@ export default function Onboarding({ onComplete, startAtStep = 1 }: OnboardingPr
                   </button>
 
                   <button
-                    onClick={() => setFollowMode('topics')}
+                    onClick={() => { setFollowMode('topics'); setResearcherSearch(''); }}
                     className={`w-full p-3 rounded-xl border-2 text-left transition-all ${
                       followMode === 'topics'
                         ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
@@ -532,7 +545,7 @@ export default function Onboarding({ onComplete, startAtStep = 1 }: OnboardingPr
                   </button>
 
                   <button
-                    onClick={() => setFollowMode('individual')}
+                    onClick={() => { setFollowMode('individual'); setResearcherSearch(''); }}
                     className={`w-full p-3 rounded-xl border-2 text-left transition-all ${
                       followMode === 'individual'
                         ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
@@ -630,28 +643,54 @@ export default function Onboarding({ onComplete, startAtStep = 1 }: OnboardingPr
                     </div>
                   ) : (
                     <>
+                      {/* Search input */}
+                      <div className="relative mb-3">
+                        <input
+                          type="text"
+                          value={researcherSearch}
+                          onChange={(e) => setResearcherSearch(e.target.value)}
+                          placeholder="Search researchers by name or handle..."
+                          className="w-full px-4 py-2.5 pl-10 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                        />
+                        <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                        </svg>
+                        {researcherSearch && (
+                          <button
+                            onClick={() => setResearcherSearch('')}
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                          </button>
+                        )}
+                      </div>
+
                       <div className="flex items-center justify-between mb-3">
                         <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                          {selectedForBulk.size} of {allResearchers.length} selected
+                          {researcherSearch ? `${filteredResearchers.length} results` : `${selectedForBulk.size} of ${allResearchers.length} selected`}
                         </h3>
-                        <div className="flex gap-2">
-                          <button
-                            onClick={selectAllForBulk}
-                            className="text-xs text-blue-500 hover:text-blue-600"
-                          >
-                            Select all
-                          </button>
-                          <span className="text-gray-300">|</span>
-                          <button
-                            onClick={deselectAllForBulk}
-                            className="text-xs text-gray-500 hover:text-gray-600"
-                          >
-                            Deselect all
-                          </button>
-                        </div>
+                        {!researcherSearch && (
+                          <div className="flex gap-2">
+                            <button
+                              onClick={selectAllForBulk}
+                              className="text-xs text-blue-500 hover:text-blue-600"
+                            >
+                              Select all
+                            </button>
+                            <span className="text-gray-300">|</span>
+                            <button
+                              onClick={deselectAllForBulk}
+                              className="text-xs text-gray-500 hover:text-gray-600"
+                            >
+                              Deselect all
+                            </button>
+                          </div>
+                        )}
                       </div>
                       <div className="space-y-2 max-h-[250px] overflow-y-auto mb-4">
-                        {allResearchers.map(researcher => (
+                        {filteredResearchers.map(researcher => (
                           <div
                             key={researcher.did}
                             onClick={() => !followedDids.has(researcher.did) && toggleBulkSelection(researcher.did)}
@@ -812,8 +851,32 @@ export default function Onboarding({ onComplete, startAtStep = 1 }: OnboardingPr
               {/* Individual selection mode */}
               {followMode === 'individual' && (
                 <div className="mb-6">
+                  {/* Search input */}
+                  <div className="relative mb-3">
+                    <input
+                      type="text"
+                      value={researcherSearch}
+                      onChange={(e) => setResearcherSearch(e.target.value)}
+                      placeholder="Search researchers by name or handle..."
+                      className="w-full px-4 py-2.5 pl-10 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                    />
+                    <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                    </svg>
+                    {researcherSearch && (
+                      <button
+                        onClick={() => setResearcherSearch('')}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    )}
+                  </div>
+
                   <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
-                    All verified researchers
+                    {researcherSearch ? `${filteredResearchers.length} results` : `All verified researchers (${allResearchers.length})`}
                   </h3>
                   {loadingAllResearchers ? (
                     <div className="flex justify-center py-8">
@@ -821,7 +884,7 @@ export default function Onboarding({ onComplete, startAtStep = 1 }: OnboardingPr
                     </div>
                   ) : (
                     <div className="space-y-2 max-h-[300px] overflow-y-auto">
-                      {allResearchers.map(researcher => (
+                      {filteredResearchers.map(researcher => (
                         <div
                           key={researcher.did}
                           className="flex items-center justify-between p-2 bg-gray-50 dark:bg-gray-800 rounded-lg"
