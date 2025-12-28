@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useEffect, Suspense } from 'react';
+import { useState, useCallback, useEffect, Suspense, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { getSession, logout, restoreSession, getBlueskyProfile } from '@/lib/bluesky';
 import { SettingsProvider } from '@/lib/settings';
@@ -36,8 +36,14 @@ function AppContent() {
   const [isVerified, setIsVerified] = useState(false);
   const { pinnedFeeds, removeFeed, reorderFeeds } = useFeeds();
 
+  // Track if we're intentionally closing to avoid race condition with URL sync
+  const isClosingRef = useRef(false);
+
   // Open thread and update URL
   const openThread = useCallback((uri: string | null) => {
+    if (!uri) {
+      isClosingRef.current = true;
+    }
     setThreadUri(uri);
     if (uri) {
       // Update URL with post parameter (shallow routing)
@@ -56,8 +62,12 @@ function AppContent() {
   // Check URL for post parameter on mount and when searchParams change
   useEffect(() => {
     const postUri = searchParams.get('post');
-    if (postUri && !threadUri) {
+    if (postUri && !threadUri && !isClosingRef.current) {
       setThreadUri(postUri);
+    }
+    // Reset closing flag when URL actually updates (no post param)
+    if (!postUri) {
+      isClosingRef.current = false;
     }
   }, [searchParams, threadUri]);
 
