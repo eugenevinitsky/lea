@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { AppBskyFeedDefs, AppBskyFeedPost, AppBskyEmbedExternal } from '@atproto/api';
 import { getTimeline, getFeed, getListFeed, searchPosts, FEEDS, FeedId, isVerifiedResearcher, Label } from '@/lib/bluesky';
 import { useSettings } from '@/lib/settings';
@@ -41,6 +41,9 @@ export default function Feed({ feedId, feedUri, feedName, acceptsInteractions, r
   const isKeywordFeed = feedType === 'keyword' || (feedUri?.startsWith('keyword:') ?? false);
   const isListFeed = (feedType === 'list' || (effectiveFeedUri?.includes('/app.bsky.graph.list/') ?? false)) && !isVerifiedFeed;
   const effectiveKeyword = keyword || (feedUri?.startsWith('keyword:') ? feedUri.slice(8).replace(/-/g, ' ') : null);
+
+  // Observer ref for cleanup
+  const observerRef = useRef<IntersectionObserver | null>(null);
 
   const loadFeed = async (loadMore = false, currentCursor?: string) => {
     try {
@@ -118,6 +121,38 @@ export default function Feed({ feedId, feedUri, feedName, acceptsInteractions, r
       loadFeed();
     }
   }, [feedId, feedUri, refreshKey, isKeywordFeed, effectiveKeyword]);
+
+  // Track values in refs for IntersectionObserver callback (avoids stale closures)
+  const loadingRef = useRef(loading);
+  const cursorRef = useRef(cursor);
+  const loadFeedRef = useRef(loadFeed);
+  useEffect(() => { loadingRef.current = loading; }, [loading]);
+  useEffect(() => { cursorRef.current = cursor; }, [cursor]);
+  useEffect(() => { loadFeedRef.current = loadFeed; });
+
+  // Callback ref for sentinel - reattaches observer whenever element changes
+  const sentinelCallbackRef = useCallback((node: HTMLDivElement | null) => {
+    // Cleanup old observer
+    if (observerRef.current) {
+      observerRef.current.disconnect();
+      observerRef.current = null;
+    }
+
+    if (!node || !isVerifiedFeed) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const entry = entries[0];
+        if (entry.isIntersecting && !loadingRef.current && cursorRef.current) {
+          loadFeedRef.current(true);
+        }
+      },
+      { rootMargin: '200px' }
+    );
+
+    observer.observe(node);
+    observerRef.current = observer;
+  }, [isVerifiedFeed]);
 
   // Filter posts based on settings and feed type
   const { filteredPosts, hiddenCount, totalScanned } = useMemo(() => {
@@ -311,18 +346,25 @@ export default function Feed({ feedId, feedUri, feedName, acceptsInteractions, r
         <ThreadView uri={threadUri} onClose={() => setThreadUri(null)} />
       )}
 
-      {/* Load more */}
-      {filteredPosts.length > 0 && cursor && !loading && (
-        <div className="p-4">
-          <button
-            onClick={() => loadFeed(true)}
-            className="w-full py-3 text-blue-500 hover:bg-gray-100 dark:hover:bg-gray-900 rounded-lg"
-          >
-            {isPapersFeed || isVerifiedFeed
-              ? `Load more (${loadedPages} page${loadedPages !== 1 ? 's' : ''} scanned)`
-              : 'Load more'}
-          </button>
-        </div>
+      {/* Load more - infinite scroll for verified feed, button for others */}
+      {filteredPosts.length > 0 && cursor && (
+        isVerifiedFeed ? (
+          // Sentinel for infinite scroll
+          <div ref={sentinelCallbackRef} className="p-4 text-center text-gray-500">
+            {loading ? 'Loading more...' : ''}
+          </div>
+        ) : !loading && (
+          <div className="p-4">
+            <button
+              onClick={() => loadFeed(true)}
+              className="w-full py-3 text-blue-500 hover:bg-gray-100 dark:hover:bg-gray-900 rounded-lg"
+            >
+              {isPapersFeed
+                ? `Load more (${loadedPages} page${loadedPages !== 1 ? 's' : ''} scanned)`
+                : 'Load more'}
+            </button>
+          </div>
+        )
       )}
 
       {/* Loading indicator */}

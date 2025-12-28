@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useFeeds, SUGGESTED_FEEDS, PinnedFeed } from '@/lib/feeds';
 import { useSettings } from '@/lib/settings';
 import { followUser, getSession } from '@/lib/bluesky';
@@ -86,6 +86,40 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
   const [followMode, setFollowMode] = useState<'all' | 'topics' | 'individual'>('topics');
   const [bulkFollowing, setBulkFollowing] = useState(false);
   const [selectedForBulk, setSelectedForBulk] = useState<Set<string>>(new Set());
+
+  // Topic search state
+  const [topicSearch, setTopicSearch] = useState('');
+  const [showTopicSuggestions, setShowTopicSuggestions] = useState(false);
+
+  // Compute all available topics (predefined + from researchers)
+  const allAvailableTopics = useMemo(() => {
+    const topicsSet = new Set(RESEARCH_TOPICS);
+    for (const researcher of allResearchers) {
+      if (researcher.researchTopics) {
+        for (const topic of researcher.researchTopics) {
+          topicsSet.add(topic);
+        }
+      }
+    }
+    return Array.from(topicsSet).sort();
+  }, [allResearchers]);
+
+  // Filter topics based on search
+  const filteredTopicSuggestions = useMemo(() => {
+    if (!topicSearch.trim()) return [];
+    const search = topicSearch.toLowerCase();
+    return allAvailableTopics
+      .filter(topic =>
+        topic.toLowerCase().includes(search) && !selectedTopics.has(topic)
+      )
+      .slice(0, 10);
+  }, [topicSearch, allAvailableTopics, selectedTopics]);
+
+  const addTopic = (topic: string) => {
+    setSelectedTopics(prev => new Set(prev).add(topic));
+    setTopicSearch('');
+    setShowTopicSuggestions(false);
+  };
 
   // Fetch all researchers when entering step 3
   useEffect(() => {
@@ -488,16 +522,68 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                   <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
                     Select your research interests
                   </h3>
+
+                  {/* Search input for topics */}
+                  <div className="relative mb-4">
+                    <input
+                      type="text"
+                      value={topicSearch}
+                      onChange={(e) => {
+                        setTopicSearch(e.target.value);
+                        setShowTopicSuggestions(true);
+                      }}
+                      onFocus={() => setShowTopicSuggestions(true)}
+                      onBlur={() => setTimeout(() => setShowTopicSuggestions(false), 200)}
+                      placeholder="Search for topics..."
+                      className="w-full px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                    <svg className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                    </svg>
+
+                    {/* Autocomplete dropdown */}
+                    {showTopicSuggestions && filteredTopicSuggestions.length > 0 && (
+                      <div className="absolute z-20 w-full mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-lg max-h-48 overflow-y-auto">
+                        {filteredTopicSuggestions.map(topic => (
+                          <button
+                            key={topic}
+                            onMouseDown={(e) => e.preventDefault()}
+                            onClick={() => addTopic(topic)}
+                            className="w-full px-4 py-2 text-left text-sm text-gray-700 dark:text-gray-300 hover:bg-blue-50 dark:hover:bg-blue-900/20 first:rounded-t-xl last:rounded-b-xl"
+                          >
+                            {topic}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Selected topics */}
+                  {selectedTopics.size > 0 && (
+                    <div className="flex flex-wrap gap-2 mb-4">
+                      {Array.from(selectedTopics).map(topic => (
+                        <button
+                          key={topic}
+                          onClick={() => toggleTopic(topic)}
+                          className="px-3 py-1.5 rounded-full text-sm font-medium bg-blue-500 text-white flex items-center gap-1.5 hover:bg-blue-600 transition-colors"
+                        >
+                          {topic}
+                          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Suggested topics */}
+                  <p className="text-xs text-gray-500 mb-2">Suggested topics:</p>
                   <div className="flex flex-wrap gap-2">
-                    {RESEARCH_TOPICS.map(topic => (
+                    {RESEARCH_TOPICS.filter(t => !selectedTopics.has(t)).slice(0, 12).map(topic => (
                       <button
                         key={topic}
                         onClick={() => toggleTopic(topic)}
-                        className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
-                          selectedTopics.has(topic)
-                            ? 'bg-blue-500 text-white'
-                            : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
-                        }`}
+                        className="px-3 py-1.5 rounded-full text-sm font-medium bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
                       >
                         {topic}
                       </button>
