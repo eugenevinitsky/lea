@@ -1,7 +1,7 @@
 'use client';
 
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, Suspense } from 'react';
 import { AppBskyFeedDefs, AppBskyEmbedExternal } from '@atproto/api';
 import { restoreSession, getSession, searchPosts, getBlueskyProfile } from '@/lib/bluesky';
 import { getUrlFromPaperId, getSearchQueryForPaper, getPaperTypeFromId, extractPaperUrl, PAPER_DOMAINS } from '@/lib/papers';
@@ -346,7 +346,13 @@ export default function PaperPage() {
     <SettingsProvider>
       <BookmarksProvider>
         <FeedsProvider>
-          <PaperPageContent />
+          <Suspense fallback={
+            <div className="min-h-screen bg-gray-50 dark:bg-black flex items-center justify-center">
+              <div className="animate-spin w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full"></div>
+            </div>
+          }>
+            <PaperPageContent />
+          </Suspense>
         </FeedsProvider>
       </BookmarksProvider>
     </SettingsProvider>
