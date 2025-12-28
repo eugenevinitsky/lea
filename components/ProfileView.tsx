@@ -357,6 +357,7 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
   // Inline mode - renders in main content area
   if (inline) {
     return (
+    <>
       <div className="bg-white dark:bg-gray-950 min-h-screen">
         {/* Header with back button */}
         <div className="sticky top-0 z-10 bg-white dark:bg-gray-950 border-b border-gray-200 dark:border-gray-800 p-4 flex items-center gap-3">
@@ -863,11 +864,18 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
           )}
         </div>
       </div>
+
+      {/* Thread View Modal */}
+      {threadUri && (
+        <ThreadView uri={threadUri} onClose={() => setThreadUri(null)} />
+      )}
+    </>
     );
   }
 
   // Modal mode (default)
   return (
+  <>
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={onClose}>
       <div 
         className="bg-white dark:bg-gray-900 rounded-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto"
@@ -1331,6 +1339,12 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
         </div>
       </div>
     </div>
+
+    {/* Thread View Modal */}
+    {threadUri && (
+      <ThreadView uri={threadUri} onClose={() => setThreadUri(null)} />
+    )}
+  </>
   );
 }
 
