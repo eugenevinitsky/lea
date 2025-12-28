@@ -138,7 +138,7 @@ export default function Feed({ feedId, feedUri, feedName, acceptsInteractions, r
       observerRef.current = null;
     }
 
-    if (!node || !isVerifiedFeed) return;
+    if (!node) return;
 
     const observer = new IntersectionObserver(
       (entries) => {
@@ -152,7 +152,7 @@ export default function Feed({ feedId, feedUri, feedName, acceptsInteractions, r
 
     observer.observe(node);
     observerRef.current = observer;
-  }, [isVerifiedFeed]);
+  }, []);
 
   // Filter posts based on settings and feed type
   const { filteredPosts, hiddenCount, totalScanned } = useMemo(() => {
@@ -347,25 +347,11 @@ export default function Feed({ feedId, feedUri, feedName, acceptsInteractions, r
         <ThreadView uri={threadUri} onClose={() => setThreadUri(null)} />
       )}
 
-      {/* Load more - infinite scroll for verified feed, button for others */}
+      {/* Load more - infinite scroll for all feeds */}
       {filteredPosts.length > 0 && cursor && (
-        isVerifiedFeed ? (
-          // Sentinel for infinite scroll
-          <div ref={sentinelCallbackRef} className="p-4 text-center text-gray-500">
-            {loading ? 'Loading more...' : ''}
-          </div>
-        ) : !loading && (
-          <div className="p-4">
-            <button
-              onClick={() => loadFeed(true)}
-              className="w-full py-3 text-blue-500 hover:bg-gray-100 dark:hover:bg-gray-900 rounded-lg"
-            >
-              {isPapersFeed
-                ? `Load more (${loadedPages} page${loadedPages !== 1 ? 's' : ''} scanned)`
-                : 'Load more'}
-            </button>
-          </div>
-        )
+        <div ref={sentinelCallbackRef} className="p-4 text-center text-gray-500">
+          {loading ? 'Loading more...' : ''}
+        </div>
       )}
 
       {/* Loading indicator */}
