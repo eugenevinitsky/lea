@@ -10,6 +10,7 @@ import { BookmarksProvider } from '@/lib/bookmarks';
 import { FeedsProvider } from '@/lib/feeds';
 import Post from '@/components/Post';
 import Login from '@/components/Login';
+import ThreadView from '@/components/ThreadView';
 
 interface PaperInfo {
   title?: string;
@@ -34,6 +35,7 @@ function PaperPageContent() {
   const [cursor, setCursor] = useState<string | undefined>();
   const [error, setError] = useState<string | null>(null);
   const [paperInfo, setPaperInfo] = useState<PaperInfo>({});
+  const [threadUri, setThreadUri] = useState<string | null>(null);
 
   // Restore session on mount
   useEffect(() => {
@@ -334,6 +336,7 @@ function PaperPageContent() {
                   <Post
                     key={post.uri}
                     post={post}
+                    onOpenThread={setThreadUri}
                     onOpenProfile={navigateToProfile}
                   />
                 ))}
@@ -353,6 +356,11 @@ function PaperPageContent() {
           </div>
         </main>
       </div>
+
+      {/* Thread View Modal */}
+      {threadUri && (
+        <ThreadView uri={threadUri} onClose={() => setThreadUri(null)} />
+      )}
     </div>
   );
 }
