@@ -716,7 +716,7 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
                     <>
                       {posts.map((item) => (
                         <div key={item.post.uri} className="border-b border-gray-200 dark:border-gray-800 last:border-b-0">
-                          <Post post={item.post} onOpenThread={setThreadUri} />
+                          <Post post={item.post} reason={item.reason} onOpenThread={setThreadUri} />
                         </div>
                       ))}
                       {postsCursor && (
@@ -769,7 +769,7 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
                       </div>
                       {paperPosts.map((item) => (
                         <div key={item.post.uri} className="border-b border-gray-200 dark:border-gray-800 last:border-b-0">
-                          <Post post={item.post} onOpenThread={setThreadUri} />
+                          <Post post={item.post} reason={item.reason} onOpenThread={setThreadUri} />
                         </div>
                       ))}
                       {postsCursor && (
@@ -1085,7 +1085,7 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
                   ) : (
                     <>
                       {posts.filter(item => item.post.uri !== pinnedPost?.uri).map((item) => (
-                        <div key={item.post.uri} className="border-b border-gray-200 dark:border-gray-800 last:border-b-0"><Post post={item.post} onOpenThread={setThreadUri} /></div>
+                        <div key={item.post.uri} className="border-b border-gray-200 dark:border-gray-800 last:border-b-0"><Post post={item.post} reason={item.reason} onOpenThread={setThreadUri} /></div>
                       ))}
                       {postsCursor && (
                         <div className="p-4 text-center">
@@ -1133,7 +1133,7 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
                     </p>
                   </div>
                   {paperPosts.map((item) => (
-                    <div key={item.post.uri} className="border-b border-gray-200 dark:border-gray-800 last:border-b-0"><Post post={item.post} onOpenThread={setThreadUri} /></div>
+                    <div key={item.post.uri} className="border-b border-gray-200 dark:border-gray-800 last:border-b-0"><Post post={item.post} reason={item.reason} onOpenThread={setThreadUri} /></div>
                   ))}
                   {postsCursor && (
                     <div className="p-4 text-center">
@@ -1241,7 +1241,7 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
                     <>
                       {posts.map((item) => (
                         <div key={item.post.uri} className="border-b border-gray-200 dark:border-gray-800 last:border-b-0">
-                          <Post post={item.post} onOpenThread={setThreadUri} />
+                          <Post post={item.post} reason={item.reason} onOpenThread={setThreadUri} />
                         </div>
                       ))}
                       {postsCursor && (
@@ -1294,7 +1294,7 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
                       </div>
                       {paperPosts.map((item) => (
                         <div key={item.post.uri} className="border-b border-gray-200 dark:border-gray-800 last:border-b-0">
-                          <Post post={item.post} onOpenThread={setThreadUri} />
+                          <Post post={item.post} reason={item.reason} onOpenThread={setThreadUri} />
                         </div>
                       ))}
                       {postsCursor && (
@@ -1602,7 +1602,7 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
                         .filter(item => item.post.uri !== pinnedPost?.uri) // Exclude pinned from list
                         .map((item) => (
                           <div key={item.post.uri} className="border-b border-gray-200 dark:border-gray-800 last:border-b-0">
-                            <Post post={item.post} onOpenThread={setThreadUri} />
+                            <Post post={item.post} reason={item.reason} onOpenThread={setThreadUri} />
                           </div>
                         ))}
                       

@@ -338,6 +338,7 @@ export default function Feed({ feedId, feedUri, feedName, acceptsInteractions, r
           supportsInteractions={effectiveAcceptsInteractions}
           feedUri={effectiveFeedUri || undefined}
           onOpenProfile={onOpenProfile}
+          reason={item.reason as AppBskyFeedDefs.ReasonRepost | undefined}
         />
       ))}
 

@@ -104,6 +104,7 @@ export default function Timeline() {
           key={`${item.post.uri}-${index}`}
           post={item.post}
           onOpenThread={setThreadUri}
+          reason={item.reason as AppBskyFeedDefs.ReasonRepost | undefined}
         />
       ))}
 

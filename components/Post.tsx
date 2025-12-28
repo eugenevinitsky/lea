@@ -19,6 +19,8 @@ interface PostProps {
   reqId?: string;
   supportsInteractions?: boolean;
   feedUri?: string;
+  // Repost reason - if present, shows "Reposted by X" header
+  reason?: AppBskyFeedDefs.ReasonRepost | AppBskyFeedDefs.ReasonPin | { $type: string };
 }
 
 // Paper link detection
@@ -729,8 +731,12 @@ function PostEmbed({ embed, onOpenThread }: { embed: AppBskyFeedDefs.PostView['e
   return null;
 }
 
-export default function Post({ post, onReply, onOpenThread, feedContext, reqId, supportsInteractions, feedUri, onOpenProfile }: PostProps & { onReply?: () => void; onOpenThread?: (uri: string) => void; onOpenProfile?: (did: string) => void }) {
+export default function Post({ post, onReply, onOpenThread, feedContext, reqId, supportsInteractions, feedUri, onOpenProfile, reason }: PostProps & { onReply?: () => void; onOpenThread?: (uri: string) => void; onOpenProfile?: (did: string) => void }) {
   const { settings } = useSettings();
+  
+  // Check if this is a repost
+  const isRepost = reason && '$type' in reason && reason.$type === 'app.bsky.feed.defs#reasonRepost';
+  const repostedBy = isRepost && 'by' in reason ? reason.by : undefined;
   const { addBookmark, removeBookmark, isBookmarked } = useBookmarks();
   const [showReplyComposer, setShowReplyComposer] = useState(false);
   const [replyText, setReplyText] = useState('');
@@ -970,8 +976,27 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
   const dimmed = settings.dimNonVerified && !isVerified;
 
   return (
-    <article className={`border-b border-gray-200 dark:border-gray-800 p-4 hover:bg-gray-50 dark:hover:bg-gray-900/50 transition-colors ${dimmed ? 'opacity-60' : ''}`}>
-      <div className="flex gap-3">
+    <article className={`border-b border-gray-200 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-900/50 transition-colors ${dimmed ? 'opacity-60' : ''}`}>
+      {/* Repost header */}
+      {repostedBy && (
+        <div className="flex items-center gap-2 px-4 pt-3 pb-1 text-sm text-gray-500">
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+          </svg>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              if (onOpenProfile) {
+                onOpenProfile(repostedBy.did);
+              }
+            }}
+            className="hover:underline font-medium"
+          >
+            {repostedBy.displayName || repostedBy.handle} reposted
+          </button>
+        </div>
+      )}
+      <div className={`flex gap-3 p-4 ${repostedBy ? 'pt-2' : ''}`}>
         {/* Avatar */}
         <ProfileHoverCard
           did={author.did}
