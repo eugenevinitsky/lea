@@ -105,6 +105,7 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
   const [interactionsLoading, setInteractionsLoading] = useState(false);
   const [interactionsError, setInteractionsError] = useState<string | null>(null);
   const [interactionsLoaded, setInteractionsLoaded] = useState(false);
+  const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     async function fetchProfile() {
@@ -461,6 +462,92 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
       interactions.theirMentionsOfMe.length + 
       interactions.myMentionsOfThem.length;
     
+    const toggleSection = (section: string) => {
+      setCollapsedSections(prev => {
+        const newSet = new Set(prev);
+        if (newSet.has(section)) {
+          newSet.delete(section);
+        } else {
+          newSet.add(section);
+        }
+        return newSet;
+      });
+    };
+    
+    const isCollapsed = (section: string) => collapsedSections.has(section);
+    
+    // Section configs with colors
+    const sections = [
+      {
+        key: 'theirRepliesToMe',
+        title: 'Their replies to you',
+        posts: interactions.theirRepliesToMe,
+        colors: {
+          bg: 'bg-blue-50 dark:bg-blue-900/20',
+          border: 'border-l-blue-400',
+          text: 'text-blue-700 dark:text-blue-300',
+          icon: 'text-blue-500',
+          hover: 'hover:bg-blue-100 dark:hover:bg-blue-900/30',
+        },
+        icon: (
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
+          </svg>
+        ),
+      },
+      {
+        key: 'myRepliesToThem',
+        title: 'Your replies to them',
+        posts: interactions.myRepliesToThem,
+        colors: {
+          bg: 'bg-emerald-50 dark:bg-emerald-900/20',
+          border: 'border-l-emerald-400',
+          text: 'text-emerald-700 dark:text-emerald-300',
+          icon: 'text-emerald-500',
+          hover: 'hover:bg-emerald-100 dark:hover:bg-emerald-900/30',
+        },
+        icon: (
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
+          </svg>
+        ),
+      },
+      {
+        key: 'theirMentionsOfMe',
+        title: 'They mentioned you',
+        posts: interactions.theirMentionsOfMe,
+        colors: {
+          bg: 'bg-amber-50 dark:bg-amber-900/20',
+          border: 'border-l-amber-400',
+          text: 'text-amber-700 dark:text-amber-300',
+          icon: 'text-amber-500',
+          hover: 'hover:bg-amber-100 dark:hover:bg-amber-900/30',
+        },
+        icon: (
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 12a4 4 0 10-8 0 4 4 0 008 0zm0 0v1.5a2.5 2.5 0 005 0V12a9 9 0 10-9 9m4.5-1.206a8.959 8.959 0 01-4.5 1.207" />
+          </svg>
+        ),
+      },
+      {
+        key: 'myMentionsOfThem',
+        title: 'You mentioned them',
+        posts: interactions.myMentionsOfThem,
+        colors: {
+          bg: 'bg-purple-50 dark:bg-purple-900/20',
+          border: 'border-l-purple-400',
+          text: 'text-purple-700 dark:text-purple-300',
+          icon: 'text-purple-500',
+          hover: 'hover:bg-purple-100 dark:hover:bg-purple-900/30',
+        },
+        icon: (
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
+          </svg>
+        ),
+      },
+    ];
+    
     return (
       <div className="divide-y divide-gray-200 dark:divide-gray-800">
         {interactionsLoading ? (
@@ -490,75 +577,56 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
         ) : (
           <>
             {/* Summary */}
-            <div className="px-4 py-3 bg-green-50 dark:bg-green-900/20">
-              <p className="text-xs text-green-600 dark:text-green-400">
+            <div className="px-4 py-3 bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20">
+              <p className="text-xs text-green-600 dark:text-green-400 font-medium">
                 {totalInteractions} interaction{totalInteractions !== 1 ? 's' : ''} found
               </p>
             </div>
             
-            {/* Their replies to me */}
-            {interactions.theirRepliesToMe.length > 0 && (
-              <div>
-                <div className="px-4 py-2 bg-gray-50 dark:bg-gray-800/50">
-                  <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Their replies to you ({interactions.theirRepliesToMe.length})
-                  </h4>
+            {/* Render each section */}
+            {sections.map((section) => {
+              if (section.posts.length === 0) return null;
+              const collapsed = isCollapsed(section.key);
+              
+              return (
+                <div key={section.key} className={`border-l-4 ${section.colors.border}`}>
+                  {/* Collapsible header */}
+                  <button
+                    onClick={() => toggleSection(section.key)}
+                    className={`w-full px-4 py-3 flex items-center justify-between ${section.colors.bg} ${section.colors.hover} transition-colors`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className={section.colors.icon}>{section.icon}</span>
+                      <h4 className={`text-sm font-medium ${section.colors.text}`}>
+                        {section.title}
+                      </h4>
+                      <span className={`text-xs px-2 py-0.5 rounded-full ${section.colors.bg} ${section.colors.text} font-medium`}>
+                        {section.posts.length}
+                      </span>
+                    </div>
+                    <svg 
+                      className={`w-4 h-4 ${section.colors.icon} transition-transform ${collapsed ? '' : 'rotate-180'}`} 
+                      fill="none" 
+                      stroke="currentColor" 
+                      viewBox="0 0 24 24"
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </button>
+                  
+                  {/* Posts (collapsible) */}
+                  {!collapsed && (
+                    <div className="divide-y divide-gray-100 dark:divide-gray-800">
+                      {section.posts.map((post) => (
+                        <div key={post.uri}>
+                          <Post post={post} onOpenThread={setThreadUri} onOpenProfile={onOpenProfile} />
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
-                {interactions.theirRepliesToMe.map((post) => (
-                  <div key={post.uri} className="border-b border-gray-100 dark:border-gray-800 last:border-b-0">
-                    <Post post={post} onOpenThread={setThreadUri} onOpenProfile={onOpenProfile} />
-                  </div>
-                ))}
-              </div>
-            )}
-            
-            {/* My replies to them */}
-            {interactions.myRepliesToThem.length > 0 && (
-              <div>
-                <div className="px-4 py-2 bg-gray-50 dark:bg-gray-800/50">
-                  <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Your replies to them ({interactions.myRepliesToThem.length})
-                  </h4>
-                </div>
-                {interactions.myRepliesToThem.map((post) => (
-                  <div key={post.uri} className="border-b border-gray-100 dark:border-gray-800 last:border-b-0">
-                    <Post post={post} onOpenThread={setThreadUri} onOpenProfile={onOpenProfile} />
-                  </div>
-                ))}
-              </div>
-            )}
-            
-            {/* Their mentions of me */}
-            {interactions.theirMentionsOfMe.length > 0 && (
-              <div>
-                <div className="px-4 py-2 bg-gray-50 dark:bg-gray-800/50">
-                  <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                    They mentioned you ({interactions.theirMentionsOfMe.length})
-                  </h4>
-                </div>
-                {interactions.theirMentionsOfMe.map((post) => (
-                  <div key={post.uri} className="border-b border-gray-100 dark:border-gray-800 last:border-b-0">
-                    <Post post={post} onOpenThread={setThreadUri} onOpenProfile={onOpenProfile} />
-                  </div>
-                ))}
-              </div>
-            )}
-            
-            {/* My mentions of them */}
-            {interactions.myMentionsOfThem.length > 0 && (
-              <div>
-                <div className="px-4 py-2 bg-gray-50 dark:bg-gray-800/50">
-                  <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                    You mentioned them ({interactions.myMentionsOfThem.length})
-                  </h4>
-                </div>
-                {interactions.myMentionsOfThem.map((post) => (
-                  <div key={post.uri} className="border-b border-gray-100 dark:border-gray-800 last:border-b-0">
-                    <Post post={post} onOpenThread={setThreadUri} onOpenProfile={onOpenProfile} />
-                  </div>
-                ))}
-              </div>
-            )}
+              );
+            })}
           </>
         )}
       </div>
