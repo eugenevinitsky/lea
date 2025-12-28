@@ -9,6 +9,8 @@ A Bluesky client with protective defaults for researchers.
 | **ORCID Verification** | Link ORCID to verify researcher identity |
 | **Reply Restrictions** | Auto-restrict replies to followers, verified researchers, or your connections |
 | **Papers Feed** | Timeline filtered to academic paper links only |
+| **Paper Discussions** | See all Bluesky conversations about any paper |
+| **Researcher Profiles** | Rich profiles with affiliations, topics, and publications |
 | **Bookmarks + Export** | Save posts, export paper citations to BibTeX/RIS for Zotero |
 | **Direct Messages** | Built-in DM support |
 | **Feed Discovery** | Browse and pin custom Bluesky feeds |
@@ -59,6 +61,25 @@ Automatically filters your timeline to posts containing academic links:
 - Export paper bookmarks to **BibTeX** (fetches real metadata from CrossRef/arXiv)
 - Export to **RIS** for Zotero, Mendeley, EndNote
 - Export raw **JSON** for backup
+
+### Paper Discussions
+
+Click "Discussion" on any paper post to see all Bluesky conversations about that paper:
+- Aggregates all posts linking to the same paper
+- Shows who's been discussing the paper
+- Works with arXiv, DOI, ACM, Wiley, Nature, and 20+ academic sources
+- Available on posts and in researcher profile paper lists
+
+### Researcher Profiles
+
+Rich profiles for verified researchers:
+- **Affiliation** with links to browse all researchers at that institution
+- **Research Topics** from OpenAlex, clickable to find similar researchers
+- **Publication Venues** with links to browse by venue
+- **ORCID & OpenAlex IDs** displayed and editable
+- **My Papers** and **Papers I Recommend** sections with discussion links
+- **Co-Authors** automatically fetched from OpenAlex
+- **Posts & Papers tabs** to browse their Bluesky activity
 
 ### Feed Discovery
 
@@ -160,6 +181,11 @@ See `scripts/README.md` for Jetstream listener setup.
 ```
 app/
 ├── page.tsx                 # Main app
+├── [handle]/page.tsx        # User profile page
+├── paper/[id]/page.tsx      # Paper discussion page
+├── topic/[value]/page.tsx   # Browse by research topic
+├── affiliation/[value]/     # Browse by institution
+├── venue/[value]/page.tsx   # Browse by publication venue
 ├── verify/page.tsx          # Verification flow
 └── api/
     ├── researchers/         # Verified researcher CRUD
@@ -185,13 +211,17 @@ components/
 ├── Post.tsx                # Post + interactions
 ├── ThreadView.tsx          # Thread modal
 ├── Composer.tsx            # Post composer
+├── ProfileView.tsx         # Researcher profile view
+├── ProfileEditor.tsx       # Edit your profile
 ├── Bookmarks.tsx           # Bookmarks panel
 ├── DirectMessages.tsx      # DM interface
 ├── FeedBrowser.tsx         # Feed discovery
+├── ResearcherSearch.tsx    # Search researchers
 └── Settings.tsx            # Settings panel
 
 lib/
 ├── bluesky.ts              # Bluesky API wrapper
+├── papers.ts               # Paper URL detection & ID extraction
 ├── bookmarks.tsx           # Bookmarks + export (BibTeX, RIS)
 ├── settings.tsx            # Settings context
 ├── verification.ts         # Auto-approval logic
@@ -212,7 +242,8 @@ scripts/
 
 | Table | Purpose |
 |-------|---------|
-| `verified_researchers` | ORCID-verified accounts + personal list URIs + research topics |
+| `verified_researchers` | ORCID-verified accounts + personal list URIs + research topics + OpenAlex IDs |
+| `researcher_profiles` | Extended profile data (bio, affiliation, links, papers) |
 | `social_graph` | Follow relationships (edges) |
 | `bluesky_lists` | Managed list metadata |
 | `vouch_requests` | Vouching system |
@@ -241,6 +272,15 @@ scripts/
 | `/api/researchers/manual-update` | POST | Update researcher (ORCID or OpenAlex ID) |
 | `/api/researchers/lookup-orcids` | POST | Batch lookup missing ORCIDs |
 | `/api/researchers/backfill-topics` | POST | Backfill research topics from OpenAlex |
+| `/api/researchers/by-field` | GET | Get researchers by topic/affiliation/venue |
+
+### Profiles
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/profile?did=X` | GET | Get researcher's extended profile |
+| `/api/profile` | POST | Update your profile |
+| `/api/profile/ids` | POST | Update ORCID/OpenAlex IDs |
 
 ### Labeler
 
@@ -254,7 +294,6 @@ scripts/
 ## Limitations
 
 - **Vouching UI**: API routes exist but no frontend yet
-- **Profile View**: Not yet implemented
 - **Notifications**: Not yet implemented
 
 ---
@@ -272,9 +311,11 @@ scripts/
 - [x] Direct messages
 - [x] Feed discovery and pinning
 - [x] Real-time sync via Jetstream
+- [x] Researcher profiles with rich metadata
+- [x] Paper discussion pages
+- [x] Browse by topic/affiliation/venue
 - [ ] Vouching UI
 - [ ] Notifications
-- [ ] Profile view
 
 ---
 
