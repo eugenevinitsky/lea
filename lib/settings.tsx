@@ -11,6 +11,7 @@ export interface LeaSettings {
   // Display
   showPaperHighlights: boolean;
   dimNonVerified: boolean;
+  dimReposts: boolean;
 }
 
 const DEFAULT_SETTINGS: LeaSettings = {
@@ -19,6 +20,7 @@ const DEFAULT_SETTINGS: LeaSettings = {
   highFollowerThreshold: 10000,
   showPaperHighlights: true,
   dimNonVerified: false,
+  dimReposts: false,
 };
 
 interface SettingsContextType {

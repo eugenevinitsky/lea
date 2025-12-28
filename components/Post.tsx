@@ -972,8 +972,8 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
     return date.toLocaleDateString();
   };
 
-  // Dim non-verified if setting enabled
-  const dimmed = settings.dimNonVerified && !isVerified;
+  // Dim non-verified or reposts if settings enabled
+  const dimmed = (settings.dimNonVerified && !isVerified) || (settings.dimReposts && isRepost);
 
   return (
     <article className={`border-b border-gray-200 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-900/50 transition-colors ${dimmed ? 'opacity-60' : ''}`}>

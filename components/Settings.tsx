@@ -150,6 +150,19 @@ export default function Settings({ onClose }: SettingsProps) {
                   className="w-5 h-5 rounded border-gray-300 text-blue-500 focus:ring-blue-500"
                 />
               </label>
+
+              <label className="flex items-center justify-between">
+                <div>
+                  <p className="font-medium text-gray-900 dark:text-gray-100">Dim reposts</p>
+                  <p className="text-sm text-gray-500">Reduce visibility of reposted content</p>
+                </div>
+                <input
+                  type="checkbox"
+                  checked={settings.dimReposts}
+                  onChange={(e) => updateSettings({ dimReposts: e.target.checked })}
+                  className="w-5 h-5 rounded border-gray-300 text-blue-500 focus:ring-blue-500"
+                />
+              </label>
             </div>
           </section>
 
