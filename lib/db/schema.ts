@@ -17,6 +17,7 @@ export const verifiedResearchers = pgTable(
     did: varchar('did', { length: 255 }).notNull().unique(),
     handle: varchar('handle', { length: 255 }),
     orcid: varchar('orcid', { length: 19 }).notNull(),
+    openAlexId: varchar('open_alex_id', { length: 100 }), // e.g., "A5023888391"
     name: varchar('name', { length: 255 }),
     institution: varchar('institution', { length: 500 }),
     // Research topics extracted from OpenAlex (JSON array of strings)

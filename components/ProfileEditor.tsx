@@ -46,6 +46,13 @@ export default function ProfileEditor({ onClose }: ProfileEditorProps) {
   
   // Track if topics were auto-populated from OpenAlex
   const [topicsAutoPopulated, setTopicsAutoPopulated] = useState(false);
+  
+  // Researcher IDs
+  const [orcid, setOrcid] = useState('');
+  const [openAlexId, setOpenAlexId] = useState('');
+  const [idsSaving, setIdsSaving] = useState(false);
+  const [idsError, setIdsError] = useState<string | null>(null);
+  const [idsSuccess, setIdsSuccess] = useState(false);
 
   const session = getSession();
 
@@ -82,6 +89,10 @@ export default function ProfileEditor({ onClose }: ProfileEditorProps) {
           favoriteOwnPapers: data.profile?.favoriteOwnPapers || [],
           favoriteReadPapers: data.profile?.favoriteReadPapers || [],
         });
+        
+        // Set researcher IDs
+        setOrcid(data.researcher?.orcid || '');
+        setOpenAlexId(data.researcher?.openAlexId || '');
         setDisciplinesInput(disciplines.join(', '));
         setVenuesInput((data.profile?.publicationVenues || []).join(', '));
       } catch (err) {
@@ -190,6 +201,38 @@ export default function ProfileEditor({ onClose }: ProfileEditorProps) {
     setProfile({ ...profile, [list]: profile[list].filter((_, i) => i !== index) });
   };
 
+  const handleSaveIds = async () => {
+    if (!session?.did) return;
+
+    setIdsSaving(true);
+    setIdsError(null);
+    setIdsSuccess(false);
+
+    try {
+      const res = await fetch('/api/profile/ids', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          did: session.did,
+          orcid: orcid || undefined,
+          openAlexId: openAlexId || undefined,
+        }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || 'Failed to save IDs');
+      }
+
+      setIdsSuccess(true);
+      setTimeout(() => setIdsSuccess(false), 3000);
+    } catch (err) {
+      setIdsError(err instanceof Error ? err.message : 'Failed to save IDs');
+    } finally {
+      setIdsSaving(false);
+    }
+  };
+
   // Show profile preview
   if (showPreview && session?.did) {
     return (
@@ -260,6 +303,73 @@ export default function ProfileEditor({ onClose }: ProfileEditorProps) {
             </div>
           ) : (
             <div className="space-y-6">
+              {/* Researcher IDs Section */}
+              <div className="p-4 bg-emerald-50 dark:bg-emerald-900/20 rounded-lg space-y-4">
+                <h3 className="text-sm font-semibold text-emerald-700 dark:text-emerald-400 uppercase tracking-wide">
+                  Researcher Identifiers
+                </h3>
+                
+                {/* ORCID */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    ORCID
+                  </label>
+                  <input
+                    type="text"
+                    value={orcid}
+                    onChange={(e) => setOrcid(e.target.value)}
+                    placeholder="0000-0000-0000-0000"
+                    maxLength={19}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                  />
+                  <p className="text-xs text-gray-400 mt-1">
+                    Your ORCID identifier (e.g., 0000-0002-1825-0097)
+                  </p>
+                </div>
+
+                {/* OpenAlex ID */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    OpenAlex ID
+                  </label>
+                  <input
+                    type="text"
+                    value={openAlexId}
+                    onChange={(e) => setOpenAlexId(e.target.value)}
+                    placeholder="A1234567890 or OpenAlex URL"
+                    maxLength={100}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                  />
+                  <p className="text-xs text-gray-400 mt-1">
+                    Your OpenAlex author ID (e.g., A5023888391 or full URL)
+                  </p>
+                </div>
+
+                {/* IDs Error/Success Messages */}
+                {idsError && (
+                  <div className="p-2 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 rounded-lg text-sm">
+                    {idsError}
+                  </div>
+                )}
+                {idsSuccess && (
+                  <div className="p-2 bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400 rounded-lg text-sm">
+                    IDs saved successfully!
+                  </div>
+                )}
+
+                {/* Save IDs Button */}
+                <button
+                  onClick={handleSaveIds}
+                  disabled={idsSaving}
+                  className="px-4 py-2 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600 disabled:opacity-50 transition-colors flex items-center gap-2 text-sm"
+                >
+                  {idsSaving && (
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  )}
+                  Save IDs
+                </button>
+              </div>
+
               {/* Bio */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">

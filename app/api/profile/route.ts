@@ -48,6 +48,7 @@ export async function GET(request: NextRequest) {
         handle: researcher.handle,
         name: researcher.name,
         orcid: researcher.orcid,
+        openAlexId: researcher.openAlexId,
         institution: researcher.institution,
         researchTopics: researcher.researchTopics ? JSON.parse(researcher.researchTopics) : [],
         verifiedAt: researcher.verifiedAt,

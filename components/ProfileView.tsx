@@ -13,6 +13,7 @@ interface ResearcherInfo {
   handle: string;
   name: string | null;
   orcid: string;
+  openAlexId: string | null;
   institution: string | null;
   researchTopics: string[];
   verifiedAt: string;
@@ -549,19 +550,35 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
                       </div>
                     )}
                     
-                    {researcher?.orcid && (
-                      <a
-                        href={`https://orcid.org/${researcher.orcid}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1.5 text-xs text-emerald-600 hover:text-emerald-700 mt-2 px-2 py-1 bg-emerald-50 dark:bg-emerald-900/30 rounded-full"
-                      >
-                        <svg className="w-3.5 h-3.5" viewBox="0 0 256 256" fill="currentColor">
-                          <path d="M128 0C57.3 0 0 57.3 0 128s57.3 128 128 128 128-57.3 128-128S198.7 0 128 0zM70.7 193.5H50.9V79.9h19.8v113.6zm-9.9-128.1c-6.7 0-12.1-5.4-12.1-12.1s5.4-12.1 12.1-12.1 12.1 5.4 12.1 12.1-5.4 12.1-12.1 12.1zm134.7 128.1h-19.8v-55.4c0-13.9-.3-31.8-19.4-31.8-19.4 0-22.4 15.2-22.4 30.8v56.4H114V79.9h19v15.5h.3c2.6-5 9.2-10.2 18.9-10.2 20.2 0 23.9 13.3 23.9 30.6v77.7z" />
-                        </svg>
-                        ORCID
-                      </a>
-                    )}
+                    {/* Researcher IDs */}
+                    <div className="flex flex-wrap gap-2 mt-2">
+                      {researcher?.orcid && (
+                        <a
+                          href={`https://orcid.org/${researcher.orcid}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1.5 text-xs text-emerald-600 hover:text-emerald-700 px-2 py-1 bg-emerald-50 dark:bg-emerald-900/30 rounded-full"
+                        >
+                          <svg className="w-3.5 h-3.5" viewBox="0 0 256 256" fill="currentColor">
+                            <path d="M128 0C57.3 0 0 57.3 0 128s57.3 128 128 128 128-57.3 128-128S198.7 0 128 0zM70.7 193.5H50.9V79.9h19.8v113.6zm-9.9-128.1c-6.7 0-12.1-5.4-12.1-12.1s5.4-12.1 12.1-12.1 12.1 5.4 12.1 12.1-5.4 12.1-12.1 12.1zm134.7 128.1h-19.8v-55.4c0-13.9-.3-31.8-19.4-31.8-19.4 0-22.4 15.2-22.4 30.8v56.4H114V79.9h19v15.5h.3c2.6-5 9.2-10.2 18.9-10.2 20.2 0 23.9 13.3 23.9 30.6v77.7z" />
+                          </svg>
+                          ORCID
+                        </a>
+                      )}
+                      {researcher?.openAlexId && (
+                        <a
+                          href={`https://openalex.org/authors/${researcher.openAlexId}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1.5 text-xs text-orange-600 hover:text-orange-700 px-2 py-1 bg-orange-50 dark:bg-orange-900/30 rounded-full"
+                        >
+                          <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/>
+                          </svg>
+                          OpenAlex
+                        </a>
+                      )}
+                    </div>
                     <div className="mt-3">
                       {renderFollowButton()}
                     </div>
@@ -1017,19 +1034,35 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
                       {profile?.affiliation || researcher?.institution}
                     </p>
                   )}
-                  {researcher?.orcid && (
-                    <a
-                      href={`https://orcid.org/${researcher.orcid}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1 text-xs text-green-600 hover:text-green-700 mt-1"
-                    >
-                      <svg className="w-3 h-3" viewBox="0 0 256 256" fill="currentColor">
-                        <path d="M128 0C57.3 0 0 57.3 0 128s57.3 128 128 128 128-57.3 128-128S198.7 0 128 0zM70.7 193.5H50.9V79.9h19.8v113.6zm-9.9-128.1c-6.7 0-12.1-5.4-12.1-12.1s5.4-12.1 12.1-12.1 12.1 5.4 12.1 12.1-5.4 12.1-12.1 12.1zm134.7 128.1h-19.8v-55.4c0-13.9-.3-31.8-19.4-31.8-19.4 0-22.4 15.2-22.4 30.8v56.4H114V79.9h19v15.5h.3c2.6-5 9.2-10.2 18.9-10.2 20.2 0 23.9 13.3 23.9 30.6v77.7z" />
-                      </svg>
-                      ORCID
-                    </a>
-                  )}
+                  {/* Researcher IDs */}
+                  <div className="flex flex-wrap gap-2 mt-1">
+                    {researcher?.orcid && (
+                      <a
+                        href={`https://orcid.org/${researcher.orcid}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 text-xs text-green-600 hover:text-green-700"
+                      >
+                        <svg className="w-3 h-3" viewBox="0 0 256 256" fill="currentColor">
+                          <path d="M128 0C57.3 0 0 57.3 0 128s57.3 128 128 128 128-57.3 128-128S198.7 0 128 0zM70.7 193.5H50.9V79.9h19.8v113.6zm-9.9-128.1c-6.7 0-12.1-5.4-12.1-12.1s5.4-12.1 12.1-12.1 12.1 5.4 12.1 12.1-5.4 12.1-12.1 12.1zm134.7 128.1h-19.8v-55.4c0-13.9-.3-31.8-19.4-31.8-19.4 0-22.4 15.2-22.4 30.8v56.4H114V79.9h19v15.5h.3c2.6-5 9.2-10.2 18.9-10.2 20.2 0 23.9 13.3 23.9 30.6v77.7z" />
+                        </svg>
+                        ORCID
+                      </a>
+                    )}
+                    {researcher?.openAlexId && (
+                      <a
+                        href={`https://openalex.org/authors/${researcher.openAlexId}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 text-xs text-orange-600 hover:text-orange-700"
+                      >
+                        <svg className="w-3 h-3" viewBox="0 0 24 24" fill="currentColor">
+                          <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/>
+                        </svg>
+                        OpenAlex
+                      </a>
+                    )}
+                  </div>
                   <div className="mt-3">
                     {renderFollowButton()}
                   </div>
