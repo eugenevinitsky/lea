@@ -167,10 +167,35 @@ export function getPaperIdFromUrl(url: string): string {
   }
 
   // For DOI URLs, extract the DOI
-  const doiMatch = url.match(/(?:doi\.org\/|dx\.doi\.org\/)(10\.[^\s&?#]+)/i);
-  if (doiMatch) {
-    // URL-encode the DOI for safe use in URLs
-    return `doi:${encodeURIComponent(doiMatch[1])}`;
+  // Match doi.org, dx.doi.org, or embedded DOIs in publisher URLs
+  const doiPatterns = [
+    // Direct DOI URLs
+    /(?:doi\.org\/|dx\.doi\.org\/)(10\.[^\s&?#]+)/i,
+    // ACM Digital Library: dl.acm.org/doi/[abs/full/pdf/]10.1145/xxx
+    /dl\.acm\.org\/doi\/(?:abs\/|full\/|pdf\/)?(?:epdf\/)?(10\.\d+\/[^\s?#]+)/i,
+    // Wiley: onlinelibrary.wiley.com/doi/[full/abs/]10.xxxx/xxx or subdomain.onlinelibrary.wiley.com
+    /onlinelibrary\.wiley\.com\/doi\/(?:abs\/|full\/|epdf\/|pdf\/)?(10\.\d+\/[^\s?#]+)/i,
+    // Science.org: science.org/doi/10.1126/xxx
+    /science\.org\/doi\/(10\.\d+\/[^\s?#]+)/i,
+    // Springer/Nature: link.springer.com/article/10.xxxx/xxx
+    /link\.springer\.com\/article\/(10\.\d+\/[^\s?#]+)/i,
+    // PNAS: pnas.org/doi/10.xxxx/xxx
+    /pnas\.org\/doi\/(10\.\d+\/[^\s?#]+)/i,
+    // Taylor & Francis: tandfonline.com/doi/[abs/full/]10.xxxx/xxx
+    /tandfonline\.com\/doi\/(?:abs\/|full\/)?(10\.\d+\/[^\s?#]+)/i,
+    // PLOS: journals.plos.org/xxx/article?id=10.1371/xxx
+    /journals\.plos\.org\/.*[?&]id=(10\.\d+\/[^\s?#&]+)/i,
+    // Generic DOI in path
+    /\/(?:doi|article)\/(?:abs\/|full\/|pdf\/|epdf\/)?(10\.\d+\/[^\s?#]+)/i,
+  ];
+  
+  for (const pattern of doiPatterns) {
+    const doiMatch = url.match(pattern);
+    if (doiMatch) {
+      // Clean up the DOI - remove trailing punctuation that might have been captured
+      const cleanDoi = doiMatch[1].replace(/[.,;:]+$/, '');
+      return `doi:${encodeURIComponent(cleanDoi)}`;
+    }
   }
 
   // For other URLs, create a hash-like ID from the URL
