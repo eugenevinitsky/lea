@@ -1,6 +1,6 @@
 'use client';
 
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useState, useEffect, useCallback } from 'react';
 import { AppBskyFeedDefs, AppBskyEmbedExternal } from '@atproto/api';
 import { restoreSession, getSession, searchPosts, getBlueskyProfile } from '@/lib/bluesky';
@@ -20,9 +20,12 @@ interface PaperInfo {
 function PaperPageContent() {
   const params = useParams();
   const router = useRouter();
+  const searchParams = useSearchParams();
   // The ID is URL-encoded and might contain special characters
   const rawId = Array.isArray(params.id) ? params.id.join('/') : (params.id as string);
   const paperId = decodeURIComponent(rawId);
+  // Original URL passed from Post component for more accurate searching
+  const originalUrl = searchParams.get('url');
   
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -52,16 +55,37 @@ function PaperPageContent() {
     try {
       // Get the search query for this paper type
       const searchQuery = getSearchQueryForPaper(paperId);
+      console.log('[Paper Search] Primary query:', searchQuery);
       
       let result = await searchPosts(searchQuery, loadMore ? cursor : undefined, 'latest');
+      console.log('[Paper Search] Primary results:', result.posts.length);
       
-      // If no results with the simplified query, try the full URL
-      if (!loadMore && result.posts.length === 0) {
-        const fullUrl = getUrlFromPaperId(paperId);
-        // Try searching for just the domain + path without protocol
-        const urlWithoutProtocol = fullUrl.replace(/^https?:\/\//, '');
+      // If no results with the simplified query, try searching for the original URL
+      if (!loadMore && result.posts.length === 0 && originalUrl) {
+        // Try searching for the original URL without protocol
+        const urlWithoutProtocol = originalUrl.replace(/^https?:\/\//, '');
+        console.log('[Paper Search] Fallback 1 (original URL):', urlWithoutProtocol);
         result = await searchPosts(urlWithoutProtocol, undefined, 'latest');
+        console.log('[Paper Search] Fallback 1 results:', result.posts.length);
       }
+      
+      // If still no results, try a more targeted search with key parts of the URL
+      if (!loadMore && result.posts.length === 0) {
+        const fallbackUrl = originalUrl || getUrlFromPaperId(paperId);
+        // Extract domain and last path segment for a targeted search
+        const urlWithoutProtocol = fallbackUrl.replace(/^https?:\/\//, '').replace(/\?.*$/, '');
+        const parts = urlWithoutProtocol.split('/');
+        // Try domain + last meaningful segment (usually the ID)
+        const lastPart = parts.filter(p => p && !['abs', 'full', 'pdf', 'doi', 'article'].includes(p.toLowerCase())).pop();
+        if (lastPart && lastPart !== parts[0]) {
+          const fallbackQuery = `${parts[0]} ${lastPart}`;
+          console.log('[Paper Search] Fallback 2 (domain + id):', fallbackQuery);
+          result = await searchPosts(fallbackQuery, undefined, 'latest');
+          console.log('[Paper Search] Fallback 2 results:', result.posts.length);
+        }
+      }
+      
+      console.log('[Paper Search] Total raw results before filtering:', result.posts.length);
       
       // Filter results to only include posts that actually contain paper links
       // This helps when search returns unrelated results
@@ -98,7 +122,7 @@ function PaperPageContent() {
     } finally {
       setPostsLoading(false);
     }
-  }, [paperId, cursor]);
+  }, [paperId, cursor, originalUrl]);
 
   // Initial search when logged in
   useEffect(() => {

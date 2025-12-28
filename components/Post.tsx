@@ -1027,7 +1027,7 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
                 <PaperIndicator domain={domain} />
                 {paperId && (
                   <Link
-                    href={`/paper/${encodeURIComponent(paperId)}`}
+                    href={`/paper/${encodeURIComponent(paperId)}${paperUrl ? `?url=${encodeURIComponent(paperUrl)}` : ''}`}
                     onClick={(e) => e.stopPropagation()}
                     className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400 rounded-full hover:bg-purple-100 dark:hover:bg-purple-900/40 transition-colors"
                     title="View paper discussion"
