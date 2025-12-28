@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useFeeds, SUGGESTED_FEEDS, PinnedFeed } from '@/lib/feeds';
 import { useSettings } from '@/lib/settings';
-import { followUser, getSession } from '@/lib/bluesky';
+import { followUser, getSession, getMyFollows } from '@/lib/bluesky';
 
 interface OnboardingProps {
   onComplete: () => void;
@@ -121,12 +121,16 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
     setShowTopicSuggestions(false);
   };
 
-  // Fetch all researchers when entering step 3
+  // Fetch all researchers and existing follows when entering step 3
   useEffect(() => {
     if (step === 3 && allResearchers.length === 0) {
       const fetchAllResearchers = async () => {
         setLoadingAllResearchers(true);
         try {
+          // Fetch existing follows first
+          const existingFollows = await getMyFollows();
+          setFollowedDids(existingFollows);
+
           const session = getSession();
           const response = await fetch('/api/researchers');
           const data = await response.json();
@@ -142,8 +146,12 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
                 matchedTopics: [],
               }));
             setAllResearchers(mapped);
-            // Initialize all researchers as selected for bulk follow
-            setSelectedForBulk(new Set(mapped.map((r: ResearcherSuggestion) => r.did)));
+            // Initialize only non-followed researchers as selected for bulk follow
+            setSelectedForBulk(new Set(
+              mapped
+                .filter((r: ResearcherSuggestion) => !existingFollows.has(r.did))
+                .map((r: ResearcherSuggestion) => r.did)
+            ));
           }
         } catch (error) {
           console.error('Failed to fetch researchers:', error);

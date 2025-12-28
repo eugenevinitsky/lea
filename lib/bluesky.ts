@@ -828,3 +828,30 @@ export async function getStarterPackMembers(listUri: string): Promise<{ did: str
     return [];
   }
 }
+
+// Get all accounts the user follows (returns DIDs)
+export async function getMyFollows(): Promise<Set<string>> {
+  if (!agent?.session?.did) return new Set();
+  try {
+    const followedDids = new Set<string>();
+    let cursor: string | undefined;
+
+    // Paginate through all follows
+    do {
+      const response = await agent.getFollows({
+        actor: agent.session.did,
+        limit: 100,
+        cursor,
+      });
+      for (const follow of response.data.follows) {
+        followedDids.add(follow.did);
+      }
+      cursor = response.data.cursor;
+    } while (cursor);
+
+    return followedDids;
+  } catch (error) {
+    console.error('Failed to fetch follows:', error);
+    return new Set();
+  }
+}
