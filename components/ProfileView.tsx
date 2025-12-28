@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { AppBskyFeedDefs, AppBskyFeedPost, AppBskyEmbedExternal } from '@atproto/api';
 import type { ProfileLink, ProfilePaper } from '@/lib/db/schema';
-import { getAuthorFeed, getBlueskyProfile, getKnownFollowers, BlueskyProfile, KnownFollowersResult, followUser, unfollowUser } from '@/lib/bluesky';
+import { getAuthorFeed, getBlueskyProfile, getKnownFollowers, BlueskyProfile, KnownFollowersResult, followUser, unfollowUser, getSession } from '@/lib/bluesky';
 import { detectPaperLink } from '@/lib/papers';
 import Post from './Post';
 
@@ -50,9 +50,11 @@ interface ProfileViewProps {
   onOpenProfile?: (did: string) => void;
   // If true, renders inline (not as modal) for main content area
   inline?: boolean;
+  // Called when user wants to edit their own profile
+  onEdit?: () => void;
 }
 
-export default function ProfileView({ did, avatar: avatarProp, displayName, handle, onClose, onOpenProfile, inline = false }: ProfileViewProps) {
+export default function ProfileView({ did, avatar: avatarProp, displayName, handle, onClose, onOpenProfile, inline = false, onEdit }: ProfileViewProps) {
   const [researcher, setResearcher] = useState<ResearcherInfo | null>(null);
   const [profile, setProfile] = useState<ProfileData | null>(null);
   const [coAuthors, setCoAuthors] = useState<CoAuthor[]>([]);
@@ -276,6 +278,10 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
   const avatar = avatarProp || bskyProfile?.avatar;
   const finalDisplayName = researcher?.name || displayName || bskyProfile?.displayName || handle || bskyProfile?.handle || 'Unknown';
   const finalHandle = researcher?.handle || handle || bskyProfile?.handle;
+  
+  // Check if this is the current user's own profile
+  const session = getSession();
+  const isOwnProfile = session?.did === did;
 
   // Render follow/unfollow button
   const renderFollowButton = () => {
@@ -579,8 +585,17 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
                         </a>
                       )}
                     </div>
-                    <div className="mt-3">
-                      {renderFollowButton()}
+                    <div className="mt-3 flex items-center gap-2">
+                      {isOwnProfile && onEdit ? (
+                        <button
+                          onClick={onEdit}
+                          className="px-4 py-1.5 rounded-full text-sm font-medium bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
+                        >
+                          Edit Profile
+                        </button>
+                      ) : (
+                        renderFollowButton()
+                      )}
                     </div>
                   </div>
                 </div>
@@ -1063,8 +1078,17 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
                       </a>
                     )}
                   </div>
-                  <div className="mt-3">
-                    {renderFollowButton()}
+                  <div className="mt-3 flex items-center gap-2">
+                    {isOwnProfile && onEdit ? (
+                      <button
+                        onClick={onEdit}
+                        className="px-4 py-1.5 rounded-full text-sm font-medium bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
+                      >
+                        Edit Profile
+                      </button>
+                    ) : (
+                      renderFollowButton()
+                    )}
                   </div>
                 </div>
               </div>

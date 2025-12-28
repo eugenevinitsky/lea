@@ -7,6 +7,7 @@ import { isVerifiedResearcher, Label, createPost, ReplyRef, QuoteRef, likePost, 
 import { useSettings } from '@/lib/settings';
 import { useBookmarks, BookmarkedPost } from '@/lib/bookmarks';
 import ProfileView from './ProfileView';
+import ProfileEditor from './ProfileEditor';
 import ProfileHoverCard from './ProfileHoverCard';
 import QuotesView from './QuotesView';
 
@@ -758,6 +759,7 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
 
   // Profile view state
   const [showProfile, setShowProfile] = useState(false);
+  const [showProfileEditor, setShowProfileEditor] = useState(false);
 
   // Quotes view state
   const [showQuotes, setShowQuotes] = useState(false);
@@ -1272,7 +1274,16 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
           displayName={author.displayName}
           handle={author.handle}
           onClose={() => setShowProfile(false)}
+          onEdit={() => {
+            setShowProfile(false);
+            setShowProfileEditor(true);
+          }}
         />
+      )}
+
+      {/* Profile editor modal */}
+      {showProfileEditor && (
+        <ProfileEditor onClose={() => setShowProfileEditor(false)} />
       )}
 
       {/* Quotes modal */}

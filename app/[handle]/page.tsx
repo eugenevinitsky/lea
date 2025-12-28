@@ -7,6 +7,7 @@ import { SettingsProvider } from '@/lib/settings';
 import { BookmarksProvider } from '@/lib/bookmarks';
 import { FeedsProvider } from '@/lib/feeds';
 import ProfileView from '@/components/ProfileView';
+import ProfileEditor from '@/components/ProfileEditor';
 import Login from '@/components/Login';
 
 function ProfilePageContent() {
@@ -18,6 +19,7 @@ function ProfilePageContent() {
   const [isLoading, setIsLoading] = useState(true);
   const [profileDid, setProfileDid] = useState<string | null>(null);
   const [resolveError, setResolveError] = useState<string | null>(null);
+  const [showProfileEditor, setShowProfileEditor] = useState(false);
 
   // Restore session on mount
   useEffect(() => {
@@ -125,6 +127,7 @@ function ProfilePageContent() {
               did={profileDid}
               onClose={handleClose}
               onOpenProfile={handleOpenProfile}
+              onEdit={() => setShowProfileEditor(true)}
               inline
             />
           ) : (
@@ -134,6 +137,11 @@ function ProfilePageContent() {
           )}
         </main>
       </div>
+
+      {/* Profile Editor Modal */}
+      {showProfileEditor && (
+        <ProfileEditor onClose={() => setShowProfileEditor(false)} />
+      )}
     </div>
   );
 }
