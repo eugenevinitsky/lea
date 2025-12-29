@@ -298,15 +298,22 @@ export interface SelfThreadResult {
 }
 
 // Check if a post is a self-reply (author replying to themselves)
-export function isSelfReply(post: AppBskyFeedDefs.FeedViewPost): boolean {
+export function isSelfReply(post: AppBskyFeedDefs.FeedViewPost, debug = false): boolean {
   const record = post.post.record as { reply?: { parent?: { uri?: string } } };
+  if (debug) {
+    console.log('[isSelfReply] Post:', post.post.uri, 'has reply?', !!record.reply);
+  }
   if (!record.reply?.parent?.uri) return false;
   
   // Check if parent is from the same author
   // The parent URI contains the author's DID
   const parentUri = record.reply.parent.uri;
   const authorDid = post.post.author.did;
-  return parentUri.includes(authorDid);
+  const isSelf = parentUri.includes(authorDid);
+  if (debug) {
+    console.log('[isSelfReply] parentUri:', parentUri, 'authorDid:', authorDid, 'isSelf:', isSelf);
+  }
+  return isSelf;
 }
 
 // Get the root URI of a reply chain (for deduplication)

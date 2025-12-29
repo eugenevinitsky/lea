@@ -260,8 +260,10 @@ export default function Feed({ feedId, feedUri, feedName, acceptsInteractions, r
     
     console.log('[SelfThread] Checking', filteredPosts.length, 'posts for self-replies');
     let foundCount = 0;
-    for (const item of filteredPosts) {
-      const selfReply = isSelfReply(item);
+    for (let i = 0; i < filteredPosts.length; i++) {
+      const item = filteredPosts[i];
+      // Debug first 5 posts
+      const selfReply = isSelfReply(item, i < 5);
       if (selfReply) {
         foundCount++;
         console.log('[SelfThread] Found self-reply:', item.post.uri);
