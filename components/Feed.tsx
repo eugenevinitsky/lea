@@ -259,6 +259,16 @@ export default function Feed({ feedId, feedUri, feedName, acceptsInteractions, r
     }
     
     console.log('[SelfThread] Checking', filteredPosts.length, 'posts for self-replies');
+    // Debug: log first 3 posts structure
+    for (let i = 0; i < Math.min(3, filteredPosts.length); i++) {
+      const item = filteredPosts[i];
+      console.log('[SelfThread] Post', i, 'structure:', {
+        uri: item.post.uri,
+        hasReply: !!(item as any).reply,
+        replyParent: (item as any).reply?.parent,
+        record: item.post.record,
+      });
+    }
     let foundCount = 0;
     for (let i = 0; i < filteredPosts.length; i++) {
       const item = filteredPosts[i];
