@@ -22,6 +22,19 @@ export function getAgent(): BskyAgent | null {
   return agent;
 }
 
+// Save session to localStorage (called on login and token refresh)
+function persistSession(evt: string, session?: { did: string; handle: string; accessJwt: string; refreshJwt: string }) {
+  if (typeof window === 'undefined') return;
+
+  if (evt === 'create' || evt === 'update') {
+    if (session) {
+      localStorage.setItem(SESSION_KEY, JSON.stringify(session));
+    }
+  } else if (evt === 'expired') {
+    localStorage.removeItem(SESSION_KEY);
+  }
+}
+
 // Restore session from localStorage if available
 export async function restoreSession(): Promise<boolean> {
   if (agent?.session) return true; // Already have a session
@@ -33,7 +46,10 @@ export async function restoreSession(): Promise<boolean> {
 
   try {
     const sessionData = JSON.parse(stored);
-    agent = new BskyAgent({ service: 'https://bsky.social' });
+    agent = new BskyAgent({
+      service: 'https://bsky.social',
+      persistSession: persistSession,
+    });
     await agent.resumeSession(sessionData);
     configureLabeler(); // Enable LEA labeler to show verified badges
     return true;
@@ -45,14 +61,12 @@ export async function restoreSession(): Promise<boolean> {
 }
 
 export async function login(identifier: string, password: string): Promise<BskyAgent> {
-  agent = new BskyAgent({ service: 'https://bsky.social' });
+  agent = new BskyAgent({
+    service: 'https://bsky.social',
+    persistSession: persistSession,
+  });
   await agent.login({ identifier, password });
   configureLabeler(); // Enable LEA labeler to show verified badges
-
-  // Persist session to localStorage
-  if (typeof window !== 'undefined' && agent.session) {
-    localStorage.setItem(SESSION_KEY, JSON.stringify(agent.session));
-  }
 
   return agent;
 }
