@@ -40,7 +40,7 @@ function formatMessageTime(dateString: string) {
 export default function DMSidebar() {
   const [isExpanded, setIsExpanded] = useState(false);
   const [convos, setConvos] = useState<Convo[]>([]);
-  const [followingDids, setFollowingDids] = useState<Set<string>>(new Set());
+  const [followingDids, setFollowingDids] = useState<Set<string> | null>(null);
   const [showRequests, setShowRequests] = useState(false);
   const [selectedConvoId, setSelectedConvoId] = useState<string | null>(null);
   const [selectedConvo, setSelectedConvo] = useState<Convo | null>(null);
@@ -205,10 +205,12 @@ export default function DMSidebar() {
   const otherMember = selectedConvo?.members.find(m => m.did !== session?.did);
 
   // Filter conversations into main chats (from followed users) and requests (from strangers)
+  // If followingDids hasn't loaded yet, show all in Messages to avoid flash of wrong content
+  const followsLoaded = followingDids !== null;
   const { mainChats, requests } = convos.reduce(
     (acc, convo) => {
       const other = convo.members.find(m => m.did !== session?.did);
-      if (other && followingDids.has(other.did)) {
+      if (!followsLoaded || (other && followingDids.has(other.did))) {
         acc.mainChats.push(convo);
       } else {
         acc.requests.push(convo);
