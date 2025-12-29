@@ -30,6 +30,7 @@ export interface GroupedNotifications {
   quotes: NotificationItem[];
   replies: NotificationItem[];
   follows: NotificationItem[];
+  mentions: NotificationItem[];
 }
 
 // Storage key for last viewed timestamps
@@ -41,23 +42,29 @@ interface LastViewedTimestamps {
   quotes: string | null;
   replies: string | null;
   follows: string | null;
+  mentions: string | null;
 }
 
 // Get last viewed timestamps from localStorage
 export function getLastViewedTimestamps(): LastViewedTimestamps {
   if (typeof window === 'undefined') {
-    return { likes: null, reposts: null, quotes: null, replies: null, follows: null };
+    return { likes: null, reposts: null, quotes: null, replies: null, follows: null, mentions: null };
   }
-  
+
   const stored = localStorage.getItem(LAST_VIEWED_KEY);
   if (!stored) {
-    return { likes: null, reposts: null, quotes: null, replies: null, follows: null };
+    return { likes: null, reposts: null, quotes: null, replies: null, follows: null, mentions: null };
   }
-  
+
   try {
-    return JSON.parse(stored);
+    const parsed = JSON.parse(stored);
+    // Ensure mentions key exists for backwards compatibility
+    if (parsed.mentions === undefined) {
+      parsed.mentions = null;
+    }
+    return parsed;
   } catch {
-    return { likes: null, reposts: null, quotes: null, replies: null, follows: null };
+    return { likes: null, reposts: null, quotes: null, replies: null, follows: null, mentions: null };
   }
 }
 
@@ -156,8 +163,9 @@ export function groupNotifications(notifications: NotificationItem[]): GroupedNo
     quotes: [],
     replies: [],
     follows: [],
+    mentions: [],
   };
-  
+
   for (const notification of notifications) {
     switch (notification.reason) {
       case 'like':
@@ -175,10 +183,12 @@ export function groupNotifications(notifications: NotificationItem[]): GroupedNo
       case 'follow':
         grouped.follows.push(notification);
         break;
-      // Ignore mention for now
+      case 'mention':
+        grouped.mentions.push(notification);
+        break;
     }
   }
-  
+
   return grouped;
 }
 
@@ -186,16 +196,17 @@ export function groupNotifications(notifications: NotificationItem[]): GroupedNo
 export function countUnread(
   grouped: GroupedNotifications,
   lastViewed: LastViewedTimestamps
-): { likes: number; reposts: number; quotes: number; replies: number; follows: number; total: number } {
+): { likes: number; reposts: number; quotes: number; replies: number; follows: number; mentions: number; total: number } {
   const counts = {
     likes: grouped.likes.filter(n => isNotificationUnread(n, lastViewed.likes)).length,
     reposts: grouped.reposts.filter(n => isNotificationUnread(n, lastViewed.reposts)).length,
     quotes: grouped.quotes.filter(n => isNotificationUnread(n, lastViewed.quotes)).length,
     replies: grouped.replies.filter(n => isNotificationUnread(n, lastViewed.replies)).length,
     follows: grouped.follows.filter(n => isNotificationUnread(n, lastViewed.follows)).length,
+    mentions: grouped.mentions.filter(n => isNotificationUnread(n, lastViewed.mentions)).length,
     total: 0,
   };
-  counts.total = counts.likes + counts.reposts + counts.quotes + counts.replies + counts.follows;
+  counts.total = counts.likes + counts.reposts + counts.quotes + counts.replies + counts.follows + counts.mentions;
   return counts;
 }
 

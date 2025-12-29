@@ -261,13 +261,14 @@ export default function Notifications({ onOpenPost, onOpenProfile }: Notificatio
     quotes: [],
     replies: [],
     follows: [],
+    mentions: [],
   });
   const [loading, setLoading] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [cursor, setCursor] = useState<string | undefined>();
   const [error, setError] = useState<string | null>(null);
   const [lastViewed, setLastViewed] = useState(getLastViewedTimestamps());
-  const [unreadCounts, setUnreadCounts] = useState({ likes: 0, reposts: 0, quotes: 0, replies: 0, follows: 0, total: 0 });
+  const [unreadCounts, setUnreadCounts] = useState({ likes: 0, reposts: 0, quotes: 0, replies: 0, follows: 0, mentions: 0, total: 0 });
 
   // Track which categories are expanded
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
@@ -293,6 +294,7 @@ export default function Notifications({ onOpenPost, onOpenProfile }: Notificatio
           quotes: [...prev.quotes, ...newGrouped.quotes],
           replies: [...prev.replies, ...newGrouped.replies],
           follows: [...prev.follows, ...newGrouped.follows],
+          mentions: [...prev.mentions, ...newGrouped.mentions],
         }));
       } else {
         setGrouped(newGrouped);
@@ -310,6 +312,7 @@ export default function Notifications({ onOpenPost, onOpenProfile }: Notificatio
             quotes: [...grouped.quotes, ...newGrouped.quotes],
             replies: [...grouped.replies, ...newGrouped.replies],
             follows: [...grouped.follows, ...newGrouped.follows],
+            mentions: [...grouped.mentions, ...newGrouped.mentions],
           }
         : newGrouped;
       setUnreadCounts(countUnread(mergedGrouped, timestamps));
@@ -341,7 +344,7 @@ export default function Notifications({ onOpenPost, onOpenProfile }: Notificatio
   }, [isExpanded]);
 
   // Handle category toggle
-  const handleCategoryToggle = (category: 'likes' | 'reposts' | 'quotes' | 'replies' | 'follows') => {
+  const handleCategoryToggle = (category: 'likes' | 'reposts' | 'quotes' | 'replies' | 'follows' | 'mentions') => {
     setExpandedCategories((prev) => {
       const newSet = new Set(prev);
       if (newSet.has(category)) {
@@ -466,17 +469,39 @@ export default function Notifications({ onOpenPost, onOpenProfile }: Notificatio
         </svg>
       ),
     },
+    {
+      key: 'mentions' as const,
+      settingKey: 'notifyMentions' as const,
+      title: 'Mentions',
+      items: grouped.mentions,
+      unread: unreadCounts.mentions,
+      enabled: settings.notifyMentions,
+      colors: {
+        bg: 'bg-cyan-50 dark:bg-cyan-900/20',
+        border: 'border-l-cyan-400',
+        text: 'text-cyan-700 dark:text-cyan-300',
+        icon: 'text-cyan-500',
+        hover: 'hover:bg-cyan-100 dark:hover:bg-cyan-900/30',
+        badge: 'bg-cyan-100 dark:bg-cyan-900/30 text-cyan-600 dark:text-cyan-400',
+      },
+      icon: (
+        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 12a4 4 0 10-8 0 4 4 0 008 0zm0 0v1.5a2.5 2.5 0 005 0V12a9 9 0 10-9 9m4.5-1.206a8.959 8.959 0 01-4.5 1.207" />
+        </svg>
+      ),
+    },
   ];
 
-  const totalNotifications = grouped.likes.length + grouped.reposts.length + grouped.quotes.length + grouped.replies.length + grouped.follows.length;
-  
+  const totalNotifications = grouped.likes.length + grouped.reposts.length + grouped.quotes.length + grouped.replies.length + grouped.follows.length + grouped.mentions.length;
+
   // Only count unread for enabled categories
-  const enabledUnreadTotal = 
+  const enabledUnreadTotal =
     (settings.notifyLikes ? unreadCounts.likes : 0) +
     (settings.notifyReposts ? unreadCounts.reposts : 0) +
     (settings.notifyQuotes ? unreadCounts.quotes : 0) +
     (settings.notifyReplies ? unreadCounts.replies : 0) +
-    (settings.notifyFollows ? unreadCounts.follows : 0);
+    (settings.notifyFollows ? unreadCounts.follows : 0) +
+    (settings.notifyMentions ? unreadCounts.mentions : 0);
 
   return (
     <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden">

@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import {
   listConvos,
   getConvo,
+  getConvoForMembers,
   getMessages,
   sendMessage,
   updateRead,
@@ -11,6 +12,7 @@ import {
   getMyFollows,
   leaveConvo,
   blockUser,
+  searchActors,
   Convo,
   ChatMessage,
   LogEntry,
@@ -53,9 +55,16 @@ export default function DMSidebar() {
   const [error, setError] = useState<string | null>(null);
   const [totalUnread, setTotalUnread] = useState(0);
   const [logCursor, setLogCursor] = useState<string | null>(null);
+  const [showNewChat, setShowNewChat] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<Array<{ did: string; handle: string; displayName?: string; avatar?: string }>>([]);
+  const [searching, setSearching] = useState(false);
+  const [startingChat, setStartingChat] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
   const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const session = getSession();
 
   // Fetch conversations
@@ -225,6 +234,69 @@ export default function DMSidebar() {
     }
   };
 
+  // Handle search for new chat
+  const handleSearch = useCallback(async (query: string) => {
+    if (!query.trim()) {
+      setSearchResults([]);
+      return;
+    }
+
+    setSearching(true);
+    try {
+      const results = await searchActors(query);
+      setSearchResults(results.filter(a => a.did !== session?.did).slice(0, 10));
+    } catch (err) {
+      console.error('Search error:', err);
+    } finally {
+      setSearching(false);
+    }
+  }, [session?.did]);
+
+  // Debounced search
+  useEffect(() => {
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
+    if (searchQuery) {
+      searchTimeoutRef.current = setTimeout(() => {
+        handleSearch(searchQuery);
+      }, 300);
+    } else {
+      setSearchResults([]);
+    }
+    return () => {
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current);
+      }
+    };
+  }, [searchQuery, handleSearch]);
+
+  // Focus search input when opening new chat
+  useEffect(() => {
+    if (showNewChat) {
+      searchInputRef.current?.focus();
+    }
+  }, [showNewChat]);
+
+  // Start a new chat with a user
+  const handleStartChat = async (userDid: string) => {
+    setStartingChat(true);
+    try {
+      const result = await getConvoForMembers([session!.did, userDid]);
+      setShowNewChat(false);
+      setSearchQuery('');
+      setSearchResults([]);
+      setSelectedConvoId(result.convo.id);
+      setSelectedConvo(result.convo);
+      fetchMessages(result.convo.id);
+      fetchConvos(); // Refresh the convo list
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to start chat');
+    } finally {
+      setStartingChat(false);
+    }
+  };
+
   const otherMember = selectedConvo?.members.find(m => m.did !== session?.did);
 
   // Filter conversations into main chats (from followed users) and requests (from strangers)
@@ -370,35 +442,118 @@ export default function DMSidebar() {
                 </div>
               </div>
             </div>
+          ) : showNewChat ? (
+            // New chat search view
+            <div className="max-h-[350px] overflow-y-auto">
+              {/* Header */}
+              <div className="flex items-center gap-2 p-2 border-b border-gray-100 dark:border-gray-800">
+                <button
+                  onClick={() => {
+                    setShowNewChat(false);
+                    setSearchQuery('');
+                    setSearchResults([]);
+                  }}
+                  className="p-1 hover:bg-gray-100 dark:hover:bg-gray-800 rounded"
+                >
+                  <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                  </svg>
+                </button>
+                <span className="text-sm font-medium text-gray-900 dark:text-gray-100">New Message</span>
+              </div>
+
+              {/* Search input */}
+              <div className="p-2 border-b border-gray-100 dark:border-gray-800">
+                <input
+                  ref={searchInputRef}
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Search for a user..."
+                  className="w-full px-3 py-2 bg-gray-100 dark:bg-gray-800 border-0 rounded-lg text-sm text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+
+              {/* Search results */}
+              <div className="divide-y divide-gray-100 dark:divide-gray-800">
+                {searching ? (
+                  <div className="flex items-center justify-center py-8">
+                    <div className="animate-spin w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full" />
+                  </div>
+                ) : searchResults.length === 0 ? (
+                  <div className="p-4 text-center">
+                    <p className="text-xs text-gray-400">
+                      {searchQuery ? 'No users found' : 'Type to search for users'}
+                    </p>
+                  </div>
+                ) : (
+                  searchResults.map((user) => (
+                    <button
+                      key={user.did}
+                      onClick={() => handleStartChat(user.did)}
+                      disabled={startingChat}
+                      className="w-full p-2.5 hover:bg-gray-50 dark:hover:bg-gray-800/50 text-left disabled:opacity-50"
+                    >
+                      <div className="flex items-center gap-2">
+                        {user.avatar ? (
+                          <img src={user.avatar} alt="" className="w-8 h-8 rounded-full flex-shrink-0" />
+                        ) : (
+                          <div className="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
+                            {(user.displayName || user.handle)[0].toUpperCase()}
+                          </div>
+                        )}
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
+                            {user.displayName || user.handle}
+                          </p>
+                          <p className="text-xs text-gray-500 truncate">@{user.handle}</p>
+                        </div>
+                      </div>
+                    </button>
+                  ))
+                )}
+              </div>
+            </div>
           ) : (
             // Conversation list
             <div className="max-h-[350px] overflow-y-auto">
-              {/* Tabs for Messages vs Requests */}
-              <div className="flex border-b border-gray-100 dark:border-gray-800">
+              {/* Header with New Chat button */}
+              <div className="flex items-center justify-between px-3 py-2 border-b border-gray-100 dark:border-gray-800">
+                <div className="flex gap-1">
+                  <button
+                    onClick={() => setShowRequests(false)}
+                    className={`px-2 py-1 text-xs font-medium rounded transition-colors ${
+                      !showRequests
+                        ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400'
+                        : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
+                    }`}
+                  >
+                    Messages
+                  </button>
+                  <button
+                    onClick={() => setShowRequests(true)}
+                    className={`px-2 py-1 text-xs font-medium rounded transition-colors flex items-center gap-1 ${
+                      showRequests
+                        ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400'
+                        : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
+                    }`}
+                  >
+                    Requests
+                    {requestCount > 0 && (
+                      <span className="px-1 py-0.5 text-[10px] font-bold bg-amber-500 text-white rounded-full">
+                        {requestCount > 9 ? '9+' : requestCount}
+                      </span>
+                    )}
+                  </button>
+                </div>
                 <button
-                  onClick={() => setShowRequests(false)}
-                  className={`flex-1 px-3 py-2 text-xs font-medium transition-colors ${
-                    !showRequests
-                      ? 'text-blue-500 border-b-2 border-blue-500'
-                      : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
-                  }`}
+                  onClick={() => setShowNewChat(true)}
+                  className="p-1.5 text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-full transition-colors"
+                  title="New message"
                 >
-                  Messages ({mainChats.length})
-                </button>
-                <button
-                  onClick={() => setShowRequests(true)}
-                  className={`flex-1 px-3 py-2 text-xs font-medium transition-colors ${
-                    showRequests
-                      ? 'text-blue-500 border-b-2 border-blue-500'
-                      : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
-                  }`}
-                >
-                  Requests
-                  {requestCount > 0 && (
-                    <span className="ml-1 px-1.5 py-0.5 text-[10px] font-bold bg-amber-500 text-white rounded-full">
-                      {requestCount > 9 ? '9+' : requestCount}
-                    </span>
-                  )}
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                  </svg>
                 </button>
               </div>
 
