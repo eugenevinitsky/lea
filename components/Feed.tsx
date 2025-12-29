@@ -253,17 +253,30 @@ export default function Feed({ feedId, feedUri, feedName, acceptsInteractions, r
 
   // Effect to auto-expand self-threads when posts load
   useEffect(() => {
-    if (!settings.expandSelfThreads) return;
+    if (!settings.expandSelfThreads) {
+      console.log('[SelfThread] Setting disabled');
+      return;
+    }
     
+    console.log('[SelfThread] Checking', filteredPosts.length, 'posts for self-replies');
+    let foundCount = 0;
     for (const item of filteredPosts) {
-      if (isSelfReply(item)) {
+      const selfReply = isSelfReply(item);
+      if (selfReply) {
+        foundCount++;
+        console.log('[SelfThread] Found self-reply:', item.post.uri);
         const rootUri = getReplyRootUri(item);
         // Skip if we've already shown this thread root
-        if (rootUri && seenRootUris.current.has(rootUri)) continue;
+        if (rootUri && seenRootUris.current.has(rootUri)) {
+          console.log('[SelfThread] Skipping (already seen root):', rootUri);
+          continue;
+        }
         // Expand the thread
+        console.log('[SelfThread] Expanding thread for:', item.post.uri);
         expandSelfThread(item.post.uri);
       }
     }
+    console.log('[SelfThread] Found', foundCount, 'self-replies total');
   }, [filteredPosts, settings.expandSelfThreads, expandSelfThread]);
 
   if (error) {
