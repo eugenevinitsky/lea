@@ -8,6 +8,7 @@ import {
   sendMessage,
   updateRead,
   getChatLog,
+  getMyFollows,
   Convo,
   ChatMessage,
   LogEntry,
@@ -39,6 +40,8 @@ function formatMessageTime(dateString: string) {
 export default function DMSidebar() {
   const [isExpanded, setIsExpanded] = useState(false);
   const [convos, setConvos] = useState<Convo[]>([]);
+  const [followingDids, setFollowingDids] = useState<Set<string>>(new Set());
+  const [showRequests, setShowRequests] = useState(false);
   const [selectedConvoId, setSelectedConvoId] = useState<string | null>(null);
   const [selectedConvo, setSelectedConvo] = useState<Convo | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -129,6 +132,11 @@ export default function DMSidebar() {
   useEffect(() => {
     fetchConvos();
 
+    // Fetch following list for filtering
+    getMyFollows().then(follows => {
+      setFollowingDids(follows);
+    }).catch(console.error);
+
     // Initialize log cursor
     getChatLog().then(response => {
       if (response.logs.length > 0) {
@@ -195,6 +203,23 @@ export default function DMSidebar() {
   };
 
   const otherMember = selectedConvo?.members.find(m => m.did !== session?.did);
+
+  // Filter conversations into main chats (from followed users) and requests (from strangers)
+  const { mainChats, requests } = convos.reduce(
+    (acc, convo) => {
+      const other = convo.members.find(m => m.did !== session?.did);
+      if (other && followingDids.has(other.did)) {
+        acc.mainChats.push(convo);
+      } else {
+        acc.requests.push(convo);
+      }
+      return acc;
+    },
+    { mainChats: [] as Convo[], requests: [] as Convo[] }
+  );
+
+  const displayedConvos = showRequests ? requests : mainChats;
+  const requestCount = requests.length;
 
   return (
     <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden">
@@ -323,13 +348,44 @@ export default function DMSidebar() {
           ) : (
             // Conversation list
             <div className="max-h-[350px] overflow-y-auto">
-              {convos.length === 0 ? (
+              {/* Tabs for Messages vs Requests */}
+              <div className="flex border-b border-gray-100 dark:border-gray-800">
+                <button
+                  onClick={() => setShowRequests(false)}
+                  className={`flex-1 px-3 py-2 text-xs font-medium transition-colors ${
+                    !showRequests
+                      ? 'text-blue-500 border-b-2 border-blue-500'
+                      : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
+                  }`}
+                >
+                  Messages ({mainChats.length})
+                </button>
+                <button
+                  onClick={() => setShowRequests(true)}
+                  className={`flex-1 px-3 py-2 text-xs font-medium transition-colors ${
+                    showRequests
+                      ? 'text-blue-500 border-b-2 border-blue-500'
+                      : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
+                  }`}
+                >
+                  Requests
+                  {requestCount > 0 && (
+                    <span className="ml-1 px-1.5 py-0.5 text-[10px] font-bold bg-amber-500 text-white rounded-full">
+                      {requestCount > 9 ? '9+' : requestCount}
+                    </span>
+                  )}
+                </button>
+              </div>
+
+              {displayedConvos.length === 0 ? (
                 <div className="p-4 text-center">
-                  <p className="text-xs text-gray-400">No conversations yet</p>
+                  <p className="text-xs text-gray-400">
+                    {showRequests ? 'No message requests' : 'No conversations yet'}
+                  </p>
                 </div>
               ) : (
                 <div className="divide-y divide-gray-100 dark:divide-gray-800">
-                  {convos.map((convo) => {
+                  {displayedConvos.map((convo) => {
                     const other = convo.members.find(m => m.did !== session?.did) || convo.members[0];
                     const hasUnread = convo.unreadCount > 0;
 
