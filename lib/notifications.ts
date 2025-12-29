@@ -20,6 +20,8 @@ export interface NotificationItem {
     text?: string;
     createdAt?: string;
   };
+  // For likes/reposts, the text of the post that was interacted with
+  subjectText?: string;
 }
 
 export interface GroupedNotifications {
@@ -103,6 +105,40 @@ export async function fetchNotifications(cursor?: string): Promise<{
     },
     record: n.record as NotificationItem['record'],
   }));
+  
+  // Fetch subject posts for likes/reposts to get their text
+  const subjectUris = notifications
+    .filter(n => (n.reason === 'like' || n.reason === 'repost') && n.reasonSubject)
+    .map(n => n.reasonSubject!)
+    .filter((uri, index, arr) => arr.indexOf(uri) === index); // dedupe
+  
+  if (subjectUris.length > 0) {
+    try {
+      // Batch fetch posts (max 25 at a time)
+      const batchSize = 25;
+      const subjectTexts: Record<string, string> = {};
+      
+      for (let i = 0; i < subjectUris.length; i += batchSize) {
+        const batch = subjectUris.slice(i, i + batchSize);
+        const postsResponse = await agent.getPosts({ uris: batch });
+        for (const post of postsResponse.data.posts) {
+          const record = post.record as { text?: string };
+          if (record?.text) {
+            subjectTexts[post.uri] = record.text;
+          }
+        }
+      }
+      
+      // Attach subject text to notifications
+      for (const notification of notifications) {
+        if (notification.reasonSubject && subjectTexts[notification.reasonSubject]) {
+          notification.subjectText = subjectTexts[notification.reasonSubject];
+        }
+      }
+    } catch (err) {
+      console.error('Failed to fetch subject posts:', err);
+    }
+  }
   
   return {
     notifications,

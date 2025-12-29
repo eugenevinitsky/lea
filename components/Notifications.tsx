@@ -102,6 +102,12 @@ function NotificationItemView({
               {notification.record.text}
             </p>
           )}
+          {/* Show subject post text for likes/reposts */}
+          {notification.subjectText && (
+            <p className="text-xs text-gray-500 dark:text-gray-500 line-clamp-2 mt-0.5 italic">
+              &ldquo;{notification.subjectText}&rdquo;
+            </p>
+          )}
         </div>
       </div>
     </div>
