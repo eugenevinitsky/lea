@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { AppBskyFeedDefs, AppBskyFeedPost, AppBskyEmbedExternal, AppBskyEmbedImages, AppBskyEmbedRecord, AppBskyEmbedRecordWithMedia, AppBskyEmbedVideo } from '@atproto/api';
 import Hls from 'hls.js';
-import { isVerifiedResearcher, Label, createPost, ReplyRef, QuoteRef, likePost, unlikePost, repost, deleteRepost, sendFeedInteraction, InteractionEvent, getSession, updateThreadgate, getThreadgateType, ThreadgateType, FEEDS } from '@/lib/bluesky';
+import { isVerifiedResearcher, Label, createPost, ReplyRef, QuoteRef, likePost, unlikePost, repost, deleteRepost, deletePost, sendFeedInteraction, InteractionEvent, getSession, updateThreadgate, getThreadgateType, ThreadgateType, FEEDS } from '@/lib/bluesky';
 import { useSettings } from '@/lib/settings';
 import { useBookmarks, BookmarkedPost } from '@/lib/bookmarks';
 import ProfileView from './ProfileView';
@@ -761,6 +761,13 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
   const [updatingThreadgate, setUpdatingThreadgate] = useState(false);
   const [threadgateError, setThreadgateError] = useState<string | null>(null);
 
+  // Delete state (for own posts)
+  const [deleting, setDeleting] = useState(false);
+  const [deleted, setDeleted] = useState(false);
+
+  // Share state
+  const [showCopied, setShowCopied] = useState(false);
+
   const handleThreadgateUpdate = async (newType: ThreadgateType) => {
     if (updatingThreadgate || newType === currentThreadgate) return;
     
@@ -854,6 +861,43 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
         paperTitle: paperInfo.title,
       };
       addBookmark(bookmarkData);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (deleting || !isOwnPost) return;
+    
+    // Confirm deletion
+    if (!window.confirm('Are you sure you want to delete this post? This cannot be undone.')) {
+      return;
+    }
+    
+    setDeleting(true);
+    try {
+      await deletePost(post.uri);
+      setDeleted(true);
+    } catch (err) {
+      console.error('Failed to delete post:', err);
+      alert('Failed to delete post. Please try again.');
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  const handleShare = async () => {
+    // Convert AT URI to Bluesky URL
+    // at://did:plc:xxx/app.bsky.feed.post/xxx -> https://bsky.app/profile/did:plc:xxx/post/xxx
+    const parts = post.uri.replace('at://', '').split('/');
+    const did = parts[0];
+    const rkey = parts[2];
+    const url = `https://bsky.app/profile/${did}/post/${rkey}`;
+    
+    try {
+      await navigator.clipboard.writeText(url);
+      setShowCopied(true);
+      setTimeout(() => setShowCopied(false), 2000);
+    } catch (err) {
+      console.error('Failed to copy URL:', err);
     }
   };
 
@@ -977,6 +1021,20 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
 
   // Dim non-verified or reposts if settings enabled
   const dimmed = (settings.dimNonVerified && !isVerified) || (settings.dimReposts && isRepost);
+
+  // Show deleted state
+  if (deleted) {
+    return (
+      <article className="border-b border-gray-200 dark:border-gray-800 p-4">
+        <div className="flex items-center gap-2 text-gray-400">
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+          </svg>
+          <span className="text-sm">Post deleted</span>
+        </div>
+      </article>
+    );
+  }
 
   return (
     <article className={`border-b border-gray-200 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-900/50 transition-colors ${dimmed ? 'opacity-60' : ''}`}>
@@ -1239,6 +1297,20 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
                   viewBox="0 0 24 24"
                 >
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                </svg>
+              </button>
+            )}
+
+            {/* Delete button - only for own posts */}
+            {isOwnPost && (
+              <button
+                onClick={handleDelete}
+                disabled={deleting}
+                className={`flex items-center gap-1 transition-colors hover:text-red-500 ${deleting ? 'opacity-50' : ''}`}
+                title="Delete post"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                 </svg>
               </button>
             )}

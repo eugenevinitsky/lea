@@ -541,6 +541,12 @@ export async function deleteRepost(repostUri: string): Promise<void> {
   await agent.deleteRepost(repostUri);
 }
 
+// Delete a post
+export async function deletePost(postUri: string): Promise<void> {
+  if (!agent) throw new Error('Not logged in');
+  await agent.deletePost(postUri);
+}
+
 // Follow a user
 export async function followUser(did: string): Promise<{ uri: string }> {
   if (!agent) throw new Error('Not logged in');
