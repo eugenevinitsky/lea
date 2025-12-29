@@ -4,7 +4,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import { restoreSession, getSession, getBlueskyProfile } from '@/lib/bluesky';
 import { SettingsProvider } from '@/lib/settings';
-import { BookmarksProvider } from '@/lib/bookmarks';
+import { BookmarksProvider, useBookmarks } from '@/lib/bookmarks';
 import { FeedsProvider } from '@/lib/feeds';
 import ProfileView from '@/components/ProfileView';
 import ProfileEditor from '@/components/ProfileEditor';
@@ -20,16 +20,21 @@ function ProfilePageContent() {
   const [profileDid, setProfileDid] = useState<string | null>(null);
   const [resolveError, setResolveError] = useState<string | null>(null);
   const [showProfileEditor, setShowProfileEditor] = useState(false);
+  const { setUserDid } = useBookmarks();
 
   // Restore session on mount
   useEffect(() => {
     restoreSession().then((restored) => {
       if (restored) {
         setIsLoggedIn(true);
+        const session = getSession();
+        if (session?.did) {
+          setUserDid(session.did);
+        }
       }
       setIsLoading(false);
     });
-  }, []);
+  }, [setUserDid]);
 
   // Resolve handle to DID once logged in
   useEffect(() => {
@@ -55,6 +60,10 @@ function ProfilePageContent() {
 
   const handleLogin = () => {
     setIsLoggedIn(true);
+    const session = getSession();
+    if (session?.did) {
+      setUserDid(session.did);
+    }
   };
 
   const handleClose = () => {

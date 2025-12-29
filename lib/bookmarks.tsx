@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, createContext, useContext, ReactNode } from 'react';
+import { useState, useEffect, createContext, useContext, ReactNode, useCallback, useRef } from 'react';
 
 export interface BookmarkedPost {
   uri: string;
@@ -39,6 +39,7 @@ export const COLLECTION_COLORS = [
 interface BookmarksContextType {
   bookmarks: BookmarkedPost[];
   collections: BookmarkCollection[];
+  loading: boolean;
   addBookmark: (post: BookmarkedPost, collectionIds?: string[]) => void;
   removeBookmark: (uri: string) => void;
   isBookmarked: (uri: string) => boolean;
@@ -49,129 +50,163 @@ interface BookmarksContextType {
   renameCollection: (id: string, name: string) => void;
   deleteCollection: (id: string) => void;
   reorderCollections: (fromIndex: number, toIndex: number) => void;
+  setUserDid: (did: string | null) => void;
 }
 
 const BookmarksContext = createContext<BookmarksContextType | null>(null);
 
-const STORAGE_KEY = 'lea-bookmarks';
-const COLLECTIONS_STORAGE_KEY = 'lea-bookmark-collections';
-
 export function BookmarksProvider({ children }: { children: ReactNode }) {
   const [bookmarks, setBookmarks] = useState<BookmarkedPost[]>([]);
   const [collections, setCollections] = useState<BookmarkCollection[]>([]);
-  const [loaded, setLoaded] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [userDid, setUserDid] = useState<string | null>(null);
+  const pendingIdRef = useRef<string | null>(null); // For optimistic collection ID
 
-  // Load bookmarks and collections from localStorage on mount
+  // Fetch bookmarks from API when userDid changes
   useEffect(() => {
-    const storedBookmarks = localStorage.getItem(STORAGE_KEY);
-    if (storedBookmarks) {
+    async function fetchBookmarks() {
+      if (!userDid) {
+        setBookmarks([]);
+        setCollections([]);
+        setLoading(false);
+        return;
+      }
+
+      setLoading(true);
       try {
-        const parsed = JSON.parse(storedBookmarks);
-        setBookmarks(parsed);
-      } catch {
-        // Invalid JSON, use empty array
+        const res = await fetch(`/api/bookmarks?did=${encodeURIComponent(userDid)}`);
+        if (res.ok) {
+          const data = await res.json();
+          setBookmarks(data.bookmarks || []);
+          setCollections(data.collections || []);
+        }
+      } catch (error) {
+        console.error('Failed to fetch bookmarks:', error);
+      } finally {
+        setLoading(false);
       }
     }
-    const storedCollections = localStorage.getItem(COLLECTIONS_STORAGE_KEY);
-    if (storedCollections) {
-      try {
-        const parsed = JSON.parse(storedCollections);
-        setCollections(parsed);
-      } catch {
-        // Invalid JSON, use empty array
-      }
-    }
-    setLoaded(true);
-  }, []);
 
-  // Save bookmarks to localStorage on change
-  useEffect(() => {
-    if (loaded) {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(bookmarks));
-    }
-  }, [bookmarks, loaded]);
+    fetchBookmarks();
+  }, [userDid]);
 
-  // Save collections to localStorage on change
-  useEffect(() => {
-    if (loaded) {
-      localStorage.setItem(COLLECTIONS_STORAGE_KEY, JSON.stringify(collections));
+  // API helper
+  const apiCall = useCallback(async (action: string, data: Record<string, unknown>) => {
+    if (!userDid) return;
+    try {
+      await fetch('/api/bookmarks', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ did: userDid, action, ...data }),
+      });
+    } catch (error) {
+      console.error(`Failed to ${action}:`, error);
     }
-  }, [collections, loaded]);
+  }, [userDid]);
 
-  const addBookmark = (post: BookmarkedPost, collectionIds?: string[]) => {
+  const addBookmark = useCallback((post: BookmarkedPost, collectionIds?: string[]) => {
+    // Optimistic update
     setBookmarks(prev => {
-      // Don't add duplicates
       if (prev.some(b => b.uri === post.uri)) return prev;
       return [{ ...post, collectionIds: collectionIds || [] }, ...prev];
     });
-  };
+    // API call
+    apiCall('addBookmark', { bookmark: post, collectionIds });
+  }, [apiCall]);
 
-  const removeBookmark = (uri: string) => {
+  const removeBookmark = useCallback((uri: string) => {
+    // Optimistic update
     setBookmarks(prev => prev.filter(b => b.uri !== uri));
-  };
+    // API call
+    apiCall('removeBookmark', { uri });
+  }, [apiCall]);
 
-  const isBookmarked = (uri: string) => {
+  const isBookmarked = useCallback((uri: string) => {
     return bookmarks.some(b => b.uri === uri);
-  };
+  }, [bookmarks]);
 
-  const getBookmarkCollections = (uri: string): string[] => {
+  const getBookmarkCollections = useCallback((uri: string): string[] => {
     const bookmark = bookmarks.find(b => b.uri === uri);
     return bookmark?.collectionIds || [];
-  };
+  }, [bookmarks]);
 
-  const addBookmarkToCollection = (uri: string, collectionId: string) => {
+  const addBookmarkToCollection = useCallback((uri: string, collectionId: string) => {
+    // Optimistic update
     setBookmarks(prev => prev.map(b => {
       if (b.uri !== uri) return b;
       const currentIds = b.collectionIds || [];
       if (currentIds.includes(collectionId)) return b;
-      return { ...b, collectionIds: [...currentIds, collectionId] };
+      const newIds = [...currentIds, collectionId];
+      // API call with new IDs
+      apiCall('updateBookmarkCollections', { uri, collectionIds: newIds });
+      return { ...b, collectionIds: newIds };
     }));
-  };
+  }, [apiCall]);
 
-  const removeBookmarkFromCollection = (uri: string, collectionId: string) => {
+  const removeBookmarkFromCollection = useCallback((uri: string, collectionId: string) => {
+    // Optimistic update
     setBookmarks(prev => prev.map(b => {
       if (b.uri !== uri) return b;
       const currentIds = b.collectionIds || [];
-      return { ...b, collectionIds: currentIds.filter(id => id !== collectionId) };
+      const newIds = currentIds.filter(id => id !== collectionId);
+      // API call with new IDs
+      apiCall('updateBookmarkCollections', { uri, collectionIds: newIds });
+      return { ...b, collectionIds: newIds };
     }));
-  };
+  }, [apiCall]);
 
-  const addCollection = (name: string): string => {
+  const addCollection = useCallback((name: string): string => {
+    // Generate optimistic ID
     const id = `col_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    pendingIdRef.current = id;
     // Pick color based on number of existing collections
     const colorIndex = collections.length % COLLECTION_COLORS.length;
-    const color = COLLECTION_COLORS[colorIndex].icon.split('-')[1]; // Extract color name like 'rose', 'emerald'
+    const color = COLLECTION_COLORS[colorIndex].icon.split('-')[1];
     const newCollection: BookmarkCollection = { id, name, color };
+    
+    // Optimistic update
     setCollections(prev => [...prev, newCollection]);
+    // API call
+    apiCall('addCollection', { name, color });
+    
     return id;
-  };
+  }, [collections.length, apiCall]);
 
-  const renameCollection = (id: string, name: string) => {
+  const renameCollection = useCallback((id: string, name: string) => {
+    // Optimistic update
     setCollections(prev => prev.map(c => c.id === id ? { ...c, name } : c));
-  };
+    // API call
+    apiCall('renameCollection', { id, name });
+  }, [apiCall]);
 
-  const deleteCollection = (id: string) => {
-    // Remove collection from all bookmarks
+  const deleteCollection = useCallback((id: string) => {
+    // Optimistic update - remove collection from all bookmarks
     setBookmarks(prev => prev.map(b => ({
       ...b,
       collectionIds: (b.collectionIds || []).filter(cid => cid !== id)
     })));
     // Remove the collection
     setCollections(prev => prev.filter(c => c.id !== id));
-  };
+    // API call
+    apiCall('deleteCollection', { id });
+  }, [apiCall]);
 
-  const reorderCollections = (fromIndex: number, toIndex: number) => {
+  const reorderCollections = useCallback((fromIndex: number, toIndex: number) => {
+    // Optimistic update
     setCollections(prev => {
       const newCollections = [...prev];
       const [removed] = newCollections.splice(fromIndex, 1);
       newCollections.splice(toIndex, 0, removed);
       return newCollections;
     });
-  };
+    // API call
+    apiCall('reorderCollections', { fromIndex, toIndex });
+  }, [apiCall]);
 
   const value = {
     bookmarks,
     collections,
+    loading,
     addBookmark,
     removeBookmark,
     isBookmarked,
@@ -182,6 +217,7 @@ export function BookmarksProvider({ children }: { children: ReactNode }) {
     renameCollection,
     deleteCollection,
     reorderCollections,
+    setUserDid,
   };
 
   return (

@@ -4,7 +4,7 @@ import { useState, useCallback, useEffect, Suspense, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { getSession, logout, restoreSession, getBlueskyProfile } from '@/lib/bluesky';
 import { SettingsProvider } from '@/lib/settings';
-import { BookmarksProvider } from '@/lib/bookmarks';
+import { BookmarksProvider, useBookmarks } from '@/lib/bookmarks';
 import { FeedsProvider, useFeeds } from '@/lib/feeds';
 import Login from '@/components/Login';
 import Feed from '@/components/Feed';
@@ -36,6 +36,7 @@ function AppContent() {
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
   const [isVerified, setIsVerified] = useState(false);
   const { pinnedFeeds, removeFeed, reorderFeeds } = useFeeds();
+  const { setUserDid } = useBookmarks();
 
   // Track if we're intentionally closing to avoid race condition with URL sync
   const isClosingRef = useRef(false);
@@ -84,13 +85,17 @@ function AppContent() {
     restoreSession().then((restored) => {
       if (restored) {
         setIsLoggedIn(true);
+        // Set user DID for bookmarks
+        const session = getSession();
+        if (session?.did) {
+          setUserDid(session.did);
+        }
         // Check if onboarding was completed
         const onboardingComplete = localStorage.getItem('lea-onboarding-complete');
         if (!onboardingComplete) {
           setShowOnboarding(true);
         }
         // Check verification status
-        const session = getSession();
         if (session?.did) {
           fetch(`/api/researchers?did=${session.did}`)
             .then(res => res.json())
@@ -104,10 +109,15 @@ function AppContent() {
       }
       setIsLoading(false);
     });
-  }, []);
+  }, [setUserDid]);
 
   const handleLogin = (forceOnboarding?: boolean) => {
     setIsLoggedIn(true);
+    // Set user DID for bookmarks
+    const session = getSession();
+    if (session?.did) {
+      setUserDid(session.did);
+    }
     // Check if this is a first-time user or if onboarding is forced
     const onboardingComplete = localStorage.getItem('lea-onboarding-complete');
     if (forceOnboarding || !onboardingComplete) {
@@ -123,6 +133,7 @@ function AppContent() {
   const handleLogout = () => {
     logout();
     setIsLoggedIn(false);
+    setUserDid(null);
   };
 
   const handlePost = useCallback(() => {

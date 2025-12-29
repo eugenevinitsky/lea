@@ -119,6 +119,39 @@ export const researcherProfiles = pgTable('researcher_profiles', {
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
 
+// User bookmark collections
+export const userBookmarkCollections = pgTable(
+  'user_bookmark_collections',
+  {
+    id: varchar('id', { length: 50 }).primaryKey(),
+    userDid: varchar('user_did', { length: 255 }).notNull(),
+    name: varchar('name', { length: 100 }).notNull(),
+    color: varchar('color', { length: 20 }).notNull(), // e.g., 'rose', 'emerald'
+    position: integer('position').notNull().default(0), // For ordering
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+  },
+  (table) => [
+    index('user_bookmark_collections_user_idx').on(table.userDid),
+  ]
+);
+
+// User bookmarks
+export const userBookmarks = pgTable(
+  'user_bookmarks',
+  {
+    id: varchar('id', { length: 50 }).primaryKey(),
+    userDid: varchar('user_did', { length: 255 }).notNull(),
+    postUri: varchar('post_uri', { length: 500 }).notNull(),
+    postData: text('post_data').notNull(), // JSON with post details
+    collectionIds: text('collection_ids'), // JSON array of collection IDs
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+  },
+  (table) => [
+    index('user_bookmarks_user_idx').on(table.userDid),
+    index('user_bookmarks_post_idx').on(table.postUri),
+  ]
+);
+
 // Type exports
 export type VerifiedResearcher = typeof verifiedResearchers.$inferSelect;
 export type NewVerifiedResearcher = typeof verifiedResearchers.$inferInsert;
@@ -127,6 +160,8 @@ export type VouchRequest = typeof vouchRequests.$inferSelect;
 export type BlueskyList = typeof blueskyLists.$inferSelect;
 export type ResearcherProfile = typeof researcherProfiles.$inferSelect;
 export type NewResearcherProfile = typeof researcherProfiles.$inferInsert;
+export type UserBookmarkCollection = typeof userBookmarkCollections.$inferSelect;
+export type UserBookmark = typeof userBookmarks.$inferSelect;
 
 // Profile field types
 export interface ProfileLink {
