@@ -18,6 +18,7 @@ export interface LeaSettings {
   notifyReposts: boolean;
   notifyQuotes: boolean;
   notifyReplies: boolean;
+  notifyFollows: boolean;
 }
 
 const DEFAULT_SETTINGS: LeaSettings = {
@@ -31,6 +32,7 @@ const DEFAULT_SETTINGS: LeaSettings = {
   notifyReposts: true,
   notifyQuotes: true,
   notifyReplies: true,
+  notifyFollows: true,
 };
 
 interface SettingsContextType {
