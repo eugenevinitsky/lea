@@ -297,66 +297,52 @@ export interface SelfThreadResult {
   rootUri: string;                     // URI of the thread root
 }
 
-// Check if a post is a self-reply (author replying to themselves)
-export function isSelfReply(post: AppBskyFeedDefs.FeedViewPost, debug = false): boolean {
-  const record = post.post.record as { reply?: { parent?: { uri?: string } } };
-  if (debug) {
-    console.log('[isSelfReply] Post:', post.post.uri, 'has reply?', !!record.reply);
-  }
-  if (!record.reply?.parent?.uri) return false;
-  
-  // Check if parent is from the same author
-  // The parent URI contains the author's DID
-  const parentUri = record.reply.parent.uri;
-  const authorDid = post.post.author.did;
-  const isSelf = parentUri.includes(authorDid);
-  if (debug) {
-    console.log('[isSelfReply] parentUri:', parentUri, 'authorDid:', authorDid, 'isSelf:', isSelf);
-  }
-  return isSelf;
+// Check if a post has replies (potential for self-thread)
+export function hasReplies(post: AppBskyFeedDefs.FeedViewPost): boolean {
+  return (post.post.replyCount ?? 0) > 0;
 }
 
-// Get the root URI of a reply chain (for deduplication)
-export function getReplyRootUri(post: AppBskyFeedDefs.FeedViewPost): string | null {
-  const record = post.post.record as { reply?: { root?: { uri?: string } } };
-  return record.reply?.root?.uri || null;
+// Check if a post is itself a reply (for deduplication - skip replies, only expand from root)
+export function isReplyPost(post: AppBskyFeedDefs.FeedViewPost): boolean {
+  const record = post.post.record as { reply?: unknown };
+  return !!record.reply;
 }
 
-// Fetch a self-thread: walk up the parent chain while author matches
-export async function getSelfThread(uri: string): Promise<SelfThreadResult | null> {
+// Fetch a self-thread: get the post and its self-replies (same author replies)
+export async function getSelfThread(uri: string, authorDid: string): Promise<SelfThreadResult | null> {
   if (!agent) throw new Error('Not logged in');
   
   try {
-    const response = await agent.getPostThread({ uri, depth: 0, parentHeight: 100 });
+    // Fetch thread with depth to get replies
+    const response = await agent.getPostThread({ uri, depth: 10, parentHeight: 0 });
     const thread = response.data.thread;
     
     if (!isThreadViewPost(thread)) {
       return null;
     }
     
-    const authorDid = thread.post.author.did;
-    const posts: AppBskyFeedDefs.PostView[] = [];
+    const posts: AppBskyFeedDefs.PostView[] = [thread.post];
     
-    // Collect all posts in the self-thread chain (walking up parents)
-    // Start with the current post
-    posts.push(thread.post);
-    
-    // Walk up the parent chain while same author
-    let current = thread.parent;
-    while (current && isThreadViewPost(current)) {
-      if (current.post.author.did === authorDid) {
-        posts.unshift(current.post); // Add to front (we want root first)
-        current = current.parent;
-      } else {
-        // Different author - stop here
-        break;
+    // Walk down replies to find self-replies (same author continuing the thread)
+    const collectSelfReplies = (replies: typeof thread.replies) => {
+      if (!replies) return;
+      for (const reply of replies) {
+        if (isThreadViewPost(reply) && reply.post.author.did === authorDid) {
+          posts.push(reply.post);
+          // Recursively check for more self-replies
+          collectSelfReplies(reply.replies);
+        }
       }
+    };
+    
+    collectSelfReplies(thread.replies);
+    
+    // Only return if we found self-replies (more than just the root)
+    if (posts.length <= 1) {
+      return null;
     }
     
-    // The root URI is the first post in our chain
-    const rootUri = posts[0].uri;
-    
-    return { posts, rootUri };
+    return { posts, rootUri: thread.post.uri };
   } catch (error) {
     console.error('Failed to fetch self-thread:', error);
     return null;

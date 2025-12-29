@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { AppBskyFeedDefs, AppBskyFeedPost, AppBskyEmbedExternal } from '@atproto/api';
-import { getTimeline, getFeed, getListFeed, searchPosts, FEEDS, FeedId, isVerifiedResearcher, Label, isSelfReply, getReplyRootUri, getSelfThread, SelfThreadResult } from '@/lib/bluesky';
+import { getTimeline, getFeed, getListFeed, searchPosts, FEEDS, FeedId, isVerifiedResearcher, Label, hasReplies, isReplyPost, getSelfThread, SelfThreadResult } from '@/lib/bluesky';
 import { useSettings } from '@/lib/settings';
 import { detectPaperLink } from '@/lib/papers';
 import Post from './Post';
@@ -231,13 +231,14 @@ export default function Feed({ feedId, feedUri, feedName, acceptsInteractions, r
   }, [posts, settings.highFollowerThreshold, isPapersFeed, isVerifiedFeed]);
 
   // Function to expand a self-thread
-  const expandSelfThread = useCallback(async (postUri: string) => {
+  const expandSelfThread = useCallback(async (postUri: string, authorDid: string) => {
     if (expandedThreads.has(postUri) || loadingThreads.has(postUri)) return;
     
     setLoadingThreads(prev => new Set(prev).add(postUri));
     try {
-      const result = await getSelfThread(postUri);
+      const result = await getSelfThread(postUri, authorDid);
       if (result && result.posts.length > 1) {
+        console.log('[SelfThread] Expanded thread with', result.posts.length, 'posts');
         setExpandedThreads(prev => new Map(prev).set(postUri, result));
         // Mark the root URI as seen to avoid showing duplicates
         seenRootUris.current.add(result.rootUri);
@@ -253,42 +254,27 @@ export default function Feed({ feedId, feedUri, feedName, acceptsInteractions, r
 
   // Effect to auto-expand self-threads when posts load
   useEffect(() => {
-    if (!settings.expandSelfThreads) {
-      console.log('[SelfThread] Setting disabled');
-      return;
-    }
+    if (!settings.expandSelfThreads) return;
     
-    console.log('[SelfThread] Checking', filteredPosts.length, 'posts for self-replies');
-    // Debug: log first 3 posts to see reply counts
-    for (let i = 0; i < Math.min(3, filteredPosts.length); i++) {
-      const item = filteredPosts[i];
-      console.log('[SelfThread] Post', i, ':', {
-        uri: item.post.uri,
-        author: item.post.author.handle,
-        replyCount: item.post.replyCount,
-        isReply: !!(item.post.record as any).reply,
-      });
-    }
-    let foundCount = 0;
-    for (let i = 0; i < filteredPosts.length; i++) {
-      const item = filteredPosts[i];
-      const selfReply = isSelfReply(item, false);
-      if (selfReply) {
-        foundCount++;
-        console.log('[SelfThread] Found self-reply:', item.post.uri);
-        const rootUri = getReplyRootUri(item);
-        // Skip if we've already shown this thread root
-        if (rootUri && seenRootUris.current.has(rootUri)) {
-          console.log('[SelfThread] Skipping (already seen root):', rootUri);
-          continue;
-        }
-        // Expand the thread
-        console.log('[SelfThread] Expanding thread for:', item.post.uri);
-        expandSelfThread(item.post.uri);
+    console.log('[SelfThread] Checking', filteredPosts.length, 'posts for potential self-threads');
+    let checkedCount = 0;
+    
+    for (const item of filteredPosts) {
+      // Skip posts that are themselves replies (we only expand from root posts)
+      if (isReplyPost(item)) continue;
+      
+      // Skip posts we've already expanded or are loading
+      if (expandedThreads.has(item.post.uri) || loadingThreads.has(item.post.uri)) continue;
+      
+      // Check if post has replies (potential for self-thread)
+      if (hasReplies(item)) {
+        console.log('[SelfThread] Post has replies, checking:', item.post.author.handle, item.post.uri);
+        checkedCount++;
+        expandSelfThread(item.post.uri, item.post.author.did);
       }
     }
-    console.log('[SelfThread] Found', foundCount, 'self-replies total');
-  }, [filteredPosts, settings.expandSelfThreads, expandSelfThread]);
+    console.log('[SelfThread] Checked', checkedCount, 'posts with replies');
+  }, [filteredPosts, settings.expandSelfThreads, expandSelfThread, expandedThreads, loadingThreads]);
 
   if (error) {
     return (
@@ -406,7 +392,6 @@ export default function Feed({ feedId, feedUri, feedName, acceptsInteractions, r
       {/* Posts */}
       {filteredPosts.map((item, index) => {
         const postUri = item.post.uri;
-        const rootUri = getReplyRootUri(item);
         
         // Check if this post has an expanded self-thread
         const expandedThread = expandedThreads.get(postUri);
@@ -423,11 +408,6 @@ export default function Feed({ feedId, feedUri, feedName, acceptsInteractions, r
               feedUri={effectiveFeedUri || undefined}
             />
           );
-        }
-        
-        // Skip posts that belong to a thread already shown (dedupe by root URI)
-        if (settings.expandSelfThreads && rootUri && seenRootUris.current.has(rootUri) && !expandedThreads.has(postUri)) {
-          return null;
         }
         
         return (
