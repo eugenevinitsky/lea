@@ -259,21 +259,20 @@ export default function Feed({ feedId, feedUri, feedName, acceptsInteractions, r
     }
     
     console.log('[SelfThread] Checking', filteredPosts.length, 'posts for self-replies');
-    // Debug: log first 3 posts structure
+    // Debug: log first 3 posts to see reply counts
     for (let i = 0; i < Math.min(3, filteredPosts.length); i++) {
       const item = filteredPosts[i];
-      console.log('[SelfThread] Post', i, 'structure:', {
+      console.log('[SelfThread] Post', i, ':', {
         uri: item.post.uri,
-        hasReply: !!(item as any).reply,
-        replyParent: (item as any).reply?.parent,
-        record: item.post.record,
+        author: item.post.author.handle,
+        replyCount: item.post.replyCount,
+        isReply: !!(item.post.record as any).reply,
       });
     }
     let foundCount = 0;
     for (let i = 0; i < filteredPosts.length; i++) {
       const item = filteredPosts[i];
-      // Debug first 5 posts
-      const selfReply = isSelfReply(item, i < 5);
+      const selfReply = isSelfReply(item, false);
       if (selfReply) {
         foundCount++;
         console.log('[SelfThread] Found self-reply:', item.post.uri);
