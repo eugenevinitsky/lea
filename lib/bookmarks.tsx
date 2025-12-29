@@ -16,30 +16,67 @@ export interface BookmarkedPost {
   paperUrl?: string;
   paperDoi?: string;
   paperTitle?: string;
+  // Collection membership
+  collectionIds?: string[];
 }
+
+export interface BookmarkCollection {
+  id: string;
+  name: string;
+  color: string;
+}
+
+// Color palette for collections
+export const COLLECTION_COLORS = [
+  { bg: 'bg-rose-50 dark:bg-rose-900/20', border: 'border-l-rose-400', text: 'text-rose-700 dark:text-rose-300', icon: 'text-rose-500' },
+  { bg: 'bg-emerald-50 dark:bg-emerald-900/20', border: 'border-l-emerald-400', text: 'text-emerald-700 dark:text-emerald-300', icon: 'text-emerald-500' },
+  { bg: 'bg-purple-50 dark:bg-purple-900/20', border: 'border-l-purple-400', text: 'text-purple-700 dark:text-purple-300', icon: 'text-purple-500' },
+  { bg: 'bg-blue-50 dark:bg-blue-900/20', border: 'border-l-blue-400', text: 'text-blue-700 dark:text-blue-300', icon: 'text-blue-500' },
+  { bg: 'bg-amber-50 dark:bg-amber-900/20', border: 'border-l-amber-400', text: 'text-amber-700 dark:text-amber-300', icon: 'text-amber-500' },
+  { bg: 'bg-cyan-50 dark:bg-cyan-900/20', border: 'border-l-cyan-400', text: 'text-cyan-700 dark:text-cyan-300', icon: 'text-cyan-500' },
+];
 
 interface BookmarksContextType {
   bookmarks: BookmarkedPost[];
-  addBookmark: (post: BookmarkedPost) => void;
+  collections: BookmarkCollection[];
+  addBookmark: (post: BookmarkedPost, collectionIds?: string[]) => void;
   removeBookmark: (uri: string) => void;
   isBookmarked: (uri: string) => boolean;
+  getBookmarkCollections: (uri: string) => string[];
+  addBookmarkToCollection: (uri: string, collectionId: string) => void;
+  removeBookmarkFromCollection: (uri: string, collectionId: string) => void;
+  addCollection: (name: string) => string;
+  renameCollection: (id: string, name: string) => void;
+  deleteCollection: (id: string) => void;
+  reorderCollections: (fromIndex: number, toIndex: number) => void;
 }
 
 const BookmarksContext = createContext<BookmarksContextType | null>(null);
 
 const STORAGE_KEY = 'lea-bookmarks';
+const COLLECTIONS_STORAGE_KEY = 'lea-bookmark-collections';
 
 export function BookmarksProvider({ children }: { children: ReactNode }) {
   const [bookmarks, setBookmarks] = useState<BookmarkedPost[]>([]);
+  const [collections, setCollections] = useState<BookmarkCollection[]>([]);
   const [loaded, setLoaded] = useState(false);
 
-  // Load bookmarks from localStorage on mount
+  // Load bookmarks and collections from localStorage on mount
   useEffect(() => {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored) {
+    const storedBookmarks = localStorage.getItem(STORAGE_KEY);
+    if (storedBookmarks) {
       try {
-        const parsed = JSON.parse(stored);
+        const parsed = JSON.parse(storedBookmarks);
         setBookmarks(parsed);
+      } catch {
+        // Invalid JSON, use empty array
+      }
+    }
+    const storedCollections = localStorage.getItem(COLLECTIONS_STORAGE_KEY);
+    if (storedCollections) {
+      try {
+        const parsed = JSON.parse(storedCollections);
+        setCollections(parsed);
       } catch {
         // Invalid JSON, use empty array
       }
@@ -54,11 +91,18 @@ export function BookmarksProvider({ children }: { children: ReactNode }) {
     }
   }, [bookmarks, loaded]);
 
-  const addBookmark = (post: BookmarkedPost) => {
+  // Save collections to localStorage on change
+  useEffect(() => {
+    if (loaded) {
+      localStorage.setItem(COLLECTIONS_STORAGE_KEY, JSON.stringify(collections));
+    }
+  }, [collections, loaded]);
+
+  const addBookmark = (post: BookmarkedPost, collectionIds?: string[]) => {
     setBookmarks(prev => {
       // Don't add duplicates
       if (prev.some(b => b.uri === post.uri)) return prev;
-      return [post, ...prev];
+      return [{ ...post, collectionIds: collectionIds || [] }, ...prev];
     });
   };
 
@@ -70,7 +114,75 @@ export function BookmarksProvider({ children }: { children: ReactNode }) {
     return bookmarks.some(b => b.uri === uri);
   };
 
-  const value = { bookmarks, addBookmark, removeBookmark, isBookmarked };
+  const getBookmarkCollections = (uri: string): string[] => {
+    const bookmark = bookmarks.find(b => b.uri === uri);
+    return bookmark?.collectionIds || [];
+  };
+
+  const addBookmarkToCollection = (uri: string, collectionId: string) => {
+    setBookmarks(prev => prev.map(b => {
+      if (b.uri !== uri) return b;
+      const currentIds = b.collectionIds || [];
+      if (currentIds.includes(collectionId)) return b;
+      return { ...b, collectionIds: [...currentIds, collectionId] };
+    }));
+  };
+
+  const removeBookmarkFromCollection = (uri: string, collectionId: string) => {
+    setBookmarks(prev => prev.map(b => {
+      if (b.uri !== uri) return b;
+      const currentIds = b.collectionIds || [];
+      return { ...b, collectionIds: currentIds.filter(id => id !== collectionId) };
+    }));
+  };
+
+  const addCollection = (name: string): string => {
+    const id = `col_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    // Pick color based on number of existing collections
+    const colorIndex = collections.length % COLLECTION_COLORS.length;
+    const color = COLLECTION_COLORS[colorIndex].icon.split('-')[1]; // Extract color name like 'rose', 'emerald'
+    const newCollection: BookmarkCollection = { id, name, color };
+    setCollections(prev => [...prev, newCollection]);
+    return id;
+  };
+
+  const renameCollection = (id: string, name: string) => {
+    setCollections(prev => prev.map(c => c.id === id ? { ...c, name } : c));
+  };
+
+  const deleteCollection = (id: string) => {
+    // Remove collection from all bookmarks
+    setBookmarks(prev => prev.map(b => ({
+      ...b,
+      collectionIds: (b.collectionIds || []).filter(cid => cid !== id)
+    })));
+    // Remove the collection
+    setCollections(prev => prev.filter(c => c.id !== id));
+  };
+
+  const reorderCollections = (fromIndex: number, toIndex: number) => {
+    setCollections(prev => {
+      const newCollections = [...prev];
+      const [removed] = newCollections.splice(fromIndex, 1);
+      newCollections.splice(toIndex, 0, removed);
+      return newCollections;
+    });
+  };
+
+  const value = {
+    bookmarks,
+    collections,
+    addBookmark,
+    removeBookmark,
+    isBookmarked,
+    getBookmarkCollections,
+    addBookmarkToCollection,
+    removeBookmarkFromCollection,
+    addCollection,
+    renameCollection,
+    deleteCollection,
+    reorderCollections,
+  };
 
   return (
     <BookmarksContext.Provider value={value}>

@@ -11,7 +11,7 @@ A Bluesky client with protective defaults for researchers.
 | **Papers Feed** | Timeline filtered to academic paper links only |
 | **Paper Discussions** | See all Bluesky conversations about any paper |
 | **Researcher Profiles** | Rich profiles with affiliations, topics, publications, and mutual interactions |
-| **Bookmarks + Export** | Save posts, export paper citations to BibTeX/RIS for Zotero |
+| **Bookmarks + Export** | Save posts to collections, export paper citations to BibTeX/RIS for Zotero |
 | **Direct Messages** | Built-in DM support |
 | **Notifications** | Collapsible panel with likes, reposts, quotes, and replies |
 | **Feed Discovery** | Browse and pin custom Bluesky feeds (horizontally scrollable) |
@@ -60,6 +60,9 @@ Automatically filters your timeline to posts containing academic links:
 ### Bookmarks & Citation Export
 
 - Bookmark any post for later
+- Organize bookmarks into **custom collections** (create, rename, delete, reorder)
+- Bookmarks can belong to multiple collections
+- Color-coded collapsible collection sections
 - Export paper bookmarks to **BibTeX** (fetches real metadata from CrossRef/arXiv)
 - Export to **RIS** for Zotero, Mendeley, EndNote
 - Export raw **JSON** for backup
@@ -355,6 +358,7 @@ scripts/
 - [x] Modifier-click to open profile in new tab (Shift/Cmd/Ctrl)
 - [x] Collapsible sidebar panels
 - [x] Horizontally scrollable feed tabs
+- [x] Bookmark collections
 - [ ] Vouching UI
 
 ---
