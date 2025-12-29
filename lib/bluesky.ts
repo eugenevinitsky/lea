@@ -281,6 +281,81 @@ export async function getThread(uri: string, depth = 10) {
   return agent.getPostThread({ uri, depth });
 }
 
+// Type guard for ThreadViewPost
+function isThreadViewPost(node: unknown): node is AppBskyFeedDefs.ThreadViewPost {
+  return (
+    typeof node === 'object' &&
+    node !== null &&
+    '$type' in node &&
+    (node as { $type: string }).$type === 'app.bsky.feed.defs#threadViewPost'
+  );
+}
+
+// Result of fetching a self-thread
+export interface SelfThreadResult {
+  posts: AppBskyFeedDefs.PostView[];  // Posts from root to the requested post
+  rootUri: string;                     // URI of the thread root
+}
+
+// Check if a post is a self-reply (author replying to themselves)
+export function isSelfReply(post: AppBskyFeedDefs.FeedViewPost): boolean {
+  const record = post.post.record as { reply?: { parent?: { uri?: string } } };
+  if (!record.reply?.parent?.uri) return false;
+  
+  // Check if parent is from the same author
+  // The parent URI contains the author's DID
+  const parentUri = record.reply.parent.uri;
+  const authorDid = post.post.author.did;
+  return parentUri.includes(authorDid);
+}
+
+// Get the root URI of a reply chain (for deduplication)
+export function getReplyRootUri(post: AppBskyFeedDefs.FeedViewPost): string | null {
+  const record = post.post.record as { reply?: { root?: { uri?: string } } };
+  return record.reply?.root?.uri || null;
+}
+
+// Fetch a self-thread: walk up the parent chain while author matches
+export async function getSelfThread(uri: string): Promise<SelfThreadResult | null> {
+  if (!agent) throw new Error('Not logged in');
+  
+  try {
+    const response = await agent.getPostThread({ uri, depth: 0, parentHeight: 100 });
+    const thread = response.data.thread;
+    
+    if (!isThreadViewPost(thread)) {
+      return null;
+    }
+    
+    const authorDid = thread.post.author.did;
+    const posts: AppBskyFeedDefs.PostView[] = [];
+    
+    // Collect all posts in the self-thread chain (walking up parents)
+    // Start with the current post
+    posts.push(thread.post);
+    
+    // Walk up the parent chain while same author
+    let current = thread.parent;
+    while (current && isThreadViewPost(current)) {
+      if (current.post.author.did === authorDid) {
+        posts.unshift(current.post); // Add to front (we want root first)
+        current = current.parent;
+      } else {
+        // Different author - stop here
+        break;
+      }
+    }
+    
+    // The root URI is the first post in our chain
+    const rootUri = posts[0].uri;
+    
+    return { posts, rootUri };
+  } catch (error) {
+    console.error('Failed to fetch self-thread:', error);
+    return null;
+  }
+}
+
 export type ThreadgateType = 'following' | 'verified' | 'researchers' | 'open';
 
 // Fetch labeler's verified researchers list URI

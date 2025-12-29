@@ -12,6 +12,7 @@ export interface LeaSettings {
   showPaperHighlights: boolean;
   dimNonVerified: boolean;
   dimReposts: boolean;
+  expandSelfThreads: boolean;
 
   // Notifications
   notifyLikes: boolean;
@@ -28,6 +29,7 @@ const DEFAULT_SETTINGS: LeaSettings = {
   showPaperHighlights: true,
   dimNonVerified: false,
   dimReposts: false,
+  expandSelfThreads: true,
   notifyLikes: true,
   notifyReposts: true,
   notifyQuotes: true,

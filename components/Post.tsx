@@ -21,6 +21,10 @@ interface PostProps {
   feedUri?: string;
   // Repost reason - if present, shows "Reposted by X" header
   reason?: AppBskyFeedDefs.ReasonRepost | AppBskyFeedDefs.ReasonPin | { $type: string };
+  // Self-thread styling props
+  isInSelfThread?: boolean;
+  isFirstInThread?: boolean;
+  isLastInThread?: boolean;
 }
 
 function containsPaperLink(text: string, embed?: AppBskyFeedDefs.PostView['embed']): { hasPaper: boolean; domain?: string } {
@@ -712,7 +716,7 @@ function PostEmbed({ embed, onOpenThread }: { embed: AppBskyFeedDefs.PostView['e
   return null;
 }
 
-export default function Post({ post, onReply, onOpenThread, feedContext, reqId, supportsInteractions, feedUri, onOpenProfile, reason }: PostProps & { onReply?: () => void; onOpenThread?: (uri: string) => void; onOpenProfile?: (did: string) => void }) {
+export default function Post({ post, onReply, onOpenThread, feedContext, reqId, supportsInteractions, feedUri, onOpenProfile, reason, isInSelfThread, isFirstInThread, isLastInThread }: PostProps & { onReply?: () => void; onOpenThread?: (uri: string) => void; onOpenProfile?: (did: string) => void }) {
   const { settings } = useSettings();
   
   // Check if this is a repost
@@ -1080,8 +1084,13 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
     );
   }
 
+  // Build article class based on context
+  const articleClass = isInSelfThread
+    ? `hover:bg-gray-50 dark:hover:bg-gray-900/50 transition-colors ${dimmed ? 'opacity-60' : ''} ${!isLastInThread ? '' : ''}`
+    : `border-b border-gray-200 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-900/50 transition-colors ${dimmed ? 'opacity-60' : ''}`;
+
   return (
-    <article className={`border-b border-gray-200 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-900/50 transition-colors ${dimmed ? 'opacity-60' : ''}`}>
+    <article className={articleClass}>
       {/* Repost header */}
       {repostedBy && (
         <div className="flex items-center gap-2 px-4 pt-3 pb-1 text-sm text-gray-500">
