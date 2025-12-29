@@ -13,6 +13,7 @@ import Settings from '@/components/Settings';
 import Bookmarks from '@/components/Bookmarks';
 import ThreadView from '@/components/ThreadView';
 import DMSidebar from '@/components/DMSidebar';
+import Notifications from '@/components/Notifications';
 import FeedDiscovery from '@/components/FeedDiscovery';
 import Onboarding from '@/components/Onboarding';
 import ProfileEditor from '@/components/ProfileEditor';
@@ -237,6 +238,7 @@ function AppContent() {
         <aside className="hidden lg:block w-72 flex-shrink-0 sticky top-16 h-fit pt-4 space-y-4">
           <Bookmarks onOpenPost={openThread} onOpenProfile={navigateToProfile} />
           <DMSidebar />
+          <Notifications onOpenPost={openThread} onOpenProfile={navigateToProfile} />
         </aside>
 
         {/* Main content */}

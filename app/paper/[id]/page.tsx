@@ -4,7 +4,7 @@ import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useState, useEffect, useCallback, Suspense } from 'react';
 import { AppBskyFeedDefs, AppBskyEmbedExternal } from '@atproto/api';
 import { restoreSession, getSession, searchPosts, getBlueskyProfile } from '@/lib/bluesky';
-import { getUrlFromPaperId, getSearchQueryForPaper, getPaperTypeFromId, extractPaperUrl, PAPER_DOMAINS } from '@/lib/papers';
+import { getUrlFromPaperId, getSearchQueryForPaper, getPaperTypeFromId, extractPaperUrl, extractAnyUrl, LinkFacet } from '@/lib/papers';
 import { SettingsProvider } from '@/lib/settings';
 import { BookmarksProvider } from '@/lib/bookmarks';
 import { FeedsProvider } from '@/lib/feeds';
@@ -105,15 +105,27 @@ function PaperPageContent() {
       
       console.log('[Paper Search] Total raw results before filtering:', result.posts.length);
       
-      // Filter results to only include posts that actually contain paper links
-      // This helps when search returns unrelated results
+      // Filter results to only include posts that actually contain relevant links
+      // Either: a known paper domain URL, OR the original URL we're searching for
       const filteredPosts = result.posts.filter(post => {
-        const record = post.record as { text?: string };
+        const record = post.record as { text?: string; facets?: LinkFacet[] };
         const embedUri = post.embed && 'external' in post.embed 
           ? (post.embed as AppBskyEmbedExternal.View).external?.uri 
           : undefined;
-        const paperUrl = extractPaperUrl(record.text || '', embedUri);
-        return paperUrl !== null;
+        
+        // Check for known paper domain URLs
+        const paperUrl = extractPaperUrl(record.text || '', embedUri, record.facets);
+        if (paperUrl !== null) return true;
+        
+        // Also accept posts containing the original URL we're searching for (for unknown domains)
+        if (originalUrl) {
+          const anyUrl = extractAnyUrl(record.text || '', embedUri, record.facets);
+          if (anyUrl && (anyUrl === originalUrl || anyUrl.includes(originalUrl) || originalUrl.includes(anyUrl))) {
+            return true;
+          }
+        }
+        
+        return false;
       });
       
       if (loadMore) {

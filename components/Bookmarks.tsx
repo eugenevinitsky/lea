@@ -99,6 +99,7 @@ export default function Bookmarks({ onOpenPost, onOpenProfile }: BookmarksProps)
   const { bookmarks, removeBookmark } = useBookmarks();
   const [showExportMenu, setShowExportMenu] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const [isCollapsed, setIsCollapsed] = useState(false);
 
   useEffect(() => {
     setMounted(true);
@@ -132,7 +133,10 @@ export default function Bookmarks({ onOpenPost, onOpenProfile }: BookmarksProps)
 
   return (
     <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden">
-      <div className="p-3 border-b border-gray-200 dark:border-gray-800">
+      <button
+        onClick={() => setIsCollapsed(!isCollapsed)}
+        className="w-full p-3 border-b border-gray-200 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors"
+      >
         <div className="flex items-center justify-between">
           <h3 className="font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-2">
             <svg className="w-4 h-4 text-blue-500" fill="currentColor" viewBox="0 0 24 24">
@@ -143,19 +147,34 @@ export default function Bookmarks({ onOpenPost, onOpenProfile }: BookmarksProps)
               <span className="text-xs font-normal text-gray-400">({bookmarks.length})</span>
             )}
           </h3>
-
-          {/* Export button */}
-          {bookmarks.length > 0 && (
-            <>
-              <button
-                onClick={() => setShowExportMenu(!showExportMenu)}
-                className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
+          <div className="flex items-center gap-1">
+            {/* Export button */}
+            {bookmarks.length > 0 && (
+              <span
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowExportMenu(!showExportMenu);
+                }}
+                className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
                 title="Export bookmarks"
               >
                 <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
                 </svg>
-              </button>
+              </span>
+            )}
+            {/* Collapse chevron */}
+            <svg
+              className={`w-4 h-4 text-gray-400 transition-transform ${isCollapsed ? '' : 'rotate-180'}`}
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
+          </div>
+        </div>
+      </button>
 
               {showExportMenu && mounted && createPortal(
                 <div className="fixed inset-0 z-[9999] flex items-center justify-center">
@@ -201,12 +220,9 @@ export default function Bookmarks({ onOpenPost, onOpenProfile }: BookmarksProps)
                 </div>,
                 document.body
               )}
-            </>
-          )}
-        </div>
-      </div>
 
-      <div className="max-h-[400px] overflow-y-auto">
+      {!isCollapsed && (
+        <div className="max-h-[400px] overflow-y-auto">
         {bookmarks.length === 0 ? (
           <div className="p-4 text-center">
             <svg className="w-8 h-8 mx-auto text-gray-300 dark:text-gray-600 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -226,7 +242,8 @@ export default function Bookmarks({ onOpenPost, onOpenProfile }: BookmarksProps)
             />
           ))
         )}
-      </div>
+        </div>
+      )}
     </div>
   );
 }
