@@ -178,11 +178,10 @@ function CategorySection({
           {enabled && unreadCount > 0 && (
             <span className="w-1.5 h-1.5 rounded-full bg-blue-500 flex-shrink-0" />
           )}
-        </button>
-        <div className="flex items-center gap-2">
+          {/* Chevron - inside button so clicking it expands/collapses */}
           {notifications.length > 0 && (
             <svg
-              className={`w-3.5 h-3.5 ${colors.icon} transition-transform ${isExpanded ? 'rotate-180' : ''}`}
+              className={`w-3.5 h-3.5 ${colors.icon} transition-transform ml-auto ${isExpanded ? 'rotate-180' : ''}`}
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -190,6 +189,8 @@ function CategorySection({
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
             </svg>
           )}
+        </button>
+        <div className="flex items-center gap-1">
           {/* Toggle button - controls whether unread notifications are shown */}
           <button
             onClick={(e) => {
