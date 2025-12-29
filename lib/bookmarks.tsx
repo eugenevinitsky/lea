@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, createContext, useContext, ReactNode } from 'react';
+import { useState, useEffect, createContext, useContext, ReactNode, useCallback, useRef } from 'react';
 
 export interface BookmarkedPost {
   uri: string;
@@ -16,61 +16,236 @@ export interface BookmarkedPost {
   paperUrl?: string;
   paperDoi?: string;
   paperTitle?: string;
+  // Collection membership
+  collectionIds?: string[];
 }
+
+export interface BookmarkCollection {
+  id: string;
+  name: string;
+  color: string;
+}
+
+// Color palette for collections
+export const COLLECTION_COLORS = [
+  { bg: 'bg-rose-50 dark:bg-rose-900/20', border: 'border-l-rose-400', text: 'text-rose-700 dark:text-rose-300', icon: 'text-rose-500' },
+  { bg: 'bg-emerald-50 dark:bg-emerald-900/20', border: 'border-l-emerald-400', text: 'text-emerald-700 dark:text-emerald-300', icon: 'text-emerald-500' },
+  { bg: 'bg-purple-50 dark:bg-purple-900/20', border: 'border-l-purple-400', text: 'text-purple-700 dark:text-purple-300', icon: 'text-purple-500' },
+  { bg: 'bg-blue-50 dark:bg-blue-900/20', border: 'border-l-blue-400', text: 'text-blue-700 dark:text-blue-300', icon: 'text-blue-500' },
+  { bg: 'bg-amber-50 dark:bg-amber-900/20', border: 'border-l-amber-400', text: 'text-amber-700 dark:text-amber-300', icon: 'text-amber-500' },
+  { bg: 'bg-cyan-50 dark:bg-cyan-900/20', border: 'border-l-cyan-400', text: 'text-cyan-700 dark:text-cyan-300', icon: 'text-cyan-500' },
+];
 
 interface BookmarksContextType {
   bookmarks: BookmarkedPost[];
-  addBookmark: (post: BookmarkedPost) => void;
+  collections: BookmarkCollection[];
+  loading: boolean;
+  addBookmark: (post: BookmarkedPost, collectionIds?: string[]) => void;
   removeBookmark: (uri: string) => void;
   isBookmarked: (uri: string) => boolean;
+  getBookmarkCollections: (uri: string) => string[];
+  addBookmarkToCollection: (uri: string, collectionId: string) => void;
+  removeBookmarkFromCollection: (uri: string, collectionId: string) => void;
+  addCollection: (name: string) => string;
+  renameCollection: (id: string, name: string) => void;
+  deleteCollection: (id: string) => void;
+  reorderCollections: (fromIndex: number, toIndex: number) => void;
+  setUserDid: (did: string | null) => void;
 }
 
 const BookmarksContext = createContext<BookmarksContextType | null>(null);
 
-const STORAGE_KEY = 'lea-bookmarks';
-
 export function BookmarksProvider({ children }: { children: ReactNode }) {
   const [bookmarks, setBookmarks] = useState<BookmarkedPost[]>([]);
-  const [loaded, setLoaded] = useState(false);
+  const [collections, setCollections] = useState<BookmarkCollection[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [userDid, setUserDid] = useState<string | null>(null);
+  const pendingIdRef = useRef<string | null>(null); // For optimistic collection ID
 
-  // Load bookmarks from localStorage on mount
+  // Fetch bookmarks from API when userDid changes
   useEffect(() => {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored) {
+    async function fetchBookmarks() {
+      if (!userDid) {
+        setBookmarks([]);
+        setCollections([]);
+        setLoading(false);
+        return;
+      }
+
+      setLoading(true);
       try {
-        const parsed = JSON.parse(stored);
-        setBookmarks(parsed);
-      } catch {
-        // Invalid JSON, use empty array
+        const res = await fetch(`/api/bookmarks?did=${encodeURIComponent(userDid)}`);
+        if (res.ok) {
+          const data = await res.json();
+          setBookmarks(data.bookmarks || []);
+          setCollections(data.collections || []);
+        }
+      } catch (error) {
+        console.error('Failed to fetch bookmarks:', error);
+      } finally {
+        setLoading(false);
       }
     }
-    setLoaded(true);
-  }, []);
 
-  // Save bookmarks to localStorage on change
-  useEffect(() => {
-    if (loaded) {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(bookmarks));
+    fetchBookmarks();
+  }, [userDid]);
+
+  // API helper - returns response data
+  const apiCall = useCallback(async (action: string, data: Record<string, unknown>): Promise<Record<string, unknown> | null> => {
+    if (!userDid) return null;
+    try {
+      const res = await fetch('/api/bookmarks', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ did: userDid, action, ...data }),
+      });
+      if (res.ok) {
+        return await res.json();
+      }
+      return null;
+    } catch (error) {
+      console.error(`Failed to ${action}:`, error);
+      return null;
     }
-  }, [bookmarks, loaded]);
+  }, [userDid]);
 
-  const addBookmark = (post: BookmarkedPost) => {
+  const addBookmark = useCallback((post: BookmarkedPost, collectionIds?: string[]) => {
+    // Optimistic update
     setBookmarks(prev => {
-      // Don't add duplicates
       if (prev.some(b => b.uri === post.uri)) return prev;
-      return [post, ...prev];
+      return [{ ...post, collectionIds: collectionIds || [] }, ...prev];
     });
-  };
+    // API call
+    apiCall('addBookmark', { bookmark: post, collectionIds });
+  }, [apiCall]);
 
-  const removeBookmark = (uri: string) => {
+  const removeBookmark = useCallback((uri: string) => {
+    // Optimistic update
     setBookmarks(prev => prev.filter(b => b.uri !== uri));
-  };
+    // API call
+    apiCall('removeBookmark', { uri });
+  }, [apiCall]);
 
-  const isBookmarked = (uri: string) => {
+  const isBookmarked = useCallback((uri: string) => {
     return bookmarks.some(b => b.uri === uri);
-  };
+  }, [bookmarks]);
 
-  const value = { bookmarks, addBookmark, removeBookmark, isBookmarked };
+  const getBookmarkCollections = useCallback((uri: string): string[] => {
+    const bookmark = bookmarks.find(b => b.uri === uri);
+    return bookmark?.collectionIds || [];
+  }, [bookmarks]);
+
+  const addBookmarkToCollection = useCallback((uri: string, collectionId: string) => {
+    // Get current collection IDs first
+    const bookmark = bookmarks.find(b => b.uri === uri);
+    if (!bookmark) return;
+    const currentIds = bookmark.collectionIds || [];
+    if (currentIds.includes(collectionId)) return;
+    const newIds = [...currentIds, collectionId];
+    
+    // Optimistic update
+    setBookmarks(prev => prev.map(b => 
+      b.uri === uri ? { ...b, collectionIds: newIds } : b
+    ));
+    // API call
+    apiCall('updateBookmarkCollections', { uri, collectionIds: newIds });
+  }, [apiCall, bookmarks]);
+
+  const removeBookmarkFromCollection = useCallback((uri: string, collectionId: string) => {
+    // Get current collection IDs first
+    const bookmark = bookmarks.find(b => b.uri === uri);
+    if (!bookmark) return;
+    const currentIds = bookmark.collectionIds || [];
+    const newIds = currentIds.filter(id => id !== collectionId);
+    
+    // Optimistic update
+    setBookmarks(prev => prev.map(b => 
+      b.uri === uri ? { ...b, collectionIds: newIds } : b
+    ));
+    // API call
+    apiCall('updateBookmarkCollections', { uri, collectionIds: newIds });
+  }, [apiCall, bookmarks]);
+
+  const addCollection = useCallback((name: string): string => {
+    // Generate optimistic ID
+    const tempId = `col_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    pendingIdRef.current = tempId;
+    // Pick color based on number of existing collections
+    const colorIndex = collections.length % COLLECTION_COLORS.length;
+    const color = COLLECTION_COLORS[colorIndex].icon.split('-')[1];
+    const newCollection: BookmarkCollection = { id: tempId, name, color };
+    
+    // Optimistic update
+    setCollections(prev => [...prev, newCollection]);
+    
+    // API call - get the real ID back and update
+    apiCall('addCollection', { name, color }).then(result => {
+      if (result?.id && result.id !== tempId) {
+        // Update the collection with the real ID from the server
+        setCollections(prev => prev.map(c => 
+          c.id === tempId ? { ...c, id: result.id as string } : c
+        ));
+        // Also update any bookmarks that might have used the temp ID
+        setBookmarks(prev => prev.map(b => {
+          if (!b.collectionIds?.includes(tempId)) return b;
+          return {
+            ...b,
+            collectionIds: b.collectionIds.map(cid => cid === tempId ? result.id as string : cid)
+          };
+        }));
+      }
+    });
+    
+    return tempId;
+  }, [collections.length, apiCall]);
+
+  const renameCollection = useCallback((id: string, name: string) => {
+    // Optimistic update
+    setCollections(prev => prev.map(c => c.id === id ? { ...c, name } : c));
+    // API call
+    apiCall('renameCollection', { id, name });
+  }, [apiCall]);
+
+  const deleteCollection = useCallback((id: string) => {
+    // Optimistic update - remove collection from all bookmarks
+    setBookmarks(prev => prev.map(b => ({
+      ...b,
+      collectionIds: (b.collectionIds || []).filter(cid => cid !== id)
+    })));
+    // Remove the collection
+    setCollections(prev => prev.filter(c => c.id !== id));
+    // API call
+    apiCall('deleteCollection', { id });
+  }, [apiCall]);
+
+  const reorderCollections = useCallback((fromIndex: number, toIndex: number) => {
+    // Optimistic update
+    setCollections(prev => {
+      const newCollections = [...prev];
+      const [removed] = newCollections.splice(fromIndex, 1);
+      newCollections.splice(toIndex, 0, removed);
+      return newCollections;
+    });
+    // API call
+    apiCall('reorderCollections', { fromIndex, toIndex });
+  }, [apiCall]);
+
+  const value = {
+    bookmarks,
+    collections,
+    loading,
+    addBookmark,
+    removeBookmark,
+    isBookmarked,
+    getBookmarkCollections,
+    addBookmarkToCollection,
+    removeBookmarkFromCollection,
+    addCollection,
+    renameCollection,
+    deleteCollection,
+    reorderCollections,
+    setUserDid,
+  };
 
   return (
     <BookmarksContext.Provider value={value}>

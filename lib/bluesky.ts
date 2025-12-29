@@ -281,6 +281,74 @@ export async function getThread(uri: string, depth = 10) {
   return agent.getPostThread({ uri, depth });
 }
 
+// Type guard for ThreadViewPost
+function isThreadViewPost(node: unknown): node is AppBskyFeedDefs.ThreadViewPost {
+  return (
+    typeof node === 'object' &&
+    node !== null &&
+    '$type' in node &&
+    (node as { $type: string }).$type === 'app.bsky.feed.defs#threadViewPost'
+  );
+}
+
+// Result of fetching a self-thread
+export interface SelfThreadResult {
+  posts: AppBskyFeedDefs.PostView[];  // Posts from root to the requested post
+  rootUri: string;                     // URI of the thread root
+}
+
+// Check if a post has replies (potential for self-thread)
+export function hasReplies(post: AppBskyFeedDefs.FeedViewPost): boolean {
+  return (post.post.replyCount ?? 0) > 0;
+}
+
+// Check if a post is itself a reply (for deduplication - skip replies, only expand from root)
+export function isReplyPost(post: AppBskyFeedDefs.FeedViewPost): boolean {
+  const record = post.post.record as { reply?: unknown };
+  return !!record.reply;
+}
+
+// Fetch a self-thread: get the post and its self-replies (same author replies)
+export async function getSelfThread(uri: string, authorDid: string): Promise<SelfThreadResult | null> {
+  if (!agent) throw new Error('Not logged in');
+  
+  try {
+    // Fetch thread with depth to get replies
+    const response = await agent.getPostThread({ uri, depth: 10, parentHeight: 0 });
+    const thread = response.data.thread;
+    
+    if (!isThreadViewPost(thread)) {
+      return null;
+    }
+    
+    const posts: AppBskyFeedDefs.PostView[] = [thread.post];
+    
+    // Walk down replies to find self-replies (same author continuing the thread)
+    const collectSelfReplies = (replies: typeof thread.replies) => {
+      if (!replies) return;
+      for (const reply of replies) {
+        if (isThreadViewPost(reply) && reply.post.author.did === authorDid) {
+          posts.push(reply.post);
+          // Recursively check for more self-replies
+          collectSelfReplies(reply.replies);
+        }
+      }
+    };
+    
+    collectSelfReplies(thread.replies);
+    
+    // Only return if we found self-replies (more than just the root)
+    if (posts.length <= 1) {
+      return null;
+    }
+    
+    return { posts, rootUri: thread.post.uri };
+  } catch (error) {
+    console.error('Failed to fetch self-thread:', error);
+    return null;
+  }
+}
+
 export type ThreadgateType = 'following' | 'verified' | 'researchers' | 'open';
 
 // Fetch labeler's verified researchers list URI

@@ -44,6 +44,11 @@ function NotificationItemView({
   onOpenProfile?: (did: string) => void;
 }) {
   const handleClick = () => {
+    // For follows, open the follower's profile
+    if (notification.reason === 'follow') {
+      onOpenProfile?.(notification.author.did);
+      return;
+    }
     // For likes/reposts, open the post that was liked/reposted
     if (notification.reasonSubject) {
       onOpenPost?.(notification.reasonSubject);
@@ -255,13 +260,14 @@ export default function Notifications({ onOpenPost, onOpenProfile }: Notificatio
     reposts: [],
     quotes: [],
     replies: [],
+    follows: [],
   });
   const [loading, setLoading] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [cursor, setCursor] = useState<string | undefined>();
   const [error, setError] = useState<string | null>(null);
   const [lastViewed, setLastViewed] = useState(getLastViewedTimestamps());
-  const [unreadCounts, setUnreadCounts] = useState({ likes: 0, reposts: 0, quotes: 0, replies: 0, total: 0 });
+  const [unreadCounts, setUnreadCounts] = useState({ likes: 0, reposts: 0, quotes: 0, replies: 0, follows: 0, total: 0 });
 
   // Track which categories are expanded
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
@@ -286,6 +292,7 @@ export default function Notifications({ onOpenPost, onOpenProfile }: Notificatio
           reposts: [...prev.reposts, ...newGrouped.reposts],
           quotes: [...prev.quotes, ...newGrouped.quotes],
           replies: [...prev.replies, ...newGrouped.replies],
+          follows: [...prev.follows, ...newGrouped.follows],
         }));
       } else {
         setGrouped(newGrouped);
@@ -302,6 +309,7 @@ export default function Notifications({ onOpenPost, onOpenProfile }: Notificatio
             reposts: [...grouped.reposts, ...newGrouped.reposts],
             quotes: [...grouped.quotes, ...newGrouped.quotes],
             replies: [...grouped.replies, ...newGrouped.replies],
+            follows: [...grouped.follows, ...newGrouped.follows],
           }
         : newGrouped;
       setUnreadCounts(countUnread(mergedGrouped, timestamps));
@@ -333,7 +341,7 @@ export default function Notifications({ onOpenPost, onOpenProfile }: Notificatio
   }, [isExpanded]);
 
   // Handle category toggle
-  const handleCategoryToggle = (category: 'likes' | 'reposts' | 'quotes' | 'replies') => {
+  const handleCategoryToggle = (category: 'likes' | 'reposts' | 'quotes' | 'replies' | 'follows') => {
     setExpandedCategories((prev) => {
       const newSet = new Set(prev);
       if (newSet.has(category)) {
@@ -437,16 +445,38 @@ export default function Notifications({ onOpenPost, onOpenProfile }: Notificatio
         </svg>
       ),
     },
+    {
+      key: 'follows' as const,
+      settingKey: 'notifyFollows' as const,
+      title: 'Follows',
+      items: grouped.follows,
+      unread: unreadCounts.follows,
+      enabled: settings.notifyFollows,
+      colors: {
+        bg: 'bg-amber-50 dark:bg-amber-900/20',
+        border: 'border-l-amber-400',
+        text: 'text-amber-700 dark:text-amber-300',
+        icon: 'text-amber-500',
+        hover: 'hover:bg-amber-100 dark:hover:bg-amber-900/30',
+        badge: 'bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400',
+      },
+      icon: (
+        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+        </svg>
+      ),
+    },
   ];
 
-  const totalNotifications = grouped.likes.length + grouped.reposts.length + grouped.quotes.length + grouped.replies.length;
+  const totalNotifications = grouped.likes.length + grouped.reposts.length + grouped.quotes.length + grouped.replies.length + grouped.follows.length;
   
   // Only count unread for enabled categories
   const enabledUnreadTotal = 
     (settings.notifyLikes ? unreadCounts.likes : 0) +
     (settings.notifyReposts ? unreadCounts.reposts : 0) +
     (settings.notifyQuotes ? unreadCounts.quotes : 0) +
-    (settings.notifyReplies ? unreadCounts.replies : 0);
+    (settings.notifyReplies ? unreadCounts.replies : 0) +
+    (settings.notifyFollows ? unreadCounts.follows : 0);
 
   return (
     <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden">

@@ -12,12 +12,14 @@ export interface LeaSettings {
   showPaperHighlights: boolean;
   dimNonVerified: boolean;
   dimReposts: boolean;
+  expandSelfThreads: boolean;
 
   // Notifications
   notifyLikes: boolean;
   notifyReposts: boolean;
   notifyQuotes: boolean;
   notifyReplies: boolean;
+  notifyFollows: boolean;
 }
 
 const DEFAULT_SETTINGS: LeaSettings = {
@@ -27,10 +29,12 @@ const DEFAULT_SETTINGS: LeaSettings = {
   showPaperHighlights: true,
   dimNonVerified: false,
   dimReposts: false,
+  expandSelfThreads: true,
   notifyLikes: true,
   notifyReposts: true,
   notifyQuotes: true,
   notifyReplies: true,
+  notifyFollows: true,
 };
 
 interface SettingsContextType {

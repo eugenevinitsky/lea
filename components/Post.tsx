@@ -5,7 +5,7 @@ import { AppBskyFeedDefs, AppBskyFeedPost, AppBskyEmbedExternal, AppBskyEmbedIma
 import Hls from 'hls.js';
 import { isVerifiedResearcher, Label, createPost, ReplyRef, QuoteRef, likePost, unlikePost, repost, deleteRepost, deletePost, sendFeedInteraction, InteractionEvent, getSession, updateThreadgate, getThreadgateType, ThreadgateType, FEEDS } from '@/lib/bluesky';
 import { useSettings } from '@/lib/settings';
-import { useBookmarks, BookmarkedPost } from '@/lib/bookmarks';
+import { useBookmarks, BookmarkedPost, COLLECTION_COLORS } from '@/lib/bookmarks';
 import ProfileView from './ProfileView';
 import ProfileEditor from './ProfileEditor';
 import ProfileHoverCard from './ProfileHoverCard';
@@ -21,6 +21,10 @@ interface PostProps {
   feedUri?: string;
   // Repost reason - if present, shows "Reposted by X" header
   reason?: AppBskyFeedDefs.ReasonRepost | AppBskyFeedDefs.ReasonPin | { $type: string };
+  // Self-thread styling props
+  isInSelfThread?: boolean;
+  isFirstInThread?: boolean;
+  isLastInThread?: boolean;
 }
 
 function containsPaperLink(text: string, embed?: AppBskyFeedDefs.PostView['embed']): { hasPaper: boolean; domain?: string } {
@@ -712,13 +716,13 @@ function PostEmbed({ embed, onOpenThread }: { embed: AppBskyFeedDefs.PostView['e
   return null;
 }
 
-export default function Post({ post, onReply, onOpenThread, feedContext, reqId, supportsInteractions, feedUri, onOpenProfile, reason }: PostProps & { onReply?: () => void; onOpenThread?: (uri: string) => void; onOpenProfile?: (did: string) => void }) {
+export default function Post({ post, onReply, onOpenThread, feedContext, reqId, supportsInteractions, feedUri, onOpenProfile, reason, isInSelfThread, isFirstInThread, isLastInThread }: PostProps & { onReply?: () => void; onOpenThread?: (uri: string) => void; onOpenProfile?: (did: string) => void }) {
   const { settings } = useSettings();
   
   // Check if this is a repost
   const isRepost = reason && '$type' in reason && reason.$type === 'app.bsky.feed.defs#reasonRepost';
   const repostedBy = isRepost && 'by' in reason ? reason.by : undefined;
-  const { addBookmark, removeBookmark, isBookmarked } = useBookmarks();
+  const { addBookmark, removeBookmark, isBookmarked, collections, getBookmarkCollections, addBookmarkToCollection, removeBookmarkFromCollection } = useBookmarks();
   const [showReplyComposer, setShowReplyComposer] = useState(false);
   const [replyText, setReplyText] = useState('');
   const [replying, setReplying] = useState(false);
@@ -767,6 +771,10 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
 
   // Share state
   const [showCopied, setShowCopied] = useState(false);
+
+  // Bookmark collection dropdown state
+  const [showBookmarkMenu, setShowBookmarkMenu] = useState(false);
+  const bookmarkMenuRef = useRef<HTMLDivElement>(null);
 
   const handleThreadgateUpdate = async (newType: ThreadgateType) => {
     if (updatingThreadgate || newType === currentThreadgate) return;
@@ -839,29 +847,73 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
     : null;
   const paperId = paperUrl ? getPaperIdFromUrl(paperUrl) : null;
 
-  const handleBookmark = () => {
-    if (bookmarked) {
-      removeBookmark(post.uri);
-    } else {
-      // Extract paper info if this post contains a paper link
-      const paperInfo = extractPaperInfo(record.text, post.embed);
+  // Close bookmark menu when clicking outside
+  useEffect(() => {
+    if (!showBookmarkMenu) return;
+    
+    const handleClickOutside = (e: MouseEvent) => {
+      if (bookmarkMenuRef.current && !bookmarkMenuRef.current.contains(e.target as Node)) {
+        setShowBookmarkMenu(false);
+      }
+    };
+    
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showBookmarkMenu]);
 
-      const bookmarkData: BookmarkedPost = {
-        uri: post.uri,
-        cid: post.cid,
-        authorDid: author.did,
-        authorHandle: author.handle,
-        authorDisplayName: author.displayName,
-        authorAvatar: author.avatar,
-        text: record.text,
-        createdAt: record.createdAt,
-        bookmarkedAt: new Date().toISOString(),
-        paperUrl: paperInfo.url,
-        paperDoi: paperInfo.doi,
-        paperTitle: paperInfo.title,
-      };
-      addBookmark(bookmarkData);
+  const handleBookmarkClick = () => {
+    // If collections exist, show menu for both adding and managing
+    if (collections.length > 0) {
+      setShowBookmarkMenu(!showBookmarkMenu);
+    } else {
+      // No collections - simple toggle
+      if (bookmarked) {
+        removeBookmark(post.uri);
+      } else {
+        addBookmarkWithData();
+      }
     }
+  };
+
+  const addBookmarkWithData = (collectionIds?: string[]) => {
+    // Extract paper info if this post contains a paper link
+    const paperInfo = extractPaperInfo(record.text, post.embed);
+
+    const bookmarkData: BookmarkedPost = {
+      uri: post.uri,
+      cid: post.cid,
+      authorDid: author.did,
+      authorHandle: author.handle,
+      authorDisplayName: author.displayName,
+      authorAvatar: author.avatar,
+      text: record.text,
+      createdAt: record.createdAt,
+      bookmarkedAt: new Date().toISOString(),
+      paperUrl: paperInfo.url,
+      paperDoi: paperInfo.doi,
+      paperTitle: paperInfo.title,
+      collectionIds: collectionIds || [],
+    };
+    addBookmark(bookmarkData, collectionIds);
+  };
+
+  const toggleBookmarkCollection = (collectionId: string) => {
+    const currentCollections = getBookmarkCollections(post.uri);
+    if (!bookmarked) {
+      // Not bookmarked yet - add bookmark with this collection
+      addBookmarkWithData([collectionId]);
+    } else if (currentCollections.includes(collectionId)) {
+      // Already in collection - remove from collection
+      removeBookmarkFromCollection(post.uri, collectionId);
+    } else {
+      // Not in collection - add to collection
+      addBookmarkToCollection(post.uri, collectionId);
+    }
+  };
+
+  const handleRemoveBookmark = () => {
+    removeBookmark(post.uri);
+    setShowBookmarkMenu(false);
   };
 
   const handleDelete = async () => {
@@ -1032,8 +1084,13 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
     );
   }
 
+  // Build article class based on context
+  const articleClass = isInSelfThread
+    ? `hover:bg-gray-50 dark:hover:bg-gray-900/50 transition-colors ${dimmed ? 'opacity-60' : ''} ${!isLastInThread ? '' : ''}`
+    : `border-b border-gray-200 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-900/50 transition-colors ${dimmed ? 'opacity-60' : ''}`;
+
   return (
-    <article className={`border-b border-gray-200 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-900/50 transition-colors ${dimmed ? 'opacity-60' : ''}`}>
+    <article className={articleClass}>
       {/* Repost header */}
       {repostedBy && (
         <div className="flex items-center gap-2 px-4 pt-3 pb-1 text-sm text-gray-500">
@@ -1266,24 +1323,94 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
             </button>
 
             {/* Bookmark button */}
-            <button
-              onClick={handleBookmark}
-              className={`flex items-center gap-1 transition-colors ${
-                bookmarked
-                  ? 'text-blue-500 hover:text-blue-600'
-                  : 'hover:text-blue-500'
-              }`}
-              title={bookmarked ? 'Remove bookmark' : 'Bookmark'}
-            >
-              <svg
-                className="w-4 h-4"
-                fill={bookmarked ? 'currentColor' : 'none'}
-                stroke="currentColor"
-                viewBox="0 0 24 24"
+            <div className="relative" ref={bookmarkMenuRef}>
+              <button
+                onClick={handleBookmarkClick}
+                className={`flex items-center gap-1 transition-colors ${
+                  bookmarked
+                    ? 'text-blue-500 hover:text-blue-600'
+                    : 'hover:text-blue-500'
+                }`}
+                title={bookmarked ? 'Manage bookmark' : 'Bookmark'}
               >
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
-              </svg>
-            </button>
+                <svg
+                  className="w-4 h-4"
+                  fill={bookmarked ? 'currentColor' : 'none'}
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
+                </svg>
+              </button>
+
+              {/* Collection dropdown menu */}
+              {showBookmarkMenu && collections.length > 0 && (
+                <div className="absolute bottom-full left-0 mb-2 w-48 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-1 z-50">
+                  <div className="px-3 py-1.5 text-xs font-medium text-gray-500 dark:text-gray-400 border-b border-gray-100 dark:border-gray-700">
+                    Add to collection
+                  </div>
+              {collections.map((collection) => {
+                    const isInCollection = bookmarked && getBookmarkCollections(post.uri).includes(collection.id);
+                    // Get color class based on collection's stored color
+                    const colorBgClass = {
+                      'rose': 'bg-rose-500',
+                      'emerald': 'bg-emerald-500',
+                      'purple': 'bg-purple-500',
+                      'blue': 'bg-blue-500',
+                      'amber': 'bg-amber-500',
+                      'cyan': 'bg-cyan-500',
+                    }[collection.color] || 'bg-rose-500';
+                    return (
+                      <button
+                        key={collection.id}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          toggleBookmarkCollection(collection.id);
+                        }}
+                        className="w-full px-3 py-1.5 text-left text-sm hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center gap-2"
+                      >
+                        <span className={`w-2 h-2 rounded-full ${colorBgClass}`} />
+                        <span className="flex-1 truncate text-gray-700 dark:text-gray-300">{collection.name}</span>
+                        {isInCollection && (
+                          <svg className="w-4 h-4 text-blue-500" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                          </svg>
+                        )}
+                      </button>
+                    );
+                  })}
+                  {/* Uncategorized option */}
+                  {!bookmarked && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        addBookmarkWithData([]);
+                        setShowBookmarkMenu(false);
+                      }}
+                      className="w-full px-3 py-1.5 text-left text-sm hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center gap-2 border-t border-gray-100 dark:border-gray-700"
+                    >
+                      <span className="w-2 h-2 rounded-full bg-gray-400" />
+                      <span className="flex-1 text-gray-700 dark:text-gray-300">Uncategorized</span>
+                    </button>
+                  )}
+                  {/* Remove bookmark option */}
+                  {bookmarked && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleRemoveBookmark();
+                      }}
+                      className="w-full px-3 py-1.5 text-left text-sm text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 flex items-center gap-2 border-t border-gray-100 dark:border-gray-700"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                      </svg>
+                      <span>Remove bookmark</span>
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
 
             {/* Share button */}
             <button

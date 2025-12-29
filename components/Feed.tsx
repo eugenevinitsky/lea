@@ -2,11 +2,12 @@
 
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { AppBskyFeedDefs, AppBskyFeedPost, AppBskyEmbedExternal } from '@atproto/api';
-import { getTimeline, getFeed, getListFeed, searchPosts, FEEDS, FeedId, isVerifiedResearcher, Label } from '@/lib/bluesky';
+import { getTimeline, getFeed, getListFeed, searchPosts, FEEDS, FeedId, isVerifiedResearcher, Label, hasReplies, isReplyPost, getSelfThread, SelfThreadResult } from '@/lib/bluesky';
 import { useSettings } from '@/lib/settings';
 import { detectPaperLink } from '@/lib/papers';
 import Post from './Post';
 import ThreadView from './ThreadView';
+import SelfThread from './SelfThread';
 
 interface FeedProps {
   feedId?: FeedId;
@@ -31,6 +32,12 @@ export default function Feed({ feedId, feedUri, feedName, acceptsInteractions, r
   const [cursor, setCursor] = useState<string | undefined>();
   const [loadedPages, setLoadedPages] = useState(0);
   const [internalThreadUri, setInternalThreadUri] = useState<string | null>(null);
+  
+  // Self-thread expansion state
+  const [expandedThreads, setExpandedThreads] = useState<Map<string, SelfThreadResult>>(new Map());
+  // Use refs for tracking to avoid re-triggering effects
+  const loadingThreadsRef = useRef<Set<string>>(new Set());
+  const checkedUrisRef = useRef<Set<string>>(new Set());
 
   // Use external handler if provided, otherwise use internal state
   const handleOpenThread = onOpenThread || setInternalThreadUri;
@@ -108,6 +115,10 @@ export default function Feed({ feedId, feedUri, feedName, acceptsInteractions, r
     setPosts([]);
     setCursor(undefined);
     setLoadedPages(0);
+    // Reset self-thread state
+    setExpandedThreads(new Map());
+    loadingThreadsRef.current = new Set();
+    checkedUrisRef.current = new Set();
 
     // For papers feed or verified feed, scan multiple pages
     if (isPapersFeed || isVerifiedFeed) {
@@ -218,6 +229,50 @@ export default function Feed({ feedId, feedUri, feedName, acceptsInteractions, r
 
     return { filteredPosts: filtered, hiddenCount: hidden, totalScanned: posts.length };
   }, [posts, settings.highFollowerThreshold, isPapersFeed, isVerifiedFeed]);
+
+  // Function to expand a self-thread
+  const expandSelfThread = useCallback(async (postUri: string, authorDid: string) => {
+    // Check refs to avoid duplicate requests
+    if (loadingThreadsRef.current.has(postUri) || checkedUrisRef.current.has(postUri)) return;
+    
+    loadingThreadsRef.current.add(postUri);
+    checkedUrisRef.current.add(postUri);
+    
+    try {
+      const result = await getSelfThread(postUri, authorDid);
+      if (result && result.posts.length > 1) {
+        console.log('[SelfThread] Expanded thread with', result.posts.length, 'posts');
+        setExpandedThreads(prev => new Map(prev).set(postUri, result));
+      }
+    } finally {
+      loadingThreadsRef.current.delete(postUri);
+    }
+  }, []);
+
+  // Effect to auto-expand self-threads when posts load
+  useEffect(() => {
+    if (!settings.expandSelfThreads) return;
+    
+    let checkedCount = 0;
+    
+    for (const item of filteredPosts) {
+      // Skip posts that are themselves replies (we only expand from root posts)
+      if (isReplyPost(item)) continue;
+      
+      // Skip posts we've already checked
+      if (checkedUrisRef.current.has(item.post.uri)) continue;
+      
+      // Check if post has replies (potential for self-thread)
+      if (hasReplies(item)) {
+        checkedCount++;
+        expandSelfThread(item.post.uri, item.post.author.did);
+      }
+    }
+    
+    if (checkedCount > 0) {
+      console.log('[SelfThread] Checking', checkedCount, 'posts with replies');
+    }
+  }, [filteredPosts, settings.expandSelfThreads, expandSelfThread]);
 
   if (error) {
     return (
@@ -333,19 +388,40 @@ export default function Feed({ feedId, feedUri, feedName, acceptsInteractions, r
       )}
 
       {/* Posts */}
-      {filteredPosts.map((item, index) => (
-        <Post
-          key={`${item.post.uri}-${index}`}
-          post={item.post}
-          onOpenThread={handleOpenThread}
-          feedContext={item.feedContext}
-          reqId={item.reqId}
-          supportsInteractions={effectiveAcceptsInteractions}
-          feedUri={effectiveFeedUri || undefined}
-          onOpenProfile={onOpenProfile}
-          reason={item.reason as AppBskyFeedDefs.ReasonRepost | undefined}
-        />
-      ))}
+      {filteredPosts.map((item, index) => {
+        const postUri = item.post.uri;
+        
+        // Check if this post has an expanded self-thread
+        const expandedThread = expandedThreads.get(postUri);
+        if (expandedThread) {
+          return (
+            <SelfThread
+              key={`thread-${postUri}`}
+              posts={expandedThread.posts}
+              onOpenThread={handleOpenThread}
+              onOpenProfile={onOpenProfile}
+              feedContext={item.feedContext}
+              reqId={item.reqId}
+              supportsInteractions={effectiveAcceptsInteractions}
+              feedUri={effectiveFeedUri || undefined}
+            />
+          );
+        }
+        
+        return (
+          <Post
+            key={`${postUri}-${index}`}
+            post={item.post}
+            onOpenThread={handleOpenThread}
+            feedContext={item.feedContext}
+            reqId={item.reqId}
+            supportsInteractions={effectiveAcceptsInteractions}
+            feedUri={effectiveFeedUri || undefined}
+            onOpenProfile={onOpenProfile}
+            reason={item.reason as AppBskyFeedDefs.ReasonRepost | undefined}
+          />
+        );
+      })}
 
       {/* Thread View Modal - only render if using internal state (no external handler) */}
       {!onOpenThread && internalThreadUri && (

@@ -29,6 +29,7 @@ export interface GroupedNotifications {
   reposts: NotificationItem[];
   quotes: NotificationItem[];
   replies: NotificationItem[];
+  follows: NotificationItem[];
 }
 
 // Storage key for last viewed timestamps
@@ -39,23 +40,24 @@ interface LastViewedTimestamps {
   reposts: string | null;
   quotes: string | null;
   replies: string | null;
+  follows: string | null;
 }
 
 // Get last viewed timestamps from localStorage
 export function getLastViewedTimestamps(): LastViewedTimestamps {
   if (typeof window === 'undefined') {
-    return { likes: null, reposts: null, quotes: null, replies: null };
+    return { likes: null, reposts: null, quotes: null, replies: null, follows: null };
   }
   
   const stored = localStorage.getItem(LAST_VIEWED_KEY);
   if (!stored) {
-    return { likes: null, reposts: null, quotes: null, replies: null };
+    return { likes: null, reposts: null, quotes: null, replies: null, follows: null };
   }
   
   try {
     return JSON.parse(stored);
   } catch {
-    return { likes: null, reposts: null, quotes: null, replies: null };
+    return { likes: null, reposts: null, quotes: null, replies: null, follows: null };
   }
 }
 
@@ -153,6 +155,7 @@ export function groupNotifications(notifications: NotificationItem[]): GroupedNo
     reposts: [],
     quotes: [],
     replies: [],
+    follows: [],
   };
   
   for (const notification of notifications) {
@@ -169,7 +172,10 @@ export function groupNotifications(notifications: NotificationItem[]): GroupedNo
       case 'reply':
         grouped.replies.push(notification);
         break;
-      // Ignore follow and mention for now
+      case 'follow':
+        grouped.follows.push(notification);
+        break;
+      // Ignore mention for now
     }
   }
   
@@ -180,15 +186,16 @@ export function groupNotifications(notifications: NotificationItem[]): GroupedNo
 export function countUnread(
   grouped: GroupedNotifications,
   lastViewed: LastViewedTimestamps
-): { likes: number; reposts: number; quotes: number; replies: number; total: number } {
+): { likes: number; reposts: number; quotes: number; replies: number; follows: number; total: number } {
   const counts = {
     likes: grouped.likes.filter(n => isNotificationUnread(n, lastViewed.likes)).length,
     reposts: grouped.reposts.filter(n => isNotificationUnread(n, lastViewed.reposts)).length,
     quotes: grouped.quotes.filter(n => isNotificationUnread(n, lastViewed.quotes)).length,
     replies: grouped.replies.filter(n => isNotificationUnread(n, lastViewed.replies)).length,
+    follows: grouped.follows.filter(n => isNotificationUnread(n, lastViewed.follows)).length,
     total: 0,
   };
-  counts.total = counts.likes + counts.reposts + counts.quotes + counts.replies;
+  counts.total = counts.likes + counts.reposts + counts.quotes + counts.replies + counts.follows;
   return counts;
 }
 

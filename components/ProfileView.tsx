@@ -9,6 +9,61 @@ import { detectPaperLink, getPaperIdFromUrl } from '@/lib/papers';
 import Post from './Post';
 import ThreadView from './ThreadView';
 
+// Helper to convert URLs in text to clickable links
+function linkifyText(text: string): React.ReactNode {
+  // Pattern matches URLs with http(s)://, www., or common TLDs
+  const urlPattern = /(https?:\/\/[^\s]+|www\.[^\s]+|[a-zA-Z0-9][a-zA-Z0-9-]*\.(com|edu|org|net|io|co|gov|me|info|biz|dev|ai|app)[^\s]*)/gi;
+  
+  const parts: React.ReactNode[] = [];
+  let lastIndex = 0;
+  let match;
+  let keyIndex = 0;
+  
+  while ((match = urlPattern.exec(text)) !== null) {
+    // Add text before the match
+    if (match.index > lastIndex) {
+      parts.push(text.slice(lastIndex, match.index));
+    }
+    
+    let url = match[0];
+    // Add protocol if missing
+    if (!url.startsWith('http://') && !url.startsWith('https://')) {
+      url = 'https://' + url;
+    }
+    // Remove trailing punctuation that's likely not part of the URL
+    const displayUrl = match[0].replace(/[.,;:!?)]+$/, '');
+    const cleanUrl = url.replace(/[.,;:!?)]+$/, '');
+    
+    parts.push(
+      <a
+        key={keyIndex++}
+        href={cleanUrl}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="text-blue-500 hover:text-blue-600 hover:underline"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {displayUrl}
+      </a>
+    );
+    
+    // Account for any trailing punctuation we removed
+    const trailingPunct = match[0].slice(displayUrl.length);
+    if (trailingPunct) {
+      parts.push(trailingPunct);
+    }
+    
+    lastIndex = match.index + match[0].length;
+  }
+  
+  // Add remaining text
+  if (lastIndex < text.length) {
+    parts.push(text.slice(lastIndex));
+  }
+  
+  return parts.length > 0 ? parts : text;
+}
+
 interface ResearcherInfo {
   did: string;
   handle: string;
@@ -369,13 +424,13 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
   const session = getSession();
   const isOwnProfile = session?.did === did;
 
-  // Render follow/unfollow button
+  // Render follow/unfollow button (smaller style to match "Follows you" badge)
   const renderFollowButton = () => {
     return (
       <button
         onClick={isFollowing ? handleUnfollow : handleFollow}
         disabled={followLoading}
-        className={`px-4 py-1.5 rounded-full text-sm font-medium transition-colors ${
+        className={`px-2 py-0.5 rounded text-xs font-medium transition-colors ${
           isFollowing
             ? 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-red-100 hover:text-red-600 dark:hover:bg-red-900/30 dark:hover:text-red-400'
             : 'bg-blue-500 text-white hover:bg-blue-600'
@@ -383,7 +438,7 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
       >
         {followLoading ? (
           <span className="flex items-center gap-1">
-            <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
+            <svg className="animate-spin w-3 h-3" fill="none" viewBox="0 0 24 24">
               <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
               <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
             </svg>
@@ -677,7 +732,7 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
                     {finalHandle && (
                       <p className="text-sm text-gray-500">@{finalHandle}</p>
                     )}
-                    {/* Follower/Following counts */}
+                    {/* Follower/Following counts + Follow button row */}
                     {bskyProfile && (
                       <div className="flex items-center gap-4 mt-2 text-sm">
                         <span className="text-gray-600 dark:text-gray-400">
@@ -688,17 +743,17 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
                         </span>
                       </div>
                     )}
-                    {bskyProfile?.viewer?.followedBy && (
-                      <span className="inline-block mt-2 px-2 py-0.5 bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 text-xs rounded">
-                        Follows you
-                      </span>
-                    )}
-                    {bskyProfile?.description && (
-                      <p className="text-sm text-gray-600 dark:text-gray-400 mt-2 line-clamp-2">{bskyProfile.description}</p>
-                    )}
-                    <div className="mt-3">
+                    <div className="flex items-center gap-2 mt-2">
                       {renderFollowButton()}
+                      {bskyProfile?.viewer?.followedBy && (
+                        <span className="px-2 py-0.5 bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 text-xs rounded">
+                          Follows you
+                        </span>
+                      )}
                     </div>
+                    {bskyProfile?.description && (
+                      <p className="text-sm text-gray-600 dark:text-gray-400 mt-2 line-clamp-2">{linkifyText(bskyProfile.description)}</p>
+                    )}
                   </div>
                 </div>
               </div>
@@ -845,12 +900,24 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
                         </span>
                       </div>
                     )}
-                    {bskyProfile?.viewer?.followedBy && (
-                      <span className="inline-block mt-2 px-2 py-0.5 bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 text-xs rounded">
-                        Follows you
-                      </span>
-                    )}
-                    
+                    {/* Follow button + Follows you badge */}
+                    <div className="flex items-center gap-2 mt-2">
+                      {isOwnProfile && onEdit ? (
+                        <button
+                          onClick={onEdit}
+                          className="px-3 py-0.5 rounded-full text-xs font-medium bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
+                        >
+                          Edit Profile
+                        </button>
+                      ) : (
+                        renderFollowButton()
+                      )}
+                      {bskyProfile?.viewer?.followedBy && (
+                        <span className="px-2 py-0.5 bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 text-xs rounded">
+                          Follows you
+                        </span>
+                      )}
+                    </div>
                     {/* Researcher IDs */}
                     <div className="flex flex-wrap gap-2 mt-2">
                       {researcher?.orcid && (
@@ -880,18 +947,6 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
                         </a>
                       )}
                     </div>
-                    <div className="mt-3 flex items-center gap-2">
-                      {isOwnProfile && onEdit ? (
-                        <button
-                          onClick={onEdit}
-                          className="px-4 py-1.5 rounded-full text-sm font-medium bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
-                        >
-                          Edit Profile
-                        </button>
-                      ) : (
-                        renderFollowButton()
-                      )}
-                    </div>
                   </div>
                 </div>
               </div>
@@ -906,7 +961,7 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
                   {(profile?.shortBio || bskyProfile?.description) && (
                     <div className="bg-white dark:bg-gray-900 rounded-xl p-4 shadow-sm">
                       <p className="text-gray-700 dark:text-gray-300 whitespace-pre-wrap">
-                        {profile?.shortBio || bskyProfile?.description}
+                        {linkifyText(profile?.shortBio || bskyProfile?.description || '')}
                       </p>
                     </div>
                   )}
@@ -1225,7 +1280,7 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
                     </div>
                   )}
                   {bskyProfile?.description && (
-                    <p className="text-sm text-gray-600 dark:text-gray-400 mt-2 line-clamp-2">{bskyProfile.description}</p>
+                    <p className="text-sm text-gray-600 dark:text-gray-400 mt-2 line-clamp-2">{linkifyText(bskyProfile.description)}</p>
                   )}
                   <div className="mt-3">
                     {renderFollowButton()}
@@ -1407,7 +1462,7 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
                   {/* Bio */}
                   {profile?.shortBio && (
                     <div className="mb-6">
-                      <p className="text-gray-700 dark:text-gray-300 whitespace-pre-wrap">{profile.shortBio}</p>
+                      <p className="text-gray-700 dark:text-gray-300 whitespace-pre-wrap">{linkifyText(profile.shortBio)}</p>
                     </div>
                   )}
 
