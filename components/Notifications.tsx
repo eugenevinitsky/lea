@@ -154,33 +154,33 @@ function CategorySection({
   enabled: boolean;
   onToggleEnabled: () => void;
 }) {
-  // Show section even if empty when disabled (so user can re-enable)
-  if (notifications.length === 0 && enabled) return null;
+  // Don't show empty categories
+  if (notifications.length === 0) return null;
 
   return (
-    <div className={`border-l-4 ${colors.border} ${!enabled ? 'opacity-50' : ''}`}>
+    <div className={`border-l-4 ${colors.border}`}>
       {/* Collapsible header */}
       <div
-        className={`w-full px-3 py-2 flex items-center justify-between ${colors.bg} ${enabled ? colors.hover : ''} transition-colors`}
+        className={`w-full px-3 py-2 flex items-center justify-between ${colors.bg} ${colors.hover} transition-colors`}
       >
         <button
-          onClick={enabled ? onToggle : undefined}
-          className={`flex items-center gap-2 flex-1 ${enabled ? 'cursor-pointer' : 'cursor-default'}`}
-          disabled={!enabled}
+          onClick={onToggle}
+          className="flex items-center gap-2 flex-1 cursor-pointer"
         >
           <span className={colors.icon}>{icon}</span>
           <h4 className={`text-xs font-medium ${colors.text}`}>{title}</h4>
-          {enabled && notifications.length > 0 && (
+          {notifications.length > 0 && (
             <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${colors.badge}`}>
               {notifications.length}
             </span>
           )}
+          {/* Only show unread indicator if notifications are enabled for this category */}
           {enabled && unreadCount > 0 && (
             <span className="w-1.5 h-1.5 rounded-full bg-blue-500 flex-shrink-0" />
           )}
         </button>
         <div className="flex items-center gap-2">
-          {enabled && notifications.length > 0 && (
+          {notifications.length > 0 && (
             <svg
               className={`w-3.5 h-3.5 ${colors.icon} transition-transform ${isExpanded ? 'rotate-180' : ''}`}
               fill="none"
@@ -190,7 +190,7 @@ function CategorySection({
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
             </svg>
           )}
-          {/* Toggle button */}
+          {/* Toggle button - controls whether unread notifications are shown */}
           <button
             onClick={(e) => {
               e.stopPropagation();
@@ -218,7 +218,7 @@ function CategorySection({
       </div>
 
       {/* Items (collapsible) */}
-      {isExpanded && enabled && notifications.length > 0 && (
+      {isExpanded && notifications.length > 0 && (
         <div className="max-h-[200px] overflow-y-auto divide-y divide-gray-100 dark:divide-gray-800">
           {notifications.map((n) => (
             <NotificationItemView
