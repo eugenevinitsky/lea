@@ -885,12 +885,8 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
   };
 
   const handleShare = async () => {
-    // Convert AT URI to Bluesky URL
-    // at://did:plc:xxx/app.bsky.feed.post/xxx -> https://bsky.app/profile/did:plc:xxx/post/xxx
-    const parts = post.uri.replace('at://', '').split('/');
-    const did = parts[0];
-    const rkey = parts[2];
-    const url = `https://bsky.app/profile/${did}/post/${rkey}`;
+    // Use Lea URL format: /?post=at://...
+    const url = `${window.location.origin}/?post=${encodeURIComponent(post.uri)}`;
     
     try {
       await navigator.clipboard.writeText(url);
