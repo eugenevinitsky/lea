@@ -1043,7 +1043,7 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
           <button
             onClick={(e) => {
               e.stopPropagation();
-              if (e.shiftKey) {
+              if (e.shiftKey || e.metaKey || e.ctrlKey) {
                 window.open(`/${repostedBy.handle}`, '_blank');
               } else if (onOpenProfile) {
                 onOpenProfile(repostedBy.did);
@@ -1061,7 +1061,7 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
           did={author.did}
           handle={author.handle}
           onOpenProfile={(e) => {
-            if (e?.shiftKey) {
+            if (e?.shiftKey || e?.metaKey || e?.ctrlKey) {
               window.open(`/${author.handle}`, '_blank');
             } else if (onOpenProfile) {
               onOpenProfile(author.did);
@@ -1074,7 +1074,7 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
             className="flex-shrink-0 relative cursor-pointer"
             onClick={(e) => {
               e.stopPropagation();
-              if (e.shiftKey) {
+              if (e.shiftKey || e.metaKey || e.ctrlKey) {
                 window.open(`/${author.handle}`, '_blank');
               } else if (onOpenProfile) {
                 onOpenProfile(author.did);
@@ -1110,8 +1110,8 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
             <ProfileHoverCard
               did={author.did}
               handle={author.handle}
-              onOpenProfile={(e) => {
-                if (e?.shiftKey) {
+          onOpenProfile={(e) => {
+                if (e?.shiftKey || e?.metaKey || e?.ctrlKey) {
                   window.open(`/${author.handle}`, '_blank');
                 } else if (onOpenProfile) {
                   onOpenProfile(author.did);
@@ -1124,7 +1124,7 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
                 className="font-semibold text-gray-900 dark:text-gray-100 truncate hover:underline"
                 onClick={(e) => {
                   e.stopPropagation();
-                  if (e.shiftKey) {
+                  if (e.shiftKey || e.metaKey || e.ctrlKey) {
                     window.open(`/${author.handle}`, '_blank');
                   } else if (onOpenProfile) {
                     onOpenProfile(author.did);

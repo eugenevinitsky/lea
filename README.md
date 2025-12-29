@@ -133,7 +133,7 @@ Rich profiles for verified researchers:
 ### UI Enhancements
 
 - **Following Indicator** - Blue ring around profile photos of people you follow
-- **Shift-Click Profiles** - Hold Shift when clicking a username/avatar to open profile in new tab
+- **Modifier-Click Profiles** - Hold Shift, Cmd (Mac), or Ctrl (Windows/Linux) when clicking a username/avatar to open profile in new tab
 - **Collapsible Sidebar Panels** - Bookmarks, DMs, and Notifications panels can be collapsed
 - **Scrollable Feed Tabs** - Feed tabs bar scrolls horizontally when you have many feeds pinned
 
@@ -352,7 +352,7 @@ scripts/
 - [x] Delete/share posts
 - [x] Thread auto-refresh after reply
 - [x] Following indicator on avatars
-- [x] Shift-click to open profile in new tab
+- [x] Modifier-click to open profile in new tab (Shift/Cmd/Ctrl)
 - [x] Collapsible sidebar panels
 - [x] Horizontally scrollable feed tabs
 - [ ] Vouching UI

@@ -188,7 +188,7 @@ export default function ProfileHoverCard({ did, handle, children, onOpenProfile 
             <div className="flex items-start gap-3">
               <button
                 onClick={(e) => {
-                  if (e.shiftKey && (handle || profile.handle)) {
+                  if ((e.shiftKey || e.metaKey || e.ctrlKey) && (handle || profile.handle)) {
                     window.open(`/${handle || profile.handle}`, '_blank');
                   } else {
                     onOpenProfile?.(e);
@@ -211,7 +211,7 @@ export default function ProfileHoverCard({ did, handle, children, onOpenProfile 
               <div className="flex-1 min-w-0">
                 <button
                   onClick={(e) => {
-                    if (e.shiftKey && (handle || profile.handle)) {
+                    if ((e.shiftKey || e.metaKey || e.ctrlKey) && (handle || profile.handle)) {
                       window.open(`/${handle || profile.handle}`, '_blank');
                     } else {
                       onOpenProfile?.(e);
