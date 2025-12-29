@@ -90,17 +90,22 @@ export function BookmarksProvider({ children }: { children: ReactNode }) {
     fetchBookmarks();
   }, [userDid]);
 
-  // API helper
-  const apiCall = useCallback(async (action: string, data: Record<string, unknown>) => {
-    if (!userDid) return;
+  // API helper - returns response data
+  const apiCall = useCallback(async (action: string, data: Record<string, unknown>): Promise<Record<string, unknown> | null> => {
+    if (!userDid) return null;
     try {
-      await fetch('/api/bookmarks', {
+      const res = await fetch('/api/bookmarks', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ did: userDid, action, ...data }),
       });
+      if (res.ok) {
+        return await res.json();
+      }
+      return null;
     } catch (error) {
       console.error(`Failed to ${action}:`, error);
+      return null;
     }
   }, [userDid]);
 
@@ -131,45 +136,67 @@ export function BookmarksProvider({ children }: { children: ReactNode }) {
   }, [bookmarks]);
 
   const addBookmarkToCollection = useCallback((uri: string, collectionId: string) => {
+    // Get current collection IDs first
+    const bookmark = bookmarks.find(b => b.uri === uri);
+    if (!bookmark) return;
+    const currentIds = bookmark.collectionIds || [];
+    if (currentIds.includes(collectionId)) return;
+    const newIds = [...currentIds, collectionId];
+    
     // Optimistic update
-    setBookmarks(prev => prev.map(b => {
-      if (b.uri !== uri) return b;
-      const currentIds = b.collectionIds || [];
-      if (currentIds.includes(collectionId)) return b;
-      const newIds = [...currentIds, collectionId];
-      // API call with new IDs
-      apiCall('updateBookmarkCollections', { uri, collectionIds: newIds });
-      return { ...b, collectionIds: newIds };
-    }));
-  }, [apiCall]);
+    setBookmarks(prev => prev.map(b => 
+      b.uri === uri ? { ...b, collectionIds: newIds } : b
+    ));
+    // API call
+    apiCall('updateBookmarkCollections', { uri, collectionIds: newIds });
+  }, [apiCall, bookmarks]);
 
   const removeBookmarkFromCollection = useCallback((uri: string, collectionId: string) => {
+    // Get current collection IDs first
+    const bookmark = bookmarks.find(b => b.uri === uri);
+    if (!bookmark) return;
+    const currentIds = bookmark.collectionIds || [];
+    const newIds = currentIds.filter(id => id !== collectionId);
+    
     // Optimistic update
-    setBookmarks(prev => prev.map(b => {
-      if (b.uri !== uri) return b;
-      const currentIds = b.collectionIds || [];
-      const newIds = currentIds.filter(id => id !== collectionId);
-      // API call with new IDs
-      apiCall('updateBookmarkCollections', { uri, collectionIds: newIds });
-      return { ...b, collectionIds: newIds };
-    }));
-  }, [apiCall]);
+    setBookmarks(prev => prev.map(b => 
+      b.uri === uri ? { ...b, collectionIds: newIds } : b
+    ));
+    // API call
+    apiCall('updateBookmarkCollections', { uri, collectionIds: newIds });
+  }, [apiCall, bookmarks]);
 
   const addCollection = useCallback((name: string): string => {
     // Generate optimistic ID
-    const id = `col_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    pendingIdRef.current = id;
+    const tempId = `col_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    pendingIdRef.current = tempId;
     // Pick color based on number of existing collections
     const colorIndex = collections.length % COLLECTION_COLORS.length;
     const color = COLLECTION_COLORS[colorIndex].icon.split('-')[1];
-    const newCollection: BookmarkCollection = { id, name, color };
+    const newCollection: BookmarkCollection = { id: tempId, name, color };
     
     // Optimistic update
     setCollections(prev => [...prev, newCollection]);
-    // API call
-    apiCall('addCollection', { name, color });
     
-    return id;
+    // API call - get the real ID back and update
+    apiCall('addCollection', { name, color }).then(result => {
+      if (result?.id && result.id !== tempId) {
+        // Update the collection with the real ID from the server
+        setCollections(prev => prev.map(c => 
+          c.id === tempId ? { ...c, id: result.id as string } : c
+        ));
+        // Also update any bookmarks that might have used the temp ID
+        setBookmarks(prev => prev.map(b => {
+          if (!b.collectionIds?.includes(tempId)) return b;
+          return {
+            ...b,
+            collectionIds: b.collectionIds.map(cid => cid === tempId ? result.id as string : cid)
+          };
+        }));
+      }
+    });
+    
+    return tempId;
   }, [collections.length, apiCall]);
 
   const renameCollection = useCallback((id: string, name: string) => {
