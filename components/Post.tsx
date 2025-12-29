@@ -1043,7 +1043,9 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
           <button
             onClick={(e) => {
               e.stopPropagation();
-              if (onOpenProfile) {
+              if (e.shiftKey) {
+                window.open(`/${repostedBy.handle}`, '_blank');
+              } else if (onOpenProfile) {
                 onOpenProfile(repostedBy.did);
               }
             }}
@@ -1057,8 +1059,11 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
         {/* Avatar */}
         <ProfileHoverCard
           did={author.did}
-          onOpenProfile={() => {
-            if (onOpenProfile) {
+          handle={author.handle}
+          onOpenProfile={(e) => {
+            if (e?.shiftKey) {
+              window.open(`/${author.handle}`, '_blank');
+            } else if (onOpenProfile) {
               onOpenProfile(author.did);
             } else {
               setShowProfile(true);
@@ -1069,7 +1074,9 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
             className="flex-shrink-0 relative cursor-pointer"
             onClick={(e) => {
               e.stopPropagation();
-              if (onOpenProfile) {
+              if (e.shiftKey) {
+                window.open(`/${author.handle}`, '_blank');
+              } else if (onOpenProfile) {
                 onOpenProfile(author.did);
               } else {
                 setShowProfile(true);
@@ -1102,8 +1109,11 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
           <div className="flex items-center gap-1 text-sm flex-wrap">
             <ProfileHoverCard
               did={author.did}
-              onOpenProfile={() => {
-                if (onOpenProfile) {
+              handle={author.handle}
+              onOpenProfile={(e) => {
+                if (e?.shiftKey) {
+                  window.open(`/${author.handle}`, '_blank');
+                } else if (onOpenProfile) {
                   onOpenProfile(author.did);
                 } else {
                   setShowProfile(true);
@@ -1114,7 +1124,9 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
                 className="font-semibold text-gray-900 dark:text-gray-100 truncate hover:underline"
                 onClick={(e) => {
                   e.stopPropagation();
-                  if (onOpenProfile) {
+                  if (e.shiftKey) {
+                    window.open(`/${author.handle}`, '_blank');
+                  } else if (onOpenProfile) {
                     onOpenProfile(author.did);
                   } else {
                     setShowProfile(true);

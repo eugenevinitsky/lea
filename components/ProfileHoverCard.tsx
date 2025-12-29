@@ -6,8 +6,9 @@ import { getBlueskyProfile, followUser, unfollowUser, isVerifiedResearcher, Labe
 
 interface ProfileHoverCardProps {
   did: string;
+  handle?: string;
   children: ReactNode;
-  onOpenProfile?: () => void;
+  onOpenProfile?: (e?: React.MouseEvent) => void;
 }
 
 interface ProfileData {
@@ -24,7 +25,7 @@ interface ProfileData {
   labels?: Label[];
 }
 
-export default function ProfileHoverCard({ did, children, onOpenProfile }: ProfileHoverCardProps) {
+export default function ProfileHoverCard({ did, handle, children, onOpenProfile }: ProfileHoverCardProps) {
   const [showCard, setShowCard] = useState(false);
   const [profile, setProfile] = useState<ProfileData | null>(null);
   const [loading, setLoading] = useState(false);
@@ -186,7 +187,13 @@ export default function ProfileHoverCard({ did, children, onOpenProfile }: Profi
           <div className="p-4 pb-3">
             <div className="flex items-start gap-3">
               <button
-                onClick={onOpenProfile}
+                onClick={(e) => {
+                  if (e.shiftKey && (handle || profile.handle)) {
+                    window.open(`/${handle || profile.handle}`, '_blank');
+                  } else {
+                    onOpenProfile?.(e);
+                  }
+                }}
                 className="flex-shrink-0"
               >
                 {profile.avatar ? (
@@ -203,7 +210,13 @@ export default function ProfileHoverCard({ did, children, onOpenProfile }: Profi
               </button>
               <div className="flex-1 min-w-0">
                 <button
-                  onClick={onOpenProfile}
+                  onClick={(e) => {
+                    if (e.shiftKey && (handle || profile.handle)) {
+                      window.open(`/${handle || profile.handle}`, '_blank');
+                    } else {
+                      onOpenProfile?.(e);
+                    }
+                  }}
                   className="text-left"
                 >
                   <div className="flex items-center gap-1">
