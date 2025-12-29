@@ -5,7 +5,7 @@ import { eq, and, isNotNull } from 'drizzle-orm';
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { topics, excludeDid, limit = 10 } = body;
+    const { topics, excludeDid, limit } = body;
 
     if (!topics || !Array.isArray(topics) || topics.length === 0) {
       return NextResponse.json(
@@ -77,7 +77,7 @@ export async function POST(request: NextRequest) {
       })
       .filter(r => r.matchScore > 0) // Only return researchers with at least one match
       .sort((a, b) => b.matchScore - a.matchScore)
-      .slice(0, limit);
+      .slice(0, limit || undefined);
 
     return NextResponse.json({
       suggestions: scoredResearchers,

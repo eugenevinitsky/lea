@@ -206,7 +206,6 @@ export default function Onboarding({ onComplete, startAtStep = 1 }: OnboardingPr
           body: JSON.stringify({
             topics: Array.from(selectedTopics),
             excludeDid: session?.did,
-            limit: 20,
           }),
         });
         const data = await response.json();
