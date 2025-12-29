@@ -369,13 +369,13 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
   const session = getSession();
   const isOwnProfile = session?.did === did;
 
-  // Render follow/unfollow button
+  // Render follow/unfollow button (smaller style to match "Follows you" badge)
   const renderFollowButton = () => {
     return (
       <button
         onClick={isFollowing ? handleUnfollow : handleFollow}
         disabled={followLoading}
-        className={`px-4 py-1.5 rounded-full text-sm font-medium transition-colors ${
+        className={`px-2 py-0.5 rounded text-xs font-medium transition-colors ${
           isFollowing
             ? 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-red-100 hover:text-red-600 dark:hover:bg-red-900/30 dark:hover:text-red-400'
             : 'bg-blue-500 text-white hover:bg-blue-600'
@@ -383,7 +383,7 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
       >
         {followLoading ? (
           <span className="flex items-center gap-1">
-            <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
+            <svg className="animate-spin w-3 h-3" fill="none" viewBox="0 0 24 24">
               <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
               <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
             </svg>
@@ -677,7 +677,7 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
                     {finalHandle && (
                       <p className="text-sm text-gray-500">@{finalHandle}</p>
                     )}
-                    {/* Follower/Following counts */}
+                    {/* Follower/Following counts + Follow button row */}
                     {bskyProfile && (
                       <div className="flex items-center gap-4 mt-2 text-sm">
                         <span className="text-gray-600 dark:text-gray-400">
@@ -688,17 +688,17 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
                         </span>
                       </div>
                     )}
-                    {bskyProfile?.description && (
-                      <p className="text-sm text-gray-600 dark:text-gray-400 mt-2 line-clamp-2">{bskyProfile.description}</p>
-                    )}
-                    <div className="mt-3 flex items-center gap-2">
+                    <div className="flex items-center gap-2 mt-2">
                       {renderFollowButton()}
                       {bskyProfile?.viewer?.followedBy && (
-                        <span className="px-3 py-1.5 bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 text-sm font-medium rounded-full">
+                        <span className="px-2 py-0.5 bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 text-xs rounded">
                           Follows you
                         </span>
                       )}
                     </div>
+                    {bskyProfile?.description && (
+                      <p className="text-sm text-gray-600 dark:text-gray-400 mt-2 line-clamp-2">{bskyProfile.description}</p>
+                    )}
                   </div>
                 </div>
               </div>
@@ -845,6 +845,24 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
                         </span>
                       </div>
                     )}
+                    {/* Follow button + Follows you badge */}
+                    <div className="flex items-center gap-2 mt-2">
+                      {isOwnProfile && onEdit ? (
+                        <button
+                          onClick={onEdit}
+                          className="px-3 py-0.5 rounded-full text-xs font-medium bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
+                        >
+                          Edit Profile
+                        </button>
+                      ) : (
+                        renderFollowButton()
+                      )}
+                      {bskyProfile?.viewer?.followedBy && (
+                        <span className="px-2 py-0.5 bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 text-xs rounded">
+                          Follows you
+                        </span>
+                      )}
+                    </div>
                     {/* Researcher IDs */}
                     <div className="flex flex-wrap gap-2 mt-2">
                       {researcher?.orcid && (
@@ -872,23 +890,6 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
                           </svg>
                           OpenAlex
                         </a>
-                      )}
-                    </div>
-                    <div className="mt-3 flex items-center gap-2">
-                      {isOwnProfile && onEdit ? (
-                        <button
-                          onClick={onEdit}
-                          className="px-4 py-1.5 rounded-full text-sm font-medium bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
-                        >
-                          Edit Profile
-                        </button>
-                      ) : (
-                        renderFollowButton()
-                      )}
-                      {bskyProfile?.viewer?.followedBy && (
-                        <span className="px-3 py-1.5 bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 text-sm font-medium rounded-full">
-                          Follows you
-                        </span>
                       )}
                     </div>
                   </div>
