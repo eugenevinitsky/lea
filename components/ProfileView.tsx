@@ -688,6 +688,11 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
                         </span>
                       </div>
                     )}
+                    {bskyProfile?.viewer?.followedBy && (
+                      <span className="inline-block mt-2 px-2 py-0.5 bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 text-xs rounded">
+                        Follows you
+                      </span>
+                    )}
                     {bskyProfile?.description && (
                       <p className="text-sm text-gray-600 dark:text-gray-400 mt-2 line-clamp-2">{bskyProfile.description}</p>
                     )}
@@ -839,6 +844,11 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
                           <span className="font-semibold text-gray-900 dark:text-gray-100">{bskyProfile.followsCount?.toLocaleString() || 0}</span> following
                         </span>
                       </div>
+                    )}
+                    {bskyProfile?.viewer?.followedBy && (
+                      <span className="inline-block mt-2 px-2 py-0.5 bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 text-xs rounded">
+                        Follows you
+                      </span>
                     )}
                     
                     {/* Researcher IDs */}
