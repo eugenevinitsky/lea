@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useCallback, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useCallback, useEffect, Suspense, useRef } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { getSession, logout, restoreSession, getBlueskyProfile } from '@/lib/bluesky';
 import { SettingsProvider } from '@/lib/settings';
 import { BookmarksProvider } from '@/lib/bookmarks';
@@ -20,6 +20,7 @@ import ResearcherSearch from '@/components/ResearcherSearch';
 
 function AppContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [showOnboarding, setShowOnboarding] = useState(false);
@@ -34,6 +35,41 @@ function AppContent() {
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
   const [isVerified, setIsVerified] = useState(false);
   const { pinnedFeeds, removeFeed, reorderFeeds } = useFeeds();
+
+  // Track if we're intentionally closing to avoid race condition with URL sync
+  const isClosingRef = useRef(false);
+
+  // Open thread and update URL
+  const openThread = useCallback((uri: string | null) => {
+    if (!uri) {
+      isClosingRef.current = true;
+    }
+    setThreadUri(uri);
+    if (uri) {
+      // Update URL with post parameter (shallow routing)
+      const params = new URLSearchParams(searchParams.toString());
+      params.set('post', uri);
+      router.push(`?${params.toString()}`, { scroll: false });
+    } else {
+      // Remove post parameter from URL
+      const params = new URLSearchParams(searchParams.toString());
+      params.delete('post');
+      const newUrl = params.toString() ? `?${params.toString()}` : '/';
+      router.push(newUrl, { scroll: false });
+    }
+  }, [router, searchParams]);
+
+  // Check URL for post parameter on mount and when searchParams change
+  useEffect(() => {
+    const postUri = searchParams.get('post');
+    if (postUri && !threadUri && !isClosingRef.current) {
+      setThreadUri(postUri);
+    }
+    // Reset closing flag when URL actually updates (no post param)
+    if (!postUri) {
+      isClosingRef.current = false;
+    }
+  }, [searchParams, threadUri]);
 
   // Set active feed to first pinned feed when feeds load
   useEffect(() => {
@@ -199,7 +235,7 @@ function AppContent() {
       <div className="max-w-5xl mx-auto flex gap-4 px-4">
         {/* Left Sidebar - Bookmarks & Messages */}
         <aside className="hidden lg:block w-72 flex-shrink-0 sticky top-16 h-fit pt-4 space-y-4">
-          <Bookmarks onOpenPost={setThreadUri} onOpenProfile={navigateToProfile} />
+          <Bookmarks onOpenPost={openThread} onOpenProfile={navigateToProfile} />
           <DMSidebar />
         </aside>
 
@@ -211,7 +247,7 @@ function AppContent() {
           {/* Feed Tabs - sticky below header when scrolling */}
           <div className="flex border-b border-gray-200 dark:border-gray-800 sticky top-14 z-10 bg-white dark:bg-gray-950">
             {pinnedFeeds.map((feed, index) => {
-              const isActive = activeFeedUri === feed.uri;
+              const isActive = activeFeedUri === feed.uri || (activeFeedUri === null && index === 0);
               const isSkygest = feed.uri.includes('preprintdigest');
               const isKeyword = feed.type === 'keyword';
               const isDragging = draggedIndex === index;
@@ -312,6 +348,7 @@ function AppContent() {
                 keyword={activeFeed?.keyword}
                 refreshKey={refreshKey}
                 onOpenProfile={navigateToProfile}
+                onOpenThread={openThread}
               />
             );
           })()}
@@ -320,7 +357,7 @@ function AppContent() {
 
       {/* Thread View Modal */}
       {threadUri && (
-        <ThreadView uri={threadUri} onClose={() => setThreadUri(null)} />
+        <ThreadView uri={threadUri} onClose={() => openThread(null)} />
       )}
 
       {/* Settings modal */}
@@ -340,7 +377,13 @@ export default function Home() {
     <SettingsProvider>
       <BookmarksProvider>
         <FeedsProvider>
-          <AppContent />
+          <Suspense fallback={
+            <div className="min-h-screen bg-gray-50 dark:bg-black flex items-center justify-center">
+              <div className="animate-spin w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full"></div>
+            </div>
+          }>
+            <AppContent />
+          </Suspense>
         </FeedsProvider>
       </BookmarksProvider>
     </SettingsProvider>

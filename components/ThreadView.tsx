@@ -34,14 +34,22 @@ function collectParents(thread: ThreadViewPost): AppBskyFeedDefs.PostView[] {
   return parents;
 }
 
-// Collect direct replies
-function collectReplies(thread: ThreadViewPost): AppBskyFeedDefs.PostView[] {
+// Reply with nesting level for indentation
+interface NestedReply {
+  post: AppBskyFeedDefs.PostView;
+  depth: number;
+}
+
+// Recursively collect all replies with their depth
+function collectAllReplies(thread: ThreadViewPost, depth: number = 0): NestedReply[] {
   if (!thread.replies) return [];
 
-  const replies: AppBskyFeedDefs.PostView[] = [];
+  const replies: NestedReply[] = [];
   for (const reply of thread.replies) {
     if (isThreadViewPost(reply)) {
-      replies.push(reply.post);
+      replies.push({ post: reply.post, depth });
+      // Recursively get nested replies
+      replies.push(...collectAllReplies(reply, depth + 1));
     }
   }
   return replies;
@@ -54,7 +62,7 @@ export default function ThreadView({ uri, onClose }: ThreadViewProps) {
   const [error, setError] = useState<string | null>(null);
   const [parents, setParents] = useState<AppBskyFeedDefs.PostView[]>([]);
   const [mainPost, setMainPost] = useState<AppBskyFeedDefs.PostView | null>(null);
-  const [replies, setReplies] = useState<AppBskyFeedDefs.PostView[]>([]);
+  const [replies, setReplies] = useState<NestedReply[]>([]);
 
   const navigateToThread = (newUri: string) => {
     setHistory(prev => [...prev, currentUri]);
@@ -85,7 +93,7 @@ export default function ThreadView({ uri, onClose }: ThreadViewProps) {
 
         setMainPost(thread.post);
         setParents(collectParents(thread));
-        setReplies(collectReplies(thread));
+        setReplies(collectAllReplies(thread));
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to load thread');
       } finally {
@@ -173,12 +181,17 @@ export default function ThreadView({ uri, onClose }: ThreadViewProps) {
                 <div className="px-4 py-2 text-sm font-medium text-gray-500 border-b border-gray-200 dark:border-gray-800">
                   {replies.length} {replies.length === 1 ? 'reply' : 'replies'}
                 </div>
-                {replies.map((post) => (
-                  <Post
+                {replies.map(({ post, depth }) => (
+                  <div
                     key={post.uri}
-                    post={post}
-                    onOpenThread={navigateToThread}
-                  />
+                    style={{ marginLeft: `${Math.min(depth * 16, 64)}px` }}
+                    className={depth > 0 ? 'border-l-2 border-gray-200 dark:border-gray-700' : ''}
+                  >
+                    <Post
+                      post={post}
+                      onOpenThread={navigateToThread}
+                    />
+                  </div>
                 ))}
               </div>
             )}
