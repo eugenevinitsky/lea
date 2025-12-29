@@ -11,6 +11,7 @@ import {
   NotificationItem,
   GroupedNotifications,
 } from '@/lib/notifications';
+import { useSettings } from '@/lib/settings';
 
 interface NotificationsProps {
   onOpenPost?: (uri: string) => void;
@@ -128,6 +129,8 @@ function CategorySection({
   colors,
   onOpenPost,
   onOpenProfile,
+  enabled,
+  onToggleEnabled,
 }: {
   title: string;
   icon: React.ReactNode;
@@ -148,38 +151,74 @@ function CategorySection({
   };
   onOpenPost?: (uri: string) => void;
   onOpenProfile?: (did: string) => void;
+  enabled: boolean;
+  onToggleEnabled: () => void;
 }) {
-  if (notifications.length === 0) return null;
+  // Show section even if empty when disabled (so user can re-enable)
+  if (notifications.length === 0 && enabled) return null;
 
   return (
-    <div className={`border-l-4 ${colors.border}`}>
+    <div className={`border-l-4 ${colors.border} ${!enabled ? 'opacity-50' : ''}`}>
       {/* Collapsible header */}
-      <button
-        onClick={onToggle}
-        className={`w-full px-3 py-2 flex items-center justify-between ${colors.bg} ${colors.hover} transition-colors`}
+      <div
+        className={`w-full px-3 py-2 flex items-center justify-between ${colors.bg} ${enabled ? colors.hover : ''} transition-colors`}
       >
-        <div className="flex items-center gap-2">
+        <button
+          onClick={enabled ? onToggle : undefined}
+          className={`flex items-center gap-2 flex-1 ${enabled ? 'cursor-pointer' : 'cursor-default'}`}
+          disabled={!enabled}
+        >
           <span className={colors.icon}>{icon}</span>
           <h4 className={`text-xs font-medium ${colors.text}`}>{title}</h4>
-          <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${colors.badge}`}>
-            {notifications.length}
-          </span>
-          {unreadCount > 0 && (
+          {enabled && notifications.length > 0 && (
+            <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${colors.badge}`}>
+              {notifications.length}
+            </span>
+          )}
+          {enabled && unreadCount > 0 && (
             <span className="w-1.5 h-1.5 rounded-full bg-blue-500 flex-shrink-0" />
           )}
+        </button>
+        <div className="flex items-center gap-2">
+          {enabled && notifications.length > 0 && (
+            <svg
+              className={`w-3.5 h-3.5 ${colors.icon} transition-transform ${isExpanded ? 'rotate-180' : ''}`}
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
+          )}
+          {/* Toggle button */}
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onToggleEnabled();
+            }}
+            className={`p-1 rounded transition-colors ${
+              enabled
+                ? 'text-gray-400 hover:text-gray-600 hover:bg-gray-200 dark:hover:bg-gray-700'
+                : 'text-gray-300 hover:text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-700'
+            }`}
+            title={enabled ? 'Disable notifications' : 'Enable notifications'}
+          >
+            {enabled ? (
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+              </svg>
+            ) : (
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
+              </svg>
+            )}
+          </button>
         </div>
-        <svg
-          className={`w-3.5 h-3.5 ${colors.icon} transition-transform ${isExpanded ? 'rotate-180' : ''}`}
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-        </svg>
-      </button>
+      </div>
 
       {/* Items (collapsible) */}
-      {isExpanded && (
+      {isExpanded && enabled && notifications.length > 0 && (
         <div className="max-h-[200px] overflow-y-auto divide-y divide-gray-100 dark:divide-gray-800">
           {notifications.map((n) => (
             <NotificationItemView
@@ -208,6 +247,7 @@ function CategorySection({
 }
 
 export default function Notifications({ onOpenPost, onOpenProfile }: NotificationsProps) {
+  const { settings, updateSettings } = useSettings();
   const [isExpanded, setIsExpanded] = useState(false);
   const [grouped, setGrouped] = useState<GroupedNotifications>({
     likes: [],
@@ -314,9 +354,11 @@ export default function Notifications({ onOpenPost, onOpenProfile }: Notificatio
   const categories = [
     {
       key: 'likes' as const,
+      settingKey: 'notifyLikes' as const,
       title: 'Likes',
       items: grouped.likes,
       unread: unreadCounts.likes,
+      enabled: settings.notifyLikes,
       colors: {
         bg: 'bg-rose-50 dark:bg-rose-900/20',
         border: 'border-l-rose-400',
@@ -333,9 +375,11 @@ export default function Notifications({ onOpenPost, onOpenProfile }: Notificatio
     },
     {
       key: 'reposts' as const,
+      settingKey: 'notifyReposts' as const,
       title: 'Reposts',
       items: grouped.reposts,
       unread: unreadCounts.reposts,
+      enabled: settings.notifyReposts,
       colors: {
         bg: 'bg-emerald-50 dark:bg-emerald-900/20',
         border: 'border-l-emerald-400',
@@ -352,9 +396,11 @@ export default function Notifications({ onOpenPost, onOpenProfile }: Notificatio
     },
     {
       key: 'quotes' as const,
+      settingKey: 'notifyQuotes' as const,
       title: 'Quotes',
       items: grouped.quotes,
       unread: unreadCounts.quotes,
+      enabled: settings.notifyQuotes,
       colors: {
         bg: 'bg-purple-50 dark:bg-purple-900/20',
         border: 'border-l-purple-400',
@@ -371,9 +417,11 @@ export default function Notifications({ onOpenPost, onOpenProfile }: Notificatio
     },
     {
       key: 'replies' as const,
+      settingKey: 'notifyReplies' as const,
       title: 'Replies',
       items: grouped.replies,
       unread: unreadCounts.replies,
+      enabled: settings.notifyReplies,
       colors: {
         bg: 'bg-blue-50 dark:bg-blue-900/20',
         border: 'border-l-blue-400',
@@ -391,6 +439,13 @@ export default function Notifications({ onOpenPost, onOpenProfile }: Notificatio
   ];
 
   const totalNotifications = grouped.likes.length + grouped.reposts.length + grouped.quotes.length + grouped.replies.length;
+  
+  // Only count unread for enabled categories
+  const enabledUnreadTotal = 
+    (settings.notifyLikes ? unreadCounts.likes : 0) +
+    (settings.notifyReposts ? unreadCounts.reposts : 0) +
+    (settings.notifyQuotes ? unreadCounts.quotes : 0) +
+    (settings.notifyReplies ? unreadCounts.replies : 0);
 
   return (
     <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden">
@@ -404,9 +459,9 @@ export default function Notifications({ onOpenPost, onOpenProfile }: Notificatio
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
           </svg>
           <span className="font-semibold text-gray-900 dark:text-gray-100">Notifications</span>
-          {unreadCounts.total > 0 && (
+          {enabledUnreadTotal > 0 && (
             <span className="px-1.5 py-0.5 text-xs font-bold bg-amber-500 text-white rounded-full">
-              {unreadCounts.total > 99 ? '99+' : unreadCounts.total}
+              {enabledUnreadTotal > 99 ? '99+' : enabledUnreadTotal}
             </span>
           )}
         </div>
@@ -457,6 +512,8 @@ export default function Notifications({ onOpenPost, onOpenProfile }: Notificatio
                   colors={cat.colors}
                   onOpenPost={onOpenPost}
                   onOpenProfile={onOpenProfile}
+                  enabled={cat.enabled}
+                  onToggleEnabled={() => updateSettings({ [cat.settingKey]: !cat.enabled })}
                 />
               ))}
             </div>
