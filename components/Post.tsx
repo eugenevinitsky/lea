@@ -1164,8 +1164,8 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
           {/* Embedded content (images, links, etc.) */}
           <PostEmbed embed={post.embed} onOpenThread={onOpenThread} />
 
-          {/* Reply context indicator */}
-          {record.reply && onOpenThread && (
+          {/* Reply context indicator - only show if post has replies */}
+          {record.reply && onOpenThread && (post.replyCount ?? 0) > 0 && (
             <button
               onClick={() => onOpenThread(post.uri)}
               className="mt-1 text-xs text-blue-500 hover:text-blue-600 flex items-center gap-1"
