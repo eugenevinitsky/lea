@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { AppBskyFeedDefs, AppBskyActorDefs } from '@atproto/api';
 import { getLikes, getRepostedBy, getQuotes, Label } from '@/lib/bluesky';
 import UserListItem from './UserListItem';
@@ -50,28 +50,7 @@ export default function EngagementTabs({
   const [quotesCursor, setQuotesCursor] = useState<string | undefined>();
   const [quotesLoaded, setQuotesLoaded] = useState(false);
 
-  // Load likes when tab is selected
-  useEffect(() => {
-    if (activeTab === 'likes' && !likesLoaded && !likesLoading) {
-      loadLikes();
-    }
-  }, [activeTab, likesLoaded, likesLoading]);
-
-  // Load reposts when tab is selected
-  useEffect(() => {
-    if (activeTab === 'reposts' && !repostsLoaded && !repostsLoading) {
-      loadReposts();
-    }
-  }, [activeTab, repostsLoaded, repostsLoading]);
-
-  // Load quotes when tab is selected
-  useEffect(() => {
-    if (activeTab === 'quotes' && !quotesLoaded && !quotesLoading) {
-      loadQuotes();
-    }
-  }, [activeTab, quotesLoaded, quotesLoading]);
-
-  const loadLikes = async () => {
+  const loadLikes = useCallback(async () => {
     setLikesLoading(true);
     try {
       const response = await getLikes(uri);
@@ -83,7 +62,7 @@ export default function EngagementTabs({
     } finally {
       setLikesLoading(false);
     }
-  };
+  }, [uri]);
 
   const loadMoreLikes = async () => {
     if (!likesCursor || likesLoading) return;
@@ -99,7 +78,7 @@ export default function EngagementTabs({
     }
   };
 
-  const loadReposts = async () => {
+  const loadReposts = useCallback(async () => {
     setRepostsLoading(true);
     try {
       const response = await getRepostedBy(uri);
@@ -111,7 +90,7 @@ export default function EngagementTabs({
     } finally {
       setRepostsLoading(false);
     }
-  };
+  }, [uri]);
 
   const loadMoreReposts = async () => {
     if (!repostsCursor || repostsLoading) return;
@@ -127,7 +106,7 @@ export default function EngagementTabs({
     }
   };
 
-  const loadQuotes = async () => {
+  const loadQuotes = useCallback(async () => {
     setQuotesLoading(true);
     try {
       const response = await getQuotes(uri);
@@ -139,7 +118,7 @@ export default function EngagementTabs({
     } finally {
       setQuotesLoading(false);
     }
-  };
+  }, [uri]);
 
   const loadMoreQuotes = async () => {
     if (!quotesCursor || quotesLoading) return;
@@ -154,6 +133,27 @@ export default function EngagementTabs({
       setQuotesLoading(false);
     }
   };
+
+  // Load likes when tab is selected
+  useEffect(() => {
+    if (activeTab === 'likes' && !likesLoaded && !likesLoading) {
+      loadLikes();
+    }
+  }, [activeTab, likesLoaded, likesLoading, loadLikes]);
+
+  // Load reposts when tab is selected
+  useEffect(() => {
+    if (activeTab === 'reposts' && !repostsLoaded && !repostsLoading) {
+      loadReposts();
+    }
+  }, [activeTab, repostsLoaded, repostsLoading, loadReposts]);
+
+  // Load quotes when tab is selected
+  useEffect(() => {
+    if (activeTab === 'quotes' && !quotesLoaded && !quotesLoading) {
+      loadQuotes();
+    }
+  }, [activeTab, quotesLoaded, quotesLoading, loadQuotes]);
 
   const handleTabClick = (tab: TabType) => {
     // Toggle tab - clicking active tab closes it
