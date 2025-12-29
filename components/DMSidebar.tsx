@@ -9,6 +9,8 @@ import {
   updateRead,
   getChatLog,
   getMyFollows,
+  leaveConvo,
+  blockUser,
   Convo,
   ChatMessage,
   LogEntry,
@@ -202,6 +204,27 @@ export default function DMSidebar() {
     }
   };
 
+  const handleDeleteConvo = async (convoId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    try {
+      await leaveConvo(convoId);
+      setConvos(prev => prev.filter(c => c.id !== convoId));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to delete');
+    }
+  };
+
+  const handleBlockAndDelete = async (convoId: string, userDid: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    try {
+      await blockUser(userDid);
+      await leaveConvo(convoId);
+      setConvos(prev => prev.filter(c => c.id !== convoId));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to block');
+    }
+  };
+
   const otherMember = selectedConvo?.members.find(m => m.did !== session?.did);
 
   // Filter conversations into main chats (from followed users) and requests (from strangers)
@@ -392,50 +415,71 @@ export default function DMSidebar() {
                     const hasUnread = convo.unreadCount > 0;
 
                     return (
-                      <button
+                      <div
                         key={convo.id}
-                        onClick={() => handleSelectConvo(convo.id)}
-                        className="w-full p-2.5 hover:bg-gray-50 dark:hover:bg-gray-800/50 text-left"
+                        className="p-2.5 hover:bg-gray-50 dark:hover:bg-gray-800/50"
                       >
-                        <div className="flex items-start gap-2">
-                          {other.avatar ? (
-                            <img src={other.avatar} alt="" className="w-8 h-8 rounded-full flex-shrink-0" />
-                          ) : (
-                            <div className="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
-                              {(other.displayName || other.handle)[0].toUpperCase()}
-                            </div>
-                          )}
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center justify-between">
-                              <span className={`text-xs truncate ${hasUnread ? 'font-semibold text-gray-900 dark:text-gray-100' : 'font-medium text-gray-700 dark:text-gray-300'}`}>
-                                {other.displayName || other.handle}
-                              </span>
-                              {convo.lastMessage && (
-                                <span className="text-[10px] text-gray-400 flex-shrink-0">
-                                  {formatTime(convo.lastMessage.sentAt)}
+                        <button
+                          onClick={() => handleSelectConvo(convo.id)}
+                          className="w-full text-left"
+                        >
+                          <div className="flex items-start gap-2">
+                            {other.avatar ? (
+                              <img src={other.avatar} alt="" className="w-8 h-8 rounded-full flex-shrink-0" />
+                            ) : (
+                              <div className="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
+                                {(other.displayName || other.handle)[0].toUpperCase()}
+                              </div>
+                            )}
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center justify-between">
+                                <span className={`text-xs truncate ${hasUnread ? 'font-semibold text-gray-900 dark:text-gray-100' : 'font-medium text-gray-700 dark:text-gray-300'}`}>
+                                  {other.displayName || other.handle}
                                 </span>
-                              )}
-                            </div>
-                            <div className="flex items-center gap-1 mt-0.5">
-                              <p className={`text-[11px] truncate flex-1 ${hasUnread ? 'text-gray-700 dark:text-gray-200' : 'text-gray-500 dark:text-gray-400'}`}>
-                                {convo.lastMessage ? (
-                                  <>
-                                    {convo.lastMessage.sender.did === session?.did && (
-                                      <span className="text-gray-400">You: </span>
-                                    )}
-                                    {convo.lastMessage.text}
-                                  </>
-                                ) : (
-                                  <span className="italic text-gray-400">No messages</span>
+                                {convo.lastMessage && (
+                                  <span className="text-[10px] text-gray-400 flex-shrink-0">
+                                    {formatTime(convo.lastMessage.sentAt)}
+                                  </span>
                                 )}
-                              </p>
-                              {hasUnread && (
-                                <span className="w-1.5 h-1.5 rounded-full bg-blue-500 flex-shrink-0" />
-                              )}
+                              </div>
+                              <div className="flex items-center gap-1 mt-0.5">
+                                <p className={`text-[11px] truncate flex-1 ${hasUnread ? 'text-gray-700 dark:text-gray-200' : 'text-gray-500 dark:text-gray-400'}`}>
+                                  {convo.lastMessage ? (
+                                    <>
+                                      {convo.lastMessage.sender.did === session?.did && (
+                                        <span className="text-gray-400">You: </span>
+                                      )}
+                                      {convo.lastMessage.text}
+                                    </>
+                                  ) : (
+                                    <span className="italic text-gray-400">No messages</span>
+                                  )}
+                                </p>
+                                {hasUnread && (
+                                  <span className="w-1.5 h-1.5 rounded-full bg-blue-500 flex-shrink-0" />
+                                )}
+                              </div>
                             </div>
                           </div>
-                        </div>
-                      </button>
+                        </button>
+                        {/* Block/Delete buttons for requests */}
+                        {showRequests && (
+                          <div className="flex gap-2 mt-2 ml-10">
+                            <button
+                              onClick={(e) => handleDeleteConvo(convo.id, e)}
+                              className="px-2 py-1 text-[10px] font-medium text-gray-600 dark:text-gray-400 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded"
+                            >
+                              Delete
+                            </button>
+                            <button
+                              onClick={(e) => handleBlockAndDelete(convo.id, other.did, e)}
+                              className="px-2 py-1 text-[10px] font-medium text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 hover:bg-red-100 dark:hover:bg-red-900/40 rounded"
+                            >
+                              Block
+                            </button>
+                          </div>
+                        )}
+                      </div>
                     );
                   })}
                 </div>

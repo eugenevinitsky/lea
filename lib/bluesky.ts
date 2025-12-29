@@ -735,6 +735,27 @@ export async function unmuteConvo(convoId: string): Promise<{ convo: Convo }> {
   return response.data as { convo: Convo };
 }
 
+// Leave/delete a conversation
+export async function leaveConvo(convoId: string): Promise<void> {
+  if (!agent) throw new Error('Not logged in');
+  await agent.api.chat.bsky.convo.leaveConvo(
+    { convoId },
+    { headers: getChatHeaders() }
+  );
+}
+
+// Block a user
+export async function blockUser(did: string): Promise<void> {
+  if (!agent?.session?.did) throw new Error('Not logged in');
+  await agent.api.app.bsky.graph.block.create(
+    { repo: agent.session.did },
+    {
+      subject: did,
+      createdAt: new Date().toISOString(),
+    }
+  );
+}
+
 // Full Bluesky profile data
 export interface BlueskyProfile {
   did: string;
