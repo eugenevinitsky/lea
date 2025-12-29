@@ -29,6 +29,7 @@ export default function Composer({ onPost }: ComposerProps) {
   const [posting, setPosting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showReplyMenu, setShowReplyMenu] = useState(false);
+  const [disableQuotes, setDisableQuotes] = useState(false);
 
   // Mention autocomplete state
   const [mentionQuery, setMentionQuery] = useState<string | null>(null);
@@ -141,8 +142,9 @@ export default function Composer({ onPost }: ComposerProps) {
     try {
       setPosting(true);
       setError(null);
-      await createPost(text, currentRestriction);
+      await createPost(text, currentRestriction, undefined, undefined, disableQuotes);
       setText('');
+      setDisableQuotes(false);
       onPost?.();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to post');
@@ -262,6 +264,17 @@ export default function Composer({ onPost }: ComposerProps) {
               </>
             )}
           </div>
+
+          {/* Disable quotes checkbox */}
+          <label className="flex items-center gap-1.5 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={disableQuotes}
+              onChange={(e) => setDisableQuotes(e.target.checked)}
+              className="w-4 h-4 rounded border-gray-300 dark:border-gray-600 text-blue-500 focus:ring-blue-500 focus:ring-offset-0"
+            />
+            <span className="text-sm text-gray-600 dark:text-gray-400">No quotes</span>
+          </label>
         </div>
 
         <div className="flex items-center gap-3">

@@ -347,7 +347,8 @@ export async function createPost(
   text: string,
   threadgateType: ThreadgateType = 'following',
   reply?: ReplyRef,
-  quote?: QuoteRef
+  quote?: QuoteRef,
+  disableQuotes: boolean = false
 ) {
   if (!agent) throw new Error('Not logged in');
 
@@ -373,6 +374,19 @@ export async function createPost(
     ...(reply && { reply }),
     ...(embed && { embed }),
   });
+
+  // Apply postgate to disable quotes if requested
+  if (disableQuotes && postResult.uri) {
+    await agent.api.app.bsky.feed.postgate.create(
+      { repo: agent.session!.did, rkey: postResult.uri.split('/').pop()! },
+      {
+        post: postResult.uri,
+        createdAt: new Date().toISOString(),
+        detachedEmbeddingUris: [],
+        embeddingRules: [{ $type: 'app.bsky.feed.postgate#disableRule' }],
+      }
+    );
+  }
 
   // Apply threadgate based on type
   if (threadgateType !== 'open' && postResult.uri) {
