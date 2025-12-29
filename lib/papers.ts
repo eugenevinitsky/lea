@@ -135,8 +135,40 @@ export interface LinkFacet {
 }
 
 /**
+ * Extract ANY URL from post text, embed, and facets (no domain filtering)
+ * Used for posts from Paper Skygest where we trust the feed's curation
+ * Returns the first URL found
+ */
+export function extractAnyUrl(text: string, embedUri?: string, facets?: LinkFacet[]): string | null {
+  // Check embed first (most reliable)
+  if (embedUri) {
+    return embedUri;
+  }
+
+  // Check facets for link URIs (second most reliable)
+  if (facets) {
+    for (const facet of facets) {
+      for (const feature of facet.features) {
+        if (feature.$type === 'app.bsky.richtext.facet#link' && feature.uri) {
+          return feature.uri;
+        }
+      }
+    }
+  }
+
+  // Check text for URLs (fallback)
+  const urlRegex = /https?:\/\/[^\s<>"{}|\\^`[\]]+/gi;
+  const urls = text.match(urlRegex);
+  if (urls && urls.length > 0) {
+    return urls[0];
+  }
+
+  return null;
+}
+
+/**
  * Extract paper URL from post text, embed, and facets
- * Returns the first paper URL found
+ * Returns the first paper URL found (filtered by known paper domains)
  */
 export function extractPaperUrl(text: string, embedUri?: string, facets?: LinkFacet[]): string | null {
   // Check embed first (most reliable)
