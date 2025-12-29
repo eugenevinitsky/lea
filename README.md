@@ -10,10 +10,11 @@ A Bluesky client with protective defaults for researchers.
 | **Reply Restrictions** | Auto-restrict replies to followers, verified researchers, or your connections |
 | **Papers Feed** | Timeline filtered to academic paper links only |
 | **Paper Discussions** | See all Bluesky conversations about any paper |
-| **Researcher Profiles** | Rich profiles with affiliations, topics, and publications |
+| **Researcher Profiles** | Rich profiles with affiliations, topics, publications, and mutual interactions |
 | **Bookmarks + Export** | Save posts, export paper citations to BibTeX/RIS for Zotero |
 | **Direct Messages** | Built-in DM support |
 | **Feed Discovery** | Browse and pin custom Bluesky feeds |
+| **User Search** | Search all Bluesky users with verified researchers prioritized |
 
 **Live:** https://client-kappa-weld-68.vercel.app
 
@@ -69,6 +70,7 @@ Click "Discussion" on any paper post to see all Bluesky conversations about that
 - Shows who's been discussing the paper
 - Works with arXiv, DOI, ACM, Wiley, Nature, and 20+ academic sources
 - Available on posts and in researcher profile paper lists
+- **Paper Skygest integration**: Posts from the Paper Skygest feed automatically get paper labels and discussion links, even for domains not in our list
 
 ### Researcher Profiles
 
@@ -80,13 +82,21 @@ Rich profiles for verified researchers:
 - **My Papers** and **Papers I Recommend** sections with discussion links
 - **Co-Authors** automatically fetched from OpenAlex
 - **Posts & Papers tabs** to browse their Bluesky activity
+- **Interactions tab** ("Us") showing mutual replies and mentions between you and the profile
+
+### User Search
+
+- Search all Bluesky users from the search bar
+- Verified researchers appear first in results
+- Shows avatars and verification badges
+- Quick access to any user's profile
 
 ### Feed Discovery
 
 - Browse popular Bluesky feeds
 - Search for feeds by keyword
 - Pin your favorite feeds to the sidebar
-- Includes Paper Skygest (curated preprint digest)
+- Includes Paper Skygest (curated preprint digest) with automatic paper detection
 
 ### Direct Messages
 
@@ -98,14 +108,16 @@ Rich profiles for verified researchers:
 
 - **Reply** - Inline reply composer on any post
 - **Like/Unlike** - Heart button with count
-- **Repost/Unrepost** - Repost toggle
+- **Repost/Unrepost** - Repost toggle with "Reposted by X" header on reposts
 - **Quote Post** - Quote with your commentary + preview
 - **Thread View** - Click any post to see full thread context
+- **Edit Threadgates** - Change reply restrictions on your existing posts
 
 ### Additional Protections
 
 - **High-Follower Filtering** - Hide posts from accounts following 5k/10k/20k+ people (often bots)
 - **Dim Non-Verified** - Reduce visual prominence of non-researcher replies
+- **Dim Reposts** - Reduce visual prominence of reposted content
 
 ---
 
@@ -314,6 +326,11 @@ scripts/
 - [x] Researcher profiles with rich metadata
 - [x] Paper discussion pages
 - [x] Browse by topic/affiliation/venue
+- [x] Profile interactions tab
+- [x] User search (verified + all Bluesky users)
+- [x] Threadgate editing on existing posts
+- [x] Dim reposts option
+- [x] Paper Skygest integration
 - [ ] Vouching UI
 - [ ] Notifications
 
