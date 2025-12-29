@@ -35,9 +35,9 @@ export default function Feed({ feedId, feedUri, feedName, acceptsInteractions, r
   
   // Self-thread expansion state
   const [expandedThreads, setExpandedThreads] = useState<Map<string, SelfThreadResult>>(new Map());
-  const [loadingThreads, setLoadingThreads] = useState<Set<string>>(new Set());
-  // Track which root URIs we've already shown, to avoid duplicates
-  const seenRootUris = useRef<Set<string>>(new Set());
+  // Use refs for tracking to avoid re-triggering effects
+  const loadingThreadsRef = useRef<Set<string>>(new Set());
+  const checkedUrisRef = useRef<Set<string>>(new Set());
 
   // Use external handler if provided, otherwise use internal state
   const handleOpenThread = onOpenThread || setInternalThreadUri;
@@ -117,8 +117,8 @@ export default function Feed({ feedId, feedUri, feedName, acceptsInteractions, r
     setLoadedPages(0);
     // Reset self-thread state
     setExpandedThreads(new Map());
-    setLoadingThreads(new Set());
-    seenRootUris.current = new Set();
+    loadingThreadsRef.current = new Set();
+    checkedUrisRef.current = new Set();
 
     // For papers feed or verified feed, scan multiple pages
     if (isPapersFeed || isVerifiedFeed) {
@@ -232,49 +232,47 @@ export default function Feed({ feedId, feedUri, feedName, acceptsInteractions, r
 
   // Function to expand a self-thread
   const expandSelfThread = useCallback(async (postUri: string, authorDid: string) => {
-    if (expandedThreads.has(postUri) || loadingThreads.has(postUri)) return;
+    // Check refs to avoid duplicate requests
+    if (loadingThreadsRef.current.has(postUri) || checkedUrisRef.current.has(postUri)) return;
     
-    setLoadingThreads(prev => new Set(prev).add(postUri));
+    loadingThreadsRef.current.add(postUri);
+    checkedUrisRef.current.add(postUri);
+    
     try {
       const result = await getSelfThread(postUri, authorDid);
       if (result && result.posts.length > 1) {
         console.log('[SelfThread] Expanded thread with', result.posts.length, 'posts');
         setExpandedThreads(prev => new Map(prev).set(postUri, result));
-        // Mark the root URI as seen to avoid showing duplicates
-        seenRootUris.current.add(result.rootUri);
       }
     } finally {
-      setLoadingThreads(prev => {
-        const next = new Set(prev);
-        next.delete(postUri);
-        return next;
-      });
+      loadingThreadsRef.current.delete(postUri);
     }
-  }, [expandedThreads, loadingThreads]);
+  }, []);
 
   // Effect to auto-expand self-threads when posts load
   useEffect(() => {
     if (!settings.expandSelfThreads) return;
     
-    console.log('[SelfThread] Checking', filteredPosts.length, 'posts for potential self-threads');
     let checkedCount = 0;
     
     for (const item of filteredPosts) {
       // Skip posts that are themselves replies (we only expand from root posts)
       if (isReplyPost(item)) continue;
       
-      // Skip posts we've already expanded or are loading
-      if (expandedThreads.has(item.post.uri) || loadingThreads.has(item.post.uri)) continue;
+      // Skip posts we've already checked
+      if (checkedUrisRef.current.has(item.post.uri)) continue;
       
       // Check if post has replies (potential for self-thread)
       if (hasReplies(item)) {
-        console.log('[SelfThread] Post has replies, checking:', item.post.author.handle, item.post.uri);
         checkedCount++;
         expandSelfThread(item.post.uri, item.post.author.did);
       }
     }
-    console.log('[SelfThread] Checked', checkedCount, 'posts with replies');
-  }, [filteredPosts, settings.expandSelfThreads, expandSelfThread, expandedThreads, loadingThreads]);
+    
+    if (checkedCount > 0) {
+      console.log('[SelfThread] Checking', checkedCount, 'posts with replies');
+    }
+  }, [filteredPosts, settings.expandSelfThreads, expandSelfThread]);
 
   if (error) {
     return (
