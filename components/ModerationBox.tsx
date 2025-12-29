@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import ProfileHoverCard from './ProfileHoverCard';
 
 interface RecentResearcher {
   did: string;
@@ -110,42 +111,48 @@ export default function ModerationBox({ onOpenProfile }: ModerationBoxProps) {
             ) : (
               <div className="max-h-[300px] overflow-y-auto divide-y divide-gray-100 dark:divide-gray-800">
                 {researchers.map((researcher) => (
-                  <button
+                  <ProfileHoverCard
                     key={researcher.did}
-                    onClick={() => onOpenProfile?.(researcher.did)}
-                    className="w-full p-2.5 hover:bg-gray-50 dark:hover:bg-gray-800/50 text-left"
+                    did={researcher.did}
+                    handle={researcher.handle || undefined}
+                    onOpenProfile={() => onOpenProfile?.(researcher.did)}
                   >
-                    <div className="flex items-center gap-2">
-                      <div className="w-8 h-8 rounded-full bg-emerald-500 flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
-                        {(researcher.name || researcher.handle || '?')[0].toUpperCase()}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-1">
-                          <span className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
-                            {researcher.name || researcher.handle || 'Unknown'}
-                          </span>
-                          <span className="flex-shrink-0 w-3.5 h-3.5 bg-emerald-500 rounded-full flex items-center justify-center">
-                            <svg className="w-2 h-2 text-white" fill="currentColor" viewBox="0 0 20 20">
-                              <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                            </svg>
-                          </span>
+                    <button
+                      onClick={() => onOpenProfile?.(researcher.did)}
+                      className="w-full p-2.5 hover:bg-gray-50 dark:hover:bg-gray-800/50 text-left"
+                    >
+                      <div className="flex items-center gap-2">
+                        <div className="w-8 h-8 rounded-full bg-emerald-500 flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
+                          {(researcher.name || researcher.handle || '?')[0].toUpperCase()}
                         </div>
-                        <div className="flex items-center gap-1.5 text-xs text-gray-500">
-                          {researcher.handle && (
-                            <span className="truncate">@{researcher.handle}</span>
-                          )}
-                          {researcher.verifiedAt && (
-                            <>
-                              <span>·</span>
-                              <span className="text-emerald-600 dark:text-emerald-400">
-                                {formatTime(researcher.verifiedAt)}
-                              </span>
-                            </>
-                          )}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-1">
+                            <span className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
+                              {researcher.name || researcher.handle || 'Unknown'}
+                            </span>
+                            <span className="flex-shrink-0 w-3.5 h-3.5 bg-emerald-500 rounded-full flex items-center justify-center">
+                              <svg className="w-2 h-2 text-white" fill="currentColor" viewBox="0 0 20 20">
+                                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                              </svg>
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-1.5 text-xs text-gray-500">
+                            {researcher.handle && (
+                              <span className="truncate">@{researcher.handle}</span>
+                            )}
+                            {researcher.verifiedAt && (
+                              <>
+                                <span>·</span>
+                                <span className="text-emerald-600 dark:text-emerald-400">
+                                  {formatTime(researcher.verifiedAt)}
+                                </span>
+                              </>
+                            )}
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  </button>
+                    </button>
+                  </ProfileHoverCard>
                 ))}
               </div>
             )}
