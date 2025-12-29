@@ -1,9 +1,9 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { AppBskyFeedDefs, AppBskyFeedPost, AppBskyEmbedExternal, AppBskyEmbedImages, AppBskyEmbedRecord, AppBskyEmbedRecordWithMedia, AppBskyEmbedVideo } from '@atproto/api';
 import Hls from 'hls.js';
-import { isVerifiedResearcher, Label, createPost, ReplyRef, QuoteRef, likePost, unlikePost, repost, deleteRepost, deletePost, sendFeedInteraction, InteractionEvent, getSession, updateThreadgate, getThreadgateType, ThreadgateType, FEEDS } from '@/lib/bluesky';
+import { isVerifiedResearcher, Label, createPost, ReplyRef, QuoteRef, likePost, unlikePost, repost, deleteRepost, deletePost, sendFeedInteraction, InteractionEvent, getSession, updateThreadgate, getThreadgateType, ThreadgateType, FEEDS, searchActors } from '@/lib/bluesky';
 import { useSettings } from '@/lib/settings';
 import { useBookmarks, BookmarkedPost, COLLECTION_COLORS } from '@/lib/bookmarks';
 import ProfileView from './ProfileView';
@@ -728,6 +728,14 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
   const [replying, setReplying] = useState(false);
   const [replyError, setReplyError] = useState<string | null>(null);
 
+  // Reply mention autocomplete state
+  const [replyMentionQuery, setReplyMentionQuery] = useState<string | null>(null);
+  const [replyMentionStart, setReplyMentionStart] = useState<number>(0);
+  const [replySuggestions, setReplySuggestions] = useState<Array<{ did: string; handle: string; displayName?: string; avatar?: string }>>([]);
+  const [replySelectedIndex, setReplySelectedIndex] = useState(0);
+  const [replyLoadingSuggestions, setReplyLoadingSuggestions] = useState(false);
+  const replyTextareaRef = useRef<HTMLTextAreaElement>(null);
+
   // Like state
   const [isLiked, setIsLiked] = useState(!!post.viewer?.like);
   const [likeUri, setLikeUri] = useState<string | undefined>(post.viewer?.like);
@@ -1018,6 +1026,87 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
       setQuoteError(err instanceof Error ? err.message : 'Failed to quote');
     } finally {
       setQuoting(false);
+    }
+  };
+
+  // Search for reply mentions when query changes
+  useEffect(() => {
+    if (!replyMentionQuery || replyMentionQuery.length < 1) {
+      setReplySuggestions([]);
+      return;
+    }
+
+    const searchMentions = async () => {
+      setReplyLoadingSuggestions(true);
+      try {
+        const results = await searchActors(replyMentionQuery, 6);
+        setReplySuggestions(results);
+        setReplySelectedIndex(0);
+      } catch (err) {
+        console.error('Failed to search mentions:', err);
+      } finally {
+        setReplyLoadingSuggestions(false);
+      }
+    };
+
+    const debounce = setTimeout(searchMentions, 150);
+    return () => clearTimeout(debounce);
+  }, [replyMentionQuery]);
+
+  // Handle reply text change with mention detection
+  const handleReplyTextChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const newText = e.target.value;
+    const cursorPos = e.target.selectionStart;
+    setReplyText(newText);
+
+    // Find @ mention at cursor
+    const textBeforeCursor = newText.slice(0, cursorPos);
+    const mentionMatch = textBeforeCursor.match(/@(\w*)$/);
+
+    if (mentionMatch) {
+      setReplyMentionQuery(mentionMatch[1]);
+      setReplyMentionStart(cursorPos - mentionMatch[0].length);
+    } else {
+      setReplyMentionQuery(null);
+      setReplySuggestions([]);
+    }
+  };
+
+  // Insert selected mention into reply
+  const insertReplyMention = useCallback((handle: string) => {
+    const beforeMention = replyText.slice(0, replyMentionStart);
+    const afterMention = replyText.slice(replyMentionStart + (replyMentionQuery?.length || 0) + 1);
+    const newText = `${beforeMention}@${handle} ${afterMention}`;
+    setReplyText(newText);
+    setReplyMentionQuery(null);
+    setReplySuggestions([]);
+
+    // Focus back on textarea
+    setTimeout(() => {
+      if (replyTextareaRef.current) {
+        const newCursorPos = replyMentionStart + handle.length + 2;
+        replyTextareaRef.current.focus();
+        replyTextareaRef.current.setSelectionRange(newCursorPos, newCursorPos);
+      }
+    }, 0);
+  }, [replyText, replyMentionStart, replyMentionQuery]);
+
+  // Handle keyboard navigation in reply suggestions
+  const handleReplyKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (replySuggestions.length === 0) return;
+
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setReplySelectedIndex(i => (i + 1) % replySuggestions.length);
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setReplySelectedIndex(i => (i - 1 + replySuggestions.length) % replySuggestions.length);
+    } else if (e.key === 'Enter' && replySuggestions.length > 0) {
+      e.preventDefault();
+      insertReplyMention(replySuggestions[replySelectedIndex].handle);
+    } else if (e.key === 'Escape') {
+      setReplyMentionQuery(null);
+      setReplySuggestions([]);
     }
   };
 
@@ -1509,14 +1598,50 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
           {/* Reply composer */}
           {showReplyComposer && (
             <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-800">
-              <textarea
-                value={replyText}
-                onChange={(e) => setReplyText(e.target.value)}
-                placeholder={`Reply to @${author.handle}...`}
-                className="w-full p-2 text-sm bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 dark:text-gray-100"
-                rows={3}
-                disabled={replying}
-              />
+              <div className="relative">
+                <textarea
+                  ref={replyTextareaRef}
+                  value={replyText}
+                  onChange={handleReplyTextChange}
+                  onKeyDown={handleReplyKeyDown}
+                  placeholder={`Reply to @${author.handle}...`}
+                  className="w-full p-2 text-sm bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 dark:text-gray-100"
+                  rows={3}
+                  disabled={replying}
+                />
+                {/* Mention suggestions dropdown */}
+                {replySuggestions.length > 0 && (
+                  <div className="absolute left-0 right-0 mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-20 max-h-[200px] overflow-y-auto">
+                    {replySuggestions.map((user, index) => (
+                      <button
+                        key={user.did}
+                        type="button"
+                        onClick={() => insertReplyMention(user.handle)}
+                        className={`w-full flex items-center gap-2 px-3 py-2 text-left hover:bg-gray-100 dark:hover:bg-gray-700 ${
+                          index === replySelectedIndex ? 'bg-blue-50 dark:bg-blue-900/30' : ''
+                        }`}
+                      >
+                        {user.avatar ? (
+                          <img src={user.avatar} alt="" className="w-7 h-7 rounded-full" />
+                        ) : (
+                          <div className="w-7 h-7 rounded-full bg-blue-500 flex items-center justify-center text-white text-xs font-bold">
+                            {(user.displayName || user.handle)[0].toUpperCase()}
+                          </div>
+                        )}
+                        <div className="flex-1 min-w-0">
+                          <div className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
+                            {user.displayName || user.handle}
+                          </div>
+                          <div className="text-xs text-gray-500 truncate">@{user.handle}</div>
+                        </div>
+                      </button>
+                    ))}
+                    {replyLoadingSuggestions && (
+                      <div className="px-3 py-2 text-xs text-gray-400 text-center">Searching...</div>
+                    )}
+                  </div>
+                )}
+              </div>
               {replyError && (
                 <p className="mt-1 text-xs text-red-500">{replyError}</p>
               )}

@@ -9,6 +9,9 @@ import EngagementTabs from './EngagementTabs';
 interface ThreadViewProps {
   uri: string;
   onClose: () => void;
+  onOpenThread?: (uri: string) => void;
+  onOpenProfile?: (did: string) => void;
+  inline?: boolean;
 }
 
 type ThreadViewPost = AppBskyFeedDefs.ThreadViewPost;
@@ -56,7 +59,7 @@ function collectAllReplies(thread: ThreadViewPost, depth: number = 0): NestedRep
   return replies;
 }
 
-export default function ThreadView({ uri, onClose }: ThreadViewProps) {
+export default function ThreadView({ uri, onClose, onOpenThread, onOpenProfile, inline }: ThreadViewProps) {
   const [currentUri, setCurrentUri] = useState(uri);
   const [history, setHistory] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
@@ -66,6 +69,12 @@ export default function ThreadView({ uri, onClose }: ThreadViewProps) {
   const [replies, setReplies] = useState<NestedReply[]>([]);
 
   const navigateToThread = (newUri: string) => {
+    // If external navigation handler provided, use it
+    if (onOpenThread) {
+      onOpenThread(newUri);
+      return;
+    }
+    // Otherwise use internal navigation
     setHistory(prev => [...prev, currentUri]);
     setCurrentUri(newUri);
   };
@@ -148,6 +157,94 @@ export default function ThreadView({ uri, onClose }: ThreadViewProps) {
     loadThread();
   }, [currentUri]);
 
+  // Thread content (shared between modal and inline modes)
+  const threadContent = (
+    <>
+      {/* Content */}
+      {loading && (
+        <div className="p-8 text-center">
+          <div className="animate-spin w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full mx-auto"></div>
+          <p className="mt-2 text-gray-500">Loading thread...</p>
+        </div>
+      )}
+
+      {error && (
+        <div className="p-8 text-center">
+          <p className="text-red-500">{error}</p>
+        </div>
+      )}
+
+      {!loading && !error && mainPost && (
+        <div>
+          {/* Parent posts (context) */}
+          {parents.length > 0 && (
+            <div className="border-l-2 border-blue-300 dark:border-blue-700 ml-6">
+              {parents.map((post) => (
+                <div key={post.uri} className="relative">
+                  {/* Connector line */}
+                  <div className="absolute left-0 top-0 bottom-0 w-0.5 bg-blue-300 dark:bg-blue-700 -ml-[1px]" />
+                  <div className="pl-4 opacity-80">
+                    <Post post={post} onOpenThread={navigateToThread} onOpenProfile={onOpenProfile} onReply={refreshThread} />
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Main post (highlighted) */}
+          <div className="bg-blue-50 dark:bg-blue-900/20 border-l-4 border-blue-500">
+            <Post post={mainPost} onOpenThread={navigateToThread} onOpenProfile={onOpenProfile} onReply={refreshThread} />
+          </div>
+
+          {/* Engagement tabs (likes, reposts, quotes) */}
+          <EngagementTabs
+            uri={mainPost.uri}
+            likeCount={mainPost.likeCount || 0}
+            repostCount={mainPost.repostCount || 0}
+            quoteCount={mainPost.quoteCount || 0}
+            onOpenThread={navigateToThread}
+            onOpenProfile={onOpenProfile}
+          />
+
+          {/* Replies */}
+          {replies.length > 0 && (
+            <div>
+              <div className="px-4 py-2 text-sm font-medium text-gray-500 border-b border-gray-200 dark:border-gray-800">
+                {replies.length} {replies.length === 1 ? 'reply' : 'replies'}
+              </div>
+              {replies.map(({ post, depth }) => (
+                <div
+                  key={post.uri}
+                  style={{ marginLeft: `${Math.min(depth * 16, 64)}px` }}
+                  className={depth > 0 ? 'border-l-2 border-gray-200 dark:border-gray-700' : ''}
+                >
+                  <Post
+                    post={post}
+                    onOpenThread={navigateToThread}
+                    onOpenProfile={onOpenProfile}
+                    onReply={refreshThread}
+                  />
+                </div>
+              ))}
+            </div>
+          )}
+
+          {replies.length === 0 && (
+            <div className="p-4 text-center text-gray-500 text-sm">
+              No replies yet
+            </div>
+          )}
+        </div>
+      )}
+    </>
+  );
+
+  // Inline mode - just render the content directly
+  if (inline) {
+    return <div>{threadContent}</div>;
+  }
+
+  // Modal mode - wrap in overlay
   return (
     <div
       className="fixed inset-0 bg-black/50 flex items-start justify-center z-50 p-4 overflow-y-auto"
@@ -183,80 +280,7 @@ export default function ThreadView({ uri, onClose }: ThreadViewProps) {
           </button>
         </div>
 
-        {/* Content */}
-        {loading && (
-          <div className="p-8 text-center">
-            <div className="animate-spin w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full mx-auto"></div>
-            <p className="mt-2 text-gray-500">Loading thread...</p>
-          </div>
-        )}
-
-        {error && (
-          <div className="p-8 text-center">
-            <p className="text-red-500">{error}</p>
-          </div>
-        )}
-
-        {!loading && !error && mainPost && (
-          <div>
-            {/* Parent posts (context) */}
-            {parents.length > 0 && (
-              <div className="border-l-2 border-blue-300 dark:border-blue-700 ml-6">
-                {parents.map((post) => (
-                  <div key={post.uri} className="relative">
-                    {/* Connector line */}
-                    <div className="absolute left-0 top-0 bottom-0 w-0.5 bg-blue-300 dark:bg-blue-700 -ml-[1px]" />
-                    <div className="pl-4 opacity-80">
-                      <Post post={post} onOpenThread={navigateToThread} onReply={refreshThread} />
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {/* Main post (highlighted) */}
-            <div className="bg-blue-50 dark:bg-blue-900/20 border-l-4 border-blue-500">
-              <Post post={mainPost} onOpenThread={navigateToThread} onReply={refreshThread} />
-            </div>
-
-            {/* Engagement tabs (likes, reposts, quotes) */}
-            <EngagementTabs
-              uri={mainPost.uri}
-              likeCount={mainPost.likeCount || 0}
-              repostCount={mainPost.repostCount || 0}
-              quoteCount={mainPost.quoteCount || 0}
-              onOpenThread={navigateToThread}
-            />
-
-            {/* Replies */}
-            {replies.length > 0 && (
-              <div>
-                <div className="px-4 py-2 text-sm font-medium text-gray-500 border-b border-gray-200 dark:border-gray-800">
-                  {replies.length} {replies.length === 1 ? 'reply' : 'replies'}
-                </div>
-                {replies.map(({ post, depth }) => (
-                  <div
-                    key={post.uri}
-                    style={{ marginLeft: `${Math.min(depth * 16, 64)}px` }}
-                    className={depth > 0 ? 'border-l-2 border-gray-200 dark:border-gray-700' : ''}
-                  >
-                    <Post
-                      post={post}
-                      onOpenThread={navigateToThread}
-                      onReply={refreshThread}
-                    />
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {replies.length === 0 && (
-              <div className="p-4 text-center text-gray-500 text-sm">
-                No replies yet
-              </div>
-            )}
-          </div>
-        )}
+        {threadContent}
       </div>
     </div>
   );

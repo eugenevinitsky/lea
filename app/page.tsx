@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useCallback, useEffect, Suspense, useRef } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useState, useCallback, useEffect, Suspense } from 'react';
+import { useRouter } from 'next/navigation';
 import { getSession, logout, restoreSession, getBlueskyProfile } from '@/lib/bluesky';
 import { SettingsProvider } from '@/lib/settings';
 import { BookmarksProvider, useBookmarks } from '@/lib/bookmarks';
@@ -23,7 +23,6 @@ import ResearcherSearch from '@/components/ResearcherSearch';
 
 function AppContent() {
   const router = useRouter();
-  const searchParams = useSearchParams();
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [showOnboarding, setShowOnboarding] = useState(false);
@@ -40,40 +39,34 @@ function AppContent() {
   const { pinnedFeeds, removeFeed, reorderFeeds } = useFeeds();
   const { setUserDid } = useBookmarks();
 
-  // Track if we're intentionally closing to avoid race condition with URL sync
-  const isClosingRef = useRef(false);
-
-  // Open thread and update URL
-  const openThread = useCallback((uri: string | null) => {
+  // Open thread by navigating to shareable post URL
+  const openThread = useCallback(async (uri: string | null) => {
     if (!uri) {
-      isClosingRef.current = true;
+      setThreadUri(null);
+      return;
     }
-    setThreadUri(uri);
-    if (uri) {
-      // Update URL with post parameter (shallow routing)
-      const params = new URLSearchParams(searchParams.toString());
-      params.set('post', uri);
-      router.push(`?${params.toString()}`, { scroll: false });
-    } else {
-      // Remove post parameter from URL
-      const params = new URLSearchParams(searchParams.toString());
-      params.delete('post');
-      const newUrl = params.toString() ? `?${params.toString()}` : '/';
-      router.push(newUrl, { scroll: false });
-    }
-  }, [router, searchParams]);
 
-  // Check URL for post parameter on mount and when searchParams change
-  useEffect(() => {
-    const postUri = searchParams.get('post');
-    if (postUri && !threadUri && !isClosingRef.current) {
-      setThreadUri(postUri);
+    // Parse the AT URI to extract DID and rkey
+    // Format: at://did:plc:xxx/app.bsky.feed.post/rkey
+    const match = uri.match(/^at:\/\/(did:[^/]+)\/app\.bsky\.feed\.post\/([^/]+)$/);
+    if (match) {
+      const [, did, rkey] = match;
+      // Try to resolve DID to handle for cleaner URL
+      try {
+        const profile = await getBlueskyProfile(did);
+        if (profile?.handle) {
+          window.location.href = `/post/${profile.handle}/${rkey}`;
+          return;
+        }
+      } catch {
+        // Fall through to use DID
+      }
+      window.location.href = `/post/${did}/${rkey}`;
+    } else {
+      // Fallback: open in modal if URI format doesn't match
+      setThreadUri(uri);
     }
-    // Reset closing flag when URL actually updates (no post param)
-    if (!postUri) {
-      isClosingRef.current = false;
-    }
-  }, [searchParams, threadUri]);
+  }, []);
 
   // Set active feed to first pinned feed when feeds load
   useEffect(() => {
@@ -253,7 +246,7 @@ function AppContent() {
       {/* Main layout with sidebar */}
       <div className="max-w-5xl mx-auto flex gap-4 px-4">
         {/* Left Sidebar - Bookmarks & Messages */}
-        <aside className="hidden lg:block w-72 flex-shrink-0 sticky top-16 h-fit pt-4 space-y-4">
+        <aside className="hidden lg:block w-72 flex-shrink-0 sticky top-16 max-h-[calc(100vh-5rem)] overflow-y-auto pt-4 pb-4 space-y-4 scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-gray-700">
           <Bookmarks onOpenPost={openThread} onOpenProfile={navigateToProfile} />
           <DMSidebar />
           <Notifications onOpenPost={openThread} onOpenProfile={navigateToProfile} />

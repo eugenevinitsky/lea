@@ -872,6 +872,17 @@ export interface BlueskyProfile {
   };
 }
 
+// Resolve a handle to a DID
+export async function resolveHandle(handle: string): Promise<string | null> {
+  if (!agent) return null;
+  try {
+    const response = await agent.resolveHandle({ handle });
+    return response.data.did;
+  } catch {
+    return null;
+  }
+}
+
 // Get a user's Bluesky profile (avatar, displayName, etc.)
 export async function getBlueskyProfile(actor: string): Promise<BlueskyProfile | null> {
   if (!agent) return null;
