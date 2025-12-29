@@ -13,7 +13,8 @@ A Bluesky client with protective defaults for researchers.
 | **Researcher Profiles** | Rich profiles with affiliations, topics, publications, and mutual interactions |
 | **Bookmarks + Export** | Save posts, export paper citations to BibTeX/RIS for Zotero |
 | **Direct Messages** | Built-in DM support |
-| **Feed Discovery** | Browse and pin custom Bluesky feeds |
+| **Notifications** | Collapsible panel with likes, reposts, quotes, and replies |
+| **Feed Discovery** | Browse and pin custom Bluesky feeds (horizontally scrollable) |
 | **User Search** | Search all Bluesky users with verified researchers prioritized |
 
 **Live:** https://client-kappa-weld-68.vercel.app
@@ -104,20 +105,37 @@ Rich profiles for verified researchers:
 - Real-time polling for new messages
 - Integrated in the sidebar
 
+### Notifications
+
+- Collapsible notifications panel in sidebar
+- Organized by category: Likes, Reposts, Quotes, Replies
+- Shows text previews of posts that were interacted with
+- Per-category toggles to enable/disable unread indicators
+- Tracks "last viewed" per category to show new notifications
+
 ### Full Bluesky Interactions
 
-- **Reply** - Inline reply composer on any post
+- **Reply** - Inline reply composer on any post; thread auto-refreshes after replying
 - **Like/Unlike** - Heart button with count
 - **Repost/Unrepost** - Repost toggle with "Reposted by X" header on reposts
 - **Quote Post** - Quote with your commentary + preview
-- **Thread View** - Click any post to see full thread context
+- **Thread View** - Click any post to see full thread context; "View thread" only shows on posts with replies
 - **Edit Threadgates** - Change reply restrictions on your existing posts
+- **Delete Post** - Delete your own posts with confirmation
+- **Share Post** - Copy Lea URL to clipboard
 
 ### Additional Protections
 
 - **High-Follower Filtering** - Hide posts from accounts following 5k/10k/20k+ people (often bots)
 - **Dim Non-Verified** - Reduce visual prominence of non-researcher replies
 - **Dim Reposts** - Reduce visual prominence of reposted content
+
+### UI Enhancements
+
+- **Following Indicator** - Blue ring around profile photos of people you follow
+- **Shift-Click Profiles** - Hold Shift when clicking a username/avatar to open profile in new tab
+- **Collapsible Sidebar Panels** - Bookmarks, DMs, and Notifications panels can be collapsed
+- **Scrollable Feed Tabs** - Feed tabs bar scrolls horizontally when you have many feeds pinned
 
 ---
 
@@ -306,7 +324,6 @@ scripts/
 ## Limitations
 
 - **Vouching UI**: API routes exist but no frontend yet
-- **Notifications**: Not yet implemented
 
 ---
 
@@ -331,8 +348,14 @@ scripts/
 - [x] Threadgate editing on existing posts
 - [x] Dim reposts option
 - [x] Paper Skygest integration
+- [x] Notifications panel
+- [x] Delete/share posts
+- [x] Thread auto-refresh after reply
+- [x] Following indicator on avatars
+- [x] Shift-click to open profile in new tab
+- [x] Collapsible sidebar panels
+- [x] Horizontally scrollable feed tabs
 - [ ] Vouching UI
-- [ ] Notifications
 
 ---
 
