@@ -688,16 +688,16 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
                         </span>
                       </div>
                     )}
-                    {bskyProfile?.viewer?.followedBy && (
-                      <span className="inline-block mt-2 px-2 py-0.5 bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 text-xs rounded">
-                        Follows you
-                      </span>
-                    )}
                     {bskyProfile?.description && (
                       <p className="text-sm text-gray-600 dark:text-gray-400 mt-2 line-clamp-2">{bskyProfile.description}</p>
                     )}
-                    <div className="mt-3">
+                    <div className="mt-3 flex items-center gap-2">
                       {renderFollowButton()}
+                      {bskyProfile?.viewer?.followedBy && (
+                        <span className="px-3 py-1.5 bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 text-sm font-medium rounded-full">
+                          Follows you
+                        </span>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -845,12 +845,6 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
                         </span>
                       </div>
                     )}
-                    {bskyProfile?.viewer?.followedBy && (
-                      <span className="inline-block mt-2 px-2 py-0.5 bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 text-xs rounded">
-                        Follows you
-                      </span>
-                    )}
-                    
                     {/* Researcher IDs */}
                     <div className="flex flex-wrap gap-2 mt-2">
                       {researcher?.orcid && (
@@ -890,6 +884,11 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
                         </button>
                       ) : (
                         renderFollowButton()
+                      )}
+                      {bskyProfile?.viewer?.followedBy && (
+                        <span className="px-3 py-1.5 bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 text-sm font-medium rounded-full">
+                          Follows you
+                        </span>
                       )}
                     </div>
                   </div>
