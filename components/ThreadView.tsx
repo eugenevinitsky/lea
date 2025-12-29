@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { AppBskyFeedDefs } from '@atproto/api';
 import { getThread } from '@/lib/bluesky';
 import Post from './Post';
@@ -68,6 +68,24 @@ export default function ThreadView({ uri, onClose }: ThreadViewProps) {
     setHistory(prev => [...prev, currentUri]);
     setCurrentUri(newUri);
   };
+
+  // Refresh the current thread (e.g., after posting a reply)
+  const refreshThread = useCallback(async () => {
+    try {
+      const response = await getThread(currentUri);
+      const thread = response.data.thread;
+
+      if (!isThreadViewPost(thread)) {
+        return;
+      }
+
+      setMainPost(thread.post);
+      setParents(collectParents(thread));
+      setReplies(collectAllReplies(thread));
+    } catch (err) {
+      console.error('Failed to refresh thread:', err);
+    }
+  }, [currentUri]);
 
   const goBack = () => {
     if (history.length > 0) {
@@ -163,7 +181,7 @@ export default function ThreadView({ uri, onClose }: ThreadViewProps) {
                     {/* Connector line */}
                     <div className="absolute left-0 top-0 bottom-0 w-0.5 bg-blue-300 dark:bg-blue-700 -ml-[1px]" />
                     <div className="pl-4 opacity-80">
-                      <Post post={post} onOpenThread={navigateToThread} />
+                      <Post post={post} onOpenThread={navigateToThread} onReply={refreshThread} />
                     </div>
                   </div>
                 ))}
@@ -172,7 +190,7 @@ export default function ThreadView({ uri, onClose }: ThreadViewProps) {
 
             {/* Main post (highlighted) */}
             <div className="bg-blue-50 dark:bg-blue-900/20 border-l-4 border-blue-500">
-              <Post post={mainPost} onOpenThread={navigateToThread} />
+              <Post post={mainPost} onOpenThread={navigateToThread} onReply={refreshThread} />
             </div>
 
             {/* Replies */}
@@ -190,6 +208,7 @@ export default function ThreadView({ uri, onClose }: ThreadViewProps) {
                     <Post
                       post={post}
                       onOpenThread={navigateToThread}
+                      onReply={refreshThread}
                     />
                   </div>
                 ))}
