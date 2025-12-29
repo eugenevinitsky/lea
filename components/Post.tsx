@@ -1080,10 +1080,10 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
               <img
                 src={author.avatar}
                 alt={author.displayName || author.handle}
-                className="w-12 h-12 rounded-full hover:opacity-80 transition-opacity"
+                className={`w-12 h-12 rounded-full hover:opacity-80 transition-opacity ${author.viewer?.following ? 'ring-2 ring-blue-500 ring-offset-2 ring-offset-white dark:ring-offset-gray-950' : ''}`}
               />
             ) : (
-              <div className="w-12 h-12 rounded-full bg-blue-500 flex items-center justify-center text-white font-bold hover:opacity-80 transition-opacity">
+              <div className={`w-12 h-12 rounded-full bg-blue-500 flex items-center justify-center text-white font-bold hover:opacity-80 transition-opacity ${author.viewer?.following ? 'ring-2 ring-blue-500 ring-offset-2 ring-offset-white dark:ring-offset-gray-950' : ''}`}>
                 {(author.displayName || author.handle)[0].toUpperCase()}
               </div>
             )}
