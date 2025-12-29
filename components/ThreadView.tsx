@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { AppBskyFeedDefs } from '@atproto/api';
 import { getThread } from '@/lib/bluesky';
 import Post from './Post';
+import EngagementTabs from './EngagementTabs';
 
 interface ThreadViewProps {
   uri: string;
@@ -217,6 +218,15 @@ export default function ThreadView({ uri, onClose }: ThreadViewProps) {
             <div className="bg-blue-50 dark:bg-blue-900/20 border-l-4 border-blue-500">
               <Post post={mainPost} onOpenThread={navigateToThread} onReply={refreshThread} />
             </div>
+
+            {/* Engagement tabs (likes, reposts, quotes) */}
+            <EngagementTabs
+              uri={mainPost.uri}
+              likeCount={mainPost.likeCount || 0}
+              repostCount={mainPost.repostCount || 0}
+              quoteCount={mainPost.quoteCount || 0}
+              onOpenThread={navigateToThread}
+            />
 
             {/* Replies */}
             {replies.length > 0 && (

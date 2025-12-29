@@ -102,6 +102,18 @@ export async function getQuotes(uri: string, cursor?: string) {
   return agent.app.bsky.feed.getQuotes({ uri, limit: 25, cursor });
 }
 
+// Get users who liked a post
+export async function getLikes(uri: string, cursor?: string) {
+  if (!agent) throw new Error('Not logged in');
+  return agent.app.bsky.feed.getLikes({ uri, limit: 50, cursor });
+}
+
+// Get users who reposted a post
+export async function getRepostedBy(uri: string, cursor?: string) {
+  if (!agent) throw new Error('Not logged in');
+  return agent.app.bsky.feed.getRepostedBy({ uri, limit: 50, cursor });
+}
+
 // Feed generator info type
 export interface FeedGeneratorInfo {
   uri: string;
