@@ -70,22 +70,47 @@ export default function ThreadView({ uri, onClose }: ThreadViewProps) {
   };
 
   // Refresh the current thread (e.g., after posting a reply)
+  // Uses delay and retry since Bluesky's indexer takes time to process new posts
   const refreshThread = useCallback(async () => {
-    try {
-      const response = await getThread(currentUri);
-      const thread = response.data.thread;
+    const currentReplyCount = replies.length;
+    
+    // Try up to 5 times with increasing delays
+    for (let attempt = 0; attempt < 5; attempt++) {
+      // Wait before fetching (longer delays on subsequent attempts)
+      const delay = attempt === 0 ? 500 : 1000 * attempt;
+      await new Promise(resolve => setTimeout(resolve, delay));
+      
+      try {
+        const response = await getThread(currentUri);
+        const thread = response.data.thread;
 
-      if (!isThreadViewPost(thread)) {
+        if (!isThreadViewPost(thread)) {
+          return;
+        }
+
+        const newReplies = collectAllReplies(thread);
+        
+        // If we got more replies than before, update and stop retrying
+        if (newReplies.length > currentReplyCount) {
+          setMainPost(thread.post);
+          setParents(collectParents(thread));
+          setReplies(newReplies);
+          return;
+        }
+        
+        // On last attempt, update anyway (maybe the reply is deeply nested)
+        if (attempt === 4) {
+          setMainPost(thread.post);
+          setParents(collectParents(thread));
+          setReplies(newReplies);
+        }
+      } catch (err) {
+        console.error('Failed to refresh thread:', err);
+        // On error, don't retry
         return;
       }
-
-      setMainPost(thread.post);
-      setParents(collectParents(thread));
-      setReplies(collectAllReplies(thread));
-    } catch (err) {
-      console.error('Failed to refresh thread:', err);
     }
-  }, [currentUri]);
+  }, [currentUri, replies.length]);
 
   const goBack = () => {
     if (history.length > 0) {
