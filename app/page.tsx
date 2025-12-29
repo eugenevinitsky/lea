@@ -247,7 +247,7 @@ function AppContent() {
           {/* Feed Tabs - sticky below header when scrolling */}
           <div className="flex border-b border-gray-200 dark:border-gray-800 sticky top-14 z-10 bg-white dark:bg-gray-950">
             {pinnedFeeds.map((feed, index) => {
-              const isActive = activeFeedUri === feed.uri;
+              const isActive = activeFeedUri === feed.uri || (activeFeedUri === null && index === 0);
               const isSkygest = feed.uri.includes('preprintdigest');
               const isKeyword = feed.type === 'keyword';
               const isDragging = draggedIndex === index;
