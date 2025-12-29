@@ -1,11 +1,18 @@
 'use client';
 
-import { useState } from 'react';
-import { createPost } from '@/lib/bluesky';
+import { useState, useRef, useEffect, useCallback } from 'react';
+import { createPost, searchActors } from '@/lib/bluesky';
 import { useSettings } from '@/lib/settings';
 
 interface ComposerProps {
   onPost?: () => void;
+}
+
+interface MentionSuggestion {
+  did: string;
+  handle: string;
+  displayName?: string;
+  avatar?: string;
 }
 
 type ReplyRestriction = 'open' | 'following' | 'researchers';
@@ -22,6 +29,96 @@ export default function Composer({ onPost }: ComposerProps) {
   const [posting, setPosting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showReplyMenu, setShowReplyMenu] = useState(false);
+
+  // Mention autocomplete state
+  const [mentionQuery, setMentionQuery] = useState<string | null>(null);
+  const [mentionStart, setMentionStart] = useState<number>(0);
+  const [suggestions, setSuggestions] = useState<MentionSuggestion[]>([]);
+  const [selectedIndex, setSelectedIndex] = useState(0);
+  const [loadingSuggestions, setLoadingSuggestions] = useState(false);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const suggestionsRef = useRef<HTMLDivElement>(null);
+
+  // Search for mentions when query changes
+  useEffect(() => {
+    if (!mentionQuery || mentionQuery.length < 1) {
+      setSuggestions([]);
+      return;
+    }
+
+    const searchMentions = async () => {
+      setLoadingSuggestions(true);
+      try {
+        const results = await searchActors(mentionQuery, 6);
+        setSuggestions(results);
+        setSelectedIndex(0);
+      } catch (err) {
+        console.error('Failed to search mentions:', err);
+      } finally {
+        setLoadingSuggestions(false);
+      }
+    };
+
+    const debounce = setTimeout(searchMentions, 150);
+    return () => clearTimeout(debounce);
+  }, [mentionQuery]);
+
+  // Detect @ mentions while typing
+  const handleTextChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const newText = e.target.value;
+    const cursorPos = e.target.selectionStart;
+    setText(newText);
+
+    // Find @ mention at cursor
+    const textBeforeCursor = newText.slice(0, cursorPos);
+    const mentionMatch = textBeforeCursor.match(/@(\w*)$/);
+
+    if (mentionMatch) {
+      setMentionQuery(mentionMatch[1]);
+      setMentionStart(cursorPos - mentionMatch[0].length);
+    } else {
+      setMentionQuery(null);
+      setSuggestions([]);
+    }
+  };
+
+  // Insert selected mention
+  const insertMention = useCallback((handle: string) => {
+    const beforeMention = text.slice(0, mentionStart);
+    const afterMention = text.slice(mentionStart + (mentionQuery?.length || 0) + 1);
+    const newText = `${beforeMention}@${handle} ${afterMention}`;
+    setText(newText);
+    setMentionQuery(null);
+    setSuggestions([]);
+
+    // Focus back on textarea
+    setTimeout(() => {
+      if (textareaRef.current) {
+        const newCursorPos = mentionStart + handle.length + 2;
+        textareaRef.current.focus();
+        textareaRef.current.setSelectionRange(newCursorPos, newCursorPos);
+      }
+    }, 0);
+  }, [text, mentionStart, mentionQuery]);
+
+  // Handle keyboard navigation in suggestions
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (suggestions.length === 0) return;
+
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setSelectedIndex(i => (i + 1) % suggestions.length);
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setSelectedIndex(i => (i - 1 + suggestions.length) % suggestions.length);
+    } else if (e.key === 'Enter' && suggestions.length > 0) {
+      e.preventDefault();
+      insertMention(suggestions[selectedIndex].handle);
+    } else if (e.key === 'Escape') {
+      setMentionQuery(null);
+      setSuggestions([]);
+    }
+  };
 
   // Get current restriction - if autoThreadgate is off, treat as 'open'
   const currentRestriction: ReplyRestriction = settings.autoThreadgate
@@ -62,13 +159,53 @@ export default function Composer({ onPost }: ComposerProps) {
 
   return (
     <form onSubmit={handleSubmit} className="border-b border-gray-200 dark:border-gray-800 p-4">
-      <textarea
-        value={text}
-        onChange={(e) => setText(e.target.value)}
-        placeholder="What's happening?"
-        className="w-full min-h-[100px] p-3 bg-transparent border border-gray-200 dark:border-gray-700 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 dark:text-gray-100"
-        disabled={posting}
-      />
+      <div className="relative">
+        <textarea
+          ref={textareaRef}
+          value={text}
+          onChange={handleTextChange}
+          onKeyDown={handleKeyDown}
+          placeholder="What's happening?"
+          className="w-full min-h-[100px] p-3 bg-transparent border border-gray-200 dark:border-gray-700 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 dark:text-gray-100"
+          disabled={posting}
+        />
+
+        {/* Mention suggestions dropdown */}
+        {suggestions.length > 0 && (
+          <div
+            ref={suggestionsRef}
+            className="absolute left-0 right-0 mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-20 max-h-[240px] overflow-y-auto"
+          >
+            {suggestions.map((user, index) => (
+              <button
+                key={user.did}
+                type="button"
+                onClick={() => insertMention(user.handle)}
+                className={`w-full flex items-center gap-2 px-3 py-2 text-left hover:bg-gray-100 dark:hover:bg-gray-700 ${
+                  index === selectedIndex ? 'bg-blue-50 dark:bg-blue-900/30' : ''
+                }`}
+              >
+                {user.avatar ? (
+                  <img src={user.avatar} alt="" className="w-8 h-8 rounded-full" />
+                ) : (
+                  <div className="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center text-white text-sm font-bold">
+                    {(user.displayName || user.handle)[0].toUpperCase()}
+                  </div>
+                )}
+                <div className="flex-1 min-w-0">
+                  <div className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
+                    {user.displayName || user.handle}
+                  </div>
+                  <div className="text-xs text-gray-500 truncate">@{user.handle}</div>
+                </div>
+              </button>
+            ))}
+            {loadingSuggestions && (
+              <div className="px-3 py-2 text-xs text-gray-400 text-center">Searching...</div>
+            )}
+          </div>
+        )}
+      </div>
 
       {error && (
         <p className="mt-2 text-sm text-red-500">{error}</p>
