@@ -452,6 +452,26 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
     );
   };
 
+  // Render DM button - opens Bluesky chat with this user
+  const renderDMButton = () => {
+    if (isOwnProfile) return null;
+
+    return (
+      <a
+        href={`https://bsky.app/messages/${did}`}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="px-2 py-0.5 rounded text-xs font-medium transition-colors bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600 flex items-center gap-1"
+        title="Send direct message"
+      >
+        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+        </svg>
+        DM
+      </a>
+    );
+  };
+
   // Shared content rendering
   const renderTabs = (includeProfile = true) => (
     <div className="flex border-b border-gray-200 dark:border-gray-800">
@@ -745,6 +765,7 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
                     )}
                     <div className="flex items-center gap-2 mt-2">
                       {renderFollowButton()}
+                      {renderDMButton()}
                       {bskyProfile?.viewer?.followedBy && (
                         <span className="px-2 py-0.5 bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 text-xs rounded">
                           Follows you
@@ -900,7 +921,7 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
                         </span>
                       </div>
                     )}
-                    {/* Follow button + Follows you badge */}
+                    {/* Follow button + DM button + Follows you badge */}
                     <div className="flex items-center gap-2 mt-2">
                       {isOwnProfile && onEdit ? (
                         <button
@@ -910,7 +931,10 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
                           Edit Profile
                         </button>
                       ) : (
-                        renderFollowButton()
+                        <>
+                          {renderFollowButton()}
+                          {renderDMButton()}
+                        </>
                       )}
                       {bskyProfile?.viewer?.followedBy && (
                         <span className="px-2 py-0.5 bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 text-xs rounded">
@@ -1282,8 +1306,9 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
                   {bskyProfile?.description && (
                     <p className="text-sm text-gray-600 dark:text-gray-400 mt-2 line-clamp-2">{linkifyText(bskyProfile.description)}</p>
                   )}
-                  <div className="mt-3">
+                  <div className="mt-3 flex items-center gap-2">
                     {renderFollowButton()}
+                    {renderDMButton()}
                   </div>
                 </div>
               </div>
@@ -1450,7 +1475,10 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
                         Edit Profile
                       </button>
                     ) : (
-                      renderFollowButton()
+                      <>
+                        {renderFollowButton()}
+                        {renderDMButton()}
+                      </>
                     )}
                   </div>
                 </div>

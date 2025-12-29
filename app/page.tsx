@@ -6,6 +6,7 @@ import { getSession, logout, restoreSession, getBlueskyProfile } from '@/lib/blu
 import { SettingsProvider } from '@/lib/settings';
 import { BookmarksProvider, useBookmarks } from '@/lib/bookmarks';
 import { FeedsProvider, useFeeds } from '@/lib/feeds';
+import { FollowingProvider } from '@/lib/following-context';
 import Login from '@/components/Login';
 import Feed from '@/components/Feed';
 import Composer from '@/components/Composer';
@@ -141,17 +142,22 @@ function AppContent() {
     setRefreshKey(k => k + 1);
   }, []);
 
-  // Navigate to a profile by DID - resolves handle for URL
+  // Navigate to a profile by DID - resolves handle for URL, falls back to DID if needed
   const navigateToProfile = useCallback(async (did: string) => {
     try {
       const profile = await getBlueskyProfile(did);
       if (profile?.handle) {
-        router.push(`/${profile.handle}`);
+        // Use window.location for reliable navigation (Next.js router.push was unreliable)
+        window.location.href = `/u/${profile.handle}`;
+      } else {
+        // Fallback: use DID directly if profile fetch failed
+        window.location.href = `/u/${did}`;
       }
-    } catch (err) {
-      console.error('Failed to navigate to profile:', err);
+    } catch {
+      // Fallback on error: navigate using DID
+      window.location.href = `/u/${did}`;
     }
-  }, [router]);
+  }, []);
 
   const session = getSession();
 
@@ -183,8 +189,8 @@ function AppContent() {
           <div className="flex items-center gap-3">
             <ResearcherSearch onSelectResearcher={navigateToProfile} />
             <button
-              onClick={() => router.push(`/${session?.handle}`)}
-              className="text-sm text-gray-600 dark:text-gray-400 hover:text-blue-500 dark:hover:text-blue-400 transition-colors"
+              onClick={() => window.location.href = `/u/${session?.handle}`}
+              className="px-3 py-1.5 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full transition-colors"
             >
               @{session?.handle}
             </button>
@@ -392,13 +398,15 @@ export default function Home() {
     <SettingsProvider>
       <BookmarksProvider>
         <FeedsProvider>
-          <Suspense fallback={
-            <div className="min-h-screen bg-gray-50 dark:bg-black flex items-center justify-center">
-              <div className="animate-spin w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full"></div>
-            </div>
-          }>
-            <AppContent />
-          </Suspense>
+          <FollowingProvider>
+            <Suspense fallback={
+              <div className="min-h-screen bg-gray-50 dark:bg-black flex items-center justify-center">
+                <div className="animate-spin w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full"></div>
+              </div>
+            }>
+              <AppContent />
+            </Suspense>
+          </FollowingProvider>
         </FeedsProvider>
       </BookmarksProvider>
     </SettingsProvider>

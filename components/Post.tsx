@@ -1101,7 +1101,7 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
             onClick={(e) => {
               e.stopPropagation();
               if (e.shiftKey || e.metaKey || e.ctrlKey) {
-                window.open(`/${repostedBy.handle}`, '_blank');
+                window.open(`/u/${repostedBy.handle}`, '_blank');
               } else if (onOpenProfile) {
                 onOpenProfile(repostedBy.did);
               }
@@ -1119,7 +1119,7 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
           handle={author.handle}
           onOpenProfile={(e) => {
             if (e?.shiftKey || e?.metaKey || e?.ctrlKey) {
-              window.open(`/${author.handle}`, '_blank');
+              window.open(`/u/${author.handle}`, '_blank');
             } else if (onOpenProfile) {
               onOpenProfile(author.did);
             } else {
@@ -1132,7 +1132,7 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
             onClick={(e) => {
               e.stopPropagation();
               if (e.shiftKey || e.metaKey || e.ctrlKey) {
-                window.open(`/${author.handle}`, '_blank');
+                window.open(`/u/${author.handle}`, '_blank');
               } else if (onOpenProfile) {
                 onOpenProfile(author.did);
               } else {
@@ -1169,7 +1169,7 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
               handle={author.handle}
           onOpenProfile={(e) => {
                 if (e?.shiftKey || e?.metaKey || e?.ctrlKey) {
-                  window.open(`/${author.handle}`, '_blank');
+                  window.open(`/u/${author.handle}`, '_blank');
                 } else if (onOpenProfile) {
                   onOpenProfile(author.did);
                 } else {
@@ -1182,7 +1182,7 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
                 onClick={(e) => {
                   e.stopPropagation();
                   if (e.shiftKey || e.metaKey || e.ctrlKey) {
-                    window.open(`/${author.handle}`, '_blank');
+                    window.open(`/u/${author.handle}`, '_blank');
                   } else if (onOpenProfile) {
                     onOpenProfile(author.did);
                   } else {

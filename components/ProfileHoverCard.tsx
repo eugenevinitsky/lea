@@ -189,7 +189,7 @@ export default function ProfileHoverCard({ did, handle, children, onOpenProfile 
               <button
                 onClick={(e) => {
                   if ((e.shiftKey || e.metaKey || e.ctrlKey) && (handle || profile.handle)) {
-                    window.open(`/${handle || profile.handle}`, '_blank');
+                    window.open(`/u/${handle || profile.handle}`, '_blank');
                   } else {
                     onOpenProfile?.(e);
                   }
@@ -212,7 +212,7 @@ export default function ProfileHoverCard({ did, handle, children, onOpenProfile 
                 <button
                   onClick={(e) => {
                     if ((e.shiftKey || e.metaKey || e.ctrlKey) && (handle || profile.handle)) {
-                      window.open(`/${handle || profile.handle}`, '_blank');
+                      window.open(`/u/${handle || profile.handle}`, '_blank');
                     } else {
                       onOpenProfile?.(e);
                     }

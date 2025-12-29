@@ -1,11 +1,12 @@
 'use client';
 
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { VERIFIED_RESEARCHERS_LIST } from './constants';
 
 const FEEDS_STORAGE_KEY = 'lea-pinned-feeds';
 
-// Verified researchers list URI
-export const VERIFIED_RESEARCHERS_LIST = 'at://did:plc:7c7tx56n64jhzezlwox5dja6/app.bsky.graph.list/3masawnn3xj23';
+// Re-export for backwards compatibility
+export { VERIFIED_RESEARCHERS_LIST };
 
 // Suggested feeds for researchers
 export const SUGGESTED_FEEDS = [

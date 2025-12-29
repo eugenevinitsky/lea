@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { BskyAgent } from '@atproto/api';
-import { db, blueskyLists } from '@/lib/db';
-import { eq } from 'drizzle-orm';
+import { VERIFIED_RESEARCHERS_LIST } from '@/lib/constants';
 
 // Get labeler agent
 async function getLabelerAgent(): Promise<BskyAgent | null> {
@@ -58,21 +57,8 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Get the labeler's verified list
-    const existingList = await db
-      .select()
-      .from(blueskyLists)
-      .where(eq(blueskyLists.purpose, 'labeler_verified'))
-      .limit(1);
-
-    if (!existingList[0]) {
-      return NextResponse.json(
-        { error: 'Labeler list not initialized. Call POST /api/labeler/init-list first.' },
-        { status: 400 }
-      );
-    }
-
-    const listUri = existingList[0].listUri;
+    // Use the verified researchers list constant
+    const listUri = VERIFIED_RESEARCHERS_LIST;
 
     // Check if user is already in the list
     try {

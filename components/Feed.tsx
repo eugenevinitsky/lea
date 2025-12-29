@@ -3,8 +3,10 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { AppBskyFeedDefs, AppBskyFeedPost, AppBskyEmbedExternal } from '@atproto/api';
 import { getTimeline, getFeed, getListFeed, searchPosts, FEEDS, FeedId, isVerifiedResearcher, Label, hasReplies, isReplyPost, getSelfThread, SelfThreadResult } from '@/lib/bluesky';
+import { VERIFIED_RESEARCHERS_LIST } from '@/lib/constants';
 import { useSettings } from '@/lib/settings';
 import { detectPaperLink } from '@/lib/papers';
+import { recordResearcherSighting } from '@/lib/feed-tracking';
 import Post from './Post';
 import ThreadView from './ThreadView';
 import SelfThread from './SelfThread';
@@ -73,8 +75,7 @@ export default function Feed({ feedId, feedUri, feedName, acceptsInteractions, r
         newCursor = searchResult.cursor;
       } else if (isVerifiedFeed) {
         // Verified feed - get posts from all verified researchers list, then filter to only those you follow
-        const VERIFIED_LIST = 'at://did:plc:7c7tx56n64jhzezlwox5dja6/app.bsky.graph.list/3masawnn3xj23';
-        const response = await getListFeed(VERIFIED_LIST, loadMore ? (currentCursor || cursor) : undefined);
+        const response = await getListFeed(VERIFIED_RESEARCHERS_LIST, loadMore ? (currentCursor || cursor) : undefined);
         feedPosts = response.data.feed;
         newCursor = response.data.cursor;
       } else if (isListFeed && effectiveFeedUri) {
@@ -273,6 +274,30 @@ export default function Feed({ feedId, feedUri, feedName, acceptsInteractions, r
       console.log('[SelfThread] Checking', checkedCount, 'posts with replies');
     }
   }, [filteredPosts, settings.expandSelfThreads, expandSelfThread]);
+
+  // Track verified researchers seen in this feed (only count each post once)
+  useEffect(() => {
+    if (posts.length === 0 || !effectiveFeedUri) return;
+
+    for (const item of posts) {
+      const postUri = item.post.uri;
+      const author = item.post.author;
+      const labels = author.labels as Label[] | undefined;
+
+      // Only track if verified researcher (recordResearcherSighting handles deduplication)
+      if (labels && isVerifiedResearcher(labels)) {
+        recordResearcherSighting(
+          postUri,
+          author.did,
+          author.handle,
+          author.displayName,
+          author.avatar,
+          effectiveFeedUri,
+          effectiveFeedName
+        );
+      }
+    }
+  }, [posts, effectiveFeedUri, effectiveFeedName]);
 
   if (error) {
     return (

@@ -168,7 +168,9 @@ function PaperPageContent() {
   const navigateToProfile = async (did: string) => {
     const profile = await getBlueskyProfile(did);
     if (profile?.handle) {
-      router.push(`/${profile.handle}`);
+      window.location.href = `/u/${profile.handle}`;
+    } else {
+      window.location.href = `/u/${did}`;
     }
   };
 
@@ -205,8 +207,8 @@ function PaperPageContent() {
           >Lea</h1>
           <div className="flex items-center gap-3">
             <button
-              onClick={() => router.push(`/${session?.handle}`)}
-              className="text-sm text-gray-600 dark:text-gray-400 hover:text-blue-500 dark:hover:text-blue-400 transition-colors"
+              onClick={() => window.location.href = `/u/${session?.handle}`}
+              className="px-3 py-1.5 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full transition-colors"
             >
               @{session?.handle}
             </button>
