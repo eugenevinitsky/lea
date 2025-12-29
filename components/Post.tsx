@@ -1340,9 +1340,17 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
                   <div className="px-3 py-1.5 text-xs font-medium text-gray-500 dark:text-gray-400 border-b border-gray-100 dark:border-gray-700">
                     Add to collection
                   </div>
-                  {collections.map((collection, index) => {
-                    const colorClass = COLLECTION_COLORS[index % COLLECTION_COLORS.length];
+              {collections.map((collection) => {
                     const isInCollection = bookmarked && getBookmarkCollections(post.uri).includes(collection.id);
+                    // Get color class based on collection's stored color
+                    const colorBgClass = {
+                      'rose': 'bg-rose-500',
+                      'emerald': 'bg-emerald-500',
+                      'purple': 'bg-purple-500',
+                      'blue': 'bg-blue-500',
+                      'amber': 'bg-amber-500',
+                      'cyan': 'bg-cyan-500',
+                    }[collection.color] || 'bg-rose-500';
                     return (
                       <button
                         key={collection.id}
@@ -1352,7 +1360,7 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
                         }}
                         className="w-full px-3 py-1.5 text-left text-sm hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center gap-2"
                       >
-                        <span className={`w-2 h-2 rounded-full ${colorClass.icon.replace('text-', 'bg-')}`} />
+                        <span className={`w-2 h-2 rounded-full ${colorBgClass}`} />
                         <span className="flex-1 truncate text-gray-700 dark:text-gray-300">{collection.name}</span>
                         {isInCollection && (
                           <svg className="w-4 h-4 text-blue-500" fill="currentColor" viewBox="0 0 20 20">
