@@ -14,6 +14,7 @@ import Bookmarks from '@/components/Bookmarks';
 import ThreadView from '@/components/ThreadView';
 import DMSidebar from '@/components/DMSidebar';
 import Notifications from '@/components/Notifications';
+import ModerationBox from '@/components/ModerationBox';
 import FeedDiscovery from '@/components/FeedDiscovery';
 import Onboarding from '@/components/Onboarding';
 import ProfileEditor from '@/components/ProfileEditor';
@@ -239,6 +240,7 @@ function AppContent() {
           <Bookmarks onOpenPost={openThread} onOpenProfile={navigateToProfile} />
           <DMSidebar />
           <Notifications onOpenPost={openThread} onOpenProfile={navigateToProfile} />
+          <ModerationBox onOpenProfile={navigateToProfile} />
         </aside>
 
         {/* Main content */}

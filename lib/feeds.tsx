@@ -68,7 +68,7 @@ const DEFAULT_FEEDS: PinnedFeed[] = [
   },
   {
     uri: 'timeline',
-    displayName: 'Timeline',
+    displayName: 'Following',
     acceptsInteractions: false,
   },
 ];

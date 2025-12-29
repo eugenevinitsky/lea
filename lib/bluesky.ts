@@ -202,7 +202,7 @@ export const FEEDS = {
   },
   timeline: {
     id: 'timeline',
-    name: 'Timeline',
+    name: 'Following',
     uri: null as string | null,
     acceptsInteractions: false,
   },
