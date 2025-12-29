@@ -9,6 +9,61 @@ import { detectPaperLink, getPaperIdFromUrl } from '@/lib/papers';
 import Post from './Post';
 import ThreadView from './ThreadView';
 
+// Helper to convert URLs in text to clickable links
+function linkifyText(text: string): React.ReactNode {
+  // Pattern matches URLs with http(s)://, www., or common TLDs
+  const urlPattern = /(https?:\/\/[^\s]+|www\.[^\s]+|[a-zA-Z0-9][a-zA-Z0-9-]*\.(com|edu|org|net|io|co|gov|me|info|biz|dev|ai|app)[^\s]*)/gi;
+  
+  const parts: React.ReactNode[] = [];
+  let lastIndex = 0;
+  let match;
+  let keyIndex = 0;
+  
+  while ((match = urlPattern.exec(text)) !== null) {
+    // Add text before the match
+    if (match.index > lastIndex) {
+      parts.push(text.slice(lastIndex, match.index));
+    }
+    
+    let url = match[0];
+    // Add protocol if missing
+    if (!url.startsWith('http://') && !url.startsWith('https://')) {
+      url = 'https://' + url;
+    }
+    // Remove trailing punctuation that's likely not part of the URL
+    const displayUrl = match[0].replace(/[.,;:!?)]+$/, '');
+    const cleanUrl = url.replace(/[.,;:!?)]+$/, '');
+    
+    parts.push(
+      <a
+        key={keyIndex++}
+        href={cleanUrl}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="text-blue-500 hover:text-blue-600 hover:underline"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {displayUrl}
+      </a>
+    );
+    
+    // Account for any trailing punctuation we removed
+    const trailingPunct = match[0].slice(displayUrl.length);
+    if (trailingPunct) {
+      parts.push(trailingPunct);
+    }
+    
+    lastIndex = match.index + match[0].length;
+  }
+  
+  // Add remaining text
+  if (lastIndex < text.length) {
+    parts.push(text.slice(lastIndex));
+  }
+  
+  return parts.length > 0 ? parts : text;
+}
+
 interface ResearcherInfo {
   did: string;
   handle: string;
@@ -697,7 +752,7 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
                       )}
                     </div>
                     {bskyProfile?.description && (
-                      <p className="text-sm text-gray-600 dark:text-gray-400 mt-2 line-clamp-2">{bskyProfile.description}</p>
+                      <p className="text-sm text-gray-600 dark:text-gray-400 mt-2 line-clamp-2">{linkifyText(bskyProfile.description)}</p>
                     )}
                   </div>
                 </div>
@@ -906,7 +961,7 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
                   {(profile?.shortBio || bskyProfile?.description) && (
                     <div className="bg-white dark:bg-gray-900 rounded-xl p-4 shadow-sm">
                       <p className="text-gray-700 dark:text-gray-300 whitespace-pre-wrap">
-                        {profile?.shortBio || bskyProfile?.description}
+                        {linkifyText(profile?.shortBio || bskyProfile?.description || '')}
                       </p>
                     </div>
                   )}
@@ -1225,7 +1280,7 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
                     </div>
                   )}
                   {bskyProfile?.description && (
-                    <p className="text-sm text-gray-600 dark:text-gray-400 mt-2 line-clamp-2">{bskyProfile.description}</p>
+                    <p className="text-sm text-gray-600 dark:text-gray-400 mt-2 line-clamp-2">{linkifyText(bskyProfile.description)}</p>
                   )}
                   <div className="mt-3">
                     {renderFollowButton()}
@@ -1407,7 +1462,7 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
                   {/* Bio */}
                   {profile?.shortBio && (
                     <div className="mb-6">
-                      <p className="text-gray-700 dark:text-gray-300 whitespace-pre-wrap">{profile.shortBio}</p>
+                      <p className="text-gray-700 dark:text-gray-300 whitespace-pre-wrap">{linkifyText(profile.shortBio)}</p>
                     </div>
                   )}
 
