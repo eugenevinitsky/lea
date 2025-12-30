@@ -17,8 +17,8 @@ const PAPER_PATTERNS = [
   { pattern: /medrxiv\.org\/content\/(10\.\d+\/[^\s\/]+)/i, source: 'medrxiv', normalize: (m: string) => `medrxiv:${m}` },
   // PubMed
   { pattern: /pubmed\.ncbi\.nlm\.nih\.gov\/(\d+)/i, source: 'pubmed', normalize: (m: string) => `pubmed:${m}` },
-  // Nature
-  { pattern: /nature\.com\/articles\/([\w-]+)/i, source: 'nature', normalize: (m: string) => `nature:${m}` },
+  // Nature - article IDs like s41586-024-08234-1 (letter + 5 digits + dashes + more)
+  { pattern: /nature\.com\/articles\/([sd]\d{5}-\d{2,4}-\d{4,}-\d)/i, source: 'nature', normalize: (m: string) => `nature:${m}` },
   // Science
   { pattern: /science\.org\/doi\/(10\.\d+\/[^\s]+)/i, source: 'science', normalize: (m: string) => `doi:${m}` },
   // PNAS
