@@ -13,6 +13,19 @@ interface RecentResearcher {
   verifiedAt: string | null;
 }
 
+interface TrendingPaper {
+  id: number;
+  url: string;
+  normalizedId: string;
+  source: string;
+  title: string | null;
+  authors: string | null;
+  firstSeenAt: string;
+  lastSeenAt: string;
+  mentionCount: number;
+  recentMentions?: number;
+}
+
 interface ActiveResearcher {
   did: string;
   handle: string;
@@ -27,7 +40,7 @@ interface ModerationBoxProps {
   onOpenProfile?: (did: string) => void;
 }
 
-type Tab = 'verified' | 'active';
+type Tab = 'verified' | 'active' | 'papers';
 
 function formatTime(dateString: string) {
   const date = new Date(dateString);
@@ -49,7 +62,9 @@ export default function ModerationBox({ onOpenProfile }: ModerationBoxProps) {
   const [activeTab, setActiveTab] = useState<Tab>('verified');
   const [recentResearchers, setRecentResearchers] = useState<RecentResearcher[]>([]);
   const [activeResearchers, setActiveResearchers] = useState<ActiveResearcher[]>([]);
+  const [trendingPapers, setTrendingPapers] = useState<TrendingPaper[]>([]);
   const [loading, setLoading] = useState(false);
+  const [papersLoading, setPapersLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { followingDids } = useFollowing();
 
@@ -68,6 +83,13 @@ export default function ModerationBox({ onOpenProfile }: ModerationBoxProps) {
     }
   }, [isExpanded, activeTab]);
 
+  // Fetch trending papers when tab is selected
+  useEffect(() => {
+    if (isExpanded && activeTab === 'papers' && trendingPapers.length === 0) {
+      fetchTrendingPapers();
+    }
+  }, [isExpanded, activeTab]);
+
   const fetchRecent = async () => {
     setLoading(true);
     setError(null);
@@ -81,6 +103,22 @@ export default function ModerationBox({ onOpenProfile }: ModerationBoxProps) {
       setError(err instanceof Error ? err.message : 'Failed to load');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchTrendingPapers = async () => {
+    setPapersLoading(true);
+    setError(null);
+    try {
+      const response = await fetch('/api/papers/trending?hours=24&limit=20');
+      const data = await response.json();
+      if (data.papers) {
+        setTrendingPapers(data.papers);
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load papers');
+    } finally {
+      setPapersLoading(false);
     }
   };
 
@@ -152,7 +190,17 @@ export default function ModerationBox({ onOpenProfile }: ModerationBoxProps) {
                   : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
               }`}
             >
-              Active in Feeds
+              Active
+            </button>
+            <button
+              onClick={() => setActiveTab('papers')}
+              className={`flex-1 px-3 py-2 text-xs font-medium transition-colors ${
+                activeTab === 'papers'
+                  ? 'text-purple-600 dark:text-purple-400 border-b-2 border-purple-500'
+                  : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
+              }`}
+            >
+              Papers
             </button>
           </div>
 
@@ -279,6 +327,78 @@ export default function ModerationBox({ onOpenProfile }: ModerationBoxProps) {
                       </div>
                     </button>
                   ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {activeTab === 'papers' && (
+            <div>
+              {papersLoading ? (
+                <div className="flex items-center justify-center py-6">
+                  <div className="animate-spin w-5 h-5 border-2 border-purple-500 border-t-transparent rounded-full" />
+                </div>
+              ) : trendingPapers.length === 0 ? (
+                <div className="p-4 text-center">
+                  <svg className="w-8 h-8 mx-auto text-gray-300 dark:text-gray-600 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                  <p className="text-xs text-gray-400">No papers trending yet</p>
+                  <p className="text-[10px] text-gray-400 mt-1">Papers shared on Bluesky will appear here</p>
+                </div>
+              ) : (
+                <div className="max-h-[280px] overflow-y-auto divide-y divide-gray-100 dark:divide-gray-800">
+                  {trendingPapers.map((paper) => {
+                    const sourceColors: Record<string, string> = {
+                      arxiv: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400',
+                      biorxiv: 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400',
+                      medrxiv: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
+                      doi: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400',
+                      pubmed: 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400',
+                      nature: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400',
+                    };
+                    const colorClass = sourceColors[paper.source] || 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300';
+
+                    // Extract a readable ID from the normalized ID
+                    const displayId = paper.normalizedId.split(':')[1] || paper.normalizedId;
+
+                    return (
+                      <a
+                        key={paper.id}
+                        href={paper.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="block p-2.5 hover:bg-gray-50 dark:hover:bg-gray-800/50"
+                      >
+                        <div className="flex items-start gap-2">
+                          <div className="flex-shrink-0 w-8 h-8 rounded-lg bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center">
+                            <svg className="w-4 h-4 text-purple-600 dark:text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                            </svg>
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-1.5 mb-0.5">
+                              <span className={`px-1.5 py-0.5 text-[10px] font-medium rounded ${colorClass}`}>
+                                {paper.source}
+                              </span>
+                              <span className="text-purple-600 dark:text-purple-400 text-[10px] font-medium">
+                                {paper.mentionCount} mention{paper.mentionCount !== 1 ? 's' : ''}
+                              </span>
+                            </div>
+                            <p className="text-xs text-gray-900 dark:text-gray-100 font-medium truncate">
+                              {paper.title || displayId}
+                            </p>
+                            <p className="text-[10px] text-gray-500 truncate">
+                              {displayId}
+                            </p>
+                          </div>
+                          <svg className="w-4 h-4 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                          </svg>
+                        </div>
+                      </a>
+                    );
+                  })}
                 </div>
               )}
             </div>

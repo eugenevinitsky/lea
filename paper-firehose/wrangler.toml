@@ -1,0 +1,16 @@
+name = "paper-firehose"
+main = "src/index.ts"
+compatibility_date = "2024-01-01"
+
+# Durable Objects for persistent WebSocket connection
+[durable_objects]
+bindings = [
+  { name = "JETSTREAM_CONNECTION", class_name = "JetstreamConnection" }
+]
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["JetstreamConnection"]
+
+# Environment variables (set via wrangler secret)
+# NEON_DATABASE_URL - connection string for Neon

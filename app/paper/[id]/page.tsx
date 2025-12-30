@@ -8,6 +8,7 @@ import { getUrlFromPaperId, getSearchQueryForPaper, getPaperTypeFromId, extractP
 import { SettingsProvider } from '@/lib/settings';
 import { BookmarksProvider } from '@/lib/bookmarks';
 import { FeedsProvider } from '@/lib/feeds';
+import { FollowingProvider } from '@/lib/following-context';
 import Post from '@/components/Post';
 import Login from '@/components/Login';
 import ThreadView from '@/components/ThreadView';
@@ -384,13 +385,15 @@ export default function PaperPage() {
     <SettingsProvider>
       <BookmarksProvider>
         <FeedsProvider>
-          <Suspense fallback={
-            <div className="min-h-screen bg-gray-50 dark:bg-black flex items-center justify-center">
-              <div className="animate-spin w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full"></div>
-            </div>
-          }>
-            <PaperPageContent />
-          </Suspense>
+          <FollowingProvider>
+            <Suspense fallback={
+              <div className="min-h-screen bg-gray-50 dark:bg-black flex items-center justify-center">
+                <div className="animate-spin w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full"></div>
+              </div>
+            }>
+              <PaperPageContent />
+            </Suspense>
+          </FollowingProvider>
         </FeedsProvider>
       </BookmarksProvider>
     </SettingsProvider>

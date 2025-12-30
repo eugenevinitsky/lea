@@ -152,6 +152,48 @@ export const userBookmarks = pgTable(
   ]
 );
 
+// Papers discovered from the firehose
+export const discoveredPapers = pgTable(
+  'discovered_papers',
+  {
+    id: integer('id').primaryKey().generatedAlwaysAsIdentity(),
+    url: text('url').notNull(),
+    normalizedId: varchar('normalized_id', { length: 255 }).notNull().unique(), // e.g., arxiv:2401.12345, doi:10.1234/foo
+    source: varchar('source', { length: 50 }).notNull(), // arxiv, doi, biorxiv, medrxiv, etc.
+    title: text('title'), // Fetched from API if available
+    authors: text('authors'), // JSON array
+    firstSeenAt: timestamp('first_seen_at').defaultNow().notNull(),
+    lastSeenAt: timestamp('last_seen_at').defaultNow().notNull(),
+    mentionCount: integer('mention_count').default(1).notNull(),
+  },
+  (table) => [
+    index('discovered_papers_source_idx').on(table.source),
+    index('discovered_papers_last_seen_idx').on(table.lastSeenAt),
+    index('discovered_papers_mention_count_idx').on(table.mentionCount),
+  ]
+);
+
+// Posts that mention papers
+export const paperMentions = pgTable(
+  'paper_mentions',
+  {
+    id: integer('id').primaryKey().generatedAlwaysAsIdentity(),
+    paperId: integer('paper_id').notNull(),
+    postUri: varchar('post_uri', { length: 500 }).notNull(),
+    authorDid: varchar('author_did', { length: 255 }).notNull(),
+    authorHandle: varchar('author_handle', { length: 255 }),
+    postText: text('post_text'),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+    isVerifiedResearcher: boolean('is_verified_researcher').default(false),
+  },
+  (table) => [
+    index('paper_mentions_paper_idx').on(table.paperId),
+    index('paper_mentions_author_idx').on(table.authorDid),
+    index('paper_mentions_created_idx').on(table.createdAt),
+    index('paper_mentions_verified_idx').on(table.isVerifiedResearcher),
+  ]
+);
+
 // Type exports
 export type VerifiedResearcher = typeof verifiedResearchers.$inferSelect;
 export type NewVerifiedResearcher = typeof verifiedResearchers.$inferInsert;
@@ -162,6 +204,10 @@ export type ResearcherProfile = typeof researcherProfiles.$inferSelect;
 export type NewResearcherProfile = typeof researcherProfiles.$inferInsert;
 export type UserBookmarkCollection = typeof userBookmarkCollections.$inferSelect;
 export type UserBookmark = typeof userBookmarks.$inferSelect;
+export type DiscoveredPaper = typeof discoveredPapers.$inferSelect;
+export type NewDiscoveredPaper = typeof discoveredPapers.$inferInsert;
+export type PaperMention = typeof paperMentions.$inferSelect;
+export type NewPaperMention = typeof paperMentions.$inferInsert;
 
 // Profile field types
 export interface ProfileLink {
