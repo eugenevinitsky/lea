@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useFeeds, SUGGESTED_FEEDS, PinnedFeed } from '@/lib/feeds';
 import { useSettings } from '@/lib/settings';
+import { useFollowing } from '@/lib/following-context';
 import { followUser, getSession, getMyFollows } from '@/lib/bluesky';
 
 interface OnboardingProps {
@@ -72,6 +73,7 @@ export default function Onboarding({ onComplete, startAtStep = 1 }: OnboardingPr
   );
   const { addFeed, pinnedFeeds } = useFeeds();
   const { settings, updateSettings } = useSettings();
+  const { refresh: refreshFollowing } = useFollowing();
 
   const [threadgateChoice, setThreadgateChoice] = useState<'open' | 'following' | 'researchers'>('open');
   const [dimNonVerified, setDimNonVerified] = useState(false);
@@ -240,6 +242,8 @@ export default function Onboarding({ onComplete, startAtStep = 1 }: OnboardingPr
     try {
       await followUser(did);
       setFollowedDids(prev => new Set(prev).add(did));
+      // Refresh the global following list so Discover updates
+      refreshFollowing();
     } catch (error) {
       console.error('Failed to follow:', error);
     } finally {
@@ -260,6 +264,8 @@ export default function Onboarding({ onComplete, startAtStep = 1 }: OnboardingPr
         console.error(`Failed to follow ${researcher.handle}:`, error);
       }
     }
+    // Refresh the global following list after bulk follow
+    refreshFollowing();
     setBulkFollowing(false);
   };
 

@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { getBlueskyProfile, followUser, unfollowUser, isVerifiedResearcher, Label } from '@/lib/bluesky';
+import { useFollowing } from '@/lib/following-context';
 
 interface ProfileHoverCardProps {
   did: string;
@@ -33,6 +34,7 @@ export default function ProfileHoverCard({ did, handle, children, onOpenProfile 
   const [followUri, setFollowUri] = useState<string | undefined>();
   const [followLoading, setFollowLoading] = useState(false);
   const [cardPosition, setCardPosition] = useState({ top: 0, left: 0 });
+  const { refresh: refreshFollowing } = useFollowing();
 
   const hoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const hideTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -132,6 +134,8 @@ export default function ProfileHoverCard({ did, handle, children, onOpenProfile 
       const result = await followUser(did);
       setIsFollowing(true);
       setFollowUri(result.uri);
+      // Refresh the global following list so Discover updates
+      refreshFollowing();
     } catch (err) {
       console.error('Failed to follow user:', err);
     } finally {
@@ -146,6 +150,8 @@ export default function ProfileHoverCard({ did, handle, children, onOpenProfile 
       await unfollowUser(followUri);
       setIsFollowing(false);
       setFollowUri(undefined);
+      // Refresh the global following list so Discover updates
+      refreshFollowing();
     } catch (err) {
       console.error('Failed to unfollow user:', err);
     } finally {

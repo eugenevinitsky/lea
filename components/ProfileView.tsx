@@ -6,6 +6,7 @@ import { AppBskyFeedDefs, AppBskyFeedPost, AppBskyEmbedExternal } from '@atproto
 import type { ProfileLink, ProfilePaper } from '@/lib/db/schema';
 import { getAuthorFeed, getBlueskyProfile, getKnownFollowers, BlueskyProfile, KnownFollowersResult, followUser, unfollowUser, getSession, searchPosts } from '@/lib/bluesky';
 import { detectPaperLink, getPaperIdFromUrl } from '@/lib/papers';
+import { useFollowing } from '@/lib/following-context';
 import Post from './Post';
 import ThreadView from './ThreadView';
 
@@ -140,7 +141,8 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
   const [isFollowing, setIsFollowing] = useState(false);
   const [followUri, setFollowUri] = useState<string | undefined>();
   const [followLoading, setFollowLoading] = useState(false);
-  
+  const { refresh: refreshFollowing } = useFollowing();
+
   // Posts state
   const [activeTab, setActiveTab] = useState<'profile' | 'posts' | 'papers' | 'interactions'>('profile');
   const [posts, setPosts] = useState<AppBskyFeedDefs.FeedViewPost[]>([]);
@@ -373,6 +375,8 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
       const result = await followUser(did);
       setIsFollowing(true);
       setFollowUri(result.uri);
+      // Refresh the global following list so Discover updates
+      refreshFollowing();
     } catch (err) {
       console.error('Failed to follow user:', err);
     } finally {
@@ -387,6 +391,8 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
       await unfollowUser(followUri);
       setIsFollowing(false);
       setFollowUri(undefined);
+      // Refresh the global following list so Discover updates
+      refreshFollowing();
     } catch (err) {
       console.error('Failed to unfollow user:', err);
     } finally {

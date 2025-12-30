@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { followUser, unfollowUser, isVerifiedResearcher, Label, getSession } from '@/lib/bluesky';
+import { useFollowing } from '@/lib/following-context';
 import ProfileHoverCard from './ProfileHoverCard';
 
 interface UserListItemProps {
@@ -29,6 +30,7 @@ export default function UserListItem({
   const [isFollowing, setIsFollowing] = useState(!!viewer?.following);
   const [followUri, setFollowUri] = useState<string | undefined>(viewer?.following);
   const [followLoading, setFollowLoading] = useState(false);
+  const { refresh: refreshFollowing } = useFollowing();
 
   const session = getSession();
   const isOwnProfile = session?.did === did;
@@ -42,6 +44,8 @@ export default function UserListItem({
       const result = await followUser(did);
       setIsFollowing(true);
       setFollowUri(result.uri);
+      // Refresh the global following list so Discover updates
+      refreshFollowing();
     } catch (err) {
       console.error('Failed to follow user:', err);
     } finally {
@@ -57,6 +61,8 @@ export default function UserListItem({
       await unfollowUser(followUri);
       setIsFollowing(false);
       setFollowUri(undefined);
+      // Refresh the global following list so Discover updates
+      refreshFollowing();
     } catch (err) {
       console.error('Failed to unfollow user:', err);
     } finally {
