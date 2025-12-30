@@ -159,18 +159,18 @@ function CategorySection({
   enabled: boolean;
   onToggleEnabled: () => void;
 }) {
-  // Don't show empty categories
-  if (notifications.length === 0) return null;
+  const isEmpty = notifications.length === 0;
 
   return (
-    <div className={`border-l-4 ${colors.border}`}>
+    <div className={`border-l-4 ${colors.border} ${isEmpty ? 'opacity-50' : ''}`}>
       {/* Collapsible header */}
       <div
-        className={`w-full px-3 py-2 flex items-center justify-between ${colors.bg} ${colors.hover} transition-colors`}
+        className={`w-full px-3 py-2 flex items-center justify-between ${colors.bg} ${isEmpty ? '' : colors.hover} transition-colors`}
       >
         <button
-          onClick={onToggle}
-          className="flex items-center gap-2 flex-1 cursor-pointer"
+          onClick={isEmpty ? undefined : onToggle}
+          className={`flex items-center gap-2 flex-1 ${isEmpty ? 'cursor-default' : 'cursor-pointer'}`}
+          disabled={isEmpty}
         >
           <span className={colors.icon}>{icon}</span>
           <h4 className={`text-xs font-medium ${colors.text}`}>{title}</h4>
@@ -181,7 +181,7 @@ function CategorySection({
             </span>
           )}
           {/* Chevron - inside button so clicking it expands/collapses */}
-          {notifications.length > 0 && (
+          {!isEmpty && (
             <svg
               className={`w-3.5 h-3.5 ${colors.icon} transition-transform ml-auto ${isExpanded ? 'rotate-180' : ''}`}
               fill="none"
