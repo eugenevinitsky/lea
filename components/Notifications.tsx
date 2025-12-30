@@ -174,14 +174,11 @@ function CategorySection({
         >
           <span className={colors.icon}>{icon}</span>
           <h4 className={`text-xs font-medium ${colors.text}`}>{title}</h4>
-          {notifications.length > 0 && (
-            <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${colors.badge}`}>
-              {notifications.length}
-            </span>
-          )}
-          {/* Only show unread indicator if notifications are enabled for this category */}
+          {/* Show unread count badge only when there are unread notifications */}
           {enabled && unreadCount > 0 && (
-            <span className="w-1.5 h-1.5 rounded-full bg-blue-500 flex-shrink-0" />
+            <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${colors.badge}`}>
+              {unreadCount}
+            </span>
           )}
           {/* Chevron - inside button so clicking it expands/collapses */}
           {notifications.length > 0 && (
