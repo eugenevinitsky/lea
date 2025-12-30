@@ -1805,18 +1805,18 @@ function PaperCard({ paper, color = 'gray' }: { paper: ProfilePaper; color?: 'gr
         {paper.venue && paper.year && <span>·</span>}
         {paper.year && <span>{paper.year}</span>}
         {paperId && (
-          <>
-            <span>·</span>
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                window.location.href = `/paper/${encodeURIComponent(paperId)}?url=${encodeURIComponent(paper.url)}`;
-              }}
-              className="text-purple-500 hover:text-purple-600 hover:underline"
-            >
-              Discussion
-            </button>
-          </>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              window.location.href = `/paper/${encodeURIComponent(paperId)}?url=${encodeURIComponent(paper.url)}`;
+            }}
+            className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 rounded-full hover:bg-purple-200 dark:hover:bg-purple-800/40 transition-colors"
+          >
+            Discussion
+            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+            </svg>
+          </button>
         )}
       </div>
     </div>
