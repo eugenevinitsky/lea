@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import Link from 'next/link';
 import { AppBskyFeedDefs, AppBskyFeedPost, AppBskyEmbedExternal } from '@atproto/api';
 import type { ProfileLink, ProfilePaper } from '@/lib/db/schema';
 import { getAuthorFeed, getBlueskyProfile, getKnownFollowers, BlueskyProfile, KnownFollowersResult, followUser, unfollowUser, getSession, searchPosts } from '@/lib/bluesky';
@@ -908,12 +907,13 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
                       <p className="text-sm text-gray-500">@{finalHandle}</p>
                     )}
                     {(profile?.affiliation || researcher?.institution) && (
-                      <Link
+                      <a
                         href={`/affiliation/${encodeURIComponent(profile?.affiliation || researcher?.institution || '')}`}
                         className="text-sm text-purple-600 dark:text-purple-400 mt-1 font-medium hover:underline block"
+                        onClick={(e) => e.stopPropagation()}
                       >
                         {profile?.affiliation || researcher?.institution}
-                      </Link>
+                      </a>
                     )}
                     
                     {/* Follower/Following counts */}
@@ -1041,13 +1041,14 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
                         </h4>
                         <div className="flex flex-wrap gap-2">
                           {topics.slice(0, 8).map((topic, i) => (
-                            <Link 
+                            <a 
                               key={i} 
                               href={`/topic/${encodeURIComponent(topic)}`}
                               className="px-3 py-1.5 bg-gradient-to-r from-purple-100 to-pink-100 dark:from-purple-900/40 dark:to-pink-900/40 text-purple-700 dark:text-purple-300 rounded-full text-sm font-medium hover:from-purple-200 hover:to-pink-200 dark:hover:from-purple-800/50 dark:hover:to-pink-800/50 transition-colors"
+                              onClick={(e) => e.stopPropagation()}
                             >
                               {topic}
-                            </Link>
+                            </a>
                           ))}
                         </div>
                       </div>
@@ -1081,13 +1082,14 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
                       </h4>
                       <div className="flex flex-wrap gap-2">
                         {profile.publicationVenues.map((venue, i) => (
-                          <Link 
+                          <a 
                             key={i} 
                             href={`/venue/${encodeURIComponent(venue)}`}
                             className="px-3 py-1.5 bg-gradient-to-r from-orange-100 to-amber-100 dark:from-orange-900/40 dark:to-amber-900/40 text-orange-700 dark:text-orange-300 rounded-full text-sm font-medium hover:from-orange-200 hover:to-amber-200 dark:hover:from-orange-800/50 dark:hover:to-amber-800/50 transition-colors"
+                            onClick={(e) => e.stopPropagation()}
                           >
                             {venue}
-                          </Link>
+                          </a>
                         ))}
                       </div>
                     </div>
@@ -1785,12 +1787,13 @@ function PaperCard({ paper, color = 'gray' }: { paper: ProfilePaper; color?: 'gr
         {paperId && (
           <>
             <span>·</span>
-            <Link
+            <a
               href={`/paper/${encodeURIComponent(paperId)}?url=${encodeURIComponent(paper.url)}`}
               className="text-purple-500 hover:text-purple-600 hover:underline"
+              onClick={(e) => e.stopPropagation()}
             >
               Discussion
-            </Link>
+            </a>
           </>
         )}
       </div>
