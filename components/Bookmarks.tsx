@@ -121,7 +121,7 @@ export default function Bookmarks({ onOpenPost, onOpenProfile }: BookmarksProps)
   } = useBookmarks();
   const [showExportMenu, setShowExportMenu] = useState(false);
   const [mounted, setMounted] = useState(false);
-  const [isCollapsed, setIsCollapsed] = useState(false);
+  const [isCollapsed, setIsCollapsed] = useState(true);
   const [collapsedCollections, setCollapsedCollections] = useState<Set<string>>(new Set());
   const [showNewCollectionInput, setShowNewCollectionInput] = useState(false);
   const [newCollectionName, setNewCollectionName] = useState('');
