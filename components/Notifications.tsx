@@ -174,9 +174,9 @@ function CategorySection({
         >
           <span className={colors.icon}>{icon}</span>
           <h4 className={`text-xs font-medium ${colors.text}`}>{title}</h4>
-          {/* Show unread count badge only when there are unread notifications */}
-          {enabled && unreadCount > 0 && (
-            <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${colors.badge}`}>
+          {/* Show unread count badge regardless of enabled state (so user can see what they're missing) */}
+          {unreadCount > 0 && (
+            <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${colors.badge} ${!enabled ? 'opacity-50' : ''}`}>
               {unreadCount}
             </span>
           )}
