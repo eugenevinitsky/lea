@@ -10,6 +10,7 @@ import ProfileView from './ProfileView';
 import ProfileEditor from './ProfileEditor';
 import ProfileHoverCard from './ProfileHoverCard';
 import QuotesView from './QuotesView';
+import EmojiPicker from './EmojiPicker';
 import Link from 'next/link';
 import { extractPaperUrl, extractAnyUrl, getPaperIdFromUrl, PAPER_DOMAINS, LinkFacet } from '@/lib/papers';
 
@@ -1103,6 +1104,29 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
     }, 0);
   }, [replyText, replyMentionStart, replyMentionQuery]);
 
+  // Insert emoji at cursor position in reply
+  const insertReplyEmoji = useCallback((emoji: string) => {
+    const textarea = replyTextareaRef.current;
+    if (!textarea) return;
+
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const newText = replyText.slice(0, start) + emoji + replyText.slice(end);
+    setReplyText(newText);
+
+    setTimeout(() => {
+      textarea.focus();
+      const newPos = start + emoji.length;
+      textarea.setSelectionRange(newPos, newPos);
+    }, 0);
+  }, [replyText]);
+
+  // Insert emoji at cursor position in quote
+  const insertQuoteEmoji = useCallback((emoji: string) => {
+    // For quote, we don't have a ref, so just append
+    setQuoteText(prev => prev + emoji);
+  }, []);
+
   // Handle keyboard navigation in reply suggestions
   const handleReplyKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (replySuggestions.length === 0) return;
@@ -1658,9 +1682,12 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
                 <p className="mt-1 text-xs text-red-500">{replyError}</p>
               )}
               <div className="flex justify-between items-center mt-2">
-                <span className={`text-xs ${replyText.length > 300 ? 'text-red-500' : 'text-gray-400'}`}>
-                  {replyText.length}/300
-                </span>
+                <div className="flex items-center gap-2">
+                  <EmojiPicker onSelect={insertReplyEmoji} />
+                  <span className={`text-xs ${replyText.length > 300 ? 'text-red-500' : 'text-gray-400'}`}>
+                    {replyText.length}/300
+                  </span>
+                </div>
                 <div className="flex gap-2">
                   <button
                     onClick={() => {
@@ -1706,9 +1733,12 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
                 <p className="mt-1 text-xs text-red-500">{quoteError}</p>
               )}
               <div className="flex justify-between items-center mt-2">
-                <span className={`text-xs ${quoteText.length > 300 ? 'text-red-500' : 'text-gray-400'}`}>
-                  {quoteText.length}/300
-                </span>
+                <div className="flex items-center gap-2">
+                  <EmojiPicker onSelect={insertQuoteEmoji} />
+                  <span className={`text-xs ${quoteText.length > 300 ? 'text-red-500' : 'text-gray-400'}`}>
+                    {quoteText.length}/300
+                  </span>
+                </div>
                 <div className="flex gap-2">
                   <button
                     onClick={() => {

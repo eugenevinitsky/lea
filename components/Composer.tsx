@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { createPost, searchActors } from '@/lib/bluesky';
 import { useSettings } from '@/lib/settings';
+import EmojiPicker from './EmojiPicker';
 
 interface ComposerProps {
   onPost?: () => void;
@@ -101,6 +102,24 @@ export default function Composer({ onPost }: ComposerProps) {
       }
     }, 0);
   }, [text, mentionStart, mentionQuery]);
+
+  // Insert emoji at cursor position
+  const insertEmoji = useCallback((emoji: string) => {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const newText = text.slice(0, start) + emoji + text.slice(end);
+    setText(newText);
+
+    // Set cursor position after emoji
+    setTimeout(() => {
+      textarea.focus();
+      const newPos = start + emoji.length;
+      textarea.setSelectionRange(newPos, newPos);
+    }, 0);
+  }, [text]);
 
   // Handle keyboard navigation in suggestions
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -215,6 +234,9 @@ export default function Composer({ onPost }: ComposerProps) {
 
       <div className="flex items-center justify-between mt-3">
         <div className="flex items-center gap-3">
+          {/* Emoji picker */}
+          <EmojiPicker onSelect={insertEmoji} />
+
           {/* Reply restriction selector */}
           <div className="relative">
             <button
