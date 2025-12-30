@@ -467,12 +467,8 @@ function QuotePost({
                 </div>
               );
             }
-            // Handle nested quote (record embed within quoted post)
-            if ('record' in embed && (embed as AppBskyEmbedRecord.View).record) {
-              const recordEmbed = embed as AppBskyEmbedRecord.View;
-              return <EmbedRecord key={i} record={recordEmbed.record} onOpenThread={onOpenThread} />;
-            }
-            // Handle recordWithMedia (quote + images in quoted post)
+            // Handle recordWithMedia (quote + images in quoted post) - check BEFORE record
+            // because recordWithMedia has both 'record' and 'media' properties
             if ('media' in embed && (embed as AppBskyEmbedRecordWithMedia.View).media) {
               const rwm = embed as AppBskyEmbedRecordWithMedia.View;
               const media = rwm.media;
@@ -494,6 +490,11 @@ function QuotePost({
                   {rwm.record && <EmbedRecord record={rwm.record.record} onOpenThread={onOpenThread} />}
                 </div>
               );
+            }
+            // Handle nested quote (record embed within quoted post) - check AFTER recordWithMedia
+            if ('record' in embed && (embed as AppBskyEmbedRecord.View).record) {
+              const recordEmbed = embed as AppBskyEmbedRecord.View;
+              return <EmbedRecord key={i} record={recordEmbed.record} onOpenThread={onOpenThread} />;
             }
             return null;
           })}

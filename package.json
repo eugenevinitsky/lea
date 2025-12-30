@@ -12,6 +12,7 @@
     "@atproto/api": "^0.18.8",
     "@atproto/oauth-client-browser": "^0.3.37",
     "@types/pg": "^8.16.0",
+    "@vercel/analytics": "^1.6.1",
     "@vercel/postgres": "^0.10.0",
     "dotenv": "^17.2.3",
     "drizzle-orm": "^0.45.1",
