@@ -37,20 +37,20 @@ function extractPaperLinks(text: string): PaperMatch[] {
   const papers: PaperMatch[] = [];
   const seen = new Set<string>();
 
-  // Find all URLs in the text
-  const urlRegex = /https?:\/\/[^\s<>"\\]+/gi;
-  const urls = text.match(urlRegex) || [];
-
-  for (const url of urls) {
-    for (const { pattern, source, normalize } of PAPER_PATTERNS) {
-      const match = url.match(pattern);
-      if (match && match[1]) {
+  // Match paper patterns directly against text (works with or without https://)
+  for (const { pattern, source, normalize } of PAPER_PATTERNS) {
+    // Use global flag to find all matches
+    const globalPattern = new RegExp(pattern.source, 'gi');
+    let match;
+    while ((match = globalPattern.exec(text)) !== null) {
+      if (match[1]) {
         const normalizedId = normalize(match[1]);
         if (!seen.has(normalizedId)) {
           seen.add(normalizedId);
+          // Reconstruct URL with https:// if missing
+          const url = match[0].startsWith('http') ? match[0] : `https://${match[0]}`;
           papers.push({ url, normalizedId, source });
         }
-        break; // Only match first pattern per URL
       }
     }
   }
@@ -97,16 +97,31 @@ export class JetstreamConnection implements DurableObject {
     this.env = env;
   }
 
+  // Alarm handler - keeps the DO alive and connection open
+  async alarm(): Promise<void> {
+    // If not connected, reconnect
+    if (!this.isConnected && !this.ws) {
+      console.log('Alarm: reconnecting...');
+      this.connect();
+    }
+    // Schedule next alarm in 5 seconds to prevent hibernation
+    await this.state.storage.setAlarm(Date.now() + 5000);
+  }
+
   async fetch(request: Request): Promise<Response> {
     const url = new URL(request.url);
 
     if (url.pathname === '/start') {
       if (!this.isConnected) {
         this.connect();
+        // Schedule alarm to keep DO alive (every 5 seconds)
+        await this.state.storage.setAlarm(Date.now() + 5000);
         return new Response(JSON.stringify({ status: 'starting' }), {
           headers: { 'Content-Type': 'application/json' }
         });
       }
+      // Refresh alarm even if already running
+      await this.state.storage.setAlarm(Date.now() + 5000);
       return new Response(JSON.stringify({ status: 'already running' }), {
         headers: { 'Content-Type': 'application/json' }
       });
@@ -114,6 +129,8 @@ export class JetstreamConnection implements DurableObject {
 
     if (url.pathname === '/stop') {
       this.disconnect();
+      // Cancel the keep-alive alarm
+      await this.state.storage.deleteAlarm();
       return new Response(JSON.stringify({ status: 'stopped' }), {
         headers: { 'Content-Type': 'application/json' }
       });
@@ -270,5 +287,15 @@ export default {
     return new Response('Paper Firehose Worker\n\nEndpoints:\n- /start - Start consuming firehose\n- /stop - Stop consuming\n- /status - Get status\n\nPapers are sent to the Lea API for storage.', {
       headers: { 'Content-Type': 'text/plain' }
     });
-  }
+  },
+
+  // Cron trigger to keep the connection alive
+  async scheduled(event: ScheduledEvent, env: Env, ctx: ExecutionContext): Promise<void> {
+    const id = env.JETSTREAM_CONNECTION.idFromName('main');
+    const stub = env.JETSTREAM_CONNECTION.get(id);
+
+    // Ping /start to ensure connection is active
+    await stub.fetch(new Request('https://internal/start'));
+    console.log('Cron: pinged firehose connection');
+  },
 };

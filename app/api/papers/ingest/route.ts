@@ -32,23 +32,44 @@ async function fetchPaperMetadata(normalizedId: string, source: string): Promise
     }
 
     if (source === 'doi' || source === 'biorxiv' || source === 'medrxiv' || source === 'science' || source === 'pnas') {
-      // Use CrossRef API for DOI-based sources
+      // Extract DOI from normalized ID
       let doi = normalizedId;
       if (source === 'biorxiv' || source === 'medrxiv') {
         doi = normalizedId.replace(`${source}:`, '');
+        // Strip version suffix (v1, v2, etc.) for preprints
+        doi = doi.replace(/v\d+$/, '');
       } else if (source === 'doi') {
         doi = normalizedId.replace('doi:', '');
       }
 
-      const response = await fetch(`https://api.crossref.org/works/${encodeURIComponent(doi)}`, {
-        headers: { 'User-Agent': 'Lea/1.0 (mailto:support@lea.community)' }
+      // Use DOI content negotiation (works for all DOI sources including preprints)
+      const response = await fetch(`https://doi.org/${doi}`, {
+        headers: {
+          'Accept': 'application/vnd.citationstyles.csl+json',
+          'User-Agent': 'Lea/1.0 (mailto:support@lea.community)'
+        },
+        redirect: 'follow'
       });
-      if (!response.ok) return null;
+
+      if (!response.ok) {
+        // Fallback to CrossRef API
+        const crossrefResponse = await fetch(`https://api.crossref.org/works/${encodeURIComponent(doi)}`, {
+          headers: { 'User-Agent': 'Lea/1.0 (mailto:support@lea.community)' }
+        });
+        if (!crossrefResponse.ok) return null;
+
+        const data = await crossrefResponse.json();
+        const work = data.message;
+        const title = work?.title?.[0];
+        const authors = work?.author?.map((a: { given?: string; family?: string }) =>
+          `${a.given || ''} ${a.family || ''}`.trim()
+        ).filter(Boolean);
+        return { title, authors };
+      }
 
       const data = await response.json();
-      const work = data.message;
-      const title = work?.title?.[0];
-      const authors = work?.author?.map((a: { given?: string; family?: string }) =>
+      const title = data?.title;
+      const authors = data?.author?.map((a: { given?: string; family?: string }) =>
         `${a.given || ''} ${a.family || ''}`.trim()
       ).filter(Boolean);
 
@@ -70,7 +91,26 @@ async function fetchPaperMetadata(normalizedId: string, source: string): Promise
       return { title, authors };
     }
 
-    // For nature and other sources, we could add more APIs later
+    if (source === 'nature') {
+      // Nature article IDs map to DOIs as 10.1038/{article-id}
+      const articleId = normalizedId.replace('nature:', '');
+      const doi = `10.1038/${articleId}`;
+
+      const response = await fetch(`https://api.crossref.org/works/${encodeURIComponent(doi)}`, {
+        headers: { 'User-Agent': 'Lea/1.0 (mailto:support@lea.community)' }
+      });
+      if (!response.ok) return null;
+
+      const data = await response.json();
+      const work = data.message;
+      const title = work?.title?.[0];
+      const authors = work?.author?.map((a: { given?: string; family?: string }) =>
+        `${a.given || ''} ${a.family || ''}`.trim()
+      ).filter(Boolean);
+
+      return { title, authors };
+    }
+
     return null;
   } catch (error) {
     console.error(`Failed to fetch metadata for ${normalizedId}:`, error);
