@@ -945,8 +945,19 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
   };
 
   const handleShare = async () => {
-    // Use Lea URL format: /?post=at://...
-    const url = `${window.location.origin}/?post=${encodeURIComponent(post.uri)}`;
+    // Parse AT URI to extract DID and rkey
+    // Format: at://did:plc:xxx/app.bsky.feed.post/rkey
+    const match = post.uri.match(/^at:\/\/(did:[^/]+)\/app\.bsky\.feed\.post\/([^/]+)$/);
+    
+    let url: string;
+    if (match) {
+      const [, , rkey] = match;
+      // Use author handle for cleaner URLs
+      url = `${window.location.origin}/post/${author.handle}/${rkey}`;
+    } else {
+      // Fallback: encode the full URI
+      url = `${window.location.origin}/post/${encodeURIComponent(post.uri)}`;
+    }
     
     try {
       await navigator.clipboard.writeText(url);
