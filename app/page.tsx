@@ -51,6 +51,9 @@ function AppContent() {
     const match = uri.match(/^at:\/\/(did:[^/]+)\/app\.bsky\.feed\.post\/([^/]+)$/);
     if (match) {
       const [, did, rkey] = match;
+      // Save scroll position before navigating so we can restore it on back
+      sessionStorage.setItem('lea-scroll-position', window.scrollY.toString());
+      sessionStorage.setItem('lea-scroll-feed', activeFeedUri || '');
       // Try to resolve DID to handle for cleaner URL
       try {
         const profile = await getBlueskyProfile(did);
@@ -66,14 +69,45 @@ function AppContent() {
       // Fallback: open in modal if URI format doesn't match
       setThreadUri(uri);
     }
-  }, []);
+  }, [activeFeedUri]);
 
   // Set active feed to first pinned feed when feeds load
   useEffect(() => {
     if (pinnedFeeds.length > 0 && activeFeedUri === null) {
-      setActiveFeedUri(pinnedFeeds[0].uri);
+      // Check if we should restore a previous feed
+      const savedFeed = sessionStorage.getItem('lea-scroll-feed');
+      if (savedFeed && pinnedFeeds.some(f => f.uri === savedFeed)) {
+        setActiveFeedUri(savedFeed);
+      } else {
+        setActiveFeedUri(pinnedFeeds[0].uri);
+      }
     }
   }, [pinnedFeeds, activeFeedUri]);
+
+  // Restore scroll position after navigating back from a thread
+  useEffect(() => {
+    const savedPosition = sessionStorage.getItem('lea-scroll-position');
+    if (savedPosition) {
+      const targetY = parseInt(savedPosition, 10);
+      // Try to scroll after content loads, with retries
+      let attempts = 0;
+      const tryScroll = () => {
+        attempts++;
+        window.scrollTo(0, targetY);
+        // If we couldn't scroll far enough and haven't tried too many times, retry
+        if (window.scrollY < targetY - 100 && attempts < 10) {
+          setTimeout(tryScroll, 200);
+        } else {
+          // Clear the saved position
+          sessionStorage.removeItem('lea-scroll-position');
+          sessionStorage.removeItem('lea-scroll-feed');
+        }
+      };
+      // Initial delay to let feed start loading
+      const timer = setTimeout(tryScroll, 300);
+      return () => clearTimeout(timer);
+    }
+  }, []);
 
   // Try to restore session on mount
   useEffect(() => {
