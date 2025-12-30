@@ -6,6 +6,7 @@ import { restoreSession, getSession, getBlueskyProfile } from '@/lib/bluesky';
 import { SettingsProvider } from '@/lib/settings';
 import { BookmarksProvider, useBookmarks } from '@/lib/bookmarks';
 import { FeedsProvider } from '@/lib/feeds';
+import { FollowingProvider } from '@/lib/following-context';
 import ProfileView from '@/components/ProfileView';
 import ProfileEditor from '@/components/ProfileEditor';
 import Login from '@/components/Login';
@@ -164,7 +165,9 @@ export default function ProfilePage() {
     <SettingsProvider>
       <BookmarksProvider>
         <FeedsProvider>
-          <ProfilePageContent />
+          <FollowingProvider>
+            <ProfilePageContent />
+          </FollowingProvider>
         </FeedsProvider>
       </BookmarksProvider>
     </SettingsProvider>
