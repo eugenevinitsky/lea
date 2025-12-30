@@ -68,7 +68,7 @@ function ProfilePageContent() {
   };
 
   const handleClose = () => {
-    router.push('/');
+    window.location.href = '/';
   };
 
   const handleOpenProfile = (did: string) => {
@@ -102,9 +102,9 @@ function ProfilePageContent() {
       {/* Header */}
       <header className="sticky top-0 z-20 bg-white/80 dark:bg-black/80 backdrop-blur border-b border-gray-200 dark:border-gray-800">
         <div className="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between">
-          <h1 
+          <h1
             className="text-xl font-bold text-blue-500 cursor-pointer hover:text-blue-600 transition-colors"
-            onClick={() => router.push('/')}
+            onClick={() => window.location.href = '/'}
           >Lea</h1>
           <div className="flex items-center gap-3">
             <button
@@ -130,7 +130,7 @@ function ProfilePageContent() {
               <p className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">@{handle}</p>
               <p className="text-gray-500">{resolveError}</p>
               <button
-                onClick={() => router.push('/')}
+                onClick={() => window.location.href = '/'}
                 className="mt-4 px-4 py-2 bg-blue-500 text-white rounded-full hover:bg-blue-600"
               >
                 Back to feed
