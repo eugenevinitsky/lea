@@ -719,7 +719,7 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
     <>
       <div className="bg-white dark:bg-gray-950 min-h-screen">
         {/* Header with back button */}
-        <div className="sticky top-0 z-10 bg-white dark:bg-gray-950 border-b border-gray-200 dark:border-gray-800 p-4 flex items-center gap-3">
+        <div className="sticky top-14 z-10 bg-white dark:bg-gray-950 border-b border-gray-200 dark:border-gray-800 p-4 flex items-center gap-3">
           <button
             onClick={onClose}
             className="p-2 -ml-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full"
