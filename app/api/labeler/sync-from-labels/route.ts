@@ -200,7 +200,8 @@ export async function POST(request: NextRequest) {
     // Remove users who are in the list but no longer have the label
     for (const [did, listitemUri] of currentMembers) {
       const hasLabel = labeledUsers.get(did);
-      if (hasLabel === false) { // Explicitly negated
+      // Remove if explicitly negated OR if they're not in the label list at all
+      if (hasLabel === false || hasLabel === undefined) {
         const success = await removeFromList(agent, listitemUri);
         if (success) removed++;
         else errors.push(`Failed to remove ${did}`);

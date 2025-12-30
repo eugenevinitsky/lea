@@ -60,7 +60,7 @@ export default function DMSidebar() {
   const [searchResults, setSearchResults] = useState<Array<{ did: string; handle: string; displayName?: string; avatar?: string }>>([]);
   const [searching, setSearching] = useState(false);
   const [startingChat, setStartingChat] = useState(false);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -167,7 +167,9 @@ export default function DMSidebar() {
 
   // Scroll to bottom when messages change
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    if (messagesContainerRef.current) {
+      messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
+    }
   }, [messages]);
 
   // Focus input when selecting a convo
@@ -357,7 +359,7 @@ export default function DMSidebar() {
 
           {selectedConvoId ? (
             // Message view
-            <div className="flex flex-col h-[350px]">
+            <div className="flex flex-col h-[350px] overscroll-contain">
               {/* Convo header */}
               <div className="flex items-center gap-2 p-2 border-b border-gray-100 dark:border-gray-800">
                 <button
@@ -385,7 +387,7 @@ export default function DMSidebar() {
               </div>
 
               {/* Messages */}
-              <div className="flex-1 overflow-y-auto p-2 space-y-2">
+              <div ref={messagesContainerRef} className="flex-1 overflow-y-auto overscroll-contain p-2 space-y-2">
                 {loading ? (
                   <div className="flex items-center justify-center h-full">
                     <div className="animate-spin w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full" />
@@ -413,7 +415,6 @@ export default function DMSidebar() {
                         </div>
                       );
                     })}
-                    <div ref={messagesEndRef} />
                   </>
                 )}
               </div>

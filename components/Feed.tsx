@@ -325,11 +325,6 @@ export default function Feed({ feedId, feedUri, feedName, acceptsInteractions, r
                 {filteredPosts.length} paper{filteredPosts.length !== 1 ? 's' : ''} found in {totalScanned} posts
               </p>
             )}
-            {isVerifiedFeed && (
-              <p className="text-xs text-gray-500">
-                {filteredPosts.length} post{filteredPosts.length !== 1 ? 's' : ''} from verified researchers in {totalScanned} scanned
-              </p>
-            )}
             {isKeywordFeed && effectiveKeyword && (
               <p className="text-xs text-purple-500 flex items-center gap-1">
                 <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -455,8 +450,10 @@ export default function Feed({ feedId, feedUri, feedName, acceptsInteractions, r
 
       {/* Load more - infinite scroll for all feeds */}
       {filteredPosts.length > 0 && cursor && (
-        <div ref={sentinelCallbackRef} className="p-4 text-center text-gray-500">
-          {loading ? 'Loading more...' : ''}
+        <div ref={sentinelCallbackRef} className="h-20">
+          {loading && (
+            <div className="p-4 text-center text-gray-500">Loading more...</div>
+          )}
         </div>
       )}
 
