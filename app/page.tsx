@@ -36,7 +36,7 @@ function AppContent() {
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
   const [isVerified, setIsVerified] = useState(false);
-  const { pinnedFeeds, removeFeed, reorderFeeds } = useFeeds();
+  const { pinnedFeeds, isLoaded: feedsLoaded, removeFeed, reorderFeeds } = useFeeds();
   const { setUserDid } = useBookmarks();
 
   // Open thread by navigating to shareable post URL
@@ -71,31 +71,32 @@ function AppContent() {
     }
   }, [activeFeedUri]);
 
-  // Initialize active feed from localStorage on first render
+  // Set active feed once feeds are loaded from localStorage
   useEffect(() => {
+    // Wait until feeds are loaded from localStorage
+    if (!feedsLoaded || pinnedFeeds.length === 0) return;
+    
+    // Only set if we haven't set one yet
     if (activeFeedUri === null) {
       // First check sessionStorage (for thread navigation back)
       const sessionFeed = sessionStorage.getItem('lea-scroll-feed');
       // Then check localStorage (for page refresh persistence)
       const savedFeed = sessionFeed || localStorage.getItem('lea-active-feed');
-      if (savedFeed) {
+      
+      if (savedFeed && pinnedFeeds.some(f => f.uri === savedFeed)) {
+        // Saved feed exists and is in pinned feeds
         setActiveFeedUri(savedFeed);
+      } else {
+        // Default to first feed
+        setActiveFeedUri(pinnedFeeds[0].uri);
       }
-    }
-  }, []); // Only run once on mount
-
-  // Once pinnedFeeds loads, validate the active feed or default to first
-  useEffect(() => {
-    if (pinnedFeeds.length > 0 && activeFeedUri !== null) {
-      // If current feed is not in pinned feeds, switch to first feed
+    } else {
+      // Validate current feed is still in pinned feeds
       if (!pinnedFeeds.some(f => f.uri === activeFeedUri)) {
         setActiveFeedUri(pinnedFeeds[0].uri);
       }
-    } else if (pinnedFeeds.length > 0 && activeFeedUri === null) {
-      // No saved feed, default to first
-      setActiveFeedUri(pinnedFeeds[0].uri);
     }
-  }, [pinnedFeeds, activeFeedUri]);
+  }, [feedsLoaded, pinnedFeeds, activeFeedUri]);
 
   // Save active feed to localStorage whenever it changes
   useEffect(() => {

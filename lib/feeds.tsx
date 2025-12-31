@@ -86,6 +86,7 @@ export interface PinnedFeed {
 
 interface FeedsContextType {
   pinnedFeeds: PinnedFeed[];
+  isLoaded: boolean;
   addFeed: (feed: PinnedFeed) => void;
   removeFeed: (uri: string) => void;
   moveFeed: (uri: string, direction: 'up' | 'down') => void;
@@ -178,7 +179,7 @@ export function FeedsProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <FeedsContext.Provider value={{ pinnedFeeds, addFeed, removeFeed, moveFeed, reorderFeeds, isPinned }}>
+    <FeedsContext.Provider value={{ pinnedFeeds, isLoaded, addFeed, removeFeed, moveFeed, reorderFeeds, isPinned }}>
       {children}
     </FeedsContext.Provider>
   );
