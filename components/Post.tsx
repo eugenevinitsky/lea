@@ -755,6 +755,11 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
   const [likeCount, setLikeCount] = useState(post.likeCount || 0);
   const [liking, setLiking] = useState(false);
 
+  // Debug: Log when component renders with current like state
+  useEffect(() => {
+    console.log('[Post Render]', { postUri: post.uri.slice(-20), isLiked, liking });
+  });
+
   // Repost state
   const [isReposted, setIsReposted] = useState(!!post.viewer?.repost);
   const [repostUri, setRepostUri] = useState<string | undefined>(post.viewer?.repost);
@@ -982,6 +987,8 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
   };
 
   const handleLike = async () => {
+    const shortUri = post.uri.slice(-20);
+    console.log('[Like] handleLike called', { shortUri, isLiked, liking });
     if (liking) return;
     setLiking(true);
     try {
@@ -992,12 +999,13 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
         setLikeCount((c) => Math.max(0, c - 1));
       } else {
         const result = await likePost(post.uri, post.cid);
+        console.log('[Like] Success, calling setIsLiked(true)', { shortUri });
         setIsLiked(true);
         setLikeUri(result.uri);
         setLikeCount((c) => c + 1);
       }
     } catch (err) {
-      console.error('Failed to like/unlike:', err);
+      console.error('[Like] Failed:', err);
     } finally {
       setLiking(false);
     }
