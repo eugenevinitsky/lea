@@ -749,7 +749,7 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
   const [replyLoadingSuggestions, setReplyLoadingSuggestions] = useState(false);
   const replyTextareaRef = useRef<HTMLTextAreaElement>(null);
 
-  // Like state
+  // Like state - use key to reset state when post changes
   const [isLiked, setIsLiked] = useState(!!post.viewer?.like);
   const [likeUri, setLikeUri] = useState<string | undefined>(post.viewer?.like);
   const [likeCount, setLikeCount] = useState(post.likeCount || 0);
@@ -982,24 +982,34 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
   };
 
   const handleLike = async () => {
-    if (liking) return;
+    console.log('[Like] handleLike called', { isLiked, liking, postUri: post.uri });
+    if (liking) {
+      console.log('[Like] Already liking, returning');
+      return;
+    }
     setLiking(true);
     try {
       if (isLiked && likeUri) {
+        console.log('[Like] Unliking post');
         await unlikePost(likeUri);
+        console.log('[Like] Unlike succeeded, updating state');
         setIsLiked(false);
         setLikeUri(undefined);
         setLikeCount((c) => Math.max(0, c - 1));
       } else {
+        console.log('[Like] Liking post');
         const result = await likePost(post.uri, post.cid);
+        console.log('[Like] Like succeeded, result:', result);
         setIsLiked(true);
         setLikeUri(result.uri);
         setLikeCount((c) => c + 1);
+        console.log('[Like] State updated: isLiked=true');
       }
     } catch (err) {
-      console.error('Failed to like/unlike:', err);
+      console.error('[Like] Failed to like/unlike:', err);
     } finally {
       setLiking(false);
+      console.log('[Like] handleLike complete, liking=false');
     }
   };
 
