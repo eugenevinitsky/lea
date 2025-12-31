@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { searchActors, isVerifiedResearcher, ActorSearchResult, Label } from '@/lib/bluesky';
+import { searchActors, isVerifiedResearcher, ActorSearchResult, Label, getBlueskyProfile } from '@/lib/bluesky';
 
 interface Researcher {
   did: string;
@@ -64,34 +64,49 @@ export default function ResearcherSearch({ onSelectResearcher }: ResearcherSearc
     const lowerQuery = query.toLowerCase();
     
     // Search local verified researchers
-    const verifiedResults: SearchResult[] = researchers
+    const matchedResearchers = researchers
       .filter(r => 
         r.name?.toLowerCase().includes(lowerQuery) ||
         r.handle?.toLowerCase().includes(lowerQuery) ||
         r.institution?.toLowerCase().includes(lowerQuery)
       )
-      .slice(0, 5)
-      .map(r => ({
-        did: r.did,
-        handle: r.handle,
-        displayName: r.name,
-        subtitle: r.institution,
-        isVerified: true,
-      }));
+      .slice(0, 5);
+    
+    const verifiedResults: SearchResult[] = matchedResearchers.map(r => ({
+      did: r.did,
+      handle: r.handle,
+      displayName: r.name,
+      subtitle: r.institution,
+      isVerified: true,
+    }));
 
     // Show local results immediately
     setSearchResults(verifiedResults);
     setIsOpen(verifiedResults.length > 0);
     setSelectedIndex(0);
 
-    // Debounce the Bluesky API search
+    // Debounce the Bluesky API search and avatar fetching
     const timeoutId = setTimeout(async () => {
       setSearching(true);
       try {
-        const bskyResults = await searchActors(query, 8);
+        // Fetch avatars for verified researchers in parallel with Bluesky search
+        const [bskyResults, ...avatarResults] = await Promise.all([
+          searchActors(query, 8),
+          ...matchedResearchers.map(r => getBlueskyProfile(r.did)),
+        ]);
+        
+        // Update verified results with avatars
+        const verifiedWithAvatars: SearchResult[] = matchedResearchers.map((r, i) => ({
+          did: r.did,
+          handle: r.handle,
+          displayName: r.name,
+          subtitle: r.institution,
+          avatar: avatarResults[i]?.avatar,
+          isVerified: true,
+        }));
         
         // Combine results: verified first, then other Bluesky users
-        const verifiedDids = new Set(verifiedResults.map(r => r.did));
+        const verifiedDids = new Set(verifiedWithAvatars.map(r => r.did));
         
         const otherResults: SearchResult[] = bskyResults
           .filter(actor => !verifiedDids.has(actor.did))
@@ -104,7 +119,7 @@ export default function ResearcherSearch({ onSelectResearcher }: ResearcherSearc
             isVerified: isVerifiedResearcher(actor.labels as Label[] | undefined),
           }));
 
-        const combined = [...verifiedResults, ...otherResults].slice(0, 10);
+        const combined = [...verifiedWithAvatars, ...otherResults].slice(0, 10);
         setSearchResults(combined);
         setIsOpen(combined.length > 0);
       } catch (err) {
@@ -200,43 +215,42 @@ export default function ResearcherSearch({ onSelectResearcher }: ResearcherSearc
                   : 'hover:bg-gray-50 dark:hover:bg-gray-800'
               }`}
             >
-              {/* Avatar or verified badge */}
-              {result.avatar ? (
-                <div className="relative flex-shrink-0">
+              {/* Avatar with verified badge overlay */}
+              <div className="relative flex-shrink-0">
+                {result.avatar ? (
                   <img
                     src={result.avatar}
                     alt=""
                     className="w-10 h-10 rounded-full"
                   />
-                  {result.isVerified && (
-                    <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-emerald-500 rounded-full flex items-center justify-center ring-2 ring-white dark:ring-gray-900">
-                      <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
-                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                      </svg>
-                    </div>
-                  )}
-                </div>
-              ) : result.isVerified ? (
-                <div className="w-10 h-10 rounded-full bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center flex-shrink-0">
-                  <svg className="w-5 h-5 text-emerald-600 dark:text-emerald-400" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                  </svg>
-                </div>
-              ) : (
-                <div className="w-10 h-10 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center flex-shrink-0">
-                  <span className="text-gray-500 dark:text-gray-400 font-medium">
-                    {(result.displayName || result.handle)[0].toUpperCase()}
-                  </span>
-                </div>
-              )}
+                ) : (
+                  <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                    result.isVerified 
+                      ? 'bg-emerald-100 dark:bg-emerald-900/30' 
+                      : 'bg-gray-200 dark:bg-gray-700'
+                  }`}>
+                    <span className={`font-medium ${
+                      result.isVerified
+                        ? 'text-emerald-600 dark:text-emerald-400'
+                        : 'text-gray-500 dark:text-gray-400'
+                    }`}>
+                      {(result.displayName || result.handle)[0].toUpperCase()}
+                    </span>
+                  </div>
+                )}
+                {result.isVerified && (
+                  <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-emerald-500 rounded-full flex items-center justify-center ring-2 ring-white dark:ring-gray-900">
+                    <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                    </svg>
+                  </div>
+                )}
+              </div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-1.5">
                   <p className="font-medium text-gray-900 dark:text-gray-100 truncate">
                     {result.displayName || result.handle}
                   </p>
-                  {result.isVerified && !result.avatar && (
-                    <span className="text-xs text-emerald-600 dark:text-emerald-400 font-medium">Researcher</span>
-                  )}
                 </div>
                 <p className="text-sm text-gray-500 truncate">
                   @{result.handle}
