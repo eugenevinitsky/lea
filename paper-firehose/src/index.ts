@@ -17,8 +17,8 @@ const PAPER_PATTERNS = [
   { pattern: /medrxiv\.org\/content\/(10\.\d+\/[^\s\/]+)/i, source: 'medrxiv', normalize: (m: string) => `medrxiv:${m}` },
   // PubMed
   { pattern: /pubmed\.ncbi\.nlm\.nih\.gov\/(\d+)/i, source: 'pubmed', normalize: (m: string) => `pubmed:${m}` },
-  // Nature
-  { pattern: /nature\.com\/articles\/([\w-]+)/i, source: 'nature', normalize: (m: string) => `nature:${m}` },
+  // Nature - article IDs like s41586-024-08234-1 (letter + 5 digits + dashes + more)
+  { pattern: /nature\.com\/articles\/([sd]\d{5}-\d{2,4}-\d{4,}-\d)/i, source: 'nature', normalize: (m: string) => `nature:${m}` },
   // Science
   { pattern: /science\.org\/doi\/(10\.\d+\/[^\s]+)/i, source: 'science', normalize: (m: string) => `doi:${m}` },
   // PNAS
@@ -33,24 +33,43 @@ interface PaperMatch {
   source: string;
 }
 
+// Check if a URL or ID appears to be truncated
+function isTruncated(text: string): boolean {
+  // Common truncation patterns
+  const truncationPatterns = [
+    /\.{2,}$/,        // Ends with .. or ...
+    /\.{2,}\)?$/,     // Ends with ...) or ...)
+    /…$/,             // Ends with ellipsis character
+    /\.{2,}\]?$/,     // Ends with ...]
+  ];
+
+  return truncationPatterns.some(pattern => pattern.test(text));
+}
+
 function extractPaperLinks(text: string): PaperMatch[] {
   const papers: PaperMatch[] = [];
   const seen = new Set<string>();
 
-  // Find all URLs in the text
-  const urlRegex = /https?:\/\/[^\s<>"\\]+/gi;
-  const urls = text.match(urlRegex) || [];
+  // Match paper patterns directly against text (works with or without https://)
+  for (const { pattern, source, normalize } of PAPER_PATTERNS) {
+    // Use global flag to find all matches
+    const globalPattern = new RegExp(pattern.source, 'gi');
+    let match;
+    while ((match = globalPattern.exec(text)) !== null) {
+      if (match[1]) {
+        // Skip truncated URLs/IDs
+        if (isTruncated(match[0]) || isTruncated(match[1])) {
+          console.log(`Skipping truncated paper URL: ${match[0]}`);
+          continue;
+        }
 
-  for (const url of urls) {
-    for (const { pattern, source, normalize } of PAPER_PATTERNS) {
-      const match = url.match(pattern);
-      if (match && match[1]) {
         const normalizedId = normalize(match[1]);
         if (!seen.has(normalizedId)) {
           seen.add(normalizedId);
+          // Reconstruct URL with https:// if missing
+          const url = match[0].startsWith('http') ? match[0] : `https://${match[0]}`;
           papers.push({ url, normalizedId, source });
         }
-        break; // Only match first pattern per URL
       }
     }
   }
@@ -97,16 +116,31 @@ export class JetstreamConnection implements DurableObject {
     this.env = env;
   }
 
+  // Alarm handler - keeps the DO alive and connection open
+  async alarm(): Promise<void> {
+    // If not connected, reconnect
+    if (!this.isConnected && !this.ws) {
+      console.log('Alarm: reconnecting...');
+      this.connect();
+    }
+    // Schedule next alarm in 5 seconds to prevent hibernation
+    await this.state.storage.setAlarm(Date.now() + 5000);
+  }
+
   async fetch(request: Request): Promise<Response> {
     const url = new URL(request.url);
 
     if (url.pathname === '/start') {
       if (!this.isConnected) {
         this.connect();
+        // Schedule alarm to keep DO alive (every 5 seconds)
+        await this.state.storage.setAlarm(Date.now() + 5000);
         return new Response(JSON.stringify({ status: 'starting' }), {
           headers: { 'Content-Type': 'application/json' }
         });
       }
+      // Refresh alarm even if already running
+      await this.state.storage.setAlarm(Date.now() + 5000);
       return new Response(JSON.stringify({ status: 'already running' }), {
         headers: { 'Content-Type': 'application/json' }
       });
@@ -114,6 +148,8 @@ export class JetstreamConnection implements DurableObject {
 
     if (url.pathname === '/stop') {
       this.disconnect();
+      // Cancel the keep-alive alarm
+      await this.state.storage.deleteAlarm();
       return new Response(JSON.stringify({ status: 'stopped' }), {
         headers: { 'Content-Type': 'application/json' }
       });
@@ -270,5 +306,15 @@ export default {
     return new Response('Paper Firehose Worker\n\nEndpoints:\n- /start - Start consuming firehose\n- /stop - Stop consuming\n- /status - Get status\n\nPapers are sent to the Lea API for storage.', {
       headers: { 'Content-Type': 'text/plain' }
     });
-  }
+  },
+
+  // Cron trigger to keep the connection alive
+  async scheduled(event: ScheduledEvent, env: Env, ctx: ExecutionContext): Promise<void> {
+    const id = env.JETSTREAM_CONNECTION.idFromName('main');
+    const stub = env.JETSTREAM_CONNECTION.get(id);
+
+    // Ping /start to ensure connection is active
+    await stub.fetch(new Request('https://internal/start'));
+    console.log('Cron: pinged firehose connection');
+  },
 };

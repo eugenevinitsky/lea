@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db, discoveredPapers, paperMentions } from '@/lib/db';
+import { db, discoveredPapers, paperMentions, verifiedResearchers } from '@/lib/db';
 import { eq, sql } from 'drizzle-orm';
 
 // Secret for authenticating requests from the Cloudflare Worker
@@ -32,23 +32,44 @@ async function fetchPaperMetadata(normalizedId: string, source: string): Promise
     }
 
     if (source === 'doi' || source === 'biorxiv' || source === 'medrxiv' || source === 'science' || source === 'pnas') {
-      // Use CrossRef API for DOI-based sources
+      // Extract DOI from normalized ID
       let doi = normalizedId;
       if (source === 'biorxiv' || source === 'medrxiv') {
         doi = normalizedId.replace(`${source}:`, '');
+        // Strip version suffix (v1, v2, etc.) for preprints
+        doi = doi.replace(/v\d+$/, '');
       } else if (source === 'doi') {
         doi = normalizedId.replace('doi:', '');
       }
 
-      const response = await fetch(`https://api.crossref.org/works/${encodeURIComponent(doi)}`, {
-        headers: { 'User-Agent': 'Lea/1.0 (mailto:support@lea.community)' }
+      // Use DOI content negotiation (works for all DOI sources including preprints)
+      const response = await fetch(`https://doi.org/${doi}`, {
+        headers: {
+          'Accept': 'application/vnd.citationstyles.csl+json',
+          'User-Agent': 'Lea/1.0 (mailto:support@lea.community)'
+        },
+        redirect: 'follow'
       });
-      if (!response.ok) return null;
+
+      if (!response.ok) {
+        // Fallback to CrossRef API
+        const crossrefResponse = await fetch(`https://api.crossref.org/works/${encodeURIComponent(doi)}`, {
+          headers: { 'User-Agent': 'Lea/1.0 (mailto:support@lea.community)' }
+        });
+        if (!crossrefResponse.ok) return null;
+
+        const data = await crossrefResponse.json();
+        const work = data.message;
+        const title = work?.title?.[0];
+        const authors = work?.author?.map((a: { given?: string; family?: string }) =>
+          `${a.given || ''} ${a.family || ''}`.trim()
+        ).filter(Boolean);
+        return { title, authors };
+      }
 
       const data = await response.json();
-      const work = data.message;
-      const title = work?.title?.[0];
-      const authors = work?.author?.map((a: { given?: string; family?: string }) =>
+      const title = data?.title;
+      const authors = data?.author?.map((a: { given?: string; family?: string }) =>
         `${a.given || ''} ${a.family || ''}`.trim()
       ).filter(Boolean);
 
@@ -70,7 +91,26 @@ async function fetchPaperMetadata(normalizedId: string, source: string): Promise
       return { title, authors };
     }
 
-    // For nature and other sources, we could add more APIs later
+    if (source === 'nature') {
+      // Nature article IDs map to DOIs as 10.1038/{article-id}
+      const articleId = normalizedId.replace('nature:', '');
+      const doi = `10.1038/${articleId}`;
+
+      const response = await fetch(`https://api.crossref.org/works/${encodeURIComponent(doi)}`, {
+        headers: { 'User-Agent': 'Lea/1.0 (mailto:support@lea.community)' }
+      });
+      if (!response.ok) return null;
+
+      const data = await response.json();
+      const work = data.message;
+      const title = work?.title?.[0];
+      const authors = work?.author?.map((a: { given?: string; family?: string }) =>
+        `${a.given || ''} ${a.family || ''}`.trim()
+      ).filter(Boolean);
+
+      return { title, authors };
+    }
+
     return null;
   } catch (error) {
     console.error(`Failed to fetch metadata for ${normalizedId}:`, error);
@@ -108,6 +148,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'No papers provided' }, { status: 400 });
     }
 
+    // Check if author is a verified researcher (3x weight for mentions)
+    const [verifiedAuthor] = await db
+      .select()
+      .from(verifiedResearchers)
+      .where(eq(verifiedResearchers.did, authorDid))
+      .limit(1);
+    const isVerified = !!verifiedAuthor;
+    const mentionWeight = isVerified ? 3 : 1;
+
     const results: { paperId: number; normalizedId: string }[] = [];
 
     for (const paper of papers) {
@@ -121,12 +170,12 @@ export async function POST(request: NextRequest) {
       let paperId: number;
 
       if (existingPaper) {
-        // Update existing paper
+        // Update existing paper (verified researchers count 3x)
         await db
           .update(discoveredPapers)
           .set({
             lastSeenAt: new Date(),
-            mentionCount: sql`${discoveredPapers.mentionCount} + 1`,
+            mentionCount: sql`${discoveredPapers.mentionCount} + ${mentionWeight}`,
           })
           .where(eq(discoveredPapers.normalizedId, paper.normalizedId));
         paperId = existingPaper.id;
@@ -134,7 +183,7 @@ export async function POST(request: NextRequest) {
         // Fetch metadata for new paper
         const metadata = await fetchPaperMetadata(paper.normalizedId, paper.source);
 
-        // Insert new paper with metadata
+        // Insert new paper with metadata (verified researchers count 3x)
         const [inserted] = await db
           .insert(discoveredPapers)
           .values({
@@ -145,7 +194,7 @@ export async function POST(request: NextRequest) {
             authors: metadata?.authors ? JSON.stringify(metadata.authors) : null,
             firstSeenAt: new Date(),
             lastSeenAt: new Date(),
-            mentionCount: 1,
+            mentionCount: mentionWeight,
           })
           .returning({ id: discoveredPapers.id });
         paperId = inserted.id;
@@ -166,7 +215,7 @@ export async function POST(request: NextRequest) {
           authorDid,
           postText: postText?.slice(0, 1000) || '', // Limit text length
           createdAt: new Date(createdAt),
-          isVerifiedResearcher: false, // TODO: Check against verified researchers
+          isVerifiedResearcher: isVerified,
         });
       }
 

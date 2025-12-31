@@ -12,5 +12,19 @@ bindings = [
 tag = "v1"
 new_sqlite_classes = ["JetstreamConnection"]
 
+# Cron trigger to keep the firehose connection alive
+[triggers]
+crons = ["* * * * *"]  # Every minute
+
 # Environment variables (set via wrangler secret)
-# NEON_DATABASE_URL - connection string for Neon
+# LEA_API_URL, LEA_API_SECRET - for calling the Next.js API
+
+# Observability and logging
+[observability]
+enabled = true
+head_sampling_rate = 1
+
+[observability.logs]
+enabled = true
+head_sampling_rate = 1
+invocation_logs = true
