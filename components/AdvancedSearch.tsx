@@ -144,9 +144,16 @@ export default function AdvancedSearch({ initialQuery = '', initialFilters = {},
     } else if (customDomain) {
       filters.domain = customDomain;
     }
-    if (tags.length > 0) filters.tag = tags;
     
-    onSearch(query, filters, verifiedOnly);
+    // Include hashtags directly in the query string for more reliable search
+    // The Bluesky search supports #hashtag syntax in the query
+    let searchQuery = query;
+    if (tags.length > 0) {
+      const hashtagPart = tags.map(t => `#${t}`).join(' ');
+      searchQuery = searchQuery ? `${searchQuery} ${hashtagPart}` : hashtagPart;
+    }
+    
+    onSearch(searchQuery, filters, verifiedOnly);
   }, [query, authorHandle, selectedDomain, customDomain, tags, verifiedOnly, onSearch]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
