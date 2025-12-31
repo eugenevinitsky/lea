@@ -31,7 +31,6 @@ interface UserResult {
   description: string | null;
   avatar?: string;
   isVerified: boolean;
-  followersCount?: number;
 }
 
 function SearchPageContent() {
@@ -121,14 +120,13 @@ function SearchPageContent() {
           description: actor.description || null,
           avatar: actor.avatar,
           isVerified: verifiedDids.has(actor.did) || isVerifiedResearcher(actor.labels as Label[] | undefined),
-          followersCount: actor.followersCount,
         }));
 
-        // Sort: verified first, then by followers
+        // Sort: verified first
         users.sort((a, b) => {
           if (a.isVerified && !b.isVerified) return -1;
           if (!a.isVerified && b.isVerified) return 1;
-          return (b.followersCount || 0) - (a.followersCount || 0);
+          return 0;
         });
 
         setUserResults(users);
