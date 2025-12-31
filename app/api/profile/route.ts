@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db, researcherProfiles } from '@/lib/db';
-import { ozoneDb, verifiedMembers } from '@/lib/ozone-db';
+import { db, researcherProfiles, verifiedResearchers } from '@/lib/db';
 import { eq } from 'drizzle-orm';
 import type { ProfileLink, ProfilePaper } from '@/lib/db/schema';
 
@@ -13,11 +12,11 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    // Get verified researcher info from Ozone DB (optional - may not exist for non-researchers)
-    const [member] = await ozoneDb
+    // Get verified researcher info from app DB
+    const [researcher] = await db
       .select()
-      .from(verifiedMembers)
-      .where(eq(verifiedMembers.blueskyDid, did))
+      .from(verifiedResearchers)
+      .where(eq(verifiedResearchers.did, did))
       .limit(1);
 
     // Get profile data from app DB (may not exist yet)
@@ -39,16 +38,16 @@ export async function GET(request: NextRequest) {
       updatedAt: profile.updatedAt,
     } : null;
 
-    // Return researcher info only if verified, otherwise null
-    const researcherData = member ? {
-      did: member.blueskyDid,
-      handle: member.blueskyHandle,
-      name: member.displayName,
-      orcid: member.orcidId || '',
-      institution: null, // Not in Ozone DB - could use profile.affiliation
-      researchTopics: [], // Would need to fetch from OpenAlex using member.openalexId
-      verifiedAt: member.verifiedAt,
-      openalexId: member.openalexId,
+    // Return researcher info only if verified and active
+    const researcherData = (researcher && researcher.isActive) ? {
+      did: researcher.did,
+      handle: researcher.handle,
+      name: researcher.name,
+      orcid: researcher.orcid || '',
+      institution: researcher.institution,
+      researchTopics: researcher.researchTopics ? JSON.parse(researcher.researchTopics) : [],
+      verifiedAt: researcher.verifiedAt,
+      openAlexId: researcher.openAlexId,
     } : null;
 
     return NextResponse.json({
