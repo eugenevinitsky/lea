@@ -178,12 +178,10 @@ export default function ThreadView({ uri, onClose, onOpenThread, onOpenProfile, 
         <div>
           {/* Parent posts (context) */}
           {parents.length > 0 && (
-            <div className="border-l-2 border-blue-300 dark:border-blue-700 ml-6">
-              {parents.map((post) => (
-                <div key={post.uri} className="relative">
-                  {/* Connector line */}
-                  <div className="absolute left-0 top-0 bottom-0 w-0.5 bg-blue-300 dark:bg-blue-700 -ml-[1px]" />
-                  <div className="pl-4 opacity-80">
+            <div>
+              {parents.map((post, index) => (
+                <div key={post.uri} className="relative border-l-4 border-blue-300 dark:border-blue-700">
+                  <div className="opacity-75">
                     <Post post={post} onOpenThread={navigateToThread} onOpenProfile={onOpenProfile} onReply={refreshThread} />
                   </div>
                 </div>
