@@ -64,25 +64,33 @@ function MessageText({ text, isOwn }: { text: string; isOwn: boolean }) {
       elements.push(<span key={`text-${lastIndex}`}>{text.slice(lastIndex, matchStart)}</span>);
     }
     
-    // Determine the href (add https:// if no protocol)
-    const href = matchedUrl.match(/^https?:\/\//i) ? matchedUrl : `https://${matchedUrl}`;
+    // Skip truncated URLs (ending with ... or …) - they won't work as links
+    const isTruncated = matchedUrl.endsWith('...') || matchedUrl.endsWith('…');
     
-    elements.push(
-      <a
-        key={`link-${matchStart}`}
-        href={href}
-        target="_blank"
-        rel="noopener noreferrer"
-        onClick={(e) => e.stopPropagation()}
-        className={`underline break-all ${
-          isOwn
-            ? 'text-blue-100 hover:text-white'
-            : 'text-blue-500 hover:text-blue-600 dark:text-blue-400 dark:hover:text-blue-300'
-        }`}
-      >
-        {matchedUrl}
-      </a>
-    );
+    if (isTruncated) {
+      // Render as plain text, not a link
+      elements.push(<span key={`text-${matchStart}`}>{matchedUrl}</span>);
+    } else {
+      // Determine the href (add https:// if no protocol)
+      const href = matchedUrl.match(/^https?:\/\//i) ? matchedUrl : `https://${matchedUrl}`;
+      
+      elements.push(
+        <a
+          key={`link-${matchStart}`}
+          href={href}
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={(e) => e.stopPropagation()}
+          className={`underline break-all ${
+            isOwn
+              ? 'text-blue-100 hover:text-white'
+              : 'text-blue-500 hover:text-blue-600 dark:text-blue-400 dark:hover:text-blue-300'
+          }`}
+        >
+          {matchedUrl}
+        </a>
+      );
+    }
     
     lastIndex = matchStart + matchedUrl.length;
   }
