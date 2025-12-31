@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db, discoveredPapers, paperMentions } from '@/lib/db';
+import { db, discoveredPapers, paperMentions, verifiedResearchers } from '@/lib/db';
 import { eq, sql } from 'drizzle-orm';
 
 // Secret for authenticating requests from the Cloudflare Worker
@@ -148,6 +148,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'No papers provided' }, { status: 400 });
     }
 
+    // Check if author is a verified researcher (3x weight for mentions)
+    const [verifiedAuthor] = await db
+      .select()
+      .from(verifiedResearchers)
+      .where(eq(verifiedResearchers.did, authorDid))
+      .limit(1);
+    const isVerified = !!verifiedAuthor;
+    const mentionWeight = isVerified ? 3 : 1;
+
     const results: { paperId: number; normalizedId: string }[] = [];
 
     for (const paper of papers) {
@@ -161,12 +170,12 @@ export async function POST(request: NextRequest) {
       let paperId: number;
 
       if (existingPaper) {
-        // Update existing paper
+        // Update existing paper (verified researchers count 3x)
         await db
           .update(discoveredPapers)
           .set({
             lastSeenAt: new Date(),
-            mentionCount: sql`${discoveredPapers.mentionCount} + 1`,
+            mentionCount: sql`${discoveredPapers.mentionCount} + ${mentionWeight}`,
           })
           .where(eq(discoveredPapers.normalizedId, paper.normalizedId));
         paperId = existingPaper.id;
@@ -174,7 +183,7 @@ export async function POST(request: NextRequest) {
         // Fetch metadata for new paper
         const metadata = await fetchPaperMetadata(paper.normalizedId, paper.source);
 
-        // Insert new paper with metadata
+        // Insert new paper with metadata (verified researchers count 3x)
         const [inserted] = await db
           .insert(discoveredPapers)
           .values({
@@ -185,7 +194,7 @@ export async function POST(request: NextRequest) {
             authors: metadata?.authors ? JSON.stringify(metadata.authors) : null,
             firstSeenAt: new Date(),
             lastSeenAt: new Date(),
-            mentionCount: 1,
+            mentionCount: mentionWeight,
           })
           .returning({ id: discoveredPapers.id });
         paperId = inserted.id;
@@ -206,7 +215,7 @@ export async function POST(request: NextRequest) {
           authorDid,
           postText: postText?.slice(0, 1000) || '', // Limit text length
           createdAt: new Date(createdAt),
-          isVerifiedResearcher: false, // TODO: Check against verified researchers
+          isVerifiedResearcher: isVerified,
         });
       }
 

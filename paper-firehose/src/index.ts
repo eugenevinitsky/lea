@@ -33,6 +33,19 @@ interface PaperMatch {
   source: string;
 }
 
+// Check if a URL or ID appears to be truncated
+function isTruncated(text: string): boolean {
+  // Common truncation patterns
+  const truncationPatterns = [
+    /\.{2,}$/,        // Ends with .. or ...
+    /\.{2,}\)?$/,     // Ends with ...) or ...)
+    /…$/,             // Ends with ellipsis character
+    /\.{2,}\]?$/,     // Ends with ...]
+  ];
+
+  return truncationPatterns.some(pattern => pattern.test(text));
+}
+
 function extractPaperLinks(text: string): PaperMatch[] {
   const papers: PaperMatch[] = [];
   const seen = new Set<string>();
@@ -44,6 +57,12 @@ function extractPaperLinks(text: string): PaperMatch[] {
     let match;
     while ((match = globalPattern.exec(text)) !== null) {
       if (match[1]) {
+        // Skip truncated URLs/IDs
+        if (isTruncated(match[0]) || isTruncated(match[1])) {
+          console.log(`Skipping truncated paper URL: ${match[0]}`);
+          continue;
+        }
+
         const normalizedId = normalize(match[1]);
         if (!seen.has(normalizedId)) {
           seen.add(normalizedId);
