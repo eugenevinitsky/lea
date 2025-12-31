@@ -1,20 +1,20 @@
 import { NextResponse } from 'next/server';
-import { ozoneDb, verifiedMembers } from '@/lib/ozone-db';
-import { desc, isNotNull } from 'drizzle-orm';
+import { db, verifiedResearchers } from '@/lib/db';
+import { desc, eq } from 'drizzle-orm';
 
 export async function GET() {
   try {
     // Get recently verified researchers, ordered by verifiedAt
-    const recent = await ozoneDb
+    const recent = await db
       .select({
-        did: verifiedMembers.blueskyDid,
-        handle: verifiedMembers.blueskyHandle,
-        name: verifiedMembers.displayName,
-        verifiedAt: verifiedMembers.verifiedAt,
+        did: verifiedResearchers.did,
+        handle: verifiedResearchers.handle,
+        name: verifiedResearchers.name,
+        verifiedAt: verifiedResearchers.verifiedAt,
       })
-      .from(verifiedMembers)
-      .where(isNotNull(verifiedMembers.verifiedAt))
-      .orderBy(desc(verifiedMembers.verifiedAt))
+      .from(verifiedResearchers)
+      .where(eq(verifiedResearchers.isActive, true))
+      .orderBy(desc(verifiedResearchers.verifiedAt))
       .limit(20);
 
     return NextResponse.json({
