@@ -17,19 +17,6 @@ interface AdvancedSearchProps {
   onSearch: (query: string, filters: SearchPostsFilters, verifiedOnly: boolean) => void;
 }
 
-// Common languages for researchers
-const LANGUAGES = [
-  { code: '', label: 'Any language' },
-  { code: 'en', label: 'English' },
-  { code: 'es', label: 'Spanish' },
-  { code: 'de', label: 'German' },
-  { code: 'fr', label: 'French' },
-  { code: 'pt', label: 'Portuguese' },
-  { code: 'ja', label: 'Japanese' },
-  { code: 'zh', label: 'Chinese' },
-  { code: 'ko', label: 'Korean' },
-];
-
 // Common research domains
 const COMMON_DOMAINS = [
   { domain: '', label: 'Any domain' },
@@ -53,9 +40,6 @@ export default function AdvancedSearch({ initialQuery = '', initialFilters = {},
   const [authorHandle, setAuthorHandle] = useState(initialFilters.author || '');
   const [authorSuggestions, setAuthorSuggestions] = useState<{ did: string; handle: string; displayName?: string }[]>([]);
   const [showAuthorSuggestions, setShowAuthorSuggestions] = useState(false);
-  const [sinceDate, setSinceDate] = useState(initialFilters.since?.split('T')[0] || '');
-  const [untilDate, setUntilDate] = useState(initialFilters.until?.split('T')[0] || '');
-  const [selectedLang, setSelectedLang] = useState(initialFilters.lang || '');
   const [selectedDomain, setSelectedDomain] = useState(initialFilters.domain || '');
   const [customDomain, setCustomDomain] = useState('');
   const [tags, setTags] = useState<string[]>(initialFilters.tag || []);
@@ -155,9 +139,6 @@ export default function AdvancedSearch({ initialQuery = '', initialFilters = {},
     const filters: SearchPostsFilters = {};
     
     if (authorHandle) filters.author = authorHandle;
-    if (sinceDate) filters.since = `${sinceDate}T00:00:00.000Z`;
-    if (untilDate) filters.until = `${untilDate}T23:59:59.999Z`;
-    if (selectedLang) filters.lang = selectedLang;
     if (selectedDomain) {
       filters.domain = selectedDomain;
     } else if (customDomain) {
@@ -166,7 +147,7 @@ export default function AdvancedSearch({ initialQuery = '', initialFilters = {},
     if (tags.length > 0) filters.tag = tags;
     
     onSearch(query, filters, verifiedOnly);
-  }, [query, authorHandle, sinceDate, untilDate, selectedLang, selectedDomain, customDomain, tags, verifiedOnly, onSearch]);
+  }, [query, authorHandle, selectedDomain, customDomain, tags, verifiedOnly, onSearch]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
@@ -177,9 +158,6 @@ export default function AdvancedSearch({ initialQuery = '', initialFilters = {},
 
   const clearFilters = () => {
     setAuthorHandle('');
-    setSinceDate('');
-    setUntilDate('');
-    setSelectedLang('');
     setSelectedDomain('');
     setCustomDomain('');
     setTags([]);
@@ -193,9 +171,6 @@ export default function AdvancedSearch({ initialQuery = '', initialFilters = {},
     const parts: string[] = [];
     if (query) parts.push(query);
     if (authorHandle) parts.push(`from:${authorHandle}`);
-    if (sinceDate) parts.push(`since:${sinceDate}`);
-    if (untilDate) parts.push(`until:${untilDate}`);
-    if (selectedLang) parts.push(`lang:${selectedLang}`);
     if (selectedDomain || customDomain) parts.push(`domain:${selectedDomain || customDomain}`);
     tags.forEach(tag => parts.push(`#${tag}`));
     return parts.join(' ');
@@ -203,9 +178,6 @@ export default function AdvancedSearch({ initialQuery = '', initialFilters = {},
 
   const activeFilterCount = [
     authorHandle,
-    sinceDate,
-    untilDate,
-    selectedLang,
     selectedDomain || customDomain,
     tags.length > 0,
     verifiedOnly,
@@ -303,8 +275,8 @@ export default function AdvancedSearch({ initialQuery = '', initialFilters = {},
       {/* Filter panel */}
       {showFilters && (
         <div className="bg-gray-50 dark:bg-gray-900 rounded-xl p-4 space-y-4 border border-gray-200 dark:border-gray-800">
-          {/* Row 1: Author and Date range */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {/* Row 1: Author and Domain */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* Author filter */}
             <div className="relative" ref={authorDropdownRef}>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
@@ -338,51 +310,6 @@ export default function AdvancedSearch({ initialQuery = '', initialFilters = {},
                   ))}
                 </div>
               )}
-            </div>
-
-            {/* Since date */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Since
-              </label>
-              <input
-                type="date"
-                value={sinceDate}
-                onChange={(e) => setSinceDate(e.target.value)}
-                className="w-full px-3 py-2 text-sm bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
-              />
-            </div>
-
-            {/* Until date */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Until
-              </label>
-              <input
-                type="date"
-                value={untilDate}
-                onChange={(e) => setUntilDate(e.target.value)}
-                className="w-full px-3 py-2 text-sm bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
-              />
-            </div>
-          </div>
-
-          {/* Row 2: Language, Domain */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {/* Language */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Language
-              </label>
-              <select
-                value={selectedLang}
-                onChange={(e) => setSelectedLang(e.target.value)}
-                className="w-full px-3 py-2 text-sm bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
-              >
-                {LANGUAGES.map(lang => (
-                  <option key={lang.code} value={lang.code}>{lang.label}</option>
-                ))}
-              </select>
             </div>
 
             {/* Domain */}
