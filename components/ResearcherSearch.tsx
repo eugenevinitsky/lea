@@ -204,12 +204,8 @@ export default function ResearcherSearch({ onSelectResearcher, onOpenThread, onS
       setSelectedIndex(i => Math.max(i - 1, 0));
     } else if (e.key === 'Enter') {
       e.preventDefault();
-      if (activeTab === 'users' && searchResults[selectedIndex]) {
-        handleSelect(searchResults[selectedIndex]);
-      } else if (activeTab === 'posts' && postResults[selectedIndex]) {
-        handleSelectPost(postResults[selectedIndex]);
-      } else if (query.trim() && onSearch) {
-        // No result selected, navigate to search page
+      // Enter always goes to full search results page
+      if (query.trim() && onSearch) {
         onSearch(query.trim());
         setQuery('');
         setIsOpen(false);
@@ -390,6 +386,24 @@ export default function ResearcherSearch({ onSelectResearcher, onOpenThread, onS
             <div className="px-4 py-3 text-sm text-gray-500 text-center">
               Searching...
             </div>
+          )}
+
+          {/* View all results link */}
+          {onSearch && query.trim() && (searchResults.length > 0 || postResults.length > 0) && (
+            <button
+              onClick={() => {
+                onSearch(query.trim());
+                setQuery('');
+                setIsOpen(false);
+                inputRef.current?.blur();
+              }}
+              className="w-full px-4 py-3 text-sm font-medium text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 border-t border-gray-200 dark:border-gray-700 flex items-center justify-center gap-2"
+            >
+              View all results for &ldquo;{query}&rdquo;
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
+              </svg>
+            </button>
           )}
         </div>
       )}
