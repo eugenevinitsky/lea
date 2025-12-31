@@ -71,18 +71,29 @@ function AppContent() {
     }
   }, [activeFeedUri]);
 
-  // Set active feed to first pinned feed when feeds load
+  // Initialize active feed from localStorage on first render
   useEffect(() => {
-    if (pinnedFeeds.length > 0 && activeFeedUri === null) {
+    if (activeFeedUri === null) {
       // First check sessionStorage (for thread navigation back)
       const sessionFeed = sessionStorage.getItem('lea-scroll-feed');
       // Then check localStorage (for page refresh persistence)
       const savedFeed = sessionFeed || localStorage.getItem('lea-active-feed');
-      if (savedFeed && pinnedFeeds.some(f => f.uri === savedFeed)) {
+      if (savedFeed) {
         setActiveFeedUri(savedFeed);
-      } else {
+      }
+    }
+  }, []); // Only run once on mount
+
+  // Once pinnedFeeds loads, validate the active feed or default to first
+  useEffect(() => {
+    if (pinnedFeeds.length > 0 && activeFeedUri !== null) {
+      // If current feed is not in pinned feeds, switch to first feed
+      if (!pinnedFeeds.some(f => f.uri === activeFeedUri)) {
         setActiveFeedUri(pinnedFeeds[0].uri);
       }
+    } else if (pinnedFeeds.length > 0 && activeFeedUri === null) {
+      // No saved feed, default to first
+      setActiveFeedUri(pinnedFeeds[0].uri);
     }
   }, [pinnedFeeds, activeFeedUri]);
 
