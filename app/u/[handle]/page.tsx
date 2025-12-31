@@ -170,7 +170,7 @@ function ProfilePageContent() {
             onClick={() => window.location.href = '/'}
           >Lea</h1>
           <div className="flex items-center gap-3">
-            <ResearcherSearch onSelectResearcher={handleOpenProfile} />
+            <ResearcherSearch onSelectResearcher={handleOpenProfile} onOpenThread={openThread} />
             <button
               onClick={() => window.location.href = `/u/${session?.handle}`}
               className="px-3 py-1.5 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full transition-colors"

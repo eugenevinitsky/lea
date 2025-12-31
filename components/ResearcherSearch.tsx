@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { searchActors, isVerifiedResearcher, ActorSearchResult, Label, getBlueskyProfile } from '@/lib/bluesky';
+import { searchActors, isVerifiedResearcher, Label, getBlueskyProfile, searchPosts } from '@/lib/bluesky';
+import { AppBskyFeedDefs, AppBskyFeedPost } from '@atproto/api';
 
 interface Researcher {
   did: string;
@@ -19,14 +20,26 @@ interface SearchResult {
   isVerified: boolean;
 }
 
-interface ResearcherSearchProps {
-  onSelectResearcher: (did: string) => void;
+interface PostResult {
+  uri: string;
+  authorHandle: string;
+  authorDisplayName?: string;
+  authorAvatar?: string;
+  text: string;
+  createdAt: string;
 }
 
-export default function ResearcherSearch({ onSelectResearcher }: ResearcherSearchProps) {
+interface ResearcherSearchProps {
+  onSelectResearcher: (did: string) => void;
+  onOpenThread?: (uri: string) => void;
+}
+
+export default function ResearcherSearch({ onSelectResearcher, onOpenThread }: ResearcherSearchProps) {
   const [query, setQuery] = useState('');
   const [researchers, setResearchers] = useState<Researcher[]>([]);
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
+  const [postResults, setPostResults] = useState<PostResult[]>([]);
+  const [activeTab, setActiveTab] = useState<'users' | 'posts'>('users');
   const [isOpen, setIsOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [searching, setSearching] = useState(false);
@@ -89,9 +102,10 @@ export default function ResearcherSearch({ onSelectResearcher }: ResearcherSearc
     const timeoutId = setTimeout(async () => {
       setSearching(true);
       try {
-        // Fetch avatars for verified researchers in parallel with Bluesky search
-        const [bskyResults, ...avatarResults] = await Promise.all([
+        // Fetch avatars for verified researchers in parallel with Bluesky search and post search
+        const [bskyResults, postsResponse, ...avatarResults] = await Promise.all([
           searchActors(query, 8),
+          searchPosts(query, undefined, 'top'),
           ...matchedResearchers.map(r => getBlueskyProfile(r.did)),
         ]);
         
@@ -121,9 +135,24 @@ export default function ResearcherSearch({ onSelectResearcher }: ResearcherSearc
 
         const combined = [...verifiedWithAvatars, ...otherResults].slice(0, 10);
         setSearchResults(combined);
-        setIsOpen(combined.length > 0);
+        
+        // Process post results
+        const posts: PostResult[] = postsResponse.posts.slice(0, 5).map(post => {
+          const record = post.record as AppBskyFeedPost.Record;
+          return {
+            uri: post.uri,
+            authorHandle: post.author.handle,
+            authorDisplayName: post.author.displayName,
+            authorAvatar: post.author.avatar,
+            text: record.text.slice(0, 100) + (record.text.length > 100 ? '...' : ''),
+            createdAt: record.createdAt,
+          };
+        });
+        setPostResults(posts);
+        
+        setIsOpen(combined.length > 0 || posts.length > 0);
       } catch (err) {
-        console.error('Failed to search Bluesky actors:', err);
+        console.error('Failed to search:', err);
       } finally {
         setSearching(false);
       }
@@ -150,20 +179,39 @@ export default function ResearcherSearch({ onSelectResearcher }: ResearcherSearc
     inputRef.current?.blur();
   };
 
+  const handleSelectPost = (post: PostResult) => {
+    if (onOpenThread) {
+      onOpenThread(post.uri);
+    }
+    setQuery('');
+    setIsOpen(false);
+    inputRef.current?.blur();
+  };
+
+  // Get current items based on active tab
+  const currentItems = activeTab === 'users' ? searchResults : postResults;
+  const totalItems = currentItems.length;
+
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (!isOpen) return;
 
     if (e.key === 'ArrowDown') {
       e.preventDefault();
-      setSelectedIndex(i => Math.min(i + 1, searchResults.length - 1));
+      setSelectedIndex(i => Math.min(i + 1, totalItems - 1));
     } else if (e.key === 'ArrowUp') {
       e.preventDefault();
       setSelectedIndex(i => Math.max(i - 1, 0));
     } else if (e.key === 'Enter') {
       e.preventDefault();
-      if (searchResults[selectedIndex]) {
+      if (activeTab === 'users' && searchResults[selectedIndex]) {
         handleSelect(searchResults[selectedIndex]);
+      } else if (activeTab === 'posts' && postResults[selectedIndex]) {
+        handleSelectPost(postResults[selectedIndex]);
       }
+    } else if (e.key === 'Tab') {
+      e.preventDefault();
+      setActiveTab(prev => prev === 'users' ? 'posts' : 'users');
+      setSelectedIndex(0);
     } else if (e.key === 'Escape') {
       setIsOpen(false);
     }
@@ -204,67 +252,134 @@ export default function ResearcherSearch({ onSelectResearcher }: ResearcherSearc
 
       {/* Dropdown */}
       {isOpen && (
-        <div className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-gray-900 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 overflow-hidden z-50 min-w-64">
-          {searchResults.map((result, index) => (
+        <div className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-gray-900 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 overflow-hidden z-50 min-w-72">
+          {/* Tabs */}
+          <div className="flex border-b border-gray-200 dark:border-gray-700">
             <button
-              key={result.did}
-              onClick={() => handleSelect(result)}
-              className={`w-full px-4 py-3 flex items-center gap-3 text-left transition-colors ${
-                index === selectedIndex
-                  ? 'bg-blue-50 dark:bg-blue-900/30'
-                  : 'hover:bg-gray-50 dark:hover:bg-gray-800'
+              onClick={() => { setActiveTab('users'); setSelectedIndex(0); }}
+              className={`flex-1 px-4 py-2 text-sm font-medium transition-colors ${
+                activeTab === 'users'
+                  ? 'text-blue-600 dark:text-blue-400 border-b-2 border-blue-500 -mb-px'
+                  : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
               }`}
             >
-              {/* Avatar with verified badge overlay */}
-              <div className="relative flex-shrink-0">
-                {result.avatar ? (
-                  <img
-                    src={result.avatar}
-                    alt=""
-                    className="w-10 h-10 rounded-full"
-                  />
-                ) : (
-                  <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                    result.isVerified 
-                      ? 'bg-emerald-100 dark:bg-emerald-900/30' 
-                      : 'bg-gray-200 dark:bg-gray-700'
-                  }`}>
-                    <span className={`font-medium ${
-                      result.isVerified
-                        ? 'text-emerald-600 dark:text-emerald-400'
-                        : 'text-gray-500 dark:text-gray-400'
-                    }`}>
-                      {(result.displayName || result.handle)[0].toUpperCase()}
-                    </span>
-                  </div>
-                )}
-                {result.isVerified && (
-                  <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-emerald-500 rounded-full flex items-center justify-center ring-2 ring-white dark:ring-gray-900">
-                    <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                    </svg>
-                  </div>
-                )}
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-1.5">
-                  <p className="font-medium text-gray-900 dark:text-gray-100 truncate">
-                    {result.displayName || result.handle}
-                  </p>
-                </div>
-                <p className="text-sm text-gray-500 truncate">
-                  @{result.handle}
-                  {result.subtitle && ` · ${result.subtitle}`}
-                </p>
-              </div>
+              Users {searchResults.length > 0 && `(${searchResults.length})`}
             </button>
-          ))}
-          {searchResults.length === 0 && query.trim() && !searching && (
-            <div className="px-4 py-3 text-sm text-gray-500 text-center">
-              No users found
+            <button
+              onClick={() => { setActiveTab('posts'); setSelectedIndex(0); }}
+              className={`flex-1 px-4 py-2 text-sm font-medium transition-colors ${
+                activeTab === 'posts'
+                  ? 'text-blue-600 dark:text-blue-400 border-b-2 border-blue-500 -mb-px'
+                  : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
+              }`}
+            >
+              Posts {postResults.length > 0 && `(${postResults.length})`}
+            </button>
+          </div>
+
+          {/* Users tab content */}
+          {activeTab === 'users' && (
+            <div className="max-h-80 overflow-y-auto">
+              {searchResults.map((result, index) => (
+                <button
+                  key={result.did}
+                  onClick={() => handleSelect(result)}
+                  className={`w-full px-4 py-3 flex items-center gap-3 text-left transition-colors ${
+                    index === selectedIndex
+                      ? 'bg-blue-50 dark:bg-blue-900/30'
+                      : 'hover:bg-gray-50 dark:hover:bg-gray-800'
+                  }`}
+                >
+                  {/* Avatar with verified badge overlay */}
+                  <div className="relative flex-shrink-0">
+                    {result.avatar ? (
+                      <img
+                        src={result.avatar}
+                        alt=""
+                        className="w-10 h-10 rounded-full"
+                      />
+                    ) : (
+                      <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                        result.isVerified 
+                          ? 'bg-emerald-100 dark:bg-emerald-900/30' 
+                          : 'bg-gray-200 dark:bg-gray-700'
+                      }`}>
+                        <span className={`font-medium ${
+                          result.isVerified
+                            ? 'text-emerald-600 dark:text-emerald-400'
+                            : 'text-gray-500 dark:text-gray-400'
+                        }`}>
+                          {(result.displayName || result.handle)[0].toUpperCase()}
+                        </span>
+                      </div>
+                    )}
+                    {result.isVerified && (
+                      <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-emerald-500 rounded-full flex items-center justify-center ring-2 ring-white dark:ring-gray-900">
+                        <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                        </svg>
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-1.5">
+                      <p className="font-medium text-gray-900 dark:text-gray-100 truncate">
+                        {result.displayName || result.handle}
+                      </p>
+                    </div>
+                    <p className="text-sm text-gray-500 truncate">
+                      @{result.handle}
+                      {result.subtitle && ` · ${result.subtitle}`}
+                    </p>
+                  </div>
+                </button>
+              ))}
+              {searchResults.length === 0 && query.trim() && !searching && (
+                <div className="px-4 py-3 text-sm text-gray-500 text-center">
+                  No users found
+                </div>
+              )}
             </div>
           )}
-          {searching && searchResults.length === 0 && (
+
+          {/* Posts tab content */}
+          {activeTab === 'posts' && (
+            <div className="max-h-80 overflow-y-auto">
+              {postResults.map((post, index) => (
+                <button
+                  key={post.uri}
+                  onClick={() => handleSelectPost(post)}
+                  className={`w-full px-4 py-3 text-left transition-colors ${
+                    index === selectedIndex
+                      ? 'bg-blue-50 dark:bg-blue-900/30'
+                      : 'hover:bg-gray-50 dark:hover:bg-gray-800'
+                  }`}
+                >
+                  <div className="flex items-center gap-2 mb-1">
+                    {post.authorAvatar ? (
+                      <img src={post.authorAvatar} alt="" className="w-5 h-5 rounded-full" />
+                    ) : (
+                      <div className="w-5 h-5 rounded-full bg-gray-300 dark:bg-gray-600" />
+                    )}
+                    <span className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
+                      {post.authorDisplayName || post.authorHandle}
+                    </span>
+                    <span className="text-xs text-gray-500">@{post.authorHandle}</span>
+                  </div>
+                  <p className="text-sm text-gray-700 dark:text-gray-300 line-clamp-2">
+                    {post.text}
+                  </p>
+                </button>
+              ))}
+              {postResults.length === 0 && query.trim() && !searching && (
+                <div className="px-4 py-3 text-sm text-gray-500 text-center">
+                  No posts found
+                </div>
+              )}
+            </div>
+          )}
+
+          {searching && totalItems === 0 && (
             <div className="px-4 py-3 text-sm text-gray-500 text-center">
               Searching...
             </div>
