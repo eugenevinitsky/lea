@@ -160,7 +160,7 @@ function PostPageContent() {
             >Lea</h1>
           </div>
           <div className="flex items-center gap-3">
-            <ResearcherSearch onSelectResearcher={navigateToProfile} onOpenThread={navigateToThread} />
+            <ResearcherSearch onSelectResearcher={navigateToProfile} onOpenThread={navigateToThread} onSearch={(q) => window.location.href = `/search?q=${encodeURIComponent(q)}`} />
             <button
               onClick={() => window.location.href = `/u/${session?.handle}`}
               className="px-3 py-1.5 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full transition-colors"

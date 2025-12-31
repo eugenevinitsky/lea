@@ -32,9 +32,10 @@ interface PostResult {
 interface ResearcherSearchProps {
   onSelectResearcher: (did: string) => void;
   onOpenThread?: (uri: string) => void;
+  onSearch?: (query: string) => void;
 }
 
-export default function ResearcherSearch({ onSelectResearcher, onOpenThread }: ResearcherSearchProps) {
+export default function ResearcherSearch({ onSelectResearcher, onOpenThread, onSearch }: ResearcherSearchProps) {
   const [query, setQuery] = useState('');
   const [researchers, setResearchers] = useState<Researcher[]>([]);
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
@@ -207,6 +208,12 @@ export default function ResearcherSearch({ onSelectResearcher, onOpenThread }: R
         handleSelect(searchResults[selectedIndex]);
       } else if (activeTab === 'posts' && postResults[selectedIndex]) {
         handleSelectPost(postResults[selectedIndex]);
+      } else if (query.trim() && onSearch) {
+        // No result selected, navigate to search page
+        onSearch(query.trim());
+        setQuery('');
+        setIsOpen(false);
+        inputRef.current?.blur();
       }
     } else if (e.key === 'Tab') {
       e.preventDefault();
@@ -240,7 +247,7 @@ export default function ResearcherSearch({ onSelectResearcher, onOpenThread }: R
           onChange={(e) => setQuery(e.target.value)}
           onFocus={() => query.trim() && searchResults.length > 0 && setIsOpen(true)}
           onKeyDown={handleKeyDown}
-          placeholder="Search users..."
+          placeholder="Search users and posts..."
           className="w-48 pl-9 pr-3 py-1.5 text-sm bg-gray-100 dark:bg-gray-800 border border-transparent focus:border-blue-500 focus:bg-white dark:focus:bg-gray-900 rounded-full outline-none transition-all focus:w-64 text-gray-900 dark:text-gray-100 placeholder-gray-500"
         />
         {(loading || searching) && (
