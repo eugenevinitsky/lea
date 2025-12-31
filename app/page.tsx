@@ -74,8 +74,10 @@ function AppContent() {
   // Set active feed to first pinned feed when feeds load
   useEffect(() => {
     if (pinnedFeeds.length > 0 && activeFeedUri === null) {
-      // Check if we should restore a previous feed
-      const savedFeed = sessionStorage.getItem('lea-scroll-feed');
+      // First check sessionStorage (for thread navigation back)
+      const sessionFeed = sessionStorage.getItem('lea-scroll-feed');
+      // Then check localStorage (for page refresh persistence)
+      const savedFeed = sessionFeed || localStorage.getItem('lea-active-feed');
       if (savedFeed && pinnedFeeds.some(f => f.uri === savedFeed)) {
         setActiveFeedUri(savedFeed);
       } else {
@@ -83,6 +85,13 @@ function AppContent() {
       }
     }
   }, [pinnedFeeds, activeFeedUri]);
+
+  // Save active feed to localStorage whenever it changes
+  useEffect(() => {
+    if (activeFeedUri) {
+      localStorage.setItem('lea-active-feed', activeFeedUri);
+    }
+  }, [activeFeedUri]);
 
   // Restore scroll position after navigating back from a thread
   useEffect(() => {
