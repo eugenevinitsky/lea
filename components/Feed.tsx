@@ -428,6 +428,19 @@ export default function Feed({ feedId, feedUri, feedName, acceptsInteractions, r
           );
         }
         
+        // Extract reply parent info if available
+        const parentPost = item.reply?.parent && 'author' in item.reply.parent ? item.reply.parent : null;
+        const parentAuthor = parentPost?.author && 'handle' in parentPost.author ? parentPost.author : null;
+        const replyParent = parentAuthor
+          ? {
+              author: {
+                did: parentAuthor.did,
+                handle: parentAuthor.handle,
+                displayName: parentAuthor.displayName,
+              }
+            }
+          : undefined;
+        
         return (
           <Post
             key={`${postUri}-${index}`}
@@ -439,6 +452,7 @@ export default function Feed({ feedId, feedUri, feedName, acceptsInteractions, r
             feedUri={effectiveFeedUri || undefined}
             onOpenProfile={onOpenProfile}
             reason={item.reason as AppBskyFeedDefs.ReasonRepost | undefined}
+            replyParent={replyParent}
           />
         );
       })}

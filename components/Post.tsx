@@ -14,6 +14,15 @@ import EmojiPicker from './EmojiPicker';
 import Link from 'next/link';
 import { extractPaperUrl, extractAnyUrl, getPaperIdFromUrl, PAPER_DOMAINS, LinkFacet } from '@/lib/papers';
 
+// Reply context from feed (parent post info)
+interface ReplyParent {
+  author: {
+    did: string;
+    handle: string;
+    displayName?: string;
+  };
+}
+
 interface PostProps {
   post: AppBskyFeedDefs.PostView;
   feedContext?: string;
@@ -22,6 +31,8 @@ interface PostProps {
   feedUri?: string;
   // Repost reason - if present, shows "Reposted by X" header
   reason?: AppBskyFeedDefs.ReasonRepost | AppBskyFeedDefs.ReasonPin | { $type: string };
+  // Reply context - if present, shows "Replying to @handle" header
+  replyParent?: ReplyParent;
   // Self-thread styling props
   isInSelfThread?: boolean;
   isFirstInThread?: boolean;
@@ -718,7 +729,7 @@ function PostEmbed({ embed, onOpenThread }: { embed: AppBskyFeedDefs.PostView['e
   return null;
 }
 
-export default function Post({ post, onReply, onOpenThread, feedContext, reqId, supportsInteractions, feedUri, onOpenProfile, reason, isInSelfThread, isFirstInThread, isLastInThread }: PostProps & { onReply?: () => void; onOpenThread?: (uri: string) => void; onOpenProfile?: (did: string) => void }) {
+export default function Post({ post, onReply, onOpenThread, feedContext, reqId, supportsInteractions, feedUri, onOpenProfile, reason, replyParent, isInSelfThread, isFirstInThread, isLastInThread }: PostProps & { onReply?: () => void; onOpenThread?: (uri: string) => void; onOpenProfile?: (did: string) => void }) {
   const { settings } = useSettings();
   
   // Check if this is a repost
@@ -1214,6 +1225,12 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
     ? `hover:bg-gray-50 dark:hover:bg-gray-900/50 transition-colors ${dimmed ? 'opacity-60' : ''} ${!isLastInThread ? '' : ''}`
     : `border-b border-gray-200 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-900/50 transition-colors ${dimmed ? 'opacity-60' : ''}`;
 
+  // Determine reply target - prefer feed-provided parent, fall back to extracting from record.reply
+  const replyTarget = replyParent || (record.reply ? {
+    author: { did: '', handle: '', displayName: undefined } // We don't have author info from record.reply
+  } : null);
+  const hasReplyInfo = replyTarget && replyTarget.author.handle;
+
   return (
     <article className={articleClass}>
       {/* Repost header */}
@@ -1237,7 +1254,31 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
           </button>
         </div>
       )}
-      <div className={`flex gap-3 p-4 ${repostedBy ? 'pt-2' : ''}`}>
+      {/* Reply indicator */}
+      {!repostedBy && hasReplyInfo && (
+        <div className="flex items-center gap-2 px-4 pt-3 pb-1 text-sm text-gray-500">
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
+          </svg>
+          <span>Replying to </span>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              if (replyTarget!.author.did && onOpenProfile) {
+                if (e.shiftKey || e.metaKey || e.ctrlKey) {
+                  window.open(`/u/${replyTarget!.author.handle}`, '_blank');
+                } else {
+                  onOpenProfile(replyTarget!.author.did);
+                }
+              }
+            }}
+            className="text-blue-500 hover:underline font-medium"
+          >
+            @{replyTarget!.author.handle}
+          </button>
+        </div>
+      )}
+      <div className={`flex gap-3 p-4 ${repostedBy || hasReplyInfo ? 'pt-2' : ''}`}>
         {/* Avatar */}
         <ProfileHoverCard
           did={author.did}
