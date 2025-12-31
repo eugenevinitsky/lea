@@ -173,11 +173,24 @@ export async function getFeedGenerators(feedUris: string[]): Promise<FeedGenerat
   return response.data.feeds as FeedGeneratorInfo[];
 }
 
-// Search posts by keyword
+// Advanced search filters for posts
+export interface SearchPostsFilters {
+  author?: string;      // DID or handle - filter to posts by this account
+  since?: string;       // ISO date or datetime - posts after this time (inclusive)
+  until?: string;       // ISO date or datetime - posts before this time (exclusive)
+  mentions?: string;    // DID or handle - posts mentioning this account
+  lang?: string;        // ISO language code (e.g., 'en', 'es')
+  domain?: string;      // Domain to filter links (e.g., 'arxiv.org')
+  url?: string;         // Specific URL to filter
+  tag?: string[];       // Hashtags to filter (without #), AND matching
+}
+
+// Search posts by keyword with optional advanced filters
 export async function searchPosts(
   query: string,
   cursor?: string,
-  sort: 'top' | 'latest' = 'latest'
+  sort: 'top' | 'latest' = 'latest',
+  filters?: SearchPostsFilters
 ): Promise<{ posts: AppBskyFeedDefs.PostView[]; cursor?: string }> {
   if (!agent) throw new Error('Not logged in');
   const response = await agent.app.bsky.feed.searchPosts({
@@ -185,6 +198,14 @@ export async function searchPosts(
     limit: 30,
     cursor,
     sort,
+    author: filters?.author,
+    since: filters?.since,
+    until: filters?.until,
+    mentions: filters?.mentions,
+    lang: filters?.lang,
+    domain: filters?.domain,
+    url: filters?.url,
+    tag: filters?.tag,
   });
   return {
     posts: response.data.posts,

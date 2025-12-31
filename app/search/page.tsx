@@ -291,10 +291,19 @@ function SearchPageContent() {
         <main className="flex-1 max-w-xl bg-white dark:bg-gray-950 min-h-screen border-x border-gray-200 dark:border-gray-800">
           {/* Search header */}
           <div className="sticky top-14 z-10 bg-white dark:bg-gray-950 border-b border-gray-200 dark:border-gray-800">
-            <div className="px-4 py-3">
+            <div className="px-4 py-3 flex items-center justify-between">
               <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100">
                 Search results for &ldquo;{query}&rdquo;
               </h2>
+              <a
+                href={`/search/advanced?q=${encodeURIComponent(query)}`}
+                className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors"
+              >
+                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
+                </svg>
+                Advanced
+              </a>
             </div>
             {/* Tabs */}
             <div className="flex border-b border-gray-200 dark:border-gray-700">
