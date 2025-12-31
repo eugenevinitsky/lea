@@ -41,6 +41,48 @@ function formatMessageTime(dateString: string) {
   return date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
 }
 
+// Render message text with clickable links
+function MessageText({ text, isOwn }: { text: string; isOwn: boolean }) {
+  // Match URLs (http, https, or www)
+  const urlRegex = /(https?:\/\/[^\s<>"{}|\\^`[\]]+|www\.[^\s<>"{}|\\^`[\]]+)/gi;
+  const parts = text.split(urlRegex);
+  
+  if (parts.length === 1) {
+    return <>{text}</>;
+  }
+
+  return (
+    <>
+      {parts.map((part, index) => {
+        if (urlRegex.test(part)) {
+          // Reset regex lastIndex since we're reusing it
+          urlRegex.lastIndex = 0;
+          const href = part.startsWith('www.') ? `https://${part}` : part;
+          return (
+            <a
+              key={index}
+              href={href}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={(e) => e.stopPropagation()}
+              className={`underline break-all ${
+                isOwn
+                  ? 'text-blue-100 hover:text-white'
+                  : 'text-blue-500 hover:text-blue-600 dark:text-blue-400 dark:hover:text-blue-300'
+              }`}
+            >
+              {part}
+            </a>
+          );
+        }
+        // Reset regex lastIndex for next iteration
+        urlRegex.lastIndex = 0;
+        return <span key={index}>{part}</span>;
+      })}
+    </>
+  );
+}
+
 export default function DMSidebar() {
   const [isExpanded, setIsExpanded] = useState(false);
   const [convos, setConvos] = useState<Convo[]>([]);
@@ -407,7 +449,9 @@ export default function DMSidebar() {
                                 : 'bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100 rounded-bl-sm'
                             }`}
                           >
-                            <p className="whitespace-pre-wrap break-words">{msg.text}</p>
+                            <p className="whitespace-pre-wrap break-words">
+                              <MessageText text={msg.text} isOwn={isOwn} />
+                            </p>
                             <p className={`text-[9px] mt-0.5 ${isOwn ? 'text-blue-100' : 'text-gray-400'}`}>
                               {formatMessageTime(msg.sentAt)}
                             </p>
