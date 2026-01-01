@@ -23,6 +23,12 @@ export async function GET(request: NextRequest) {
         firstSeenAt: discoveredPapers.firstSeenAt,
         lastSeenAt: discoveredPapers.lastSeenAt,
         mentionCount: discoveredPapers.mentionCount,
+        // Actual post count (not weighted)
+        postCount: sql<number>`(
+          SELECT COUNT(*)
+          FROM paper_mentions
+          WHERE paper_mentions.paper_id = ${discoveredPapers.id}
+        )`.as('post_count'),
         recentMentions: sql<number>`(
           SELECT COALESCE(SUM(CASE WHEN paper_mentions.is_verified_researcher THEN 3 ELSE 1 END), 0)
           FROM paper_mentions
