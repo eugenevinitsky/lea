@@ -27,12 +27,12 @@ export async function GET(request: NextRequest) {
         postCount: sql<number>`(
           SELECT COUNT(*)
           FROM paper_mentions
-          WHERE paper_mentions.paper_id = ${discoveredPapers.id}
+          WHERE paper_mentions.paper_id = discovered_papers.id
         )`.as('post_count'),
         recentMentions: sql<number>`(
           SELECT COALESCE(SUM(CASE WHEN paper_mentions.is_verified_researcher THEN 3 ELSE 1 END), 0)
           FROM paper_mentions
-          WHERE paper_mentions.paper_id = ${discoveredPapers.id}
+          WHERE paper_mentions.paper_id = discovered_papers.id
           AND paper_mentions.created_at > ${cutoffTime}
         )`.as('recent_mentions'),
       })
@@ -41,7 +41,7 @@ export async function GET(request: NextRequest) {
         desc(sql`(
           SELECT COALESCE(SUM(CASE WHEN paper_mentions.is_verified_researcher THEN 3 ELSE 1 END), 0)
           FROM paper_mentions
-          WHERE paper_mentions.paper_id = ${discoveredPapers.id}
+          WHERE paper_mentions.paper_id = discovered_papers.id
           AND paper_mentions.created_at > ${cutoffTime}
         )`),
         desc(discoveredPapers.mentionCount)
