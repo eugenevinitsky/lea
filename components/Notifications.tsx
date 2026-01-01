@@ -12,6 +12,7 @@ import {
   GroupedNotifications,
 } from '@/lib/notifications';
 import { useSettings } from '@/lib/settings';
+import ProfileHoverCard from './ProfileHoverCard';
 
 interface NotificationsProps {
   onOpenPost?: (uri: string) => void;
@@ -64,41 +65,53 @@ function NotificationItemView({
       onClick={handleClick}
     >
       <div className="flex items-start gap-2">
-        {notification.author.avatar ? (
-          <img
-            src={notification.author.avatar}
-            alt={notification.author.handle}
-            className="w-7 h-7 rounded-full flex-shrink-0 hover:ring-2 hover:ring-blue-400 transition-all"
-            onClick={(e) => {
-              e.stopPropagation();
-              onOpenProfile?.(notification.author.did);
-            }}
-            title="View profile"
-          />
-        ) : (
-          <div
-            className="w-7 h-7 rounded-full bg-blue-500 flex items-center justify-center text-white text-xs font-bold flex-shrink-0 hover:ring-2 hover:ring-blue-400 transition-all"
-            onClick={(e) => {
-              e.stopPropagation();
-              onOpenProfile?.(notification.author.did);
-            }}
-            title="View profile"
-          >
-            {(notification.author.displayName || notification.author.handle)[0].toUpperCase()}
-          </div>
-        )}
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-1 text-xs">
-            <span
-              className="font-medium text-gray-900 dark:text-gray-100 truncate hover:text-blue-500 hover:underline"
+        <ProfileHoverCard
+          did={notification.author.did}
+          handle={notification.author.handle}
+          onOpenProfile={() => onOpenProfile?.(notification.author.did)}
+        >
+          {notification.author.avatar ? (
+            <img
+              src={notification.author.avatar}
+              alt={notification.author.handle}
+              className="w-7 h-7 rounded-full flex-shrink-0 hover:ring-2 hover:ring-blue-400 transition-all cursor-pointer"
+              onClick={(e) => {
+                e.stopPropagation();
+                onOpenProfile?.(notification.author.did);
+              }}
+              title="View profile"
+            />
+          ) : (
+            <div
+              className="w-7 h-7 rounded-full bg-blue-500 flex items-center justify-center text-white text-xs font-bold flex-shrink-0 hover:ring-2 hover:ring-blue-400 transition-all cursor-pointer"
               onClick={(e) => {
                 e.stopPropagation();
                 onOpenProfile?.(notification.author.did);
               }}
               title="View profile"
             >
-              {notification.author.displayName || notification.author.handle}
-            </span>
+              {(notification.author.displayName || notification.author.handle)[0].toUpperCase()}
+            </div>
+          )}
+        </ProfileHoverCard>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-1 text-xs">
+            <ProfileHoverCard
+              did={notification.author.did}
+              handle={notification.author.handle}
+              onOpenProfile={() => onOpenProfile?.(notification.author.did)}
+            >
+              <span
+                className="font-medium text-gray-900 dark:text-gray-100 truncate hover:text-blue-500 hover:underline cursor-pointer"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onOpenProfile?.(notification.author.did);
+                }}
+                title="View profile"
+              >
+                {notification.author.displayName || notification.author.handle}
+              </span>
+            </ProfileHoverCard>
             <span className="text-gray-400">·</span>
             <span className="text-gray-400">{formatTime(notification.indexedAt)}</span>
           </div>
