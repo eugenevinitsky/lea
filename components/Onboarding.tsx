@@ -126,15 +126,20 @@ export default function Onboarding({ onComplete, startAtStep = 1 }: OnboardingPr
       .slice(0, 10);
   }, [topicSearch, allAvailableTopics, selectedTopics]);
 
-  // Filter researchers based on search
+  // Get researchers not yet followed
+  const unfollowedResearchers = useMemo(() => {
+    return allResearchers.filter(r => !followedDids.has(r.did));
+  }, [allResearchers, followedDids]);
+
+  // Filter researchers based on search (only show unfollowed)
   const filteredResearchers = useMemo(() => {
-    if (!researcherSearch.trim()) return allResearchers;
+    if (!researcherSearch.trim()) return unfollowedResearchers;
     const search = researcherSearch.toLowerCase();
-    return allResearchers.filter(r =>
+    return unfollowedResearchers.filter(r =>
       (r.name && r.name.toLowerCase().includes(search)) ||
       (r.handle && r.handle.toLowerCase().includes(search))
     );
-  }, [researcherSearch, allResearchers]);
+  }, [researcherSearch, unfollowedResearchers]);
 
   const addTopic = (topic: string) => {
     setSelectedTopics(prev => new Set(prev).add(topic));
@@ -287,20 +292,25 @@ export default function Onboarding({ onComplete, startAtStep = 1 }: OnboardingPr
   };
 
   const selectAllForBulk = () => {
-    setSelectedForBulk(new Set(allResearchers.map(r => r.did)));
+    setSelectedForBulk(new Set(unfollowedResearchers.map(r => r.did)));
   };
 
   const deselectAllForBulk = () => {
     setSelectedForBulk(new Set());
   };
 
+  // Filter suggestions to only show unfollowed researchers
+  const unfollowedSuggestions = useMemo(() => {
+    return suggestions.filter(r => !followedDids.has(r.did));
+  }, [suggestions, followedDids]);
+
   const getResearchersToShow = () => {
     if (followMode === 'all') {
-      return allResearchers;
+      return unfollowedResearchers;
     } else if (followMode === 'topics') {
-      return suggestions;
+      return unfollowedSuggestions;
     }
-    return followMode === 'individual' ? (selectedTopics.size > 0 ? suggestions : allResearchers) : [];
+    return followMode === 'individual' ? (selectedTopics.size > 0 ? unfollowedSuggestions : unfollowedResearchers) : [];
   };
 
   const toggleFeed = (uri: string) => {
@@ -541,10 +551,10 @@ export default function Onboarding({ onComplete, startAtStep = 1 }: OnboardingPr
                       Follow all {loadingAllResearchers ? (
                         <span className="inline-block w-4 h-4 border-2 border-gray-400 border-t-transparent rounded-full animate-spin align-middle ml-1"></span>
                       ) : (
-                        `(${allResearchers.length})`
+                        `(${unfollowedResearchers.length})`
                       )}
                     </div>
-                    <p className="text-sm text-gray-500 mt-0.5">Follow every verified researcher at once</p>
+                    <p className="text-sm text-gray-500 mt-0.5">Follow every verified researcher you don't already follow</p>
                   </button>
 
                   <button
@@ -689,7 +699,7 @@ export default function Onboarding({ onComplete, startAtStep = 1 }: OnboardingPr
 
                       <div className="flex items-center justify-between mb-3">
                         <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                          {researcherSearch ? `${filteredResearchers.length} results` : `${selectedForBulk.size} of ${allResearchers.length} selected`}
+                          {researcherSearch ? `${filteredResearchers.length} results` : `${selectedForBulk.size} of ${unfollowedResearchers.length} selected`}
                         </h3>
                         {!researcherSearch && (
                           <div className="flex gap-2">
@@ -795,19 +805,15 @@ export default function Onboarding({ onComplete, startAtStep = 1 }: OnboardingPr
                 <div className="mb-6">
                   <div className="flex items-center justify-between mb-3">
                     <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                      Matching researchers ({suggestions.length})
+                      Matching researchers to follow ({unfollowedSuggestions.length})
                     </h3>
-                    {suggestions.length > 0 && (
+                    {unfollowedSuggestions.length > 0 && (
                       <button
-                        onClick={() => handleBulkFollow(suggestions)}
-                        disabled={bulkFollowing || suggestions.every(r => followedDids.has(r.did))}
-                        className={`px-4 py-1.5 rounded-full text-sm font-medium transition-colors ${
-                          suggestions.every(r => followedDids.has(r.did))
-                            ? 'bg-gray-200 dark:bg-gray-700 text-gray-500'
-                            : 'bg-blue-500 hover:bg-blue-600 text-white'
-                        }`}
+                        onClick={() => handleBulkFollow(unfollowedSuggestions)}
+                        disabled={bulkFollowing}
+                        className="px-4 py-1.5 rounded-full text-sm font-medium transition-colors bg-blue-500 hover:bg-blue-600 text-white"
                       >
-                        {bulkFollowing ? 'Following...' : suggestions.every(r => followedDids.has(r.did)) ? 'All followed' : 'Follow all'}
+                        {bulkFollowing ? 'Following...' : 'Follow all'}
                       </button>
                     )}
                   </div>
@@ -815,13 +821,13 @@ export default function Onboarding({ onComplete, startAtStep = 1 }: OnboardingPr
                     <div className="flex justify-center py-8">
                       <div className="animate-spin w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full"></div>
                     </div>
-                  ) : suggestions.length === 0 ? (
+                  ) : unfollowedSuggestions.length === 0 ? (
                     <p className="text-sm text-gray-500 dark:text-gray-400 text-center py-4">
-                      No matching researchers found. Try selecting different topics.
+                      {suggestions.length > 0 ? 'You already follow all matching researchers!' : 'No matching researchers found. Try selecting different topics.'}
                     </p>
                   ) : (
                     <div className="space-y-2 max-h-[200px] overflow-y-auto">
-                      {suggestions.map(researcher => (
+                      {unfollowedSuggestions.map(researcher => (
                         <div
                           key={researcher.did}
                           className="flex items-center justify-between p-2 bg-gray-50 dark:bg-gray-800 rounded-lg"
@@ -896,7 +902,7 @@ export default function Onboarding({ onComplete, startAtStep = 1 }: OnboardingPr
                   </div>
 
                   <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
-                    {researcherSearch ? `${filteredResearchers.length} results` : `All verified researchers (${allResearchers.length})`}
+                    {researcherSearch ? `${filteredResearchers.length} results` : `Verified researchers to follow (${unfollowedResearchers.length})`}
                   </h3>
                   {loadingAllResearchers ? (
                     <div className="flex justify-center py-8">
