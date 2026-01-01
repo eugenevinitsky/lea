@@ -35,6 +35,13 @@ export async function GET(request: NextRequest) {
           WHERE paper_mentions.paper_id = discovered_papers.id
           AND paper_mentions.created_at > ${cutoffTime}
         )`.as('recent_mentions'),
+        // Actual recent post count (not weighted) - for display
+        recentPostCount: sql<number>`(
+          SELECT COUNT(*)
+          FROM paper_mentions
+          WHERE paper_mentions.paper_id = discovered_papers.id
+          AND paper_mentions.created_at > ${cutoffTime}
+        )`.as('recent_post_count'),
       })
       .from(discoveredPapers)
       .orderBy(
