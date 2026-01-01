@@ -129,8 +129,8 @@ export interface ModerationUIInfo {
   noOverride: boolean;
   blurTitle?: string;
   blurMessage?: string;
-  alerts: Array<{ type: string; labeledBy?: string; label?: string }>;
-  informs: Array<{ type: string; labeledBy?: string; label?: string }>;
+  alerts: Array<{ type: string; labeledBy?: string; label?: string; displayName?: string }>;
+  informs: Array<{ type: string; labeledBy?: string; label?: string; displayName?: string }>;
 }
 
 export function getModerationUI(decision: ModerationDecision | null, context: ModerationUIContext): ModerationUIInfo {
@@ -175,12 +175,25 @@ export function getModerationUI(decision: ModerationDecision | null, context: Mo
     }
   }
 
-  // Extract alerts and informs
-  const extractCauseInfo = (cause: { type: string; labeledBy?: string; label?: { val: string } }) => ({
-    type: cause.type,
-    labeledBy: cause.labeledBy,
-    label: cause.label?.val,
-  });
+  // Extract alerts and informs - use display name from labelDef if available
+  const extractCauseInfo = (cause: { 
+    type: string; 
+    labeledBy?: string; 
+    label?: { val: string };
+    labelDef?: { locales?: Array<{ name: string }> };
+  }) => {
+    // Get display name from labelDef if available
+    let displayName: string | undefined;
+    if (cause.labelDef?.locales?.[0]?.name) {
+      displayName = cause.labelDef.locales[0].name;
+    }
+    return {
+      type: cause.type,
+      labeledBy: cause.labeledBy,
+      label: cause.label?.val,
+      displayName,
+    };
+  };
 
   return {
     filter: ui.filter,
