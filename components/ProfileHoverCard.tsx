@@ -2,9 +2,9 @@
 
 import { useState, useEffect, useRef, ReactNode } from 'react';
 import { createPortal } from 'react-dom';
-import { getBlueskyProfile, followUser, unfollowUser, isVerifiedResearcher, Label } from '@/lib/bluesky';
+import { getBlueskyProfile, followUser, unfollowUser, isVerifiedResearcher, Label, BlueskyProfile } from '@/lib/bluesky';
 import { useFollowing } from '@/lib/following-context';
-import LabelBadges from './LabelBadges';
+import ProfileLabels from './ProfileLabels';
 
 interface ProfileHoverCardProps {
   did: string;
@@ -277,7 +277,7 @@ export default function ProfileHoverCard({ did, handle, children, onOpenProfile 
             )}
 
             {/* Labels from moderation services */}
-            <LabelBadges labels={profile.labels} compact showSource />
+            <ProfileLabels profile={profile as BlueskyProfile} compact />
           </div>
 
           {/* Follow button */}

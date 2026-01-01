@@ -1,4 +1,4 @@
-import { BskyAgent, RichText, AppBskyFeedDefs, moderatePost, ModerationOpts, ModerationDecision, InterpretedLabelValueDefinition } from '@atproto/api';
+import { BskyAgent, RichText, AppBskyFeedDefs, AppBskyActorDefs, moderatePost, moderateProfile, ModerationOpts, ModerationDecision, InterpretedLabelValueDefinition } from '@atproto/api';
 
 let agent: BskyAgent | null = null;
 
@@ -1057,6 +1057,7 @@ export interface BlueskyProfile {
     following?: string;
     followedBy?: string;
   };
+  labels?: Label[];
 }
 
 // Resolve a handle to a DID
@@ -1088,6 +1089,7 @@ export async function getBlueskyProfile(actor: string): Promise<BlueskyProfile |
         following: response.data.viewer.following,
         followedBy: response.data.viewer.followedBy,
       } : undefined,
+      labels: response.data.labels as Label[] | undefined,
     };
   } catch (error) {
     console.error('Failed to fetch Bluesky profile:', error);
@@ -1543,9 +1545,9 @@ export function clearDismissedAlerts(): void {
 // Content Moderation API
 // ============================================
 
-// Re-export moderation function for use in components
-export { moderatePost };
-export type { ModerationDecision, ModerationOpts };
+// Re-export moderation functions for use in components
+export { moderatePost, moderateProfile };
+export type { ModerationDecision, ModerationOpts, AppBskyActorDefs };
 
 // Moderation preferences interface (subset of what we need)
 export interface ModerationPrefs {

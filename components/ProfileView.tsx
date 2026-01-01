@@ -3,10 +3,11 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { AppBskyFeedDefs, AppBskyFeedPost, AppBskyEmbedExternal } from '@atproto/api';
 import type { ProfileLink, ProfilePaper } from '@/lib/db/schema';
-import { getAuthorFeed, getBlueskyProfile, getKnownFollowers, BlueskyProfile, KnownFollowersResult, followUser, unfollowUser, getSession, searchPosts } from '@/lib/bluesky';
+import { getAuthorFeed, getBlueskyProfile, getKnownFollowers, BlueskyProfile, KnownFollowersResult, followUser, unfollowUser, getSession, searchPosts, Label } from '@/lib/bluesky';
 import { detectPaperLink, getPaperIdFromUrl } from '@/lib/papers';
 import { useFollowing } from '@/lib/following-context';
 import Post from './Post';
+import ProfileLabels from './ProfileLabels';
 
 // Helper to convert URLs in text to clickable links
 function linkifyText(text: string): React.ReactNode {
@@ -117,20 +118,7 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
   const [error, setError] = useState<string | null>(null);
   
   // Bluesky profile data (avatar, bio, follower counts, etc.)
-  const [bskyProfile, setBskyProfile] = useState<{
-    did: string;
-    handle: string;
-    displayName?: string;
-    description?: string;
-    avatar?: string;
-    followersCount?: number;
-    followsCount?: number;
-    postsCount?: number;
-    viewer?: {
-      following?: string;
-      followedBy?: string;
-    };
-  } | null>(null);
+  const [bskyProfile, setBskyProfile] = useState<BlueskyProfile | null>(null);
   
   // Known followers (people you follow who also follow this account)
   const [knownFollowers, setKnownFollowers] = useState<KnownFollowersResult>({ followers: [] });
@@ -825,6 +813,8 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
                     {bskyProfile?.description && (
                       <p className="text-sm text-gray-600 dark:text-gray-400 mt-2 line-clamp-2">{linkifyText(bskyProfile.description)}</p>
                     )}
+                    {/* Labels from moderation services */}
+                    <ProfileLabels profile={bskyProfile} />
                   </div>
                 </div>
               </div>
@@ -995,6 +985,8 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
                         </span>
                       )}
                     </div>
+                    {/* Labels from moderation services */}
+                    <ProfileLabels profile={bskyProfile} />
                     {/* Researcher IDs */}
                     <div className="flex flex-wrap gap-2 mt-2">
                       {researcher?.orcid && (

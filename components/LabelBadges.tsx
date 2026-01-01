@@ -71,8 +71,6 @@ export default function LabelBadges({ labels, compact = false, showSource = fals
       const known = KNOWN_LABELS[label.val];
       const labelerDefinedName = getLabelDisplayName(label.val, label.src);
       
-      console.log('[LabelBadges] Label lookup:', { val: label.val, src: label.src, labelerDefinedName, knownName: known?.name });
-      
       result.push({
         val: label.val,
         src: label.src,

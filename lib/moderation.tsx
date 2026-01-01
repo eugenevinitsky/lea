@@ -1,8 +1,11 @@
 'use client';
 
 import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
-import { AppBskyFeedDefs, InterpretedLabelValueDefinition } from '@atproto/api';
-import { getModerationOpts, moderatePost, ModerationOpts, ModerationDecision, getLabelDefinitions } from './bluesky';
+import { AppBskyFeedDefs, AppBskyActorDefs, InterpretedLabelValueDefinition } from '@atproto/api';
+import { getModerationOpts, moderatePost, moderateProfile, ModerationOpts, ModerationDecision, getLabelDefinitions } from './bluesky';
+
+// Profile type union for moderation
+type ProfileForModeration = AppBskyActorDefs.ProfileViewBasic | AppBskyActorDefs.ProfileView | AppBskyActorDefs.ProfileViewDetailed;
 
 // Label definition lookup type
 export type LabelDefinitionsMap = Record<string, InterpretedLabelValueDefinition[]>;
@@ -15,6 +18,7 @@ interface ModerationContextType {
   error: string | null;
   refreshModerationOpts: () => Promise<void>;
   getPostModeration: (post: AppBskyFeedDefs.PostView) => ModerationDecision | null;
+  getProfileModeration: (profile: ProfileForModeration) => ModerationDecision | null;
   getLabelDisplayName: (labelValue: string, labelerDid: string) => string | null;
 }
 
@@ -25,6 +29,7 @@ const ModerationContext = createContext<ModerationContextType>({
   error: null,
   refreshModerationOpts: async () => {},
   getPostModeration: () => null,
+  getProfileModeration: () => null,
   getLabelDisplayName: () => null,
 });
 
@@ -45,11 +50,6 @@ export function ModerationProvider({ children }: { children: ReactNode }) {
       // Also load label definitions for display names
       const labelDefs = await getLabelDefinitions();
       setLabelDefinitions(labelDefs);
-      console.log('[Moderation] Loaded label definitions - labeler DIDs:', Object.keys(labelDefs));
-      // Log sample of what each labeler defines
-      for (const [did, defs] of Object.entries(labelDefs)) {
-        console.log(`[Moderation] Labeler ${did} defines:`, defs.map(d => ({ id: d.identifier, name: d.locales?.[0]?.name })));
-      }
     } catch (err) {
       console.error('Failed to load moderation opts:', err);
       setError(err instanceof Error ? err.message : 'Failed to load moderation settings');
@@ -79,6 +79,17 @@ export function ModerationProvider({ children }: { children: ReactNode }) {
     }
   }, [moderationOpts]);
 
+  // Get moderation decision for a profile
+  const getProfileModeration = useCallback((profile: ProfileForModeration): ModerationDecision | null => {
+    if (!moderationOpts) return null;
+    try {
+      return moderateProfile(profile, moderationOpts);
+    } catch (err) {
+      console.error('Failed to moderate profile:', err);
+      return null;
+    }
+  }, [moderationOpts]);
+
   // Get display name for a label from its definition
   const getLabelDisplayName = useCallback((labelValue: string, labelerDid: string): string | null => {
     const labelerDefs = labelDefinitions[labelerDid];
@@ -99,6 +110,7 @@ export function ModerationProvider({ children }: { children: ReactNode }) {
       error,
       refreshModerationOpts,
       getPostModeration,
+      getProfileModeration,
       getLabelDisplayName,
     }}>
       {children}
