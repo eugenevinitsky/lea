@@ -7,6 +7,7 @@ import { SettingsProvider } from '@/lib/settings';
 import { BookmarksProvider, useBookmarks } from '@/lib/bookmarks';
 import { FeedsProvider, useFeeds } from '@/lib/feeds';
 import { FollowingProvider } from '@/lib/following-context';
+import { useModeration } from '@/lib/moderation';
 import Login from '@/components/Login';
 import Feed from '@/components/Feed';
 import Composer from '@/components/Composer';
@@ -42,6 +43,7 @@ function AppContent() {
   const feedsContainerRef = React.useRef<HTMLDivElement>(null);
   const { pinnedFeeds, isLoaded: feedsLoaded, removeFeed, reorderFeeds } = useFeeds();
   const { setUserDid } = useBookmarks();
+  const { refreshModerationOpts } = useModeration();
 
   // Open thread by navigating to shareable post URL
   const openThread = useCallback(async (uri: string | null) => {
@@ -169,6 +171,8 @@ function AppContent() {
         if (session?.did) {
           setUserDid(session.did);
         }
+        // Refresh moderation options now that we have a session
+        refreshModerationOpts();
         // Check if onboarding was completed
         const onboardingComplete = localStorage.getItem('lea-onboarding-complete');
         if (!onboardingComplete) {
@@ -188,7 +192,7 @@ function AppContent() {
       }
       setIsLoading(false);
     });
-  }, [setUserDid]);
+  }, [setUserDid, refreshModerationOpts]);
 
   const handleLogin = (forceOnboarding?: boolean) => {
     setIsLoggedIn(true);
@@ -197,6 +201,8 @@ function AppContent() {
     if (session?.did) {
       setUserDid(session.did);
     }
+    // Refresh moderation options now that we have a session
+    refreshModerationOpts();
     // Check if this is a first-time user or if onboarding is forced
     const onboardingComplete = localStorage.getItem('lea-onboarding-complete');
     if (forceOnboarding || !onboardingComplete) {
