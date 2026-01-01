@@ -797,6 +797,10 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
   const [showBookmarkMenu, setShowBookmarkMenu] = useState(false);
   const bookmarkMenuRef = useRef<HTMLDivElement>(null);
 
+  // Repost menu dropdown state
+  const [showRepostMenu, setShowRepostMenu] = useState(false);
+  const repostMenuRef = useRef<HTMLDivElement>(null);
+
   const handleThreadgateUpdate = async (newType: ThreadgateType) => {
     if (updatingThreadgate || newType === currentThreadgate) return;
     
@@ -881,6 +885,20 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [showBookmarkMenu]);
+
+  // Close repost menu when clicking outside
+  useEffect(() => {
+    if (!showRepostMenu) return;
+    
+    const handleClickOutside = (e: MouseEvent) => {
+      if (repostMenuRef.current && !repostMenuRef.current.contains(e.target as Node)) {
+        setShowRepostMenu(false);
+      }
+    };
+    
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showRepostMenu]);
 
   const handleBookmarkClick = () => {
     // If collections exist, show menu for both adding and managing
@@ -1425,33 +1443,55 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
               {post.replyCount || 0}
             </button>
 
-            {/* Repost button */}
-            <button
-              onClick={handleRepost}
-              disabled={reposting}
-              className={`flex items-center gap-1 transition-colors ${
-                isReposted
-                  ? 'text-green-500 hover:text-green-600'
-                  : 'hover:text-green-500'
-              } ${reposting ? 'opacity-50' : ''}`}
-              title="Repost"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-              </svg>
-              {repostCount}
-            </button>
+            {/* Repost/Quote button with dropdown */}
+            <div className="relative" ref={repostMenuRef}>
+              <button
+                onClick={() => setShowRepostMenu(!showRepostMenu)}
+                disabled={reposting}
+                className={`flex items-center gap-1 transition-colors ${
+                  isReposted
+                    ? 'text-green-500 hover:text-green-600'
+                    : 'hover:text-green-500'
+                } ${reposting ? 'opacity-50' : ''}`}
+                title="Repost or quote"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+                {repostCount}
+              </button>
 
-            {/* Quote button */}
-            <button
-              onClick={() => setShowQuoteComposer(!showQuoteComposer)}
-              className="flex items-center gap-1 hover:text-blue-500 transition-colors"
-              title="Quote post"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
-              </svg>
-            </button>
+              {/* Repost dropdown menu */}
+              {showRepostMenu && (
+                <div className="absolute bottom-full left-0 mb-2 w-36 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-1 z-50">
+                  <button
+                    onClick={() => {
+                      handleRepost();
+                      setShowRepostMenu(false);
+                    }}
+                    disabled={reposting}
+                    className="w-full px-3 py-2 text-left text-sm hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center gap-2 text-gray-700 dark:text-gray-300"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    </svg>
+                    {isReposted ? 'Undo repost' : 'Repost'}
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowQuoteComposer(true);
+                      setShowRepostMenu(false);
+                    }}
+                    className="w-full px-3 py-2 text-left text-sm hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center gap-2 text-gray-700 dark:text-gray-300"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                    </svg>
+                    Quote post
+                  </button>
+                </div>
+              )}
+            </div>
 
             {/* View quotes button */}
             {(post.quoteCount ?? 0) > 0 && (
