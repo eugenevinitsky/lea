@@ -2,14 +2,16 @@
 
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { AppBskyFeedDefs, AppBskyFeedPost, AppBskyEmbedExternal } from '@atproto/api';
-import { getTimeline, getFeed, getListFeed, searchPosts, FEEDS, FeedId, isVerifiedResearcher, Label, hasReplies, isReplyPost, getSelfThread, SelfThreadResult } from '@/lib/bluesky';
+import { getTimeline, getFeed, getListFeed, searchPosts, FEEDS, FeedId, isVerifiedResearcher, Label, hasReplies, isReplyPost, getSelfThread, SelfThreadResult, getModerationOpts, moderatePost, ModerationOpts } from '@/lib/bluesky';
 import { VERIFIED_RESEARCHERS_LIST } from '@/lib/constants';
 import { useSettings } from '@/lib/settings';
 import { detectPaperLink } from '@/lib/papers';
 import { recordResearcherSighting } from '@/lib/feed-tracking';
+import { getModerationUI, ModerationUIInfo } from '@/lib/moderation';
 import Post from './Post';
 import ThreadView from './ThreadView';
 import SelfThread from './SelfThread';
+import ModerationWrapper from './ModerationWrapper';
 
 interface FeedProps {
   feedId?: FeedId;
@@ -73,6 +75,16 @@ export default function Feed({ feedId, feedUri, feedName, acceptsInteractions, r
 
   // Observer ref for cleanup
   const observerRef = useRef<IntersectionObserver | null>(null);
+  
+  // Moderation state
+  const [moderationOpts, setModerationOpts] = useState<ModerationOpts | null>(null);
+  
+  // Load moderation options
+  useEffect(() => {
+    getModerationOpts().then(opts => {
+      if (opts) setModerationOpts(opts);
+    });
+  }, []);
 
   const loadFeed = async (loadMore = false, currentCursor?: string) => {
     try {
@@ -186,10 +198,12 @@ export default function Feed({ feedId, feedUri, feedName, acceptsInteractions, r
     observerRef.current = observer;
   }, []);
 
-  // Filter posts based on settings and feed type
-  const { filteredPosts, hiddenCount, totalScanned } = useMemo(() => {
+  // Filter posts based on settings, feed type, and moderation
+  const { filteredPosts, hiddenCount, totalScanned, moderatedCount, postModerationMap } = useMemo(() => {
     let filtered = posts;
     let hidden = 0;
+    let moderated = 0;
+    const moderationMap = new Map<string, ModerationUIInfo>();
 
     // Apply paper filtering for Papers feed
     if (isPapersFeed) {
@@ -243,8 +257,42 @@ export default function Feed({ feedId, feedUri, feedName, acceptsInteractions, r
       filtered = afterHighFollower;
     }
 
-    return { filteredPosts: filtered, hiddenCount: hidden, totalScanned: posts.length };
-  }, [posts, settings.highFollowerThreshold, isPapersFeed, isVerifiedFeed]);
+    // Apply content moderation filtering
+    if (moderationOpts) {
+      const afterModeration: AppBskyFeedDefs.FeedViewPost[] = [];
+      for (const item of filtered) {
+        try {
+          const decision = moderatePost(item.post, moderationOpts);
+          const contentMod = getModerationUI(decision, 'contentList');
+          const mediaMod = getModerationUI(decision, 'contentMedia');
+          
+          // Store moderation info for this post
+          moderationMap.set(item.post.uri, contentMod);
+          
+          // Filter out posts that should be hidden (filter=true)
+          if (contentMod.filter) {
+            moderated++;
+            continue;
+          }
+          
+          afterModeration.push(item);
+        } catch (err) {
+          // If moderation fails, show the post anyway
+          console.error('Moderation error for post:', err);
+          afterModeration.push(item);
+        }
+      }
+      filtered = afterModeration;
+    }
+
+    return { 
+      filteredPosts: filtered, 
+      hiddenCount: hidden, 
+      totalScanned: posts.length,
+      moderatedCount: moderated,
+      postModerationMap: moderationMap,
+    };
+  }, [posts, settings.highFollowerThreshold, isPapersFeed, isVerifiedFeed, moderationOpts]);
 
   // Function to expand a self-thread
   const expandSelfThread = useCallback(async (postUri: string, authorDid: string) => {
@@ -387,6 +435,15 @@ export default function Feed({ feedId, feedUri, feedName, acceptsInteractions, r
         </div>
       )}
 
+      {/* Moderated posts indicator */}
+      {moderatedCount > 0 && (
+        <div className="px-4 py-2 bg-gray-50 dark:bg-gray-900/50 border-b border-gray-200 dark:border-gray-800">
+          <p className="text-sm text-gray-600 dark:text-gray-400">
+            {moderatedCount} post{moderatedCount !== 1 ? 's' : ''} hidden by your moderation settings
+          </p>
+        </div>
+      )}
+
       {/* Empty state for papers feed */}
       {!loading && isPapersFeed && filteredPosts.length === 0 && (
         <div className="p-8 text-center">
@@ -469,19 +526,29 @@ export default function Feed({ feedId, feedUri, feedName, acceptsInteractions, r
             }
           : undefined;
         
+        // Get moderation info for this post
+        const contentMod = postModerationMap.get(postUri) || {
+          filter: false, blur: false, alert: false, inform: false,
+          noOverride: false, alerts: [], informs: [],
+        };
+        
         return (
-          <Post
+          <ModerationWrapper
             key={`${postUri}-${index}`}
-            post={item.post}
-            onOpenThread={handleOpenThread}
-            feedContext={item.feedContext}
-            reqId={item.reqId}
-            supportsInteractions={effectiveAcceptsInteractions}
-            feedUri={effectiveFeedUri || undefined}
-            onOpenProfile={onOpenProfile}
-            reason={item.reason as AppBskyFeedDefs.ReasonRepost | undefined}
-            replyParent={replyParent}
-          />
+            contentModeration={contentMod}
+          >
+            <Post
+              post={item.post}
+              onOpenThread={handleOpenThread}
+              feedContext={item.feedContext}
+              reqId={item.reqId}
+              supportsInteractions={effectiveAcceptsInteractions}
+              feedUri={effectiveFeedUri || undefined}
+              onOpenProfile={onOpenProfile}
+              reason={item.reason as AppBskyFeedDefs.ReasonRepost | undefined}
+              replyParent={replyParent}
+            />
+          </ModerationWrapper>
         );
       })}
 

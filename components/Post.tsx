@@ -11,6 +11,7 @@ import ProfileEditor from './ProfileEditor';
 import ProfileHoverCard from './ProfileHoverCard';
 import QuotesView from './QuotesView';
 import EmojiPicker from './EmojiPicker';
+import LabelBadges from './LabelBadges';
 import Link from 'next/link';
 import { extractPaperUrl, extractAnyUrl, getPaperIdFromUrl, PAPER_DOMAINS, LinkFacet } from '@/lib/papers';
 
@@ -1477,6 +1478,8 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
                 )}
               </>
             )}
+            {/* Labels from moderation services */}
+            <LabelBadges labels={post.labels as Label[] | undefined} compact showSource />
           </div>
 
           {/* Post text */}

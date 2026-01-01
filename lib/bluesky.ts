@@ -1,4 +1,4 @@
-import { BskyAgent, RichText, AppBskyFeedDefs } from '@atproto/api';
+import { BskyAgent, RichText, AppBskyFeedDefs, moderatePost, ModerationOpts, ModerationDecision, InterpretedLabelValueDefinition } from '@atproto/api';
 
 let agent: BskyAgent | null = null;
 
@@ -51,7 +51,14 @@ export async function restoreSession(): Promise<boolean> {
       persistSession: persistSession,
     });
     await agent.resumeSession(sessionData);
-    configureLabeler(); // Enable LEA labeler to show verified badges
+    
+    // Configure labelers from user's subscriptions (includes LEA labeler)
+    // Do this async - don't block session restore
+    configureSubscribedLabelers().catch(err => {
+      console.error('Failed to configure labelers on restore:', err);
+      configureLabeler(); // Fall back to just LEA labeler
+    });
+    
     return true;
   } catch (error) {
     console.error('Failed to restore session:', error);
@@ -66,7 +73,13 @@ export async function login(identifier: string, password: string): Promise<BskyA
     persistSession: persistSession,
   });
   await agent.login({ identifier, password });
-  configureLabeler(); // Enable LEA labeler to show verified badges
+  
+  // Configure labelers from user's subscriptions (includes LEA labeler)
+  // Do this async - don't block login
+  configureSubscribedLabelers().catch(err => {
+    console.error('Failed to configure labelers on login:', err);
+    configureLabeler(); // Fall back to just LEA labeler
+  });
 
   return agent;
 }
@@ -74,6 +87,7 @@ export async function login(identifier: string, password: string): Promise<BskyA
 export function logout() {
   agent = null;
   personalListUri = null; // Clear personal list cache on logout
+  clearModerationCache(); // Clear moderation cache on logout
   if (typeof window !== 'undefined') {
     localStorage.removeItem(SESSION_KEY);
   }
@@ -1519,4 +1533,115 @@ export function dismissSafetyAlert(alertId: string): void {
 // Clear all dismissed alerts (for testing or reset)
 export function clearDismissedAlerts(): void {
   localStorage.removeItem('lea-dismissed-alerts');
+}
+
+// ============================================
+// Content Moderation API
+// ============================================
+
+// Re-export moderation function for use in components
+export { moderatePost };
+export type { ModerationDecision, ModerationOpts };
+
+// Moderation preferences interface (subset of what we need)
+export interface ModerationPrefs {
+  adultContentEnabled: boolean;
+  labels: Record<string, 'hide' | 'warn' | 'ignore'>;
+  labelers: Array<{
+    did: string;
+    labels: Record<string, 'hide' | 'warn' | 'ignore'>;
+  }>;
+  mutedWords: Array<{ value: string; targets: string[] }>;
+  hiddenPosts: string[];
+}
+
+// Cached moderation options
+let cachedModerationOpts: ModerationOpts | null = null;
+let moderationOptsLastFetched: number = 0;
+const MODERATION_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
+// Get full moderation preferences from user's account
+export async function getModerationPrefs(): Promise<ModerationPrefs | null> {
+  if (!agent) return null;
+  
+  try {
+    const prefs = await agent.getPreferences();
+    return prefs.moderationPrefs as ModerationPrefs;
+  } catch (error) {
+    console.error('Failed to get moderation prefs:', error);
+    return null;
+  }
+}
+
+// Get label definitions from subscribed labelers
+export async function getLabelDefinitions(): Promise<Record<string, InterpretedLabelValueDefinition[]>> {
+  if (!agent) return {};
+  
+  try {
+    const prefs = await agent.getPreferences();
+    const labelDefs = await agent.getLabelDefinitions(prefs);
+    return labelDefs as Record<string, InterpretedLabelValueDefinition[]>;
+  } catch (error) {
+    console.error('Failed to get label definitions:', error);
+    return {};
+  }
+}
+
+// Get complete moderation options (prefs + label definitions)
+// This is what you pass to moderatePost()
+export async function getModerationOpts(forceRefresh = false): Promise<ModerationOpts | null> {
+  if (!agent?.session?.did) return null;
+  
+  // Return cached if still valid
+  const now = Date.now();
+  if (!forceRefresh && cachedModerationOpts && (now - moderationOptsLastFetched) < MODERATION_CACHE_TTL) {
+    return cachedModerationOpts;
+  }
+  
+  try {
+    const prefs = await agent.getPreferences();
+    const labelDefs = await agent.getLabelDefinitions(prefs);
+    
+    cachedModerationOpts = {
+      userDid: agent.session.did,
+      prefs: prefs.moderationPrefs,
+      labelDefs: labelDefs as Record<string, InterpretedLabelValueDefinition[]>,
+    };
+    moderationOptsLastFetched = now;
+    
+    return cachedModerationOpts;
+  } catch (error) {
+    console.error('Failed to get moderation opts:', error);
+    return null;
+  }
+}
+
+// Configure the agent to request labels from all subscribed labelers
+// This should be called after login/session restore
+export async function configureSubscribedLabelers(): Promise<void> {
+  if (!agent) return;
+  
+  try {
+    const prefs = await agent.getPreferences();
+    const labelerDids = prefs.moderationPrefs.labelers.map(l => l.did);
+    
+    // Always include LEA labeler for verified researcher badges
+    if (!labelerDids.includes(LEA_LABELER_DID_CONFIG)) {
+      labelerDids.push(LEA_LABELER_DID_CONFIG);
+    }
+    
+    // Configure the agent to request labels from these labelers
+    agent.configureLabelersHeader(labelerDids);
+    console.log('Configured labelers:', labelerDids);
+  } catch (error) {
+    console.error('Failed to configure subscribed labelers:', error);
+    // Fall back to just LEA labeler
+    agent.configureLabelersHeader([LEA_LABELER_DID_CONFIG]);
+  }
+}
+
+// Clear cached moderation opts (call on logout)
+export function clearModerationCache(): void {
+  cachedModerationOpts = null;
+  moderationOptsLastFetched = 0;
 }
