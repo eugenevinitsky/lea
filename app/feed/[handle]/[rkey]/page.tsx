@@ -179,7 +179,7 @@ function FeedPageContent() {
         uri: feedInfo.uri,
         displayName: feedInfo.displayName,
         type: 'feed',
-        acceptsInteractions: feedInfo.acceptsInteractions,
+        acceptsInteractions: feedInfo.acceptsInteractions ?? false,
       });
     }
   };
