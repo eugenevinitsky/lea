@@ -60,7 +60,7 @@ function formatTime(dateString: string) {
 
 export default function ModerationBox({ onOpenProfile }: ModerationBoxProps) {
   const [isExpanded, setIsExpanded] = useState(false);
-  const [activeTab, setActiveTab] = useState<Tab>('verified');
+  const [activeTab, setActiveTab] = useState<Tab>('papers');
   const [recentResearchers, setRecentResearchers] = useState<RecentResearcher[]>([]);
   const [activeResearchers, setActiveResearchers] = useState<ActiveResearcher[]>([]);
   const [trendingPapers, setTrendingPapers] = useState<TrendingPaper[]>([]);
@@ -174,6 +174,16 @@ export default function ModerationBox({ onOpenProfile }: ModerationBoxProps) {
           {/* Tabs */}
           <div className="flex border-b border-gray-100 dark:border-gray-800">
             <button
+              onClick={() => setActiveTab('papers')}
+              className={`flex-1 px-3 py-2 text-xs font-medium transition-colors ${
+                activeTab === 'papers'
+                  ? 'text-purple-600 dark:text-purple-400 border-b-2 border-purple-500'
+                  : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
+              }`}
+            >
+              Papers
+            </button>
+            <button
               onClick={() => setActiveTab('verified')}
               className={`flex-1 px-3 py-2 text-xs font-medium transition-colors ${
                 activeTab === 'verified'
@@ -192,16 +202,6 @@ export default function ModerationBox({ onOpenProfile }: ModerationBoxProps) {
               }`}
             >
               Active
-            </button>
-            <button
-              onClick={() => setActiveTab('papers')}
-              className={`flex-1 px-3 py-2 text-xs font-medium transition-colors ${
-                activeTab === 'papers'
-                  ? 'text-purple-600 dark:text-purple-400 border-b-2 border-purple-500'
-                  : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
-              }`}
-            >
-              Papers
             </button>
           </div>
 
