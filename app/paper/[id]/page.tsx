@@ -3,8 +3,8 @@
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useState, useEffect, useCallback, Suspense } from 'react';
 import { AppBskyFeedDefs } from '@atproto/api';
-import { restoreSession, getSession, getBlueskyProfile, getPostsByUris } from '@/lib/bluesky';
-import { getUrlFromPaperId, getPaperTypeFromId } from '@/lib/papers';
+import { restoreSession, getSession, getBlueskyProfile, getPostsByUris, searchPosts } from '@/lib/bluesky';
+import { getUrlFromPaperId, getPaperTypeFromId, getSearchQueryForPaper } from '@/lib/papers';
 import { SettingsProvider } from '@/lib/settings';
 import { BookmarksProvider } from '@/lib/bookmarks';
 import { FeedsProvider } from '@/lib/feeds';
@@ -81,38 +81,89 @@ function PaperPageContent() {
         });
       }
 
-      if (data.mentions.length === 0) {
-        if (!loadMore) {
-          setPosts([]);
+      // Even if database has no mentions, try search
+      if (data.mentions.length === 0 && !loadMore) {
+        // Try Bluesky search as fallback
+        try {
+          const searchQuery = getSearchQueryForPaper(paperId);
+          console.log('[Paper] No DB mentions, searching Bluesky for:', searchQuery);
+          const searchResult = await searchPosts(searchQuery, undefined, 'latest');
+          if (searchResult.posts.length > 0) {
+            console.log('[Paper] Found', searchResult.posts.length, 'posts from search');
+            const sortedPosts = [...searchResult.posts].sort((a, b) => {
+              const dateA = new Date(a.indexedAt).getTime();
+              const dateB = new Date(b.indexedAt).getTime();
+              return dateB - dateA;
+            });
+            setPosts(sortedPosts);
+            setHasMore(false);
+            setPostsLoading(false);
+            return;
+          }
+        } catch (searchErr) {
+          console.log('[Paper] Search also failed:', searchErr);
         }
+        setPosts([]);
         setHasMore(false);
+        setPostsLoading(false);
         return;
       }
 
-      // Fetch actual posts from Bluesky using post URIs
+      // Fetch actual posts from Bluesky using post URIs from database
       const postUris = data.mentions.map((m: { postUri: string }) => m.postUri);
-      console.log('[Paper] Fetching', postUris.length, 'posts from Bluesky');
-      const blueskyPosts = await getPostsByUris(postUris);
-      console.log('[Paper] Got', blueskyPosts.length, 'posts back from Bluesky');
+      console.log('[Paper] Fetching', postUris.length, 'posts from database');
+      const dbPosts = await getPostsByUris(postUris);
+      console.log('[Paper] Got', dbPosts.length, 'posts from database URIs');
 
-      // Log any missing posts
-      if (blueskyPosts.length < postUris.length) {
-        const returnedUris = new Set(blueskyPosts.map(p => p.uri));
-        const missingUris = postUris.filter((uri: string) => !returnedUris.has(uri));
-        console.log('[Paper] Missing posts:', missingUris);
+      // Also search Bluesky for additional posts (catches recently indexed posts)
+      let searchPosts_: AppBskyFeedDefs.PostView[] = [];
+      try {
+        const searchQuery = getSearchQueryForPaper(paperId);
+        console.log('[Paper] Searching Bluesky for:', searchQuery);
+        const searchResult = await searchPosts(searchQuery, undefined, 'latest');
+        searchPosts_ = searchResult.posts;
+        console.log('[Paper] Found', searchPosts_.length, 'posts from search');
+      } catch (searchErr) {
+        console.log('[Paper] Search failed (continuing with DB results):', searchErr);
       }
 
+      // Merge and deduplicate by URI
+      const seenUris = new Set<string>();
+      const allPosts: AppBskyFeedDefs.PostView[] = [];
+
+      // Add DB posts first (they're authoritative)
+      for (const post of dbPosts) {
+        if (!seenUris.has(post.uri)) {
+          seenUris.add(post.uri);
+          allPosts.push(post);
+        }
+      }
+
+      // Add search posts that aren't already included
+      for (const post of searchPosts_) {
+        if (!seenUris.has(post.uri)) {
+          seenUris.add(post.uri);
+          allPosts.push(post);
+        }
+      }
+
+      console.log('[Paper] Total unique posts:', allPosts.length);
+
       // Sort by indexedAt to maintain chronological order (newest first)
-      blueskyPosts.sort((a, b) => {
+      allPosts.sort((a, b) => {
         const dateA = new Date(a.indexedAt).getTime();
         const dateB = new Date(b.indexedAt).getTime();
         return dateB - dateA;
       });
 
       if (loadMore) {
-        setPosts(prev => [...prev, ...blueskyPosts]);
+        setPosts(prev => {
+          const prevUris = new Set(prev.map(p => p.uri));
+          const newPosts = allPosts.filter(p => !prevUris.has(p.uri));
+          return [...prev, ...newPosts];
+        });
       } else {
-        setPosts(blueskyPosts);
+        setPosts(allPosts);
       }
 
       setOffset(currentOffset + data.mentions.length);
