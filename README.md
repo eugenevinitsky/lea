@@ -8,12 +8,14 @@ A Bluesky client with protective defaults for researchers.
 |---------|-------------|
 | **ORCID Verification** | Link ORCID to verify researcher identity |
 | **Reply Restrictions** | Auto-restrict replies to followers, verified researchers, or your connections |
+| **Content Moderation** | Full support for Bluesky labelers - blur, warn, hide content based on your preferences |
 | **Papers Feed** | Timeline filtered to academic paper links only |
 | **Paper Discussions** | See all Bluesky conversations about any paper |
 | **Researcher Profiles** | Rich profiles with affiliations, topics, publications, and mutual interactions |
 | **Bookmarks + Export** | Save posts to collections, export paper citations to BibTeX/RIS for Zotero |
 | **Direct Messages** | Built-in DM support |
 | **Notifications** | Collapsible panel with likes, reposts, quotes, and replies |
+| **Safety Panel** | Monitor your post reach, alerts for viral quotes, big account interactions |
 | **Feed Discovery** | Browse and pin custom Bluesky feeds (horizontally scrollable) |
 | **User Search** | Search all Bluesky users with verified researchers prioritized |
 
@@ -126,6 +128,27 @@ Rich profiles for verified researchers:
 - **Edit Threadgates** - Change reply restrictions on your existing posts
 - **Delete Post** - Delete your own posts with confirmation
 - **Share Post** - Copy Lea URL to clipboard
+
+### Content Moderation
+
+Lea fully supports Bluesky's content moderation system:
+
+- **Labeler Subscriptions** - Respects all labelers you've subscribed to in your Bluesky settings
+- **Content Filtering** - Posts with labels you've set to "hide" are automatically filtered out
+- **Content Warnings** - Posts with labels set to "warn" show blur overlays with reveal option
+- **Label Badges** - Labels appear on posts and profiles with proper display names from labeler definitions
+- **Profile Labels** - See labels on user profiles (hover cards and full profile pages)
+
+Labels are displayed with their human-readable names as defined by each labeler (e.g., "Adult Content" instead of "porn").
+
+### Safety Panel
+
+Monitor your post reach and get alerts:
+
+- **Big Account Alerts** - Know when accounts with large followings reply, repost, or quote you
+- **Viral Quote Alerts** - Get notified when quotes of your posts are gaining traction
+- **Configurable Thresholds** - Set follower count thresholds for alerts
+- **Discover Labelers** - Find and subscribe to new moderation labelers
 
 ### Additional Protections
 
@@ -246,6 +269,11 @@ components/
 ├── Composer.tsx            # Post composer
 ├── ProfileView.tsx         # Researcher profile view
 ├── ProfileEditor.tsx       # Edit your profile
+├── ProfileHoverCard.tsx    # Profile hover cards with labels
+├── ProfileLabels.tsx       # Profile label display component
+├── LabelBadges.tsx         # Post label badges
+├── ModerationWrapper.tsx   # Content warning overlays
+├── SafetyPanel.tsx         # Safety alerts panel
 ├── Bookmarks.tsx           # Bookmarks panel
 ├── DirectMessages.tsx      # DM interface
 ├── FeedBrowser.tsx         # Feed discovery
@@ -253,7 +281,8 @@ components/
 └── Settings.tsx            # Settings panel
 
 lib/
-├── bluesky.ts              # Bluesky API wrapper
+├── bluesky.ts              # Bluesky API wrapper + moderation functions
+├── moderation.tsx          # Moderation context, hooks, and helpers
 ├── papers.ts               # Paper URL detection & ID extraction
 ├── bookmarks.tsx           # Bookmarks + export (BibTeX, RIS)
 ├── settings.tsx            # Settings context
@@ -359,6 +388,9 @@ scripts/
 - [x] Collapsible sidebar panels
 - [x] Horizontally scrollable feed tabs
 - [x] Bookmark collections
+- [x] Content moderation (labeler support with blur/warn/hide)
+- [x] Safety panel (alerts for viral content, big accounts)
+- [x] Label badges on posts and profiles
 - [ ] Vouching UI
 
 ---
