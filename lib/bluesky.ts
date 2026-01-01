@@ -1626,8 +1626,25 @@ export async function configureSubscribedLabelers(): Promise<void> {
   if (!agent) return;
   
   try {
-    const prefs = await agent.getPreferences();
-    const labelerDids = prefs.moderationPrefs.labelers.map(l => l.did);
+    // Use raw API to get all preferences and extract labelers
+    const response = await agent.api.app.bsky.actor.getPreferences();
+    const rawPrefs = response.data.preferences;
+    
+    console.log('[Moderation] Raw preferences:', rawPrefs);
+    
+    // Extract labeler DIDs from the raw preferences
+    const labelerDids: string[] = [];
+    for (const pref of rawPrefs) {
+      if (pref.$type === 'app.bsky.actor.defs#labelersPref' && 'labelers' in pref) {
+        const labelerList = (pref as { $type: string; labelers: Array<{ did: string }> }).labelers;
+        console.log('[Moderation] Found labelersPref:', labelerList);
+        for (const labeler of labelerList) {
+          if (!labelerDids.includes(labeler.did)) {
+            labelerDids.push(labeler.did);
+          }
+        }
+      }
+    }
     
     console.log('[Moderation] User subscribed labelers:', labelerDids);
     
