@@ -261,20 +261,9 @@ export default function SafetyPanel({ onOpenProfile }: SafetyPanelProps) {
 
           {/* Labelers Section */}
           <div className="p-3">
-            <div className="flex items-center justify-between mb-2">
-              <h4 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">
-                Your Labelers
-              </h4>
-              <button
-                onClick={() => setShowSuggestedModal(true)}
-                className="p-1 text-gray-400 hover:text-blue-500 transition-colors"
-                title="Suggested labelers"
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-              </button>
-            </div>
+            <h4 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2">
+              Your Labelers
+            </h4>
             <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
               Labelers you&apos;ve subscribed to on Bluesky
             </p>
@@ -319,6 +308,13 @@ export default function SafetyPanel({ onOpenProfile }: SafetyPanelProps) {
                 ))}
               </div>
             )}
+
+            <button
+              onClick={() => setShowSuggestedModal(true)}
+              className="w-full mt-3 py-2 px-3 text-xs text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30 hover:bg-blue-100 dark:hover:bg-blue-900/50 rounded-lg transition-colors"
+            >
+              Discover more labelers
+            </button>
           </div>
         </div>
       )}
