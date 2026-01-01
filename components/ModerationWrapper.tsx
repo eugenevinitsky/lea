@@ -13,14 +13,6 @@ interface ModerationWrapperProps {
   compact?: boolean;
 }
 
-// Format label name for display
-function formatLabelName(val: string): string {
-  return val
-    .split('-')
-    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(' ');
-}
-
 export default function ModerationWrapper({
   children,
   contentModeration,
@@ -32,16 +24,14 @@ export default function ModerationWrapper({
   const [mediaRevealed, setMediaRevealed] = useState(false);
   const { getLabelDisplayName } = useModeration();
   
-  // Helper to get display name for a label
+  // Helper to get display name for a label - use labeler's name or raw value
   const getDisplayName = (label?: string, labeledBy?: string): string => {
     if (!label) return 'Unknown';
-    // Try to get from labeler definitions first
     if (labeledBy) {
       const defined = getLabelDisplayName(label, labeledBy);
       if (defined) return defined;
     }
-    // Fall back to formatted name
-    return formatLabelName(label);
+    return label;
   };
 
   // Determine what to blur

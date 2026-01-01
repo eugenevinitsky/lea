@@ -67,14 +67,14 @@ export default function LabelBadges({ labels, compact = false, showSource = fals
       if (seen.has(key)) continue;
       seen.add(key);
       
-      // Get label info - first check labeler definitions, then known labels, then format
+      // Get label info - use labeler's display name if available, otherwise raw value
       const known = KNOWN_LABELS[label.val];
       const labelerDefinedName = getLabelDisplayName(label.val, label.src);
       
       result.push({
         val: label.val,
         src: label.src,
-        name: labelerDefinedName || known?.name || formatLabelName(label.val),
+        name: labelerDefinedName || known?.name || label.val,
         severity: known?.severity || 'info',
         color: known?.color || 'gray',
       });
@@ -162,10 +162,3 @@ function getColorClasses(color: string, severity: 'info' | 'warn' | 'alert'): st
   }
 }
 
-// Convert label value like "ai-generated" to "AI Generated"
-function formatLabelName(val: string): string {
-  return val
-    .split('-')
-    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(' ');
-}
