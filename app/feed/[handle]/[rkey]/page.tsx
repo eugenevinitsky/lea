@@ -61,10 +61,14 @@ function FeedPageContent() {
       if (!isLoggedIn || !handle || !rkey) return;
       
       try {
-        // First resolve handle to DID if needed
-        let creatorDid = handle;
-        if (!handle.startsWith('did:')) {
-          const profile = await getBlueskyProfile(handle);
+        // The handle param might be a DID (did:plc:xxx) or a handle (user.bsky.social)
+        // URL decoding is needed because colons get encoded
+        const decodedHandle = decodeURIComponent(handle);
+        
+        let creatorDid = decodedHandle;
+        if (!decodedHandle.startsWith('did:')) {
+          // It's a handle, resolve to DID
+          const profile = await getBlueskyProfile(decodedHandle);
           if (profile) {
             creatorDid = profile.did;
           } else {
