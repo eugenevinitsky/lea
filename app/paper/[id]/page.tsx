@@ -2,9 +2,9 @@
 
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useState, useEffect, useCallback, Suspense } from 'react';
-import { AppBskyFeedDefs } from '@atproto/api';
+import { AppBskyFeedDefs, AppBskyEmbedExternal } from '@atproto/api';
 import { restoreSession, getSession, getBlueskyProfile, getPostsByUris, searchPosts } from '@/lib/bluesky';
-import { getUrlFromPaperId, getPaperTypeFromId, getSearchQueryForPaper } from '@/lib/papers';
+import { getUrlFromPaperId, getPaperTypeFromId, getSearchQueryForPaper, extractPaperUrl, extractAnyUrl, LinkFacet } from '@/lib/papers';
 import { SettingsProvider } from '@/lib/settings';
 import { BookmarksProvider } from '@/lib/bookmarks';
 import { FeedsProvider } from '@/lib/feeds';
@@ -37,6 +37,7 @@ function PaperPageContent() {
   const [postsLoading, setPostsLoading] = useState(false);
   const [hasMore, setHasMore] = useState(false);
   const [offset, setOffset] = useState(0);
+  const [searchCursor, setSearchCursor] = useState<string | undefined>();
   const [error, setError] = useState<string | null>(null);
   const [paperInfo, setPaperInfo] = useState<PaperInfo>({});
   const [threadUri, setThreadUri] = useState<string | null>(null);
@@ -81,50 +82,93 @@ function PaperPageContent() {
         });
       }
 
-      // Even if database has no mentions, try search
-      if (data.mentions.length === 0 && !loadMore) {
-        // Try Bluesky search as fallback
-        try {
-          const searchQuery = getSearchQueryForPaper(paperId);
-          console.log('[Paper] No DB mentions, searching Bluesky for:', searchQuery);
-          const searchResult = await searchPosts(searchQuery, undefined, 'latest');
-          if (searchResult.posts.length > 0) {
-            console.log('[Paper] Found', searchResult.posts.length, 'posts from search');
-            const sortedPosts = [...searchResult.posts].sort((a, b) => {
-              const dateA = new Date(a.indexedAt).getTime();
-              const dateB = new Date(b.indexedAt).getTime();
-              return dateB - dateA;
-            });
-            setPosts(sortedPosts);
-            setHasMore(false);
-            setPostsLoading(false);
-            return;
-          }
-        } catch (searchErr) {
-          console.log('[Paper] Search also failed:', searchErr);
-        }
-        setPosts([]);
-        setHasMore(false);
-        setPostsLoading(false);
-        return;
+      // Fetch posts from database
+      let dbPosts: AppBskyFeedDefs.PostView[] = [];
+      if (data.mentions.length > 0) {
+        const postUris = data.mentions.map((m: { postUri: string }) => m.postUri);
+        console.log('[Paper] Fetching', postUris.length, 'posts from database');
+        dbPosts = await getPostsByUris(postUris);
+        console.log('[Paper] Got', dbPosts.length, 'posts from database URIs');
       }
 
-      // Fetch actual posts from Bluesky using post URIs from database
-      const postUris = data.mentions.map((m: { postUri: string }) => m.postUri);
-      console.log('[Paper] Fetching', postUris.length, 'posts from database');
-      const dbPosts = await getPostsByUris(postUris);
-      console.log('[Paper] Got', dbPosts.length, 'posts from database URIs');
-
-      // Also search Bluesky for additional posts (catches recently indexed posts)
-      let searchPosts_: AppBskyFeedDefs.PostView[] = [];
+      // Multi-strategy Bluesky search (from old implementation)
+      let searchResults: AppBskyFeedDefs.PostView[] = [];
+      let newSearchCursor: string | undefined;
       try {
-        const searchQuery = getSearchQueryForPaper(paperId);
-        console.log('[Paper] Searching Bluesky for:', searchQuery);
-        const searchResult = await searchPosts(searchQuery, undefined, 'latest');
-        searchPosts_ = searchResult.posts;
-        console.log('[Paper] Found', searchPosts_.length, 'posts from search');
+        let result: { posts: AppBskyFeedDefs.PostView[]; cursor?: string } = { posts: [], cursor: undefined };
+
+        // Strategy 1: Search for the original full URL (most accurate for finding link shares)
+        if (!loadMore && originalUrl) {
+          console.log('[Paper Search] Strategy 1 (full URL):', originalUrl);
+          result = await searchPosts(originalUrl, undefined, 'latest');
+          console.log('[Paper Search] Strategy 1 results:', result.posts.length);
+        }
+
+        // Strategy 2: Try the URL without query params
+        if (!loadMore && result.posts.length === 0 && originalUrl) {
+          const urlNoParams = originalUrl.replace(/\?.*$/, '');
+          if (urlNoParams !== originalUrl) {
+            console.log('[Paper Search] Strategy 2 (URL without params):', urlNoParams);
+            result = await searchPosts(urlNoParams, undefined, 'latest');
+            console.log('[Paper Search] Strategy 2 results:', result.posts.length);
+          }
+        }
+
+        // Strategy 3: Search for the DOI or paper ID (also used for pagination)
+        if (result.posts.length === 0 || loadMore) {
+          const searchQuery = getSearchQueryForPaper(paperId);
+          console.log('[Paper Search] Strategy 3 (paper ID):', searchQuery, loadMore ? `cursor: ${searchCursor}` : '');
+          const idResult = await searchPosts(searchQuery, loadMore ? searchCursor : undefined, 'latest');
+          console.log('[Paper Search] Strategy 3 results:', idResult.posts.length);
+          if (loadMore || result.posts.length === 0) {
+            result = idResult;
+          }
+        }
+
+        // Strategy 4: Try domain search as last resort
+        if (!loadMore && result.posts.length === 0) {
+          const fallbackUrl = originalUrl || getUrlFromPaperId(paperId);
+          const domainMatch = fallbackUrl.match(/https?:\/\/([^/]+)/);
+          if (domainMatch) {
+            const pathParts = fallbackUrl.replace(/^https?:\/\/[^/]+/, '').split('/').filter(p => p && p.length > 3);
+            const lastPart = pathParts[pathParts.length - 1]?.replace(/\?.*$/, '');
+            if (lastPart) {
+              const combinedQuery = `domain:${domainMatch[1]} ${lastPart}`;
+              console.log('[Paper Search] Strategy 4 (domain + id):', combinedQuery);
+              result = await searchPosts(combinedQuery, undefined, 'latest');
+              console.log('[Paper Search] Strategy 4 results:', result.posts.length);
+            }
+          }
+        }
+
+        console.log('[Paper Search] Total raw results before filtering:', result.posts.length);
+        newSearchCursor = result.cursor;
+
+        // Filter results to only include posts that actually contain relevant links
+        searchResults = result.posts.filter(post => {
+          const record = post.record as { text?: string; facets?: LinkFacet[] };
+          const embedUri = post.embed && 'external' in post.embed
+            ? (post.embed as AppBskyEmbedExternal.View).external?.uri
+            : undefined;
+
+          // Check for known paper domain URLs
+          const paperUrl = extractPaperUrl(record.text || '', embedUri, record.facets);
+          if (paperUrl !== null) return true;
+
+          // Also accept posts containing the original URL we're searching for
+          if (originalUrl) {
+            const anyUrl = extractAnyUrl(record.text || '', embedUri, record.facets);
+            if (anyUrl && (anyUrl === originalUrl || anyUrl.includes(originalUrl) || originalUrl.includes(anyUrl))) {
+              return true;
+            }
+          }
+
+          return false;
+        });
+
+        console.log('[Paper Search] Filtered results:', searchResults.length);
       } catch (searchErr) {
-        console.log('[Paper] Search failed (continuing with DB results):', searchErr);
+        console.log('[Paper Search] Search failed (continuing with DB results):', searchErr);
       }
 
       // Merge and deduplicate by URI
@@ -140,7 +184,7 @@ function PaperPageContent() {
       }
 
       // Add search posts that aren't already included
-      for (const post of searchPosts_) {
+      for (const post of searchResults) {
         if (!seenUris.has(post.uri)) {
           seenUris.add(post.uri);
           allPosts.push(post);
@@ -167,14 +211,16 @@ function PaperPageContent() {
       }
 
       setOffset(currentOffset + data.mentions.length);
-      setHasMore(data.mentions.length === limit);
+      setSearchCursor(newSearchCursor);
+      // Has more if either DB has more or search has more results
+      setHasMore(data.mentions.length === limit || !!newSearchCursor);
     } catch (err) {
       console.error('Failed to fetch paper posts:', err);
       setError('Failed to load discussions');
     } finally {
       setPostsLoading(false);
     }
-  }, [paperId, offset]);
+  }, [paperId, offset, searchCursor, originalUrl]);
 
   // Initial fetch when logged in
   useEffect(() => {
