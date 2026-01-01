@@ -7,8 +7,6 @@ interface Researcher {
   did: string;
   handle: string;
   name: string | null;
-  institution: string | null;
-  researchTopics?: string[] | null;
 }
 
 interface AdvancedSearchProps {
@@ -47,46 +45,11 @@ export default function AdvancedSearch({ initialQuery = '', initialFilters = {},
   
   // Researcher-specific filters
   const [verifiedOnly, setVerifiedOnly] = useState(false);
-  const [selectedInstitution, setSelectedInstitution] = useState('');
-  const [selectedTopic, setSelectedTopic] = useState('');
-  const [researchers, setResearchers] = useState<Researcher[]>([]);
-  const [institutions, setInstitutions] = useState<string[]>([]);
-  const [topics, setTopics] = useState<string[]>([]);
   
   // UI state
   const [showFilters, setShowFilters] = useState(true);
   const authorInputRef = useRef<HTMLInputElement>(null);
   const authorDropdownRef = useRef<HTMLDivElement>(null);
-
-  // Fetch researchers for institution/topic filters
-  useEffect(() => {
-    async function fetchResearchers() {
-      try {
-        const res = await fetch('/api/researchers');
-        if (res.ok) {
-          const data = await res.json();
-          const researchers: Researcher[] = data.researchers || [];
-          setResearchers(researchers);
-          
-          // Extract unique institutions
-          const uniqueInstitutions = [...new Set(
-            researchers
-              .map(r => r.institution)
-              .filter((i): i is string => !!i)
-          )].sort();
-          setInstitutions(uniqueInstitutions);
-          
-          // Extract unique topics
-          const allTopics = researchers.flatMap(r => r.researchTopics || []);
-          const uniqueTopics = [...new Set(allTopics)].sort();
-          setTopics(uniqueTopics);
-        }
-      } catch (err) {
-        console.error('Failed to fetch researchers:', err);
-      }
-    }
-    fetchResearchers();
-  }, []);
 
   // Author autocomplete
   useEffect(() => {
@@ -169,8 +132,6 @@ export default function AdvancedSearch({ initialQuery = '', initialFilters = {},
     setCustomDomain('');
     setTags([]);
     setVerifiedOnly(false);
-    setSelectedInstitution('');
-    setSelectedTopic('');
   };
 
   // Build query string for display
@@ -188,8 +149,6 @@ export default function AdvancedSearch({ initialQuery = '', initialFilters = {},
     selectedDomain || customDomain,
     tags.length > 0,
     verifiedOnly,
-    selectedInstitution,
-    selectedTopic,
   ].filter(Boolean).length;
 
   return (
@@ -406,51 +365,21 @@ export default function AdvancedSearch({ initialQuery = '', initialFilters = {},
               Researcher Filters
             </h4>
             
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {/* Verified only toggle */}
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => setVerifiedOnly(!verifiedOnly)}
-                  className={`relative w-10 h-6 rounded-full transition-colors ${
-                    verifiedOnly ? 'bg-emerald-500' : 'bg-gray-300 dark:bg-gray-600'
+            {/* Verified only toggle */}
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setVerifiedOnly(!verifiedOnly)}
+                className={`relative w-10 h-6 rounded-full transition-colors ${
+                  verifiedOnly ? 'bg-emerald-500' : 'bg-gray-300 dark:bg-gray-600'
+                }`}
+              >
+                <span
+                  className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-transform ${
+                    verifiedOnly ? 'translate-x-4' : ''
                   }`}
-                >
-                  <span
-                    className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-transform ${
-                      verifiedOnly ? 'translate-x-4' : ''
-                    }`}
-                  />
-                </button>
-                <span className="text-sm text-gray-700 dark:text-gray-300">Verified researchers only</span>
-              </div>
-
-              {/* Institution filter */}
-              <div>
-                <select
-                  value={selectedInstitution}
-                  onChange={(e) => setSelectedInstitution(e.target.value)}
-                  className="w-full px-3 py-2 text-sm bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
-                >
-                  <option value="">Any institution</option>
-                  {institutions.map(inst => (
-                    <option key={inst} value={inst}>{inst}</option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Topic filter */}
-              <div>
-                <select
-                  value={selectedTopic}
-                  onChange={(e) => setSelectedTopic(e.target.value)}
-                  className="w-full px-3 py-2 text-sm bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
-                >
-                  <option value="">Any research topic</option>
-                  {topics.map(topic => (
-                    <option key={topic} value={topic}>{topic}</option>
-                  ))}
-                </select>
-              </div>
+                />
+              </button>
+              <span className="text-sm text-gray-700 dark:text-gray-300">Verified researchers only</span>
             </div>
           </div>
 
