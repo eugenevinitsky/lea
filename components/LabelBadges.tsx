@@ -91,9 +91,11 @@ export default function LabelBadges({ labels, compact = false, showSource = fals
       });
     }
     
+    console.log('[LabelBadges] Display labels after filtering:', result);
     return result;
   }, [labels, getLabelDisplayName]);
 
+  console.log('[LabelBadges] Final displayLabels count:', displayLabels.length);
   if (displayLabels.length === 0) return null;
 
   return (
