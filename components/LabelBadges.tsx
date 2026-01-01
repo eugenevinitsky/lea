@@ -2,6 +2,7 @@
 
 import { useMemo } from 'react';
 import { Label } from '@/lib/bluesky';
+import { useModeration } from '@/lib/moderation';
 
 // Known label definitions for common labelers
 // These provide human-readable names for common label values
@@ -48,6 +49,8 @@ interface LabelBadgesProps {
 }
 
 export default function LabelBadges({ labels, compact = false, showSource = false }: LabelBadgesProps) {
+  const { getLabelDisplayName } = useModeration();
+  
   // Filter and dedupe labels
   const displayLabels = useMemo(() => {
     if (!labels || labels.length === 0) return [];
@@ -67,19 +70,21 @@ export default function LabelBadges({ labels, compact = false, showSource = fals
       if (seen.has(key)) continue;
       seen.add(key);
       
-      // Get label info
+      // Get label info - first check labeler definitions, then known labels, then format
       const known = KNOWN_LABELS[label.val];
+      const labelerDefinedName = getLabelDisplayName(label.val, label.src);
+      
       result.push({
         val: label.val,
         src: label.src,
-        name: known?.name || formatLabelName(label.val),
+        name: labelerDefinedName || known?.name || formatLabelName(label.val),
         severity: known?.severity || 'info',
         color: known?.color || 'gray',
       });
     }
     
     return result;
-  }, [labels]);
+  }, [labels, getLabelDisplayName]);
 
   if (displayLabels.length === 0) return null;
 

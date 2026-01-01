@@ -1,38 +1,51 @@
 'use client';
 
 import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
-import { AppBskyFeedDefs } from '@atproto/api';
-import { getModerationOpts, moderatePost, ModerationOpts, ModerationDecision } from './bluesky';
+import { AppBskyFeedDefs, InterpretedLabelValueDefinition } from '@atproto/api';
+import { getModerationOpts, moderatePost, ModerationOpts, ModerationDecision, getLabelDefinitions } from './bluesky';
+
+// Label definition lookup type
+export type LabelDefinitionsMap = Record<string, InterpretedLabelValueDefinition[]>;
 
 // Context for moderation state
 interface ModerationContextType {
   moderationOpts: ModerationOpts | null;
+  labelDefinitions: LabelDefinitionsMap;
   isLoading: boolean;
   error: string | null;
   refreshModerationOpts: () => Promise<void>;
   getPostModeration: (post: AppBskyFeedDefs.PostView) => ModerationDecision | null;
+  getLabelDisplayName: (labelValue: string, labelerDid: string) => string | null;
 }
 
 const ModerationContext = createContext<ModerationContextType>({
   moderationOpts: null,
+  labelDefinitions: {},
   isLoading: false,
   error: null,
   refreshModerationOpts: async () => {},
   getPostModeration: () => null,
+  getLabelDisplayName: () => null,
 });
 
 export function ModerationProvider({ children }: { children: ReactNode }) {
   const [moderationOpts, setModerationOpts] = useState<ModerationOpts | null>(null);
+  const [labelDefinitions, setLabelDefinitions] = useState<LabelDefinitionsMap>({});
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Load moderation options
+  // Load moderation options and label definitions
   const loadModerationOpts = useCallback(async (forceRefresh = false) => {
     setIsLoading(true);
     setError(null);
     try {
       const opts = await getModerationOpts(forceRefresh);
       setModerationOpts(opts);
+      
+      // Also load label definitions for display names
+      const labelDefs = await getLabelDefinitions();
+      setLabelDefinitions(labelDefs);
+      console.log('[Moderation] Loaded label definitions:', labelDefs);
     } catch (err) {
       console.error('Failed to load moderation opts:', err);
       setError(err instanceof Error ? err.message : 'Failed to load moderation settings');
@@ -62,13 +75,27 @@ export function ModerationProvider({ children }: { children: ReactNode }) {
     }
   }, [moderationOpts]);
 
+  // Get display name for a label from its definition
+  const getLabelDisplayName = useCallback((labelValue: string, labelerDid: string): string | null => {
+    const labelerDefs = labelDefinitions[labelerDid];
+    if (!labelerDefs) return null;
+    
+    const labelDef = labelerDefs.find(def => def.identifier === labelValue);
+    if (labelDef?.locales && labelDef.locales.length > 0) {
+      return labelDef.locales[0].name;
+    }
+    return null;
+  }, [labelDefinitions]);
+
   return (
     <ModerationContext.Provider value={{
       moderationOpts,
+      labelDefinitions,
       isLoading,
       error,
       refreshModerationOpts,
       getPostModeration,
+      getLabelDisplayName,
     }}>
       {children}
     </ModerationContext.Provider>
