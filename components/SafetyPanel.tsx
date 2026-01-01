@@ -329,10 +329,11 @@ export default function SafetyPanel({ onOpenProfile }: SafetyPanelProps) {
       {/* Suggested Labelers Modal */}
       {showSuggestedModal && mounted && createPortal(
         <div
-          className="fixed inset-0 z-[9999] flex items-center justify-center p-4"
+          className="fixed inset-0 flex items-center justify-center p-4"
+          style={{ zIndex: 99999, isolation: 'isolate' }}
           onClick={() => setShowSuggestedModal(false)}
         >
-          <div className="absolute inset-0 bg-black/50" />
+          <div className="absolute inset-0 bg-black/50" style={{ zIndex: -1 }} />
           <div
             className="relative bg-white dark:bg-gray-900 rounded-xl shadow-xl max-w-md w-full max-h-[80vh] overflow-hidden"
             onClick={(e) => e.stopPropagation()}
