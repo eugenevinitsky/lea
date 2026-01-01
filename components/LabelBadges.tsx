@@ -67,6 +67,7 @@ export default function LabelBadges({ labels, compact = false, showSource = fals
     const result: Array<{ val: string; src: string; name: string; severity: 'info' | 'warn' | 'alert'; color: string }> = [];
     
     for (const label of labels) {
+      console.log('[LabelBadges] Processing label:', label.val, 'from', label.src);
       // Skip hidden/internal labels
       if (HIDDEN_LABELS.has(label.val)) {
         console.log('[LabelBadges] Skipping hidden label:', label.val);
