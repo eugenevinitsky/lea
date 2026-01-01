@@ -90,15 +90,13 @@ export function FollowingProvider({ children }: { children: ReactNode }) {
       hasLoadedFromApiRef.current = true;
     } catch (err) {
       console.error('Failed to fetch following list:', err);
-      // Don't overwrite cached data on error
-      if (!followingDids) {
-        setFollowingDids(new Set());
-      }
+      // Set empty set on error if we don't have data yet
+      setFollowingDids(prev => prev ?? new Set());
     } finally {
       setIsLoading(false);
       fetchingRef.current = false;
     }
-  }, [followingDids]);
+  }, []); // No dependencies - uses refs for state checks
 
   // Load from cache immediately, then fetch fresh data
   useEffect(() => {
