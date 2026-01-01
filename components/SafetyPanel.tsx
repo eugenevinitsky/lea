@@ -305,7 +305,7 @@ export default function SafetyPanel({ onOpenProfile, onOpenThread }: SafetyPanel
               </span>
             )}
           </div>
-          <span className="font-semibold text-gray-900 dark:text-gray-100">Safety</span>
+          <span className="font-semibold text-gray-900 dark:text-gray-100">Moderation</span>
           {/* Alert count badge next to title when collapsed */}
           {!isExpanded && alerts.length > 0 && (
             <span className="px-1.5 py-0.5 text-xs font-medium bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 rounded-full">
