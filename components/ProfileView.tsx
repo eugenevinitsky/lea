@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import { AppBskyFeedDefs, AppBskyFeedPost, AppBskyEmbedExternal } from '@atproto/api';
 import type { ProfileLink, ProfilePaper } from '@/lib/db/schema';
 import { getAuthorFeed, getBlueskyProfile, getKnownFollowers, BlueskyProfile, KnownFollowersResult, followUser, unfollowUser, getSession, searchPosts } from '@/lib/bluesky';
@@ -111,6 +112,10 @@ interface ProfileViewProps {
 }
 
 export default function ProfileView({ did, avatar: avatarProp, displayName, handle, onClose, onOpenProfile, inline = false, onEdit }: ProfileViewProps) {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
+
   const [researcher, setResearcher] = useState<ResearcherInfo | null>(null);
   const [profile, setProfile] = useState<ProfileData | null>(null);
   const [coAuthors, setCoAuthors] = useState<CoAuthor[]>([]);
@@ -142,8 +147,31 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
   const [followLoading, setFollowLoading] = useState(false);
   const { refresh: refreshFollowing } = useFollowing();
 
-  // Posts state
-  const [activeTab, setActiveTab] = useState<'profile' | 'posts' | 'papers' | 'interactions'>('profile');
+  // Posts state - initialize from URL query param
+  const getInitialTab = (): 'profile' | 'posts' | 'papers' | 'interactions' => {
+    const tabParam = searchParams.get('tab');
+    if (tabParam === 'posts' || tabParam === 'papers' || tabParam === 'interactions' || tabParam === 'profile') {
+      return tabParam;
+    }
+    return 'profile';
+  };
+  const [activeTab, setActiveTabState] = useState<'profile' | 'posts' | 'papers' | 'interactions'>(getInitialTab);
+
+  // Update URL when tab changes
+  const setActiveTab = useCallback((tab: 'profile' | 'posts' | 'papers' | 'interactions') => {
+    setActiveTabState(tab);
+    // Update URL with new tab (only if inline mode, i.e., on the profile page)
+    if (inline) {
+      const params = new URLSearchParams(searchParams.toString());
+      if (tab === 'profile') {
+        params.delete('tab'); // Default tab doesn't need param
+      } else {
+        params.set('tab', tab);
+      }
+      const newUrl = params.toString() ? `${pathname}?${params.toString()}` : pathname;
+      router.replace(newUrl, { scroll: false });
+    }
+  }, [inline, pathname, router, searchParams]);
   const [posts, setPosts] = useState<AppBskyFeedDefs.FeedViewPost[]>([]);
   const [pinnedPost, setPinnedPost] = useState<AppBskyFeedDefs.PostView | null>(null);
   const [postsLoading, setPostsLoading] = useState(false);
