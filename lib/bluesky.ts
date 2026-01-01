@@ -318,6 +318,26 @@ export async function getThread(uri: string, depth = 10) {
   return agent.getPostThread({ uri, depth });
 }
 
+// Fetch multiple posts by their URIs (max 25 per request)
+export async function getPostsByUris(uris: string[]): Promise<AppBskyFeedDefs.PostView[]> {
+  if (!agent) throw new Error('Not logged in');
+  if (uris.length === 0) return [];
+
+  // Bluesky API limits to 25 URIs per request
+  const chunks: string[][] = [];
+  for (let i = 0; i < uris.length; i += 25) {
+    chunks.push(uris.slice(i, i + 25));
+  }
+
+  const allPosts: AppBskyFeedDefs.PostView[] = [];
+  for (const chunk of chunks) {
+    const response = await agent.getPosts({ uris: chunk });
+    allPosts.push(...response.data.posts);
+  }
+
+  return allPosts;
+}
+
 // Type guard for ThreadViewPost
 function isThreadViewPost(node: unknown): node is AppBskyFeedDefs.ThreadViewPost {
   return (

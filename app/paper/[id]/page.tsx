@@ -2,9 +2,9 @@
 
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useState, useEffect, useCallback, Suspense } from 'react';
-import { AppBskyFeedDefs, AppBskyEmbedExternal } from '@atproto/api';
-import { restoreSession, getSession, searchPosts, getBlueskyProfile } from '@/lib/bluesky';
-import { getUrlFromPaperId, getSearchQueryForPaper, getPaperTypeFromId, extractPaperUrl, extractAnyUrl, LinkFacet } from '@/lib/papers';
+import { AppBskyFeedDefs } from '@atproto/api';
+import { restoreSession, getSession, getBlueskyProfile, getPostsByUris } from '@/lib/bluesky';
+import { getUrlFromPaperId, getPaperTypeFromId } from '@/lib/papers';
 import { SettingsProvider } from '@/lib/settings';
 import { BookmarksProvider } from '@/lib/bookmarks';
 import { FeedsProvider } from '@/lib/feeds';
@@ -15,8 +15,10 @@ import ThreadView from '@/components/ThreadView';
 
 interface PaperInfo {
   title?: string;
-  authors?: string;
-  abstract?: string;
+  authors?: string[];
+  url?: string;
+  source?: string;
+  mentionCount?: number;
 }
 
 function PaperPageContent() {
@@ -26,14 +28,15 @@ function PaperPageContent() {
   // The ID is URL-encoded and might contain special characters
   const rawId = Array.isArray(params.id) ? params.id.join('/') : (params.id as string);
   const paperId = decodeURIComponent(rawId);
-  // Original URL passed from Post component for more accurate searching
+  // Original URL passed from Post component (used as fallback for paper link)
   const originalUrl = searchParams.get('url');
-  
+
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [posts, setPosts] = useState<AppBskyFeedDefs.PostView[]>([]);
   const [postsLoading, setPostsLoading] = useState(false);
-  const [cursor, setCursor] = useState<string | undefined>();
+  const [hasMore, setHasMore] = useState(false);
+  const [offset, setOffset] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [paperInfo, setPaperInfo] = useState<PaperInfo>({});
   const [threadUri, setThreadUri] = useState<string | null>(null);
@@ -48,119 +51,77 @@ function PaperPageContent() {
     });
   }, []);
 
-  // Search for posts mentioning this paper
-  const searchForPosts = useCallback(async (loadMore = false) => {
+  // Fetch posts mentioning this paper from database
+  const fetchPosts = useCallback(async (loadMore = false) => {
     if (!paperId) return;
-    
+
     setPostsLoading(true);
     setError(null);
-    
+
     try {
-      let result: { posts: AppBskyFeedDefs.PostView[]; cursor?: string } = { posts: [], cursor: undefined };
-      
-      // Strategy 1: Search for the original full URL (most accurate for finding link shares)
-      if (!loadMore && originalUrl) {
-        console.log('[Paper Search] Strategy 1 (full URL):', originalUrl);
-        result = await searchPosts(originalUrl, undefined, 'latest');
-        console.log('[Paper Search] Strategy 1 results:', result.posts.length);
+      const currentOffset = loadMore ? offset : 0;
+      const limit = 50;
+
+      // Fetch mentions from database
+      const response = await fetch(`/api/papers/mentions?id=${encodeURIComponent(paperId)}&limit=${limit}&offset=${currentOffset}`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch mentions');
       }
-      
-      // Strategy 2: Try the URL without query params
-      if (!loadMore && result.posts.length === 0 && originalUrl) {
-        const urlNoParams = originalUrl.replace(/\?.*$/, '');
-        if (urlNoParams !== originalUrl) {
-          console.log('[Paper Search] Strategy 2 (URL without params):', urlNoParams);
-          result = await searchPosts(urlNoParams, undefined, 'latest');
-          console.log('[Paper Search] Strategy 2 results:', result.posts.length);
-        }
+
+      const data = await response.json();
+
+      // Update paper info from database
+      if (data.paper) {
+        setPaperInfo({
+          title: data.paper.title,
+          authors: data.paper.authors,
+          url: data.paper.url,
+          source: data.paper.source,
+          mentionCount: data.paper.mentionCount,
+        });
       }
-      
-      // Strategy 3: Search for the DOI or paper ID
-      if (result.posts.length === 0 || loadMore) {
-        const searchQuery = getSearchQueryForPaper(paperId);
-        console.log('[Paper Search] Strategy 3 (paper ID):', searchQuery);
-        const idResult = await searchPosts(searchQuery, loadMore ? cursor : undefined, 'latest');
-        console.log('[Paper Search] Strategy 3 results:', idResult.posts.length);
-        if (loadMore || result.posts.length === 0) {
-          result = idResult;
+
+      if (data.mentions.length === 0) {
+        if (!loadMore) {
+          setPosts([]);
         }
+        setHasMore(false);
+        return;
       }
-      
-      // Strategy 4: Try domain search as last resort
-      if (!loadMore && result.posts.length === 0) {
-        const fallbackUrl = originalUrl || getUrlFromPaperId(paperId);
-        const domainMatch = fallbackUrl.match(/https?:\/\/([^/]+)/);
-        if (domainMatch) {
-          const domainQuery = `domain:${domainMatch[1]}`;
-          // Also try to find a unique ID from the URL path
-          const pathParts = fallbackUrl.replace(/^https?:\/\/[^/]+/, '').split('/').filter(p => p && p.length > 3);
-          const lastPart = pathParts[pathParts.length - 1]?.replace(/\?.*$/, '');
-          if (lastPart) {
-            const combinedQuery = `${domainQuery} ${lastPart}`;
-            console.log('[Paper Search] Strategy 4 (domain + id):', combinedQuery);
-            result = await searchPosts(combinedQuery, undefined, 'latest');
-            console.log('[Paper Search] Strategy 4 results:', result.posts.length);
-          }
-        }
-      }
-      
-      console.log('[Paper Search] Total raw results before filtering:', result.posts.length);
-      
-      // Filter results to only include posts that actually contain relevant links
-      // Either: a known paper domain URL, OR the original URL we're searching for
-      const filteredPosts = result.posts.filter(post => {
-        const record = post.record as { text?: string; facets?: LinkFacet[] };
-        const embedUri = post.embed && 'external' in post.embed 
-          ? (post.embed as AppBskyEmbedExternal.View).external?.uri 
-          : undefined;
-        
-        // Check for known paper domain URLs
-        const paperUrl = extractPaperUrl(record.text || '', embedUri, record.facets);
-        if (paperUrl !== null) return true;
-        
-        // Also accept posts containing the original URL we're searching for (for unknown domains)
-        if (originalUrl) {
-          const anyUrl = extractAnyUrl(record.text || '', embedUri, record.facets);
-          if (anyUrl && (anyUrl === originalUrl || anyUrl.includes(originalUrl) || originalUrl.includes(anyUrl))) {
-            return true;
-          }
-        }
-        
-        return false;
+
+      // Fetch actual posts from Bluesky using post URIs
+      const postUris = data.mentions.map((m: { postUri: string }) => m.postUri);
+      const blueskyPosts = await getPostsByUris(postUris);
+
+      // Sort by indexedAt to maintain chronological order (newest first)
+      blueskyPosts.sort((a, b) => {
+        const dateA = new Date(a.indexedAt).getTime();
+        const dateB = new Date(b.indexedAt).getTime();
+        return dateB - dateA;
       });
-      
+
       if (loadMore) {
-        setPosts(prev => [...prev, ...filteredPosts]);
+        setPosts(prev => [...prev, ...blueskyPosts]);
       } else {
-        setPosts(filteredPosts);
-        
-        // Try to extract paper title from first post with embed
-        for (const post of filteredPosts) {
-          if (post.embed && 'external' in post.embed) {
-            const external = post.embed as AppBskyEmbedExternal.View;
-            if (external.external?.title) {
-              setPaperInfo({ title: external.external.title });
-              break;
-            }
-          }
-        }
+        setPosts(blueskyPosts);
       }
-      
-      setCursor(result.cursor);
+
+      setOffset(currentOffset + data.mentions.length);
+      setHasMore(data.mentions.length === limit);
     } catch (err) {
-      console.error('Failed to search for paper posts:', err);
+      console.error('Failed to fetch paper posts:', err);
       setError('Failed to load discussions');
     } finally {
       setPostsLoading(false);
     }
-  }, [paperId, cursor, originalUrl]);
+  }, [paperId, offset]);
 
-  // Initial search when logged in
+  // Initial fetch when logged in
   useEffect(() => {
     if (isLoggedIn && paperId) {
-      searchForPosts();
+      fetchPosts();
     }
-  }, [isLoggedIn, paperId, searchForPosts]);
+  }, [isLoggedIn, paperId]); // Intentionally exclude fetchPosts to avoid re-fetching
 
   const handleLogin = () => {
     setIsLoggedIn(true);
@@ -254,7 +215,7 @@ function PaperPageContent() {
                     </h2>
                   )}
                   <a
-                    href={getUrlFromPaperId(paperId)}
+                    href={paperInfo.url || originalUrl || getUrlFromPaperId(paperId)}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="inline-flex items-center gap-1 text-sm text-purple-600 hover:text-purple-700 dark:text-purple-400 dark:hover:text-purple-300"
@@ -262,7 +223,7 @@ function PaperPageContent() {
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
                     </svg>
-                    View on {getPaperTypeFromId(paperId)}
+                    View on {paperInfo.source || getPaperTypeFromId(paperId)}
                   </a>
                 </div>
               </div>
@@ -331,10 +292,10 @@ function PaperPageContent() {
                 </div>
                 <p className="text-gray-500 mb-2">No discussions found</p>
                 <p className="text-sm text-gray-400 mb-4">
-                  Bluesky&apos;s search may not have indexed all posts about this paper yet.
+                  Be the first to share your thoughts on this paper!
                 </p>
                 <a
-                  href={getUrlFromPaperId(paperId)}
+                  href={paperInfo.url || originalUrl || getUrlFromPaperId(paperId)}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="inline-flex items-center gap-1 px-4 py-2 text-sm bg-purple-500 text-white rounded-full hover:bg-purple-600 transition-colors"
@@ -355,10 +316,10 @@ function PaperPageContent() {
                     onOpenProfile={navigateToProfile}
                   />
                 ))}
-                {cursor && (
+                {hasMore && (
                   <div className="p-4 text-center">
                     <button
-                      onClick={() => searchForPosts(true)}
+                      onClick={() => fetchPosts(true)}
                       disabled={postsLoading}
                       className="px-4 py-2 text-sm text-purple-500 hover:text-purple-600 disabled:opacity-50"
                     >
