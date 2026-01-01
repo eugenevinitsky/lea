@@ -444,7 +444,7 @@ function AppContent() {
               {/* Manage feeds button */}
               <button
                 onClick={() => setShowFeedDiscovery(true)}
-                className="flex-shrink-0 px-3 py-3 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                className="flex-shrink-0 px-3 py-3 text-blue-500 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
                 title="Manage feeds"
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
