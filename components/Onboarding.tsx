@@ -97,6 +97,11 @@ export default function Onboarding({ onComplete, startAtStep = 1 }: OnboardingPr
   // Researcher search state
   const [researcherSearch, setResearcherSearch] = useState('');
 
+  // Count verified researchers the user is following
+  const followedResearcherCount = useMemo(() => {
+    return allResearchers.filter(r => followedDids.has(r.did)).length;
+  }, [allResearchers, followedDids]);
+
   // Compute all available topics (predefined + from researchers)
   const allAvailableTopics = useMemo(() => {
     const topicsSet = new Set(RESEARCH_TOPICS);
@@ -152,12 +157,12 @@ export default function Onboarding({ onComplete, startAtStep = 1 }: OnboardingPr
       if (data.researchers) {
         const mapped = data.researchers
           .filter((r: { did: string }) => r.did !== session?.did)
-          .map((r: { did: string; handle: string; name: string; institution: string; researchTopics: string | null }) => ({
+          .map((r: { did: string; handle: string; name: string; institution: string; researchTopics: string[] | null }) => ({
             did: r.did,
             handle: r.handle,
             name: r.name,
             institution: r.institution,
-            researchTopics: r.researchTopics ? JSON.parse(r.researchTopics) : [],
+            researchTopics: r.researchTopics || [],
             matchedTopics: [],
           }));
         setAllResearchers(mapped);
@@ -935,9 +940,9 @@ export default function Onboarding({ onComplete, startAtStep = 1 }: OnboardingPr
                 </div>
               )}
 
-              {followedDids.size > 0 && (
+              {followedResearcherCount > 0 && (
                 <p className="text-sm text-emerald-600 dark:text-emerald-400 text-center mb-4">
-                  Following {followedDids.size} researcher{followedDids.size !== 1 ? 's' : ''}
+                  Following {followedResearcherCount} verified researcher{followedResearcherCount !== 1 ? 's' : ''}
                 </p>
               )}
 
@@ -1006,8 +1011,8 @@ export default function Onboarding({ onComplete, startAtStep = 1 }: OnboardingPr
                   <li>• {selectedFeeds.size} feed{selectedFeeds.size !== 1 ? 's' : ''} selected</li>
                   <li>• Replies: {threadgateChoice === 'open' ? 'Everyone' : threadgateChoice === 'following' ? 'People you follow' : 'Verified researchers only'}</li>
                   <li>• {dimNonVerified ? 'Highlighting verified researchers' : 'Showing all posts equally'}</li>
-                  {followedDids.size > 0 && (
-                    <li>• Following {followedDids.size} verified researcher{followedDids.size !== 1 ? 's' : ''}</li>
+                  {followedResearcherCount > 0 && (
+                    <li>• Following {followedResearcherCount} verified researcher{followedResearcherCount !== 1 ? 's' : ''}</li>
                   )}
                 </ul>
               </div>
