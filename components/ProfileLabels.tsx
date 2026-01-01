@@ -21,28 +21,17 @@ export default function ProfileLabels({ profile, compact = false }: ProfileLabel
   // Get profile moderation to extract labels with display names
   // Only show labels that the moderation system decides to show (based on user settings)
   const profileLabels = useMemo(() => {
-    console.log('[ProfileLabels] Checking:', { 
-      hasProfile: !!profile, 
-      hasModOpts: !!moderationOpts,
-      profileDid: profile?.did,
-      profileLabels: profile?.labels 
-    });
-    
     if (!profile || !moderationOpts) return [];
     
     const decision = getProfileModeration(profile as Parameters<typeof getProfileModeration>[0]);
-    console.log('[ProfileLabels] Decision:', decision);
-    
     if (!decision) return [];
     
     const ui = getModerationUI(decision, 'profileView');
-    console.log('[ProfileLabels] UI:', { alerts: ui.alerts, informs: ui.informs });
     
     // Combine alerts and informs, filtering out hidden labels
     const allLabels = [...ui.alerts, ...ui.informs].filter(
       l => l.label && !HIDDEN_LABELS.has(l.label)
     );
-    console.log('[ProfileLabels] Final labels:', allLabels);
     return allLabels;
   }, [profile, getProfileModeration, moderationOpts]);
 
@@ -50,18 +39,39 @@ export default function ProfileLabels({ profile, compact = false }: ProfileLabel
 
   return (
     <div className={`flex flex-wrap gap-1 ${compact ? '' : 'mt-2'}`}>
-      {profileLabels.map((label, i) => (
-        <span
-          key={`${label.label}-${i}`}
-          className={`inline-flex items-center gap-1 font-medium rounded-full ${
-            compact
-              ? 'px-1.5 py-0 text-[10px] bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400'
-              : 'px-2 py-0.5 text-xs bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400'
-          }`}
-        >
-          {label.displayName || label.label || label.type}
-        </span>
-      ))}
+      {profileLabels.map((label, i) => {
+        // Link to labeler's profile on Bluesky
+        const labelerUrl = label.labeledBy ? `https://bsky.app/profile/${label.labeledBy}` : undefined;
+        
+        return labelerUrl ? (
+          <a
+            key={`${label.label}-${i}`}
+            href={labelerUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={(e) => e.stopPropagation()}
+            className={`inline-flex items-center gap-1 font-medium rounded-full hover:opacity-80 transition-opacity cursor-pointer ${
+              compact
+                ? 'px-1.5 py-0 text-[10px] bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400'
+                : 'px-2 py-0.5 text-xs bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400'
+            }`}
+            title="Click to view labeler"
+          >
+            {label.displayName || label.label || label.type}
+          </a>
+        ) : (
+          <span
+            key={`${label.label}-${i}`}
+            className={`inline-flex items-center gap-1 font-medium rounded-full ${
+              compact
+                ? 'px-1.5 py-0 text-[10px] bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400'
+                : 'px-2 py-0.5 text-xs bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400'
+            }`}
+          >
+            {label.displayName || label.label || label.type}
+          </span>
+        );
+      })}
     </div>
   );
 }

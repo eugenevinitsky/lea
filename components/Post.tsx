@@ -12,7 +12,9 @@ import ProfileHoverCard from './ProfileHoverCard';
 import QuotesView from './QuotesView';
 import EmojiPicker from './EmojiPicker';
 import LabelBadges from './LabelBadges';
+import ProfileLabels from './ProfileLabels';
 import Link from 'next/link';
+import type { BlueskyProfile } from '@/lib/bluesky';
 import { extractPaperUrl, extractAnyUrl, getPaperIdFromUrl, PAPER_DOMAINS, LinkFacet } from '@/lib/papers';
 
 // Reply context from feed (parent post info)
@@ -1480,7 +1482,7 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
             )}
           </div>
           {/* Labels from moderation services - shown below author info */}
-          <LabelBadges labels={author.labels as Label[] | undefined} compact showSource gray />
+          <ProfileLabels profile={author as unknown as BlueskyProfile} compact />
 
           {/* Post text */}
           <p
