@@ -384,7 +384,7 @@ export default function ModerationBox({ onOpenProfile }: ModerationBoxProps) {
                                 {paper.source}
                               </span>
                               <span className="text-purple-600 dark:text-purple-400 text-[10px] font-medium">
-                                {paper.recentMentions ?? paper.mentionCount} discussing now
+                                {paper.postCount ?? paper.mentionCount} post{(paper.postCount ?? paper.mentionCount) !== 1 ? 's' : ''}
                               </span>
                             </div>
                             <p className="text-xs text-gray-900 dark:text-gray-100 font-medium truncate">
