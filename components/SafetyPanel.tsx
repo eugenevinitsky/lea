@@ -7,8 +7,11 @@ import {
   getLabelerInfo,
   getUserPostsForThreadgate,
   updateThreadgate,
+  checkSafetyAlerts,
+  dismissSafetyAlert,
   ThreadgateType,
   LabelerInfo,
+  SafetyAlert,
 } from '@/lib/bluesky';
 
 // Suggested labelers - can be expanded later
@@ -41,9 +44,10 @@ const SUGGESTED_LABELERS = [
 
 interface SafetyPanelProps {
   onOpenProfile?: (did: string) => void;
+  onOpenThread?: (uri: string) => void;
 }
 
-export default function SafetyPanel({ onOpenProfile }: SafetyPanelProps) {
+export default function SafetyPanel({ onOpenProfile, onOpenThread }: SafetyPanelProps) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [labelers, setLabelers] = useState<LabelerInfo[]>([]);
   const [loadingLabelers, setLoadingLabelers] = useState(false);
@@ -56,6 +60,11 @@ export default function SafetyPanel({ onOpenProfile }: SafetyPanelProps) {
   const [progress, setProgress] = useState<{ current: number; total: number } | null>(null);
   const [applyError, setApplyError] = useState<string | null>(null);
   const [applySuccess, setApplySuccess] = useState<string | null>(null);
+  
+  // Safety alerts state
+  const [alerts, setAlerts] = useState<SafetyAlert[]>([]);
+  const [loadingAlerts, setLoadingAlerts] = useState(false);
+  const [lastAlertCheck, setLastAlertCheck] = useState<Date | null>(null);
 
   // Track mount state for portal
   useEffect(() => {
@@ -76,6 +85,63 @@ export default function SafetyPanel({ onOpenProfile }: SafetyPanelProps) {
       loadLabelers();
     }
   }, [isExpanded]);
+
+  // Load alerts when expanded (with rate limiting - max once per 5 minutes)
+  useEffect(() => {
+    if (isExpanded && !loadingAlerts) {
+      const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
+      if (!lastAlertCheck || lastAlertCheck < fiveMinutesAgo) {
+        loadAlerts();
+      }
+    }
+  }, [isExpanded]);
+
+  const loadAlerts = async () => {
+    setLoadingAlerts(true);
+    try {
+      const newAlerts = await checkSafetyAlerts();
+      setAlerts(newAlerts);
+      setLastAlertCheck(new Date());
+    } catch (error) {
+      console.error('Failed to load safety alerts:', error);
+    } finally {
+      setLoadingAlerts(false);
+    }
+  };
+
+  const handleDismissAlert = (alertId: string) => {
+    dismissSafetyAlert(alertId);
+    setAlerts(prev => prev.filter(a => a.id !== alertId));
+  };
+
+  const getAlertIcon = (type: SafetyAlert['type']) => {
+    switch (type) {
+      case 'high_engagement':
+        return (
+          <svg className="w-4 h-4 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+          </svg>
+        );
+      case 'big_account_repost':
+        return (
+          <svg className="w-4 h-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+          </svg>
+        );
+      case 'big_account_quote':
+        return (
+          <svg className="w-4 h-4 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
+          </svg>
+        );
+      case 'quote_going_viral':
+        return (
+          <svg className="w-4 h-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 18.657A8 8 0 016.343 7.343S7 9 9 10c0-2 .5-5 2.986-7C14 5 16.09 5.777 17.656 7.343A7.975 7.975 0 0120 13a7.975 7.975 0 01-2.343 5.657z" />
+          </svg>
+        );
+    }
+  };
 
   const loadLabelers = async () => {
     setLoadingLabelers(true);
@@ -214,6 +280,101 @@ export default function SafetyPanel({ onOpenProfile }: SafetyPanelProps) {
       {/* Expanded content */}
       {isExpanded && (
         <div className="border-t border-gray-200 dark:border-gray-800">
+          {/* Safety Alerts Section */}
+          <div className="p-3 border-b border-gray-100 dark:border-gray-800">
+            <div className="flex items-center justify-between mb-2">
+              <h4 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">
+                Alerts
+              </h4>
+              {alerts.length > 0 && (
+                <span className="px-1.5 py-0.5 text-xs font-medium bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 rounded-full">
+                  {alerts.length}
+                </span>
+              )}
+            </div>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
+              Activity that may need your attention
+            </p>
+
+            {loadingAlerts ? (
+              <div className="flex items-center justify-center py-4">
+                <div className="animate-spin w-5 h-5 border-2 border-amber-500 border-t-transparent rounded-full" />
+              </div>
+            ) : alerts.length === 0 ? (
+              <div className="py-3 text-center">
+                <svg className="w-6 h-6 mx-auto text-gray-300 dark:text-gray-600 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <p className="text-xs text-gray-400">No alerts right now</p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {alerts.map((alert) => (
+                  <div
+                    key={alert.id}
+                    className="relative p-2 bg-gray-50 dark:bg-gray-800/50 rounded-lg group"
+                  >
+                    <div className="flex items-start gap-2">
+                      <div className="flex-shrink-0 mt-0.5">
+                        {getAlertIcon(alert.type)}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-medium text-gray-900 dark:text-gray-100">
+                          {alert.message}
+                        </p>
+                        <p className="text-xs text-gray-500 dark:text-gray-400 truncate mt-0.5">
+                          &ldquo;{alert.postText}&rdquo;
+                        </p>
+                        {alert.relatedAccount && (
+                          <button
+                            onClick={() => onOpenProfile?.(alert.relatedAccount!.did)}
+                            className="mt-1 flex items-center gap-1 text-xs text-blue-500 hover:text-blue-600"
+                          >
+                            {alert.relatedAccount.avatar && (
+                              <img
+                                src={alert.relatedAccount.avatar}
+                                alt=""
+                                className="w-4 h-4 rounded-full"
+                              />
+                            )}
+                            <span>View @{alert.relatedAccount.handle}</span>
+                          </button>
+                        )}
+                        <button
+                          onClick={() => onOpenThread?.(alert.postUri)}
+                          className="mt-1 text-xs text-blue-500 hover:text-blue-600 hover:underline"
+                        >
+                          View post →
+                        </button>
+                      </div>
+                      <button
+                        onClick={() => handleDismissAlert(alert.id)}
+                        className="opacity-0 group-hover:opacity-100 p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded transition-opacity"
+                        title="Dismiss"
+                      >
+                        <svg className="w-3 h-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Refresh button */}
+            <button
+              onClick={loadAlerts}
+              disabled={loadingAlerts}
+              className="w-full mt-3 py-1.5 px-3 text-xs text-gray-600 dark:text-gray-400 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg transition-colors disabled:opacity-50 flex items-center justify-center gap-1"
+            >
+              <svg className={`w-3 h-3 ${loadingAlerts ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+              {loadingAlerts ? 'Checking...' : 'Check for alerts'}
+            </button>
+          </div>
+
           {/* Reply Limits Section */}
           <div className="p-3 border-b border-gray-100 dark:border-gray-800">
             <h4 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2">

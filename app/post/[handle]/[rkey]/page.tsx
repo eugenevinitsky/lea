@@ -214,7 +214,7 @@ function PostPageContent() {
           <DMSidebar />
           <Notifications onOpenPost={navigateToThread} onOpenProfile={navigateToProfile} />
           <ModerationBox onOpenProfile={navigateToProfile} />
-          <SafetyPanel onOpenProfile={navigateToProfile} />
+          <SafetyPanel onOpenProfile={navigateToProfile} onOpenThread={navigateToThread} />
         </aside>
 
         {/* Main content */}

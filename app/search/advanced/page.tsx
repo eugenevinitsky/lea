@@ -269,7 +269,7 @@ function AdvancedSearchPageContent() {
           <DMSidebar />
           <Notifications onOpenPost={openThread} onOpenProfile={navigateToProfile} />
           <ModerationBox onOpenProfile={navigateToProfile} />
-          <SafetyPanel onOpenProfile={navigateToProfile} />
+          <SafetyPanel onOpenProfile={navigateToProfile} onOpenThread={openThread} />
         </aside>
 
         {/* Main content */}

@@ -1266,3 +1266,225 @@ export async function getMyFollows(): Promise<Set<string>> {
     return new Set();
   }
 }
+
+// ============================================
+// Safety Alerts
+// ============================================
+
+export interface SafetyAlert {
+  id: string;
+  type: 'high_engagement' | 'big_account_repost' | 'big_account_quote' | 'quote_going_viral';
+  postUri: string;
+  postText: string;
+  message: string;
+  timestamp: string;
+  relatedAccount?: {
+    did: string;
+    handle: string;
+    displayName?: string;
+    avatar?: string;
+    followersCount: number;
+  };
+  metrics?: {
+    likes?: number;
+    reposts?: number;
+    replies?: number;
+    quotes?: number;
+  };
+}
+
+const HIGH_ENGAGEMENT_THRESHOLD = 50; // likes + reposts + replies
+const BIG_ACCOUNT_FOLLOWER_THRESHOLD = 20000;
+const VIRAL_QUOTE_THRESHOLD = 25; // engagement on a quote of your post
+
+// Get user's recent posts with engagement metrics
+export async function getMyRecentPostsWithMetrics(
+  limit: number = 20
+): Promise<AppBskyFeedDefs.PostView[]> {
+  if (!agent?.session?.did) return [];
+  
+  try {
+    const response = await agent.getAuthorFeed({
+      actor: agent.session.did,
+      limit,
+      filter: 'posts_no_replies',
+    });
+    
+    // Filter to only posts by current user (not reposts) and return PostView
+    return response.data.feed
+      .filter(item => !item.reason && item.post.author.did === agent!.session!.did)
+      .map(item => item.post);
+  } catch (error) {
+    console.error('Failed to fetch recent posts:', error);
+    return [];
+  }
+}
+
+// Check for safety alerts on user's posts
+export async function checkSafetyAlerts(): Promise<SafetyAlert[]> {
+  if (!agent?.session?.did) return [];
+  
+  const alerts: SafetyAlert[] = [];
+  const seenAlertIds = new Set<string>();
+  
+  // Load dismissed alerts from localStorage
+  const dismissedAlerts = new Set<string>(
+    JSON.parse(localStorage.getItem('lea-dismissed-alerts') || '[]')
+  );
+  
+  try {
+    // Get recent posts
+    const posts = await getMyRecentPostsWithMetrics(15);
+    
+    for (const post of posts) {
+      const totalEngagement = (post.likeCount || 0) + (post.repostCount || 0) + (post.replyCount || 0);
+      const postText = (post.record as { text?: string })?.text || '';
+      const shortText = postText.length > 50 ? postText.substring(0, 50) + '...' : postText;
+      
+      // Check for high engagement
+      if (totalEngagement >= HIGH_ENGAGEMENT_THRESHOLD) {
+        const alertId = `high_engagement:${post.uri}`;
+        if (!dismissedAlerts.has(alertId) && !seenAlertIds.has(alertId)) {
+          seenAlertIds.add(alertId);
+          alerts.push({
+            id: alertId,
+            type: 'high_engagement',
+            postUri: post.uri,
+            postText: shortText,
+            message: `Your post is getting attention (${totalEngagement} interactions)`,
+            timestamp: new Date().toISOString(),
+            metrics: {
+              likes: post.likeCount,
+              reposts: post.repostCount,
+              replies: post.replyCount,
+            },
+          });
+        }
+      }
+      
+      // Check reposts for big accounts (only if post has significant reposts)
+      if ((post.repostCount || 0) >= 3) {
+        try {
+          const repostedBy = await getRepostedBy(post.uri);
+          // Need to fetch full profiles to get follower counts
+          for (const reposter of repostedBy.data.repostedBy.slice(0, 5)) {
+            const profile = await getBlueskyProfile(reposter.did);
+            if (profile && (profile.followersCount || 0) >= BIG_ACCOUNT_FOLLOWER_THRESHOLD) {
+              const alertId = `big_repost:${post.uri}:${reposter.did}`;
+              if (!dismissedAlerts.has(alertId) && !seenAlertIds.has(alertId)) {
+                seenAlertIds.add(alertId);
+                alerts.push({
+                  id: alertId,
+                  type: 'big_account_repost',
+                  postUri: post.uri,
+                  postText: shortText,
+                  message: `@${profile.handle} (${(profile.followersCount || 0).toLocaleString()} followers) reposted your post`,
+                  timestamp: new Date().toISOString(),
+                  relatedAccount: {
+                    did: profile.did,
+                    handle: profile.handle,
+                    displayName: profile.displayName,
+                    avatar: profile.avatar,
+                    followersCount: profile.followersCount || 0,
+                  },
+                });
+              }
+            }
+          }
+        } catch (error) {
+          console.error('Failed to check reposters:', error);
+        }
+      }
+      
+      // Check quotes for big accounts and viral quotes
+      if ((post.quoteCount || 0) >= 1) {
+        try {
+          const quotes = await getQuotes(post.uri);
+          for (const quotePost of quotes.data.posts.slice(0, 5)) {
+            const quoter = quotePost.author;
+            // Fetch full profile to get follower count
+            const quoterProfile = await getBlueskyProfile(quoter.did);
+            
+            // Big account quoted
+            if (quoterProfile && (quoterProfile.followersCount || 0) >= BIG_ACCOUNT_FOLLOWER_THRESHOLD) {
+              const alertId = `big_quote:${post.uri}:${quoter.did}`;
+              if (!dismissedAlerts.has(alertId) && !seenAlertIds.has(alertId)) {
+                seenAlertIds.add(alertId);
+                alerts.push({
+                  id: alertId,
+                  type: 'big_account_quote',
+                  postUri: post.uri,
+                  postText: shortText,
+                  message: `@${quoterProfile.handle} (${(quoterProfile.followersCount || 0).toLocaleString()} followers) quoted your post`,
+                  timestamp: new Date().toISOString(),
+                  relatedAccount: {
+                    did: quoterProfile.did,
+                    handle: quoterProfile.handle,
+                    displayName: quoterProfile.displayName,
+                    avatar: quoterProfile.avatar,
+                    followersCount: quoterProfile.followersCount || 0,
+                  },
+                });
+              }
+            }
+            
+            // Quote going viral
+            const quoteEngagement = (quotePost.likeCount || 0) + (quotePost.repostCount || 0) + (quotePost.replyCount || 0);
+            if (quoteEngagement >= VIRAL_QUOTE_THRESHOLD) {
+              const alertId = `viral_quote:${quotePost.uri}`;
+              if (!dismissedAlerts.has(alertId) && !seenAlertIds.has(alertId)) {
+                seenAlertIds.add(alertId);
+                const profile = quoterProfile || { did: quoter.did, handle: quoter.handle, displayName: quoter.displayName, avatar: quoter.avatar };
+                alerts.push({
+                  id: alertId,
+                  type: 'quote_going_viral',
+                  postUri: quotePost.uri,
+                  postText: shortText,
+                  message: `A quote of your post is getting attention (${quoteEngagement} interactions)`,
+                  timestamp: new Date().toISOString(),
+                  relatedAccount: {
+                    did: profile.did,
+                    handle: profile.handle,
+                    displayName: profile.displayName,
+                    avatar: profile.avatar,
+                    followersCount: quoterProfile?.followersCount || 0,
+                  },
+                  metrics: {
+                    likes: quotePost.likeCount,
+                    reposts: quotePost.repostCount,
+                    replies: quotePost.replyCount,
+                  },
+                });
+              }
+            }
+          }
+        } catch (error) {
+          console.error('Failed to check quotes:', error);
+        }
+      }
+    }
+    
+    return alerts;
+  } catch (error) {
+    console.error('Failed to check safety alerts:', error);
+    return [];
+  }
+}
+
+// Dismiss an alert (won't show again)
+export function dismissSafetyAlert(alertId: string): void {
+  const dismissed = JSON.parse(localStorage.getItem('lea-dismissed-alerts') || '[]');
+  if (!dismissed.includes(alertId)) {
+    dismissed.push(alertId);
+    // Keep only the last 100 dismissed alerts to avoid localStorage bloat
+    if (dismissed.length > 100) {
+      dismissed.shift();
+    }
+    localStorage.setItem('lea-dismissed-alerts', JSON.stringify(dismissed));
+  }
+}
+
+// Clear all dismissed alerts (for testing or reset)
+export function clearDismissedAlerts(): void {
+  localStorage.removeItem('lea-dismissed-alerts');
+}

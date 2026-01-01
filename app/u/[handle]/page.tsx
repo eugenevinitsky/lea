@@ -242,7 +242,7 @@ function ProfilePageContent() {
           <DMSidebar />
           <Notifications onOpenPost={openThread} onOpenProfile={handleOpenProfile} />
           <ModerationBox onOpenProfile={handleOpenProfile} />
-          <SafetyPanel onOpenProfile={handleOpenProfile} />
+          <SafetyPanel onOpenProfile={handleOpenProfile} onOpenThread={openThread} />
         </aside>
 
         {/* Main content */}
