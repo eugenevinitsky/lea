@@ -1293,9 +1293,16 @@ export interface SafetyAlert {
   };
 }
 
-const HIGH_ENGAGEMENT_THRESHOLD = 50; // likes + reposts + replies
-const BIG_ACCOUNT_FOLLOWER_THRESHOLD = 20000;
-const VIRAL_QUOTE_THRESHOLD = 25; // engagement on a quote of your post
+// Default thresholds (can be overridden by user settings)
+const DEFAULT_HIGH_ENGAGEMENT_THRESHOLD = 50; // likes + reposts + replies
+const DEFAULT_BIG_ACCOUNT_FOLLOWER_THRESHOLD = 20000;
+const DEFAULT_VIRAL_QUOTE_THRESHOLD = 25; // engagement on a quote of your post
+
+export interface AlertThresholds {
+  highEngagement?: number;
+  bigAccountFollowers?: number;
+  viralQuote?: number;
+}
 
 // Get user's recent posts with engagement metrics
 export async function getMyRecentPostsWithMetrics(
@@ -1321,8 +1328,13 @@ export async function getMyRecentPostsWithMetrics(
 }
 
 // Check for safety alerts on user's posts
-export async function checkSafetyAlerts(): Promise<SafetyAlert[]> {
+export async function checkSafetyAlerts(thresholds?: AlertThresholds): Promise<SafetyAlert[]> {
   if (!agent?.session?.did) return [];
+  
+  // Use provided thresholds or defaults
+  const highEngagementThreshold = thresholds?.highEngagement ?? DEFAULT_HIGH_ENGAGEMENT_THRESHOLD;
+  const bigAccountFollowerThreshold = thresholds?.bigAccountFollowers ?? DEFAULT_BIG_ACCOUNT_FOLLOWER_THRESHOLD;
+  const viralQuoteThreshold = thresholds?.viralQuote ?? DEFAULT_VIRAL_QUOTE_THRESHOLD;
   
   const alerts: SafetyAlert[] = [];
   const seenAlertIds = new Set<string>();
@@ -1342,7 +1354,7 @@ export async function checkSafetyAlerts(): Promise<SafetyAlert[]> {
       const shortText = postText.length > 50 ? postText.substring(0, 50) + '...' : postText;
       
       // Check for high engagement
-      if (totalEngagement >= HIGH_ENGAGEMENT_THRESHOLD) {
+      if (totalEngagement >= highEngagementThreshold) {
         const alertId = `high_engagement:${post.uri}`;
         if (!dismissedAlerts.has(alertId) && !seenAlertIds.has(alertId)) {
           seenAlertIds.add(alertId);
@@ -1369,7 +1381,7 @@ export async function checkSafetyAlerts(): Promise<SafetyAlert[]> {
           // Need to fetch full profiles to get follower counts
           for (const reposter of repostedBy.data.repostedBy.slice(0, 5)) {
             const profile = await getBlueskyProfile(reposter.did);
-            if (profile && (profile.followersCount || 0) >= BIG_ACCOUNT_FOLLOWER_THRESHOLD) {
+            if (profile && (profile.followersCount || 0) >= bigAccountFollowerThreshold) {
               const alertId = `big_repost:${post.uri}:${reposter.did}`;
               if (!dismissedAlerts.has(alertId) && !seenAlertIds.has(alertId)) {
                 seenAlertIds.add(alertId);
@@ -1406,7 +1418,7 @@ export async function checkSafetyAlerts(): Promise<SafetyAlert[]> {
             const quoterProfile = await getBlueskyProfile(quoter.did);
             
             // Big account quoted
-            if (quoterProfile && (quoterProfile.followersCount || 0) >= BIG_ACCOUNT_FOLLOWER_THRESHOLD) {
+            if (quoterProfile && (quoterProfile.followersCount || 0) >= bigAccountFollowerThreshold) {
               const alertId = `big_quote:${post.uri}:${quoter.did}`;
               if (!dismissedAlerts.has(alertId) && !seenAlertIds.has(alertId)) {
                 seenAlertIds.add(alertId);
@@ -1430,7 +1442,7 @@ export async function checkSafetyAlerts(): Promise<SafetyAlert[]> {
             
             // Quote going viral
             const quoteEngagement = (quotePost.likeCount || 0) + (quotePost.repostCount || 0) + (quotePost.replyCount || 0);
-            if (quoteEngagement >= VIRAL_QUOTE_THRESHOLD) {
+            if (quoteEngagement >= viralQuoteThreshold) {
               const alertId = `viral_quote:${quotePost.uri}`;
               if (!dismissedAlerts.has(alertId) && !seenAlertIds.has(alertId)) {
                 seenAlertIds.add(alertId);
