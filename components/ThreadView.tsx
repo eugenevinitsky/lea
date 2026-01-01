@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { AppBskyFeedDefs } from '@atproto/api';
-import { getThread } from '@/lib/bluesky';
+import { getThread, getBlueskyProfile } from '@/lib/bluesky';
 import Post from './Post';
 import EngagementTabs from './EngagementTabs';
 
@@ -78,6 +78,25 @@ export default function ThreadView({ uri, onClose, onOpenThread, onOpenProfile, 
     setHistory(prev => [...prev, currentUri]);
     setCurrentUri(newUri);
   };
+
+  // Navigate to profile - use provided handler or default to page navigation
+  const navigateToProfile = useCallback(async (did: string) => {
+    if (onOpenProfile) {
+      onOpenProfile(did);
+      return;
+    }
+    // Default: navigate to profile page
+    try {
+      const profile = await getBlueskyProfile(did);
+      if (profile?.handle) {
+        window.location.href = `/u/${profile.handle}`;
+      } else {
+        window.location.href = `/u/${did}`;
+      }
+    } catch {
+      window.location.href = `/u/${did}`;
+    }
+  }, [onOpenProfile]);
 
   // Refresh the current thread (e.g., after posting a reply)
   // Uses delay and retry since Bluesky's indexer takes time to process new posts
@@ -182,7 +201,7 @@ export default function ThreadView({ uri, onClose, onOpenThread, onOpenProfile, 
               {parents.map((post, index) => (
                 <div key={post.uri} className="relative border-l-4 border-blue-300 dark:border-blue-700">
                   <div className="opacity-75">
-                    <Post post={post} onOpenThread={navigateToThread} onOpenProfile={onOpenProfile} onReply={refreshThread} />
+                    <Post post={post} onOpenThread={navigateToThread} onOpenProfile={navigateToProfile} onReply={refreshThread} />
                   </div>
                 </div>
               ))}
@@ -191,7 +210,7 @@ export default function ThreadView({ uri, onClose, onOpenThread, onOpenProfile, 
 
           {/* Main post (highlighted) */}
           <div className="bg-blue-50 dark:bg-blue-900/20 border-l-4 border-blue-500">
-            <Post post={mainPost} onOpenThread={navigateToThread} onOpenProfile={onOpenProfile} onReply={refreshThread} />
+            <Post post={mainPost} onOpenThread={navigateToThread} onOpenProfile={navigateToProfile} onReply={refreshThread} />
           </div>
 
           {/* Engagement tabs (likes, reposts, quotes) */}
@@ -201,7 +220,7 @@ export default function ThreadView({ uri, onClose, onOpenThread, onOpenProfile, 
             repostCount={mainPost.repostCount || 0}
             quoteCount={mainPost.quoteCount || 0}
             onOpenThread={navigateToThread}
-            onOpenProfile={onOpenProfile}
+            onOpenProfile={navigateToProfile}
           />
 
           {/* Replies */}
@@ -219,7 +238,7 @@ export default function ThreadView({ uri, onClose, onOpenThread, onOpenProfile, 
                   <Post
                     post={post}
                     onOpenThread={navigateToThread}
-                    onOpenProfile={onOpenProfile}
+                    onOpenProfile={navigateToProfile}
                     onReply={refreshThread}
                   />
                 </div>
