@@ -79,7 +79,6 @@ function NotificationItemView({
                 e.stopPropagation();
                 onOpenProfile?.(notification.author.did);
               }}
-              title="View profile"
             />
           ) : (
             <div
@@ -88,7 +87,6 @@ function NotificationItemView({
                 e.stopPropagation();
                 onOpenProfile?.(notification.author.did);
               }}
-              title="View profile"
             >
               {(notification.author.displayName || notification.author.handle)[0].toUpperCase()}
             </div>
@@ -107,7 +105,6 @@ function NotificationItemView({
                   e.stopPropagation();
                   onOpenProfile?.(notification.author.did);
                 }}
-                title="View profile"
               >
                 {notification.author.displayName || notification.author.handle}
               </span>
