@@ -7,7 +7,6 @@ import { getAuthorFeed, getBlueskyProfile, getKnownFollowers, BlueskyProfile, Kn
 import { detectPaperLink, getPaperIdFromUrl } from '@/lib/papers';
 import { useFollowing } from '@/lib/following-context';
 import Post from './Post';
-import ThreadView from './ThreadView';
 
 // Helper to convert URLs in text to clickable links
 function linkifyText(text: string): React.ReactNode {
@@ -178,8 +177,25 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
   const [postsLoading, setPostsLoading] = useState(false);
   const [postsCursor, setPostsCursor] = useState<string | undefined>();
   const [postsError, setPostsError] = useState<string | null>(null);
-  const [threadUri, setThreadUri] = useState<string | null>(null);
-  
+  // Navigate to shareable post URL instead of opening modal
+  const navigateToPost = useCallback(async (uri: string) => {
+    // Parse the AT URI: at://did:plc:xxx/app.bsky.feed.post/rkey
+    const match = uri.match(/^at:\/\/(did:[^/]+)\/app\.bsky\.feed\.post\/([^/]+)$/);
+    if (match) {
+      const [, postDid, rkey] = match;
+      try {
+        const profile = await getBlueskyProfile(postDid);
+        if (profile?.handle) {
+          window.location.href = `/post/${profile.handle}/${rkey}`;
+          return;
+        }
+      } catch {
+        // Fall through to use DID
+      }
+      window.location.href = `/post/${postDid}/${rkey}`;
+    }
+  }, []);
+
   // Interactions state
   const [interactions, setInteractions] = useState<{
     theirRepliesToMe: AppBskyFeedDefs.PostView[];
@@ -728,7 +744,7 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
                     <div className="divide-y divide-gray-100 dark:divide-gray-800">
                       {section.posts.map((post) => (
                         <div key={post.uri}>
-                          <Post post={post} onOpenThread={setThreadUri} onOpenProfile={onOpenProfile} />
+                          <Post post={post} onOpenThread={navigateToPost} onOpenProfile={onOpenProfile} />
                         </div>
                       ))}
                     </div>
@@ -831,7 +847,7 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
                     <>
                       {posts.map((item) => (
                         <div key={item.post.uri} className="border-b border-gray-200 dark:border-gray-800 last:border-b-0">
-                          <Post post={item.post} reason={item.reason} onOpenThread={setThreadUri} />
+                          <Post post={item.post} reason={item.reason} onOpenThread={navigateToPost} />
                         </div>
                       ))}
                       {postsCursor && (
@@ -884,7 +900,7 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
                       </div>
                       {paperPosts.map((item) => (
                         <div key={item.post.uri} className="border-b border-gray-200 dark:border-gray-800 last:border-b-0">
-                          <Post post={item.post} reason={item.reason} onOpenThread={setThreadUri} />
+                          <Post post={item.post} reason={item.reason} onOpenThread={navigateToPost} />
                         </div>
                       ))}
                       {postsCursor && (
@@ -1209,7 +1225,7 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
                         <svg className="w-4 h-4 text-blue-500" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M3 6a3 3 0 013-3h10a1 1 0 01.8 1.6L14.25 8l2.55 3.4A1 1 0 0116 13H6a1 1 0 00-1 1v3a1 1 0 11-2 0V6z" clipRule="evenodd" /></svg>
                         <span className="text-sm font-medium text-blue-600 dark:text-blue-400">Pinned Post</span>
                       </div>
-                      <Post post={pinnedPost} onOpenThread={setThreadUri} />
+                      <Post post={pinnedPost} onOpenThread={navigateToPost} />
                     </div>
                   )}
                   {posts.length === 0 && !pinnedPost ? (
@@ -1217,7 +1233,7 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
                   ) : (
                     <>
                       {posts.filter(item => item.post.uri !== pinnedPost?.uri).map((item) => (
-                        <div key={item.post.uri} className="border-b border-gray-200 dark:border-gray-800 last:border-b-0"><Post post={item.post} reason={item.reason} onOpenThread={setThreadUri} /></div>
+                        <div key={item.post.uri} className="border-b border-gray-200 dark:border-gray-800 last:border-b-0"><Post post={item.post} reason={item.reason} onOpenThread={navigateToPost} /></div>
                       ))}
                       {postsCursor && (
                         <div className="p-4 text-center">
@@ -1265,7 +1281,7 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
                     </p>
                   </div>
                   {paperPosts.map((item) => (
-                    <div key={item.post.uri} className="border-b border-gray-200 dark:border-gray-800 last:border-b-0"><Post post={item.post} reason={item.reason} onOpenThread={setThreadUri} /></div>
+                    <div key={item.post.uri} className="border-b border-gray-200 dark:border-gray-800 last:border-b-0"><Post post={item.post} reason={item.reason} onOpenThread={navigateToPost} /></div>
                   ))}
                   {postsCursor && (
                     <div className="p-4 text-center">
@@ -1282,10 +1298,6 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
         </div>
       </div>
 
-      {/* Thread View Modal */}
-      {threadUri && (
-        <ThreadView uri={threadUri} onClose={() => setThreadUri(null)} />
-      )}
     </>
     );
   }
@@ -1374,7 +1386,7 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
                     <>
                       {posts.map((item) => (
                         <div key={item.post.uri} className="border-b border-gray-200 dark:border-gray-800 last:border-b-0">
-                          <Post post={item.post} reason={item.reason} onOpenThread={setThreadUri} />
+                          <Post post={item.post} reason={item.reason} onOpenThread={navigateToPost} />
                         </div>
                       ))}
                       {postsCursor && (
@@ -1427,7 +1439,7 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
                       </div>
                       {paperPosts.map((item) => (
                         <div key={item.post.uri} className="border-b border-gray-200 dark:border-gray-800 last:border-b-0">
-                          <Post post={item.post} reason={item.reason} onOpenThread={setThreadUri} />
+                          <Post post={item.post} reason={item.reason} onOpenThread={navigateToPost} />
                         </div>
                       ))}
                       {postsCursor && (
@@ -1737,7 +1749,7 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
                         </svg>
                         <span className="text-sm font-medium text-blue-600 dark:text-blue-400">Pinned Post</span>
                       </div>
-                      <Post post={pinnedPost} onOpenThread={setThreadUri} />
+                      <Post post={pinnedPost} onOpenThread={navigateToPost} />
                     </div>
                   )}
                   
@@ -1752,7 +1764,7 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
                         .filter(item => item.post.uri !== pinnedPost?.uri) // Exclude pinned from list
                         .map((item) => (
                           <div key={item.post.uri} className="border-b border-gray-200 dark:border-gray-800 last:border-b-0">
-                            <Post post={item.post} reason={item.reason} onOpenThread={setThreadUri} />
+                            <Post post={item.post} reason={item.reason} onOpenThread={navigateToPost} />
                           </div>
                         ))}
                       
@@ -1781,10 +1793,6 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
       </div>
     </div>
 
-    {/* Thread View Modal */}
-    {threadUri && (
-      <ThreadView uri={threadUri} onClose={() => setThreadUri(null)} />
-    )}
   </>
   );
 }
