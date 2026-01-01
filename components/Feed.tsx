@@ -55,6 +55,21 @@ export default function Feed({ feedId, feedUri, feedName, acceptsInteractions, r
   const isKeywordFeed = feedType === 'keyword' || (feedUri?.startsWith('keyword:') ?? false);
   const isListFeed = (feedType === 'list' || (effectiveFeedUri?.includes('/app.bsky.graph.list/') ?? false)) && !isVerifiedFeed;
   const effectiveKeyword = keyword || (feedUri?.startsWith('keyword:') ? feedUri.slice(8).replace(/-/g, ' ') : null);
+  
+  // Check if this is a feed generator that has a detail page
+  const isCustomFeedGenerator = effectiveFeedUri?.includes('/app.bsky.feed.generator/') ?? false;
+  
+  // Parse feed URI to get handle and rkey for link
+  const feedDetailUrl = useMemo(() => {
+    if (!isCustomFeedGenerator || !effectiveFeedUri) return null;
+    // Format: at://did:plc:xxx/app.bsky.feed.generator/rkey
+    const match = effectiveFeedUri.match(/^at:\/\/([^/]+)\/app\.bsky\.feed\.generator\/([^/]+)$/);
+    if (match) {
+      const [, didOrHandle, rkey] = match;
+      return `/feed/${didOrHandle}/${rkey}`;
+    }
+    return null;
+  }, [isCustomFeedGenerator, effectiveFeedUri]);
 
   // Observer ref for cleanup
   const observerRef = useRef<IntersectionObserver | null>(null);
@@ -319,7 +334,20 @@ export default function Feed({ feedId, feedUri, feedName, acceptsInteractions, r
       <div className="sticky top-0 z-10 bg-white/80 dark:bg-black/80 backdrop-blur border-b border-gray-200 dark:border-gray-800 p-3">
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="font-semibold text-gray-900 dark:text-gray-100">{effectiveFeedName}</h2>
+            <div className="flex items-center gap-2">
+              <h2 className="font-semibold text-gray-900 dark:text-gray-100">{effectiveFeedName}</h2>
+              {feedDetailUrl && (
+                <a
+                  href={feedDetailUrl}
+                  className="p-1 text-gray-400 hover:text-blue-500 transition-colors"
+                  title="Feed info"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </a>
+              )}
+            </div>
             {isPapersFeed && (
               <p className="text-xs text-gray-500">
                 {filteredPosts.length} paper{filteredPosts.length !== 1 ? 's' : ''} found in {totalScanned} posts

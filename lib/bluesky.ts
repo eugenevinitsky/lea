@@ -130,6 +130,10 @@ export interface FeedGeneratorInfo {
   avatar?: string;
   likeCount?: number;
   acceptsInteractions?: boolean;
+  indexedAt?: string;
+  viewer?: {
+    like?: string; // URI of the like record if user has liked this feed
+  };
 }
 
 // Search for feeds
@@ -639,6 +643,19 @@ export async function likePost(uri: string, cid: string): Promise<{ uri: string 
 
 // Unlike a post
 export async function unlikePost(likeUri: string): Promise<void> {
+  if (!agent) throw new Error('Not logged in');
+  await agent.deleteLike(likeUri);
+}
+
+// Like a feed generator
+export async function likeFeed(uri: string, cid: string): Promise<{ uri: string }> {
+  if (!agent) throw new Error('Not logged in');
+  const result = await agent.like(uri, cid);
+  return result;
+}
+
+// Unlike a feed generator
+export async function unlikeFeed(likeUri: string): Promise<void> {
   if (!agent) throw new Error('Not logged in');
   await agent.deleteLike(likeUri);
 }
