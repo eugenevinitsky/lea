@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import {
   getPreferences,
   getLabelerInfo,
@@ -29,6 +30,7 @@ export default function SafetyPanel({ onOpenProfile }: SafetyPanelProps) {
   const [labelers, setLabelers] = useState<LabelerInfo[]>([]);
   const [loadingLabelers, setLoadingLabelers] = useState(false);
   const [showSuggestedModal, setShowSuggestedModal] = useState(false);
+  const [mounted, setMounted] = useState(false);
   
   // Reply limits state
   const [replyLimit, setReplyLimit] = useState<ThreadgateType>('following');
@@ -36,6 +38,11 @@ export default function SafetyPanel({ onOpenProfile }: SafetyPanelProps) {
   const [progress, setProgress] = useState<{ current: number; total: number } | null>(null);
   const [applyError, setApplyError] = useState<string | null>(null);
   const [applySuccess, setApplySuccess] = useState<string | null>(null);
+
+  // Track mount state for portal
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   // Load saved preference on mount
   useEffect(() => {
@@ -320,13 +327,14 @@ export default function SafetyPanel({ onOpenProfile }: SafetyPanelProps) {
       )}
 
       {/* Suggested Labelers Modal */}
-      {showSuggestedModal && (
+      {showSuggestedModal && mounted && createPortal(
         <div
-          className="fixed inset-0 z-[100] bg-black/50 flex items-center justify-center p-4"
+          className="fixed inset-0 z-[9999] flex items-center justify-center p-4"
           onClick={() => setShowSuggestedModal(false)}
         >
+          <div className="absolute inset-0 bg-black/50" />
           <div
-            className="bg-white dark:bg-gray-900 rounded-xl shadow-xl max-w-md w-full max-h-[80vh] overflow-hidden"
+            className="relative bg-white dark:bg-gray-900 rounded-xl shadow-xl max-w-md w-full max-h-[80vh] overflow-hidden"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="p-4 border-b border-gray-200 dark:border-gray-800 flex items-center justify-between">
@@ -374,7 +382,8 @@ export default function SafetyPanel({ onOpenProfile }: SafetyPanelProps) {
               </div>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
