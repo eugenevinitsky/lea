@@ -263,7 +263,7 @@ export default function SafetyPanel({ onOpenProfile }: SafetyPanelProps) {
           <div className="p-3">
             <div className="flex items-center justify-between mb-2">
               <h4 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">
-                Labelers
+                Your Labelers
               </h4>
               <button
                 onClick={() => setShowSuggestedModal(true)}
@@ -276,7 +276,7 @@ export default function SafetyPanel({ onOpenProfile }: SafetyPanelProps) {
               </button>
             </div>
             <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
-              Labelers help identify content and accounts
+              Labelers you&apos;ve subscribed to on Bluesky
             </p>
 
             {loadingLabelers ? (
