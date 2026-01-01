@@ -19,6 +19,24 @@ const SUGGESTED_LABELERS = [
     displayName: "Hailey's Labeler",
     description: 'A labeler by @hailey.at. Labels are not absolute judgements, but rather information about the type of account or content you may be interacting with.',
   },
+  {
+    did: 'did:plc:e4elbtctnfqocyfcml6h2lf7',
+    handle: 'skywatch.blue',
+    displayName: 'Skywatch Blue / Anti-Alf Aktion',
+    description: 'Ceaseless watcher, turn your gaze upon this wretched thing. Independent Labeling Service.',
+  },
+  {
+    did: 'did:plc:d2mkddsbmnrgr3domzg5qexf',
+    handle: 'moderation.blacksky.app',
+    displayName: 'Blacksky Moderation',
+    description: 'Building the intercommunal net where communities can use decentralized tools to govern themselves, pool resources, and stay safe on their own terms.',
+  },
+  {
+    did: 'did:plc:oubsyca6hhgqhmbbk27lvs7c',
+    handle: 'stechlab-labels.bsky.social',
+    displayName: 'STech Lab Labels',
+    description: 'A research project from Cornell Tech, investigating using automated signals to help users have more context about the accounts they are interacting with.',
+  },
 ];
 
 interface SafetyPanelProps {
