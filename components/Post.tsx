@@ -274,8 +274,57 @@ function RichText({ text, facets }: { text: string; facets?: AppBskyFeedPost.Rec
 function EmbedImages({ images }: { images: AppBskyEmbedImages.ViewImage[] }) {
   const [expandedImage, setExpandedImage] = useState<string | null>(null);
 
-  const gridClass = images.length === 1 ? 'grid-cols-1' :
-                    images.length === 2 ? 'grid-cols-2' :
+  // Single image: show full width, natural aspect ratio up to max height
+  if (images.length === 1) {
+    const image = images[0];
+    return (
+      <>
+        <div
+          className="relative cursor-pointer mt-2 rounded-xl overflow-hidden"
+          onClick={(e) => {
+            e.stopPropagation();
+            setExpandedImage(image.fullsize);
+          }}
+        >
+          <img
+            src={image.thumb}
+            alt={image.alt || 'Image'}
+            className="w-full object-contain bg-gray-100 dark:bg-gray-800"
+            style={{ maxHeight: '600px' }}
+          />
+          {image.alt && (
+            <div className="absolute bottom-1 left-1 px-1.5 py-0.5 bg-black/70 text-white text-xs rounded">
+              ALT
+            </div>
+          )}
+        </div>
+        {expandedImage && (
+          <div
+            className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4"
+            onClick={() => setExpandedImage(null)}
+          >
+            <button
+              onClick={() => setExpandedImage(null)}
+              className="absolute top-4 right-4 p-2 text-white hover:bg-white/20 rounded-full"
+            >
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+            <img
+              src={expandedImage}
+              alt="Expanded image"
+              className="max-w-full max-h-full object-contain"
+              onClick={(e) => e.stopPropagation()}
+            />
+          </div>
+        )}
+      </>
+    );
+  }
+
+  // Multiple images: use grid with better heights
+  const gridClass = images.length === 2 ? 'grid-cols-2' :
                     images.length === 3 ? 'grid-cols-2' :
                     'grid-cols-2';
 
@@ -286,6 +335,7 @@ function EmbedImages({ images }: { images: AppBskyEmbedImages.ViewImage[] }) {
           <div
             key={index}
             className={`relative cursor-pointer ${images.length === 3 && index === 0 ? 'row-span-2' : ''}`}
+            style={{ height: images.length === 3 && index === 0 ? '300px' : '150px' }}
             onClick={(e) => {
               e.stopPropagation();
               setExpandedImage(image.fullsize);
@@ -295,7 +345,6 @@ function EmbedImages({ images }: { images: AppBskyEmbedImages.ViewImage[] }) {
               src={image.thumb}
               alt={image.alt || 'Image'}
               className="w-full h-full object-cover"
-              style={{ maxHeight: images.length === 1 ? '400px' : '200px' }}
             />
             {image.alt && (
               <div className="absolute bottom-1 left-1 px-1.5 py-0.5 bg-black/70 text-white text-xs rounded">
@@ -425,15 +474,28 @@ function QuotePost({
           {viewRecord.embeds.map((embed, i) => {
             if ('images' in embed && Array.isArray((embed as AppBskyEmbedImages.View).images)) {
               const images = (embed as AppBskyEmbedImages.View).images;
+              // Single image in quote: show larger with aspect ratio preserved
+              if (images.length === 1) {
+                return (
+                  <div key={i} className="rounded-lg overflow-hidden">
+                    <img
+                      src={images[0].thumb}
+                      alt={images[0].alt || ''}
+                      className="w-full object-contain bg-gray-100 dark:bg-gray-800"
+                      style={{ maxHeight: '300px' }}
+                    />
+                  </div>
+                );
+              }
+              // Multiple images: grid layout
               return (
-                <div key={i} className="flex gap-1 rounded-lg overflow-hidden">
+                <div key={i} className="grid grid-cols-2 gap-1 rounded-lg overflow-hidden">
                   {images.slice(0, 4).map((img, j) => (
                     <img
                       key={j}
                       src={img.thumb}
                       alt={img.alt || ''}
-                      className="object-cover flex-1 h-20"
-                      style={{ maxWidth: `${100 / Math.min(images.length, 4)}%` }}
+                      className="object-cover w-full h-32"
                     />
                   ))}
                 </div>
@@ -459,19 +521,19 @@ function QuotePost({
             if ('playlist' in embed && (embed as AppBskyEmbedVideo.View).playlist) {
               const video = embed as AppBskyEmbedVideo.View;
               return (
-                <div key={i} className="rounded-lg overflow-hidden bg-black h-20 relative">
+                <div key={i} className="rounded-lg overflow-hidden bg-black relative" style={{ maxHeight: '300px' }}>
                   {video.thumbnail ? (
-                    <img src={video.thumbnail} alt="" className="w-full h-full object-cover" />
+                    <img src={video.thumbnail} alt="" className="w-full object-contain" style={{ maxHeight: '300px' }} />
                   ) : (
-                    <div className="w-full h-full flex items-center justify-center">
-                      <svg className="w-8 h-8 text-white/50" fill="currentColor" viewBox="0 0 24 24">
+                    <div className="w-full h-48 flex items-center justify-center">
+                      <svg className="w-12 h-12 text-white/50" fill="currentColor" viewBox="0 0 24 24">
                         <path d="M8 5v14l11-7z" />
                       </svg>
                     </div>
                   )}
                   <div className="absolute inset-0 flex items-center justify-center">
-                    <div className="w-10 h-10 rounded-full bg-black/50 flex items-center justify-center">
-                      <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24">
+                    <div className="w-12 h-12 rounded-full bg-black/50 flex items-center justify-center">
+                      <svg className="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 24 24">
                         <path d="M8 5v14l11-7z" />
                       </svg>
                     </div>
@@ -484,20 +546,31 @@ function QuotePost({
             if ('media' in embed && (embed as AppBskyEmbedRecordWithMedia.View).media) {
               const rwm = embed as AppBskyEmbedRecordWithMedia.View;
               const media = rwm.media;
+              const mediaImages = 'images' in media ? (media as AppBskyEmbedImages.View).images : [];
               return (
                 <div key={i}>
-                  {'images' in media && Array.isArray((media as AppBskyEmbedImages.View).images) && (
-                    <div className="flex gap-1 rounded-lg overflow-hidden mb-2">
-                      {(media as AppBskyEmbedImages.View).images.slice(0, 4).map((img, j) => (
+                  {mediaImages.length > 0 && (
+                    mediaImages.length === 1 ? (
+                      <div className="rounded-lg overflow-hidden mb-2">
                         <img
-                          key={j}
-                          src={img.thumb}
-                          alt={img.alt || ''}
-                          className="object-cover flex-1 h-20"
-                          style={{ maxWidth: `${100 / Math.min((media as AppBskyEmbedImages.View).images.length, 4)}%` }}
+                          src={mediaImages[0].thumb}
+                          alt={mediaImages[0].alt || ''}
+                          className="w-full object-contain bg-gray-100 dark:bg-gray-800"
+                          style={{ maxHeight: '300px' }}
                         />
-                      ))}
-                    </div>
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-2 gap-1 rounded-lg overflow-hidden mb-2">
+                        {mediaImages.slice(0, 4).map((img, j) => (
+                          <img
+                            key={j}
+                            src={img.thumb}
+                            alt={img.alt || ''}
+                            className="object-cover w-full h-32"
+                          />
+                        ))}
+                      </div>
+                    )
                   )}
                   {rwm.record && <EmbedRecord record={rwm.record.record} onOpenThread={onOpenThread} />}
                 </div>
