@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useEffect, Suspense } from 'react';
+import React, { useState, useCallback, useEffect, Suspense, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { getSession, logout, restoreSession, getBlueskyProfile } from '@/lib/bluesky';
 import { SettingsProvider } from '@/lib/settings';
@@ -36,6 +36,9 @@ function AppContent() {
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
   const [isVerified, setIsVerified] = useState(false);
+  const [canScrollLeft, setCanScrollLeft] = useState(false);
+  const [canScrollRight, setCanScrollRight] = useState(false);
+  const feedsContainerRef = React.useRef<HTMLDivElement>(null);
   const { pinnedFeeds, isLoaded: feedsLoaded, removeFeed, reorderFeeds } = useFeeds();
   const { setUserDid } = useBookmarks();
 
@@ -104,6 +107,28 @@ function AppContent() {
       localStorage.setItem('lea-active-feed', activeFeedUri);
     }
   }, [activeFeedUri]);
+
+  // Check scroll state for feed tabs
+  const checkScrollState = useCallback(() => {
+    const container = feedsContainerRef.current;
+    if (container) {
+      setCanScrollLeft(container.scrollLeft > 0);
+      setCanScrollRight(container.scrollLeft < container.scrollWidth - container.clientWidth - 1);
+    }
+  }, []);
+
+  useEffect(() => {
+    const container = feedsContainerRef.current;
+    if (container) {
+      checkScrollState();
+      container.addEventListener('scroll', checkScrollState);
+      window.addEventListener('resize', checkScrollState);
+      return () => {
+        container.removeEventListener('scroll', checkScrollState);
+        window.removeEventListener('resize', checkScrollState);
+      };
+    }
+  }, [checkScrollState, pinnedFeeds]);
 
   // Restore scroll position after navigating back from a thread
   useEffect(() => {
@@ -314,95 +339,126 @@ function AppContent() {
           <Composer onPost={handlePost} />
 
           {/* Feed Tabs - sticky below header when scrolling */}
-          <div className="flex border-b border-gray-200 dark:border-gray-800 sticky top-14 z-10 bg-white dark:bg-gray-950 overflow-x-auto scrollbar-hide">
-            {pinnedFeeds.map((feed, index) => {
-              const isActive = activeFeedUri === feed.uri || (activeFeedUri === null && index === 0);
-              const isSkygest = feed.uri.includes('preprintdigest');
-              const isKeyword = feed.type === 'keyword';
-              const isDragging = draggedIndex === index;
-              const isDragOver = dragOverIndex === index && draggedIndex !== index;
-
-              return (
-                <button
-                  key={feed.uri}
-                  draggable
-                  onDragStart={(e) => {
-                    setDraggedIndex(index);
-                    e.dataTransfer.effectAllowed = 'move';
-                  }}
-                  onDragOver={(e) => {
-                    e.preventDefault();
-                    e.dataTransfer.dropEffect = 'move';
-                    setDragOverIndex(index);
-                  }}
-                  onDragLeave={() => {
-                    setDragOverIndex(null);
-                  }}
-                  onDrop={(e) => {
-                    e.preventDefault();
-                    if (draggedIndex !== null && draggedIndex !== index) {
-                      reorderFeeds(draggedIndex, index);
-                    }
-                    setDraggedIndex(null);
-                    setDragOverIndex(null);
-                  }}
-                  onDragEnd={() => {
-                    setDraggedIndex(null);
-                    setDragOverIndex(null);
-                  }}
-                  onClick={() => setActiveFeedUri(feed.uri)}
-                  onContextMenu={(e) => {
-                    e.preventDefault();
-                    if (pinnedFeeds.length > 1) {
-                      removeFeed(feed.uri);
-                      if (isActive) {
-                        setActiveFeedUri(pinnedFeeds[0].uri === feed.uri ? pinnedFeeds[1]?.uri : pinnedFeeds[0].uri);
-                      }
-                    }
-                  }}
-                  className={`flex-shrink-0 px-4 py-3 text-sm font-medium transition-colors relative flex items-center justify-center gap-1.5 group cursor-grab active:cursor-grabbing ${
-                    isDragging ? 'opacity-50' : ''
-                  } ${
-                    isDragOver ? 'bg-blue-50 dark:bg-blue-900/20' : ''
-                  } ${
-                    isActive
-                      ? (isSkygest || isKeyword) ? 'text-purple-500' : 'text-blue-500'
-                      : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
-                  }`}
-                  title="Drag to reorder • Right-click to unpin"
-                >
-                  {isSkygest && (
-                    <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                    </svg>
-                  )}
-                  {isKeyword && (
-                    <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                    </svg>
-                  )}
-                  <span className="whitespace-nowrap">{feed.displayName}</span>
-                  {isActive && (
-                    <div className={`absolute bottom-0 left-0 right-0 h-0.5 ${
-                      (isSkygest || isKeyword) ? 'bg-purple-500' : 'bg-blue-500'
-                    }`} />
-                  )}
-                  {isDragOver && (
-                    <div className="absolute left-0 top-0 bottom-0 w-0.5 bg-blue-500" />
-                  )}
-                </button>
-              );
-            })}
-            {/* Add feed button */}
-            <button
-              onClick={() => setShowFeedDiscovery(true)}
-              className="flex-shrink-0 px-3 py-3 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
-              title="Add feeds"
+          <div className="relative border-b border-gray-200 dark:border-gray-800 sticky top-14 z-10 bg-white dark:bg-gray-950">
+            {/* Left scroll indicator */}
+            {canScrollLeft && (
+              <div className="absolute left-0 top-0 bottom-0 w-8 bg-gradient-to-r from-white dark:from-gray-950 to-transparent z-10 pointer-events-none" />
+            )}
+            {/* Right scroll indicator */}
+            {canScrollRight && (
+              <div className="absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-white dark:from-gray-950 to-transparent z-10 pointer-events-none" />
+            )}
+            <div 
+              ref={feedsContainerRef}
+              className="flex overflow-x-auto scrollbar-hide"
             >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-            </svg>
-            </button>
+              {pinnedFeeds.map((feed, index) => {
+                const isActive = activeFeedUri === feed.uri || (activeFeedUri === null && index === 0);
+                const isSkygest = feed.uri.includes('preprintdigest');
+                const isKeyword = feed.type === 'keyword';
+                const isDragging = draggedIndex === index;
+                const isDragOver = dragOverIndex === index && draggedIndex !== index;
+
+                return (
+                  <button
+                    key={feed.uri}
+                    draggable
+                    onDragStart={(e) => {
+                      setDraggedIndex(index);
+                      e.dataTransfer.effectAllowed = 'move';
+                    }}
+                    onDragOver={(e) => {
+                      e.preventDefault();
+                      e.dataTransfer.dropEffect = 'move';
+                      setDragOverIndex(index);
+                    }}
+                    onDragLeave={() => {
+                      setDragOverIndex(null);
+                    }}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      if (draggedIndex !== null && draggedIndex !== index) {
+                        reorderFeeds(draggedIndex, index);
+                      }
+                      setDraggedIndex(null);
+                      setDragOverIndex(null);
+                    }}
+                    onDragEnd={() => {
+                      setDraggedIndex(null);
+                      setDragOverIndex(null);
+                    }}
+                    onClick={() => setActiveFeedUri(feed.uri)}
+                    onContextMenu={(e) => {
+                      e.preventDefault();
+                      if (pinnedFeeds.length > 1) {
+                        removeFeed(feed.uri);
+                        if (isActive) {
+                          setActiveFeedUri(pinnedFeeds[0].uri === feed.uri ? pinnedFeeds[1]?.uri : pinnedFeeds[0].uri);
+                        }
+                      }
+                    }}
+                    className={`flex-shrink-0 px-4 py-3 text-sm font-medium transition-colors relative flex items-center justify-center gap-1.5 group cursor-grab active:cursor-grabbing ${
+                      isDragging ? 'opacity-50' : ''
+                    } ${
+                      isDragOver ? 'bg-blue-50 dark:bg-blue-900/20' : ''
+                    } ${
+                      isActive
+                        ? (isSkygest || isKeyword) ? 'text-purple-500' : 'text-blue-500'
+                        : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
+                    }`}
+                    title="Drag to reorder • Right-click to unpin"
+                  >
+                    {/* Drag handle - visible on hover */}
+                    <span className="opacity-0 group-hover:opacity-50 transition-opacity text-gray-400 mr-0.5 cursor-grab">
+                      <svg className="w-3 h-3" viewBox="0 0 24 24" fill="currentColor">
+                        <circle cx="9" cy="6" r="2" />
+                        <circle cx="15" cy="6" r="2" />
+                        <circle cx="9" cy="12" r="2" />
+                        <circle cx="15" cy="12" r="2" />
+                        <circle cx="9" cy="18" r="2" />
+                        <circle cx="15" cy="18" r="2" />
+                      </svg>
+                    </span>
+                    {isSkygest && (
+                      <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                      </svg>
+                    )}
+                    {isKeyword && (
+                      <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                      </svg>
+                    )}
+                    <span className="whitespace-nowrap">{feed.displayName}</span>
+                    {isActive && (
+                      <div className={`absolute bottom-0 left-0 right-0 h-0.5 ${
+                        (isSkygest || isKeyword) ? 'bg-purple-500' : 'bg-blue-500'
+                      }`} />
+                    )}
+                    {isDragOver && (
+                      <div className="absolute left-0 top-0 bottom-0 w-0.5 bg-blue-500" />
+                    )}
+                  </button>
+                );
+              })}
+              {/* Add feed button */}
+              <button
+                onClick={() => setShowFeedDiscovery(true)}
+                className="flex-shrink-0 px-3 py-3 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                title="Add feeds"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                </svg>
+              </button>
+              {/* Manage feeds link */}
+              <button
+                onClick={() => setShowFeedDiscovery(true)}
+                className="flex-shrink-0 px-3 py-3 text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors whitespace-nowrap"
+              >
+                Manage
+              </button>
+            </div>
           </div>
 
           {/* Feed Content */}
