@@ -340,17 +340,37 @@ function AppContent() {
 
           {/* Feed Tabs - sticky below header when scrolling */}
           <div className="relative border-b border-gray-200 dark:border-gray-800 sticky top-14 z-10 bg-white dark:bg-gray-950">
-            {/* Left scroll indicator */}
+            {/* Left scroll arrow */}
             {canScrollLeft && (
-              <div className="absolute left-0 top-0 bottom-0 w-8 bg-gradient-to-r from-white dark:from-gray-950 to-transparent z-10 pointer-events-none" />
+              <button
+                onClick={() => {
+                  const container = feedsContainerRef.current;
+                  if (container) container.scrollBy({ left: -150, behavior: 'smooth' });
+                }}
+                className="absolute left-0 top-0 bottom-0 w-8 bg-white dark:bg-gray-950 z-10 flex items-center justify-center text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 border-r border-gray-200 dark:border-gray-800"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                </svg>
+              </button>
             )}
-            {/* Right scroll indicator */}
+            {/* Right scroll arrow */}
             {canScrollRight && (
-              <div className="absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-white dark:from-gray-950 to-transparent z-10 pointer-events-none" />
+              <button
+                onClick={() => {
+                  const container = feedsContainerRef.current;
+                  if (container) container.scrollBy({ left: 150, behavior: 'smooth' });
+                }}
+                className="absolute right-0 top-0 bottom-0 w-8 bg-white dark:bg-gray-950 z-10 flex items-center justify-center text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 border-l border-gray-200 dark:border-gray-800"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+              </button>
             )}
             <div 
               ref={feedsContainerRef}
-              className="flex overflow-x-auto scrollbar-hide"
+              className="flex overflow-x-auto scrollbar-hide px-8"
             >
               {pinnedFeeds.map((feed, index) => {
                 const isActive = activeFeedUri === feed.uri || (activeFeedUri === null && index === 0);
