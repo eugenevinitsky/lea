@@ -55,9 +55,6 @@ export default function LabelBadges({ labels, compact = false, showSource = fals
   const displayLabels = useMemo(() => {
     if (!labels || labels.length === 0) return [];
     
-    // Debug: log received labels
-    console.log('[LabelBadges] Received labels:', labels);
-    
     const seen = new Set<string>();
     const result: Array<{ val: string; src: string; name: string; severity: 'info' | 'warn' | 'alert'; color: string }> = [];
     
