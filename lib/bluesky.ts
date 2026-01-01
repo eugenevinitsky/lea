@@ -692,6 +692,117 @@ export async function unfollowUser(followUri: string): Promise<void> {
   await agent.deleteFollow(followUri);
 }
 
+// Get user preferences (including labelers)
+export interface LabelerPreference {
+  did: string;
+}
+
+export interface UserPreferences {
+  labelers: LabelerPreference[];
+}
+
+export async function getPreferences(): Promise<UserPreferences> {
+  if (!agent) throw new Error('Not logged in');
+  
+  const response = await agent.api.app.bsky.actor.getPreferences();
+  const prefs = response.data.preferences;
+  
+  // Extract labeler preferences
+  const labelers: LabelerPreference[] = [];
+  for (const pref of prefs) {
+    if (pref.$type === 'app.bsky.actor.defs#labelersPref' && 'labelers' in pref) {
+      const labelerList = pref.labelers as Array<{ did: string }>;
+      for (const labeler of labelerList) {
+        labelers.push({ did: labeler.did });
+      }
+    }
+  }
+  
+  return { labelers };
+}
+
+// Get labeler info by DID
+export interface LabelerInfo {
+  did: string;
+  handle: string;
+  displayName?: string;
+  description?: string;
+  avatar?: string;
+  likeCount?: number;
+}
+
+export async function getLabelerInfo(did: string): Promise<LabelerInfo | null> {
+  if (!agent) throw new Error('Not logged in');
+  
+  try {
+    const response = await agent.api.app.bsky.labeler.getServices({
+      dids: [did],
+      detailed: true,
+    });
+    
+    if (response.data.views.length > 0) {
+      const view = response.data.views[0] as {
+        uri: string;
+        cid: string;
+        creator: {
+          did: string;
+          handle: string;
+          displayName?: string;
+          avatar?: string;
+          description?: string;
+        };
+        likeCount?: number;
+      };
+      return {
+        did: view.creator.did,
+        handle: view.creator.handle,
+        displayName: view.creator.displayName,
+        description: view.creator.description,
+        avatar: view.creator.avatar,
+        likeCount: view.likeCount,
+      };
+    }
+    return null;
+  } catch (error) {
+    console.error('Failed to get labeler info:', error);
+    return null;
+  }
+}
+
+// Get user's posts for bulk threadgate updates
+// Returns posts that the current user authored (not reposts)
+export async function getUserPostsForThreadgate(
+  cursor?: string,
+  limit: number = 50
+): Promise<{ posts: Array<{ uri: string; cid: string }>; cursor?: string }> {
+  if (!agent?.session?.did) throw new Error('Not logged in');
+  
+  const response = await agent.getAuthorFeed({
+    actor: agent.session.did,
+    limit,
+    cursor,
+    filter: 'posts_no_replies', // Get posts only, not replies
+  });
+  
+  // Filter to only posts authored by current user (not reposts)
+  const posts = response.data.feed
+    .filter(item => {
+      // Exclude reposts
+      if (item.reason) return false;
+      // Only include posts by the current user
+      return item.post.author.did === agent!.session!.did;
+    })
+    .map(item => ({
+      uri: item.post.uri,
+      cid: item.post.cid,
+    }));
+  
+  return {
+    posts,
+    cursor: response.data.cursor,
+  };
+}
+
 // Label utilities
 const VERIFIED_RESEARCHER_LABEL = 'verified-researcher';
 const LEA_LABELER_DID = 'did:plc:7c7tx56n64jhzezlwox5dja6'; // lea-community.bsky.social

@@ -13,6 +13,7 @@ import Bookmarks from '@/components/Bookmarks';
 import DMSidebar from '@/components/DMSidebar';
 import Notifications from '@/components/Notifications';
 import ModerationBox from '@/components/ModerationBox';
+import SafetyPanel from '@/components/SafetyPanel';
 import ResearcherSearch from '@/components/ResearcherSearch';
 import Post from '@/components/Post';
 import { AppBskyFeedDefs } from '@atproto/api';
@@ -285,6 +286,7 @@ function SearchPageContent() {
           <DMSidebar />
           <Notifications onOpenPost={openThread} onOpenProfile={navigateToProfile} />
           <ModerationBox onOpenProfile={navigateToProfile} />
+          <SafetyPanel onOpenProfile={navigateToProfile} />
         </aside>
 
         {/* Main content */}

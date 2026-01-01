@@ -16,6 +16,7 @@ import ThreadView from '@/components/ThreadView';
 import DMSidebar from '@/components/DMSidebar';
 import Notifications from '@/components/Notifications';
 import ModerationBox from '@/components/ModerationBox';
+import SafetyPanel from '@/components/SafetyPanel';
 import FeedDiscovery from '@/components/FeedDiscovery';
 import Onboarding from '@/components/Onboarding';
 import ProfileEditor from '@/components/ProfileEditor';
@@ -334,6 +335,7 @@ function AppContent() {
           <DMSidebar />
           <Notifications onOpenPost={openThread} onOpenProfile={navigateToProfile} />
           <ModerationBox onOpenProfile={navigateToProfile} />
+          <SafetyPanel onOpenProfile={navigateToProfile} />
         </aside>
 
         {/* Main content */}

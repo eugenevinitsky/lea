@@ -13,6 +13,7 @@ import Bookmarks from '@/components/Bookmarks';
 import DMSidebar from '@/components/DMSidebar';
 import Notifications from '@/components/Notifications';
 import ModerationBox from '@/components/ModerationBox';
+import SafetyPanel from '@/components/SafetyPanel';
 import Settings from '@/components/Settings';
 import ResearcherSearch from '@/components/ResearcherSearch';
 
@@ -213,6 +214,7 @@ function PostPageContent() {
           <DMSidebar />
           <Notifications onOpenPost={navigateToThread} onOpenProfile={navigateToProfile} />
           <ModerationBox onOpenProfile={navigateToProfile} />
+          <SafetyPanel onOpenProfile={navigateToProfile} />
         </aside>
 
         {/* Main content */}

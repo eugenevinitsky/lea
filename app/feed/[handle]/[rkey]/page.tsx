@@ -13,6 +13,7 @@ import Bookmarks from '@/components/Bookmarks';
 import DMSidebar from '@/components/DMSidebar';
 import Notifications from '@/components/Notifications';
 import ModerationBox from '@/components/ModerationBox';
+import SafetyPanel from '@/components/SafetyPanel';
 import ResearcherSearch from '@/components/ResearcherSearch';
 import ThreadView from '@/components/ThreadView';
 
@@ -271,6 +272,7 @@ function FeedPageContent() {
           <DMSidebar />
           <Notifications onOpenPost={openThread} onOpenProfile={handleOpenProfile} />
           <ModerationBox onOpenProfile={handleOpenProfile} />
+          <SafetyPanel onOpenProfile={handleOpenProfile} />
         </aside>
 
         {/* Main content */}
