@@ -120,10 +120,13 @@ function AppContent() {
   useEffect(() => {
     const container = feedsContainerRef.current;
     if (container) {
+      // Check immediately and after a short delay to catch late renders
       checkScrollState();
+      const timer = setTimeout(checkScrollState, 100);
       container.addEventListener('scroll', checkScrollState);
       window.addEventListener('resize', checkScrollState);
       return () => {
+        clearTimeout(timer);
         container.removeEventListener('scroll', checkScrollState);
         window.removeEventListener('resize', checkScrollState);
       };
@@ -340,37 +343,43 @@ function AppContent() {
 
           {/* Feed Tabs - sticky below header when scrolling */}
           <div className="relative border-b border-gray-200 dark:border-gray-800 sticky top-14 z-10 bg-white dark:bg-gray-950">
-            {/* Left scroll arrow */}
-            {canScrollLeft && (
-              <button
-                onClick={() => {
-                  const container = feedsContainerRef.current;
-                  if (container) container.scrollBy({ left: -150, behavior: 'smooth' });
-                }}
-                className="absolute left-0 top-0 bottom-0 w-8 bg-white dark:bg-gray-950 z-10 flex items-center justify-center text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 border-r border-gray-200 dark:border-gray-800"
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                </svg>
-              </button>
-            )}
-            {/* Right scroll arrow */}
-            {canScrollRight && (
-              <button
-                onClick={() => {
-                  const container = feedsContainerRef.current;
-                  if (container) container.scrollBy({ left: 150, behavior: 'smooth' });
-                }}
-                className="absolute right-0 top-0 bottom-0 w-8 bg-white dark:bg-gray-950 z-10 flex items-center justify-center text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 border-l border-gray-200 dark:border-gray-800"
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                </svg>
-              </button>
-            )}
+            {/* Left scroll arrow - always visible */}
+            <button
+              onClick={() => {
+                const container = feedsContainerRef.current;
+                if (container) container.scrollBy({ left: -150, behavior: 'smooth' });
+              }}
+              disabled={!canScrollLeft}
+              className={`absolute left-0 top-0 bottom-0 w-8 bg-white dark:bg-gray-950 z-10 flex items-center justify-center border-r border-gray-200 dark:border-gray-800 transition-colors ${
+                canScrollLeft 
+                  ? 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 cursor-pointer' 
+                  : 'text-gray-300 dark:text-gray-700 cursor-default'
+              }`}
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+              </svg>
+            </button>
+            {/* Right scroll arrow - always visible */}
+            <button
+              onClick={() => {
+                const container = feedsContainerRef.current;
+                if (container) container.scrollBy({ left: 150, behavior: 'smooth' });
+              }}
+              disabled={!canScrollRight}
+              className={`absolute right-0 top-0 bottom-0 w-8 bg-white dark:bg-gray-950 z-10 flex items-center justify-center border-l border-gray-200 dark:border-gray-800 transition-colors ${
+                canScrollRight 
+                  ? 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 cursor-pointer' 
+                  : 'text-gray-300 dark:text-gray-700 cursor-default'
+              }`}
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
+            </button>
             <div 
               ref={feedsContainerRef}
-              className="flex overflow-x-auto scrollbar-hide px-8"
+              className="flex overflow-x-auto scrollbar-hide mx-8"
             >
               {pinnedFeeds.map((feed, index) => {
                 const isActive = activeFeedUri === feed.uri || (activeFeedUri === null && index === 0);
