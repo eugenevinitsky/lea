@@ -53,26 +53,16 @@ interface LabelBadgesProps {
 export default function LabelBadges({ labels, compact = false, showSource = false, gray = false }: LabelBadgesProps) {
   const { getLabelDisplayName } = useModeration();
   
-  // Debug: log what labels we receive
-  console.log('[LabelBadges] Received labels:', labels);
-  
   // Filter and dedupe labels
   const displayLabels = useMemo(() => {
-    if (!labels || labels.length === 0) {
-      console.log('[LabelBadges] No labels to display');
-      return [];
-    }
+    if (!labels || labels.length === 0) return [];
     
     const seen = new Set<string>();
     const result: Array<{ val: string; src: string; name: string; severity: 'info' | 'warn' | 'alert'; color: string }> = [];
     
     for (const label of labels) {
-      console.log('[LabelBadges] Processing label:', label.val, 'from', label.src);
       // Skip hidden/internal labels
-      if (HIDDEN_LABELS.has(label.val)) {
-        console.log('[LabelBadges] Skipping hidden label:', label.val);
-        continue;
-      }
+      if (HIDDEN_LABELS.has(label.val)) continue;
       
       // Skip if we've already seen this label value
       const key = `${label.val}:${label.src}`;
@@ -92,11 +82,9 @@ export default function LabelBadges({ labels, compact = false, showSource = fals
       });
     }
     
-    console.log('[LabelBadges] Display labels after filtering:', result);
     return result;
   }, [labels, getLabelDisplayName]);
 
-  console.log('[LabelBadges] Final displayLabels count:', displayLabels.length);
   if (displayLabels.length === 0) return null;
 
   return (
