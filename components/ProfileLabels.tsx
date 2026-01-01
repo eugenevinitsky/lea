@@ -16,35 +16,41 @@ const HIDDEN_LABELS = new Set([
 ]);
 
 export default function ProfileLabels({ profile, compact = false }: ProfileLabelsProps) {
-  const { getProfileModeration } = useModeration();
+  const { getProfileModeration, moderationOpts, getLabelDisplayName } = useModeration();
   
   // Get profile moderation to extract labels with display names
   const profileLabels = useMemo(() => {
-    if (!profile) {
-      console.log('[ProfileLabels] No profile provided');
-      return [];
+    if (!profile) return [];
+    
+    // If moderation opts are loaded, use the full moderation system
+    if (moderationOpts) {
+      const decision = getProfileModeration(profile as Parameters<typeof getProfileModeration>[0]);
+      if (decision) {
+        const ui = getModerationUI(decision, 'profileView');
+        // Combine alerts and informs, filtering out hidden labels
+        const allLabels = [...ui.alerts, ...ui.informs].filter(
+          l => l.label && !HIDDEN_LABELS.has(l.label)
+        );
+        return allLabels;
+      }
     }
     
-    console.log('[ProfileLabels] Profile:', { did: profile.did, handle: profile.handle, labels: profile.labels });
-    
-    const decision = getProfileModeration(profile as Parameters<typeof getProfileModeration>[0]);
-    console.log('[ProfileLabels] Moderation decision:', decision);
-    
-    if (!decision) {
-      console.log('[ProfileLabels] No moderation decision');
-      return [];
+    // Fallback: if moderation opts not loaded yet, use raw labels from profile
+    // This ensures labels show up even before moderation context loads
+    if (profile.labels && profile.labels.length > 0) {
+      return profile.labels
+        .filter(l => l.val && !HIDDEN_LABELS.has(l.val))
+        .map(l => ({
+          type: 'label',
+          label: l.val,
+          labeledBy: l.src,
+          // Try to get display name from label definitions if available
+          displayName: getLabelDisplayName(l.val, l.src) || undefined,
+        }));
     }
     
-    const ui = getModerationUI(decision, 'profileView');
-    console.log('[ProfileLabels] UI:', { alerts: ui.alerts, informs: ui.informs });
-    
-    // Combine alerts and informs, filtering out hidden labels
-    const allLabels = [...ui.alerts, ...ui.informs].filter(
-      l => l.label && !HIDDEN_LABELS.has(l.label)
-    );
-    console.log('[ProfileLabels] Final labels:', allLabels);
-    return allLabels;
-  }, [profile, getProfileModeration]);
+    return [];
+  }, [profile, getProfileModeration, moderationOpts, getLabelDisplayName]);
 
   if (profileLabels.length === 0) return null;
 
