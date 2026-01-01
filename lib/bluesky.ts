@@ -53,11 +53,13 @@ export async function restoreSession(): Promise<boolean> {
     await agent.resumeSession(sessionData);
     
     // Configure labelers from user's subscriptions (includes LEA labeler)
-    // Do this async - don't block session restore
-    configureSubscribedLabelers().catch(err => {
+    // We await this to ensure labels are included in feed responses
+    try {
+      await configureSubscribedLabelers();
+    } catch (err) {
       console.error('Failed to configure labelers on restore:', err);
       configureLabeler(); // Fall back to just LEA labeler
-    });
+    }
     
     return true;
   } catch (error) {
@@ -75,11 +77,13 @@ export async function login(identifier: string, password: string): Promise<BskyA
   await agent.login({ identifier, password });
   
   // Configure labelers from user's subscriptions (includes LEA labeler)
-  // Do this async - don't block login
-  configureSubscribedLabelers().catch(err => {
+  // We await this to ensure labels are included in feed responses
+  try {
+    await configureSubscribedLabelers();
+  } catch (err) {
     console.error('Failed to configure labelers on login:', err);
     configureLabeler(); // Fall back to just LEA labeler
-  });
+  }
 
   return agent;
 }
@@ -1625,18 +1629,26 @@ export async function configureSubscribedLabelers(): Promise<void> {
     const prefs = await agent.getPreferences();
     const labelerDids = prefs.moderationPrefs.labelers.map(l => l.did);
     
+    console.log('[Moderation] User subscribed labelers:', labelerDids);
+    
     // Always include LEA labeler for verified researcher badges
     if (!labelerDids.includes(LEA_LABELER_DID_CONFIG)) {
       labelerDids.push(LEA_LABELER_DID_CONFIG);
     }
     
+    // Also always include Bluesky's moderation labeler for standard labels
+    const BLUESKY_MODERATION_DID = 'did:plc:ar7c4by46qjdydhdevvrndac';
+    if (!labelerDids.includes(BLUESKY_MODERATION_DID)) {
+      labelerDids.push(BLUESKY_MODERATION_DID);
+    }
+    
     // Configure the agent to request labels from these labelers
     agent.configureLabelersHeader(labelerDids);
-    console.log('Configured labelers:', labelerDids);
+    console.log('[Moderation] Configured labelers header with:', labelerDids);
   } catch (error) {
-    console.error('Failed to configure subscribed labelers:', error);
-    // Fall back to just LEA labeler
-    agent.configureLabelersHeader([LEA_LABELER_DID_CONFIG]);
+    console.error('[Moderation] Failed to configure subscribed labelers:', error);
+    // Fall back to just LEA labeler + Bluesky moderation
+    agent.configureLabelersHeader([LEA_LABELER_DID_CONFIG, 'did:plc:ar7c4by46qjdydhdevvrndac']);
   }
 }
 
