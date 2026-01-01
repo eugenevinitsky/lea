@@ -91,7 +91,16 @@ function PaperPageContent() {
 
       // Fetch actual posts from Bluesky using post URIs
       const postUris = data.mentions.map((m: { postUri: string }) => m.postUri);
+      console.log('[Paper] Fetching', postUris.length, 'posts from Bluesky');
       const blueskyPosts = await getPostsByUris(postUris);
+      console.log('[Paper] Got', blueskyPosts.length, 'posts back from Bluesky');
+
+      // Log any missing posts
+      if (blueskyPosts.length < postUris.length) {
+        const returnedUris = new Set(blueskyPosts.map(p => p.uri));
+        const missingUris = postUris.filter((uri: string) => !returnedUris.has(uri));
+        console.log('[Paper] Missing posts:', missingUris);
+      }
 
       // Sort by indexedAt to maintain chronological order (newest first)
       blueskyPosts.sort((a, b) => {
