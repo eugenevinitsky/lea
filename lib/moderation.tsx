@@ -45,7 +45,11 @@ export function ModerationProvider({ children }: { children: ReactNode }) {
       // Also load label definitions for display names
       const labelDefs = await getLabelDefinitions();
       setLabelDefinitions(labelDefs);
-      console.log('[Moderation] Loaded label definitions:', labelDefs);
+      console.log('[Moderation] Loaded label definitions - labeler DIDs:', Object.keys(labelDefs));
+      // Log sample of what each labeler defines
+      for (const [did, defs] of Object.entries(labelDefs)) {
+        console.log(`[Moderation] Labeler ${did} defines:`, defs.map(d => ({ id: d.identifier, name: d.locales?.[0]?.name })));
+      }
     } catch (err) {
       console.error('Failed to load moderation opts:', err);
       setError(err instanceof Error ? err.message : 'Failed to load moderation settings');
