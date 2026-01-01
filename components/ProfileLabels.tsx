@@ -20,16 +20,29 @@ export default function ProfileLabels({ profile, compact = false }: ProfileLabel
   
   // Get profile moderation to extract labels with display names
   const profileLabels = useMemo(() => {
-    if (!profile) return [];
+    if (!profile) {
+      console.log('[ProfileLabels] No profile provided');
+      return [];
+    }
+    
+    console.log('[ProfileLabels] Profile:', { did: profile.did, handle: profile.handle, labels: profile.labels });
     
     const decision = getProfileModeration(profile as Parameters<typeof getProfileModeration>[0]);
-    if (!decision) return [];
+    console.log('[ProfileLabels] Moderation decision:', decision);
+    
+    if (!decision) {
+      console.log('[ProfileLabels] No moderation decision');
+      return [];
+    }
     
     const ui = getModerationUI(decision, 'profileView');
+    console.log('[ProfileLabels] UI:', { alerts: ui.alerts, informs: ui.informs });
+    
     // Combine alerts and informs, filtering out hidden labels
     const allLabels = [...ui.alerts, ...ui.informs].filter(
       l => l.label && !HIDDEN_LABELS.has(l.label)
     );
+    console.log('[ProfileLabels] Final labels:', allLabels);
     return allLabels;
   }, [profile, getProfileModeration]);
 
