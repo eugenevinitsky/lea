@@ -14,6 +14,7 @@ interface ProfileHoverCardProps {
 }
 
 interface ProfileData {
+  did: string;
   avatar?: string;
   displayName?: string;
   handle: string;
