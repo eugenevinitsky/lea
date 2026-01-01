@@ -46,9 +46,11 @@ interface LabelBadgesProps {
   compact?: boolean;
   // If true, show the labeler source
   showSource?: boolean;
+  // If true, force all labels to be light gray
+  gray?: boolean;
 }
 
-export default function LabelBadges({ labels, compact = false, showSource = false }: LabelBadgesProps) {
+export default function LabelBadges({ labels, compact = false, showSource = false, gray = false }: LabelBadgesProps) {
   const { getLabelDisplayName } = useModeration();
   
   // Filter and dedupe labels
@@ -93,6 +95,7 @@ export default function LabelBadges({ labels, compact = false, showSource = fals
           label={label}
           compact={compact}
           showSource={showSource}
+          gray={gray}
         />
       ))}
     </div>
@@ -103,15 +106,17 @@ function LabelBadge({
   label,
   compact,
   showSource,
+  gray,
 }: {
   label: { val: string; src: string; name: string; severity: 'info' | 'warn' | 'alert'; color: string };
   compact: boolean;
   showSource: boolean;
+  gray: boolean;
 }) {
   const labelerName = KNOWN_LABELERS[label.src] || 'Labeler';
   
-  // Color classes based on severity/color
-  const colorClasses = getColorClasses(label.color, label.severity);
+  // Color classes based on severity/color, or force gray
+  const colorClasses = gray ? 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400' : getColorClasses(label.color, label.severity);
   
   return (
     <span

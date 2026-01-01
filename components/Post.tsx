@@ -1478,9 +1478,9 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
                 )}
               </>
             )}
-            {/* Labels from moderation services */}
-            <LabelBadges labels={post.labels as Label[] | undefined} compact showSource />
           </div>
+          {/* Labels from moderation services - shown below author info */}
+          <LabelBadges labels={post.labels as Label[] | undefined} compact showSource gray />
 
           {/* Post text */}
           <p
