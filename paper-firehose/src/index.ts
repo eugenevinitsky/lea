@@ -101,6 +101,12 @@ interface JetstreamCommit {
         external?: {
           uri?: string;
         };
+        // Quote post embed
+        record?: {
+          uri?: string;
+        };
+        // Quote post with media (recordWithMedia)
+        $type?: string;
       };
     };
     cid: string;
@@ -257,7 +263,12 @@ export class JetstreamConnection implements DurableObject {
 
     // Extract paper links
     const papers = extractPaperLinks(fullText);
-    if (papers.length === 0) return;
+
+    // Check for quoted post URI
+    const quotedPostUri = record.embed?.record?.uri || null;
+
+    // Skip if no paper links and no quoted post
+    if (papers.length === 0 && !quotedPostUri) return;
 
     this.papersFound += papers.length;
 
@@ -278,6 +289,7 @@ export class JetstreamConnection implements DurableObject {
           authorDid: event.did,
           postText: record.text || '',
           createdAt,
+          quotedPostUri,
         }),
       });
 
@@ -286,7 +298,10 @@ export class JetstreamConnection implements DurableObject {
         console.error('API error:', response.status, errorText);
         this.lastError = `API error: ${response.status}`;
       } else {
-        console.log(`Ingested ${papers.length} paper(s) from ${event.did}`);
+        const logMsg = papers.length > 0
+          ? `Ingested ${papers.length} paper(s) from ${event.did}`
+          : `Processed quote post from ${event.did}`;
+        console.log(logMsg);
         this.lastError = null;
       }
     } catch (e) {

@@ -130,6 +130,7 @@ interface IngestRequest {
   authorDid: string;
   postText: string;
   createdAt: string;
+  quotedPostUri?: string; // URI of quoted post (for quote posts)
 }
 
 // POST /api/papers/ingest - Ingest paper mentions from firehose worker
@@ -142,7 +143,70 @@ export async function POST(request: NextRequest) {
 
   try {
     const body: IngestRequest = await request.json();
-    const { papers, postUri, authorDid, postText, createdAt } = body;
+    const { papers, postUri, authorDid, postText, createdAt, quotedPostUri } = body;
+
+    // Handle quote posts - if no direct paper links, check if quoted post mentions papers
+    if ((!papers || !Array.isArray(papers) || papers.length === 0) && quotedPostUri) {
+      // Look up papers mentioned by the quoted post
+      const quotedMentions = await db
+        .select({
+          paperId: paperMentions.paperId,
+          normalizedId: discoveredPapers.normalizedId,
+        })
+        .from(paperMentions)
+        .innerJoin(discoveredPapers, eq(paperMentions.paperId, discoveredPapers.id))
+        .where(eq(paperMentions.postUri, quotedPostUri));
+
+      if (quotedMentions.length === 0) {
+        // Quoted post doesn't mention any papers we track
+        return NextResponse.json({ success: true, papers: [], isQuotePost: true });
+      }
+
+      // Check if author is a verified researcher
+      const [verifiedAuthor] = await db
+        .select()
+        .from(verifiedResearchers)
+        .where(eq(verifiedResearchers.did, authorDid))
+        .limit(1);
+      const isVerified = !!verifiedAuthor;
+      const mentionWeight = isVerified ? 3 : 1;
+
+      const results: { paperId: number; normalizedId: string }[] = [];
+
+      for (const mention of quotedMentions) {
+        // Check if mention already exists
+        const [existingMention] = await db
+          .select()
+          .from(paperMentions)
+          .where(eq(paperMentions.postUri, postUri))
+          .limit(1);
+
+        if (!existingMention) {
+          // Update paper mention count
+          await db
+            .update(discoveredPapers)
+            .set({
+              lastSeenAt: new Date(),
+              mentionCount: sql`${discoveredPapers.mentionCount} + ${mentionWeight}`,
+            })
+            .where(eq(discoveredPapers.id, mention.paperId));
+
+          // Insert mention
+          await db.insert(paperMentions).values({
+            paperId: mention.paperId,
+            postUri,
+            authorDid,
+            postText: postText?.slice(0, 1000) || '',
+            createdAt: new Date(createdAt),
+            isVerifiedResearcher: isVerified,
+          });
+        }
+
+        results.push({ paperId: mention.paperId, normalizedId: mention.normalizedId });
+      }
+
+      return NextResponse.json({ success: true, papers: results, isQuotePost: true });
+    }
 
     if (!papers || !Array.isArray(papers) || papers.length === 0) {
       return NextResponse.json({ error: 'No papers provided' }, { status: 400 });
