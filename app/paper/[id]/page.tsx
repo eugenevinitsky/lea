@@ -4,7 +4,7 @@ import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useState, useEffect, useCallback, Suspense } from 'react';
 import { AppBskyFeedDefs, AppBskyEmbedExternal } from '@atproto/api';
 import { restoreSession, getSession, getBlueskyProfile, getPostsByUris, searchPosts } from '@/lib/bluesky';
-import { getUrlFromPaperId, getPaperTypeFromId, getSearchQueryForPaper, extractPaperUrl, extractAnyUrl, LinkFacet } from '@/lib/papers';
+import { getUrlFromPaperId, getPaperTypeFromId, getSearchQueryForPaper, extractPaperUrl, extractAnyUrl, getPaperIdFromUrl, LinkFacet } from '@/lib/papers';
 import { SettingsProvider } from '@/lib/settings';
 import { BookmarksProvider } from '@/lib/bookmarks';
 import { FeedsProvider } from '@/lib/feeds';
@@ -181,16 +181,22 @@ function PaperPageContent() {
         console.log('[Paper Search] Total raw results before filtering:', result.posts.length);
         newSearchCursor = result.cursor;
 
-        // Filter results to only include posts that actually contain relevant links
+        // Filter results to only include posts that mention THIS specific paper
         searchResults = result.posts.filter(post => {
           const record = post.record as { text?: string; facets?: LinkFacet[] };
           const embedUri = post.embed && 'external' in post.embed
             ? (post.embed as AppBskyEmbedExternal.View).external?.uri
             : undefined;
 
-          // Check for known paper domain URLs
+          // Extract paper URL from the post
           const paperUrl = extractPaperUrl(record.text || '', embedUri, record.facets);
-          if (paperUrl !== null) return true;
+          if (paperUrl) {
+            // Check if this paper URL matches the paper we're viewing
+            const extractedPaperId = getPaperIdFromUrl(paperUrl);
+            if (extractedPaperId === paperId) {
+              return true;
+            }
+          }
 
           // Also accept posts containing the original URL we're searching for
           if (originalUrl) {
