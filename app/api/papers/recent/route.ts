@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db, discoveredPapers } from '@/lib/db';
-import { desc } from 'drizzle-orm';
+import { desc, sql } from 'drizzle-orm';
 
 // GET /api/papers/recent?limit=50 - Get recently mentioned papers
 export async function GET(request: NextRequest) {
@@ -11,6 +11,10 @@ export async function GET(request: NextRequest) {
     const papers = await db
       .select()
       .from(discoveredPapers)
+      .where(
+        sql`${discoveredPapers.title} IS NOT NULL
+            AND ${discoveredPapers.normalizedId} NOT LIKE 'doi:10.1234/%'`
+      )
       .orderBy(desc(discoveredPapers.lastSeenAt))
       .limit(limit);
 

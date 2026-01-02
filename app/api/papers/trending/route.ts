@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db, discoveredPapers, paperMentions } from '@/lib/db';
-import { desc, sql, gt } from 'drizzle-orm';
+import { desc, sql, gt, isNotNull, notLike } from 'drizzle-orm';
 
 // GET /api/papers/trending?hours=24&limit=50 - Get trending papers
 export async function GET(request: NextRequest) {
@@ -44,6 +44,10 @@ export async function GET(request: NextRequest) {
         )`.as('recent_post_count'),
       })
       .from(discoveredPapers)
+      .where(
+        sql`${discoveredPapers.title} IS NOT NULL
+            AND ${discoveredPapers.normalizedId} NOT LIKE 'doi:10.1234/%'`
+      )
       .orderBy(
         desc(sql`(
           SELECT COALESCE(SUM(CASE WHEN paper_mentions.is_verified_researcher THEN 3 ELSE 1 END), 0)

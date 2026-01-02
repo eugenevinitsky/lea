@@ -4,14 +4,25 @@ import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useState, useEffect, useCallback, Suspense } from 'react';
 import { AppBskyFeedDefs, AppBskyEmbedExternal } from '@atproto/api';
 import { restoreSession, getSession, getBlueskyProfile, getPostsByUris, searchPosts } from '@/lib/bluesky';
-import { getUrlFromPaperId, getPaperTypeFromId, getSearchQueryForPaper, extractPaperUrl, extractAnyUrl, LinkFacet } from '@/lib/papers';
+import { getUrlFromPaperId, getPaperTypeFromId, getSearchQueryForPaper, extractPaperUrl, extractAnyUrl, getPaperIdFromUrl, LinkFacet } from '@/lib/papers';
 import { SettingsProvider } from '@/lib/settings';
 import { BookmarksProvider } from '@/lib/bookmarks';
 import { FeedsProvider } from '@/lib/feeds';
 import { FollowingProvider } from '@/lib/following-context';
 import Post from '@/components/Post';
+import FallbackPost from '@/components/FallbackPost';
 import Login from '@/components/Login';
 import ThreadView from '@/components/ThreadView';
+
+// Cached mention data for posts that may have been deleted
+interface CachedMention {
+  postUri: string;
+  authorDid: string;
+  authorHandle: string | null;
+  postText: string | null;
+  createdAt: string;
+  isVerifiedResearcher: boolean;
+}
 
 interface PaperInfo {
   title?: string;
@@ -34,6 +45,7 @@ function PaperPageContent() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [posts, setPosts] = useState<AppBskyFeedDefs.PostView[]>([]);
+  const [fallbackPosts, setFallbackPosts] = useState<CachedMention[]>([]);
   const [postsLoading, setPostsLoading] = useState(false);
   const [hasMore, setHasMore] = useState(false);
   const [offset, setOffset] = useState(0);
@@ -82,13 +94,38 @@ function PaperPageContent() {
         });
       }
 
-      // Fetch posts from database
+      // Store mentions data for fallback display
+      const mentions: CachedMention[] = data.mentions.map((m: {
+        postUri: string;
+        authorDid: string;
+        authorHandle: string | null;
+        postText: string | null;
+        createdAt: string;
+        isVerifiedResearcher: boolean;
+      }) => ({
+        postUri: m.postUri,
+        authorDid: m.authorDid,
+        authorHandle: m.authorHandle,
+        postText: m.postText,
+        createdAt: m.createdAt,
+        isVerifiedResearcher: m.isVerifiedResearcher,
+      }));
+
+      // Fetch posts from Bluesky
       let dbPosts: AppBskyFeedDefs.PostView[] = [];
-      if (data.mentions.length > 0) {
-        const postUris = data.mentions.map((m: { postUri: string }) => m.postUri);
-        console.log('[Paper] Fetching', postUris.length, 'posts from database');
+      let newFallbackPosts: CachedMention[] = [];
+      if (mentions.length > 0) {
+        const postUris = mentions.map(m => m.postUri);
+        console.log('[Paper] Fetching', postUris.length, 'posts from Bluesky');
         dbPosts = await getPostsByUris(postUris);
-        console.log('[Paper] Got', dbPosts.length, 'posts from database URIs');
+        console.log('[Paper] Got', dbPosts.length, 'posts from Bluesky');
+
+        // Find posts that weren't returned (deleted from Bluesky)
+        const returnedUris = new Set(dbPosts.map(p => p.uri));
+        newFallbackPosts = mentions.filter(m => !returnedUris.has(m.postUri));
+        if (newFallbackPosts.length > 0) {
+          console.log('[Paper] Found', newFallbackPosts.length, 'deleted posts, using cached data');
+        }
       }
 
       // Multi-strategy Bluesky search (from old implementation)
@@ -144,16 +181,22 @@ function PaperPageContent() {
         console.log('[Paper Search] Total raw results before filtering:', result.posts.length);
         newSearchCursor = result.cursor;
 
-        // Filter results to only include posts that actually contain relevant links
+        // Filter results to only include posts that mention THIS specific paper
         searchResults = result.posts.filter(post => {
           const record = post.record as { text?: string; facets?: LinkFacet[] };
           const embedUri = post.embed && 'external' in post.embed
             ? (post.embed as AppBskyEmbedExternal.View).external?.uri
             : undefined;
 
-          // Check for known paper domain URLs
+          // Extract paper URL from the post
           const paperUrl = extractPaperUrl(record.text || '', embedUri, record.facets);
-          if (paperUrl !== null) return true;
+          if (paperUrl) {
+            // Check if this paper URL matches the paper we're viewing
+            const extractedPaperId = getPaperIdFromUrl(paperUrl);
+            if (extractedPaperId === paperId) {
+              return true;
+            }
+          }
 
           // Also accept posts containing the original URL we're searching for
           if (originalUrl) {
@@ -200,14 +243,23 @@ function PaperPageContent() {
         return dateB - dateA;
       });
 
+      // Filter out fallback posts that now have live versions (from search)
+      const finalFallbacks = newFallbackPosts.filter(f => !seenUris.has(f.postUri));
+
       if (loadMore) {
         setPosts(prev => {
           const prevUris = new Set(prev.map(p => p.uri));
           const newPosts = allPosts.filter(p => !prevUris.has(p.uri));
           return [...prev, ...newPosts];
         });
+        setFallbackPosts(prev => {
+          const prevUris = new Set(prev.map(p => p.postUri));
+          const newFallbacks = finalFallbacks.filter(p => !prevUris.has(p.postUri));
+          return [...prev, ...newFallbacks];
+        });
       } else {
         setPosts(allPosts);
+        setFallbackPosts(finalFallbacks);
       }
 
       setOffset(currentOffset + data.mentions.length);
@@ -242,13 +294,28 @@ function PaperPageContent() {
     }
   };
 
-  // Get unique authors who discussed this paper
+  // Get unique authors who discussed this paper (from both live and fallback posts)
   const discussants = posts.reduce((acc, post) => {
     if (!acc.some(a => a.did === post.author.did)) {
       acc.push(post.author);
     }
     return acc;
   }, [] as AppBskyFeedDefs.PostView['author'][]);
+
+  // Get unique authors from fallback posts (who aren't already in discussants)
+  const fallbackAuthors = fallbackPosts.reduce((acc, post) => {
+    if (!discussants.some(d => d.did === post.authorDid) && !acc.some(a => a.did === post.authorDid)) {
+      acc.push({
+        did: post.authorDid,
+        handle: post.authorHandle || post.authorDid,
+      });
+    }
+    return acc;
+  }, [] as { did: string; handle: string }[]);
+
+  // Total counts including fallback posts
+  const totalPostCount = posts.length + fallbackPosts.length;
+  const totalDiscussantCount = discussants.length + fallbackAuthors.length;
 
   if (isLoading) {
     return (
@@ -340,13 +407,13 @@ function PaperPageContent() {
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
                   </svg>
-                  <span>{posts.length} post{posts.length !== 1 ? 's' : ''}</span>
+                  <span>{totalPostCount} post{totalPostCount !== 1 ? 's' : ''}</span>
                 </div>
                 <div className="flex items-center gap-1 text-gray-600 dark:text-gray-400">
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
                   </svg>
-                  <span>{discussants.length} researcher{discussants.length !== 1 ? 's' : ''}</span>
+                  <span>{totalDiscussantCount} researcher{totalDiscussantCount !== 1 ? 's' : ''}</span>
                 </div>
               </div>
 
@@ -383,13 +450,13 @@ function PaperPageContent() {
 
           {/* Posts */}
           <div>
-            {postsLoading && posts.length === 0 ? (
+            {postsLoading && totalPostCount === 0 ? (
               <div className="flex items-center justify-center py-12">
                 <div className="animate-spin w-8 h-8 border-4 border-purple-500 border-t-transparent rounded-full" />
               </div>
             ) : error ? (
               <div className="text-center py-8 text-red-500">{error}</div>
-            ) : posts.length === 0 ? (
+            ) : totalPostCount === 0 ? (
               <div className="text-center py-12 px-4">
                 <div className="w-16 h-16 mx-auto mb-4 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center">
                   <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -414,12 +481,25 @@ function PaperPageContent() {
               </div>
             ) : (
               <>
+                {/* Live posts from Bluesky */}
                 {posts.map((post) => (
                   <Post
                     key={post.uri}
                     post={post}
                     onOpenThread={setThreadUri}
                     onOpenProfile={navigateToProfile}
+                  />
+                ))}
+                {/* Fallback posts (deleted from Bluesky but cached in our DB) */}
+                {fallbackPosts.map((post) => (
+                  <FallbackPost
+                    key={post.postUri}
+                    postUri={post.postUri}
+                    authorDid={post.authorDid}
+                    authorHandle={post.authorHandle}
+                    postText={post.postText}
+                    createdAt={post.createdAt}
+                    isVerifiedResearcher={post.isVerifiedResearcher}
                   />
                 ))}
                 {hasMore && (

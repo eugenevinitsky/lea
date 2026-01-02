@@ -64,6 +64,13 @@ function extractPaperLinks(text: string): PaperMatch[] {
         }
 
         const normalizedId = normalize(match[1]);
+
+        // Skip test DOIs (10.1234 is reserved for testing by DOI Foundation)
+        if (normalizedId.startsWith('doi:10.1234/')) {
+          console.log(`Skipping test DOI: ${normalizedId}`);
+          continue;
+        }
+
         if (!seen.has(normalizedId)) {
           seen.add(normalizedId);
           // Reconstruct URL with https:// if missing
