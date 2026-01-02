@@ -130,15 +130,15 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
   const { refresh: refreshFollowing } = useFollowing();
 
   // Posts state - read initial tab from URL
-  const getTabFromUrl = (): 'profile' | 'posts' | 'papers' | 'interactions' => {
-    if (typeof window === 'undefined') return 'profile';
+  const getTabFromUrl = (): 'profile' | 'posts' | 'replies' | 'papers' | 'interactions' => {
+    if (typeof window === 'undefined') return 'posts';
     const params = new URLSearchParams(window.location.search);
     const tab = params.get('tab');
-    if (tab === 'posts' || tab === 'papers' || tab === 'interactions') return tab;
-    return 'profile';
+    if (tab === 'posts' || tab === 'replies' || tab === 'papers' || tab === 'interactions' || tab === 'profile') return tab;
+    return 'posts';
   };
 
-  const [activeTab, setActiveTabInternal] = useState<'profile' | 'posts' | 'papers' | 'interactions'>('profile');
+  const [activeTab, setActiveTabInternal] = useState<'profile' | 'posts' | 'replies' | 'papers' | 'interactions'>('posts');
 
   // Initialize tab from URL on mount
   useEffect(() => {
@@ -148,11 +148,11 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
   }, [inline]);
 
   // Update URL when tab changes
-  const setActiveTab = (tab: 'profile' | 'posts' | 'papers' | 'interactions') => {
+  const setActiveTab = (tab: 'profile' | 'posts' | 'replies' | 'papers' | 'interactions') => {
     setActiveTabInternal(tab);
     if (inline && typeof window !== 'undefined') {
       const url = new URL(window.location.href);
-      if (tab === 'profile') {
+      if (tab === 'posts') {
         url.searchParams.delete('tab');
       } else {
         url.searchParams.set('tab', tab);
@@ -165,6 +165,12 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
   const [postsLoading, setPostsLoading] = useState(false);
   const [postsCursor, setPostsCursor] = useState<string | undefined>();
   const [postsError, setPostsError] = useState<string | null>(null);
+
+  // Replies state
+  const [replies, setReplies] = useState<AppBskyFeedDefs.FeedViewPost[]>([]);
+  const [repliesLoading, setRepliesLoading] = useState(false);
+  const [repliesCursor, setRepliesCursor] = useState<string | undefined>();
+  const [repliesLoaded, setRepliesLoaded] = useState(false);
   // Navigate to shareable post URL instead of opening modal
   const navigateToPost = useCallback(async (uri: string) => {
     // Parse the AT URI: at://did:plc:xxx/app.bsky.feed.post/rkey
@@ -314,7 +320,7 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
   
   const loadMorePosts = async () => {
     if (!postsCursor || postsLoading) return;
-    
+
     setPostsLoading(true);
     try {
       const result = await getAuthorFeed(did, postsCursor);
@@ -326,7 +332,53 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
       setPostsLoading(false);
     }
   };
-  
+
+  // Fetch replies when switching to replies tab
+  useEffect(() => {
+    async function fetchReplies() {
+      if (activeTab !== 'replies' || repliesLoaded) return;
+
+      setRepliesLoading(true);
+      try {
+        // Fetch with posts_and_author_threads to get replies
+        const result = await getAuthorFeed(did, undefined, 'posts_and_author_threads');
+        // Filter to only replies (posts that have a reply property)
+        const replyPosts = result.feed.filter(item => {
+          const post = item.post as AppBskyFeedDefs.PostView & { record?: { reply?: unknown } };
+          return post.record?.reply;
+        });
+        setReplies(replyPosts);
+        setRepliesCursor(result.cursor);
+        setRepliesLoaded(true);
+      } catch (err) {
+        console.error('Failed to fetch replies:', err);
+      } finally {
+        setRepliesLoading(false);
+      }
+    }
+
+    fetchReplies();
+  }, [activeTab, did, repliesLoaded]);
+
+  const loadMoreReplies = async () => {
+    if (!repliesCursor || repliesLoading) return;
+
+    setRepliesLoading(true);
+    try {
+      const result = await getAuthorFeed(did, repliesCursor, 'posts_and_author_threads');
+      const replyPosts = result.feed.filter(item => {
+        const post = item.post as AppBskyFeedDefs.PostView & { record?: { reply?: unknown } };
+        return post.record?.reply;
+      });
+      setReplies(prev => [...prev, ...replyPosts]);
+      setRepliesCursor(result.cursor);
+    } catch (err) {
+      console.error('Failed to load more replies:', err);
+    } finally {
+      setRepliesLoading(false);
+    }
+  };
+
   // Fetch interactions when switching to interactions tab
   useEffect(() => {
     async function fetchInteractions() {
@@ -513,18 +565,7 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
   // Shared content rendering
   const renderTabs = (includeProfile = true) => (
     <div className="flex border-b border-gray-200 dark:border-gray-800">
-      {includeProfile && (
-        <button
-          onClick={() => setActiveTab('profile')}
-          className={`flex-1 py-3 text-sm font-medium transition-colors ${
-            activeTab === 'profile'
-              ? 'text-blue-500 border-b-2 border-blue-500'
-              : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
-          }`}
-        >
-          Profile
-        </button>
-      )}
+      {/* Posts - leftmost */}
       <button
         onClick={() => setActiveTab('posts')}
         className={`flex-1 py-3 text-sm font-medium transition-colors ${
@@ -535,6 +576,18 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
       >
         Posts
       </button>
+      {/* Replies */}
+      <button
+        onClick={() => setActiveTab('replies')}
+        className={`flex-1 py-3 text-sm font-medium transition-colors ${
+          activeTab === 'replies'
+            ? 'text-blue-500 border-b-2 border-blue-500'
+            : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
+        }`}
+      >
+        Replies
+      </button>
+      {/* Papers */}
       <button
         onClick={() => setActiveTab('papers')}
         className={`flex-1 py-3 text-sm font-medium transition-colors flex items-center justify-center gap-1 ${
@@ -562,6 +615,19 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
           </svg>
           Us
+        </button>
+      )}
+      {/* Profile - rightmost */}
+      {includeProfile && (
+        <button
+          onClick={() => setActiveTab('profile')}
+          className={`flex-1 py-3 text-sm font-medium transition-colors ${
+            activeTab === 'profile'
+              ? 'text-blue-500 border-b-2 border-blue-500'
+              : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
+          }`}
+        >
+          Profile
         </button>
       )}
     </div>
@@ -848,6 +914,38 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
                             className="px-4 py-2 text-sm text-blue-500 hover:text-blue-600 disabled:opacity-50"
                           >
                             {postsLoading ? 'Loading...' : 'Load more'}
+                          </button>
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
+              )}
+
+              {/* Replies Tab */}
+              {activeTab === 'replies' && (
+                <div>
+                  {repliesLoading && replies.length === 0 ? (
+                    <div className="flex items-center justify-center py-12">
+                      <div className="animate-spin w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full" />
+                    </div>
+                  ) : replies.length === 0 ? (
+                    <div className="text-center py-8 text-gray-500">No replies yet</div>
+                  ) : (
+                    <>
+                      {replies.map((item) => (
+                        <div key={item.post.uri} className="border-b border-gray-200 dark:border-gray-800 last:border-b-0">
+                          <Post post={item.post} reason={item.reason} onOpenThread={navigateToPost} />
+                        </div>
+                      ))}
+                      {repliesCursor && (
+                        <div className="p-4 text-center">
+                          <button
+                            onClick={loadMoreReplies}
+                            disabled={repliesLoading}
+                            className="px-4 py-2 text-sm text-blue-500 hover:text-blue-600 disabled:opacity-50"
+                          >
+                            {repliesLoading ? 'Loading...' : 'Load more'}
                           </button>
                         </div>
                       )}
@@ -1238,7 +1336,29 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
               )}
             </div>
           )}
-          
+
+          {/* Replies Tab */}
+          {activeTab === 'replies' && !loading && !error && (
+            <div>
+              {repliesLoading && replies.length === 0 ? (
+                <div className="flex items-center justify-center py-12"><div className="animate-spin w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full" /></div>
+              ) : replies.length === 0 ? (
+                <div className="text-center py-8 text-gray-500">No replies yet</div>
+              ) : (
+                <>
+                  {replies.map((item) => (
+                    <div key={item.post.uri} className="border-b border-gray-200 dark:border-gray-800 last:border-b-0"><Post post={item.post} reason={item.reason} onOpenThread={navigateToPost} /></div>
+                  ))}
+                  {repliesCursor && (
+                    <div className="p-4 text-center">
+                      <button onClick={loadMoreReplies} disabled={repliesLoading} className="px-4 py-2 text-sm text-blue-500 hover:text-blue-600 disabled:opacity-50">{repliesLoading ? 'Loading...' : 'Load more'}</button>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          )}
+
           {/* Papers Tab */}
           {activeTab === 'papers' && !loading && !error && (
             <div>
@@ -1389,6 +1509,38 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
                             className="px-4 py-2 text-sm text-blue-500 hover:text-blue-600 disabled:opacity-50"
                           >
                             {postsLoading ? 'Loading...' : 'Load more'}
+                          </button>
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
+              )}
+
+              {/* Replies Tab */}
+              {activeTab === 'replies' && (
+                <div className="-mx-4">
+                  {repliesLoading && replies.length === 0 ? (
+                    <div className="flex items-center justify-center py-12">
+                      <div className="animate-spin w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full" />
+                    </div>
+                  ) : replies.length === 0 ? (
+                    <div className="text-center py-8 text-gray-500">No replies yet</div>
+                  ) : (
+                    <>
+                      {replies.map((item) => (
+                        <div key={item.post.uri} className="border-b border-gray-200 dark:border-gray-800 last:border-b-0">
+                          <Post post={item.post} reason={item.reason} onOpenThread={navigateToPost} />
+                        </div>
+                      ))}
+                      {repliesCursor && (
+                        <div className="p-4 text-center">
+                          <button
+                            onClick={loadMoreReplies}
+                            disabled={repliesLoading}
+                            className="px-4 py-2 text-sm text-blue-500 hover:text-blue-600 disabled:opacity-50"
+                          >
+                            {repliesLoading ? 'Loading...' : 'Load more'}
                           </button>
                         </div>
                       )}
@@ -1744,7 +1896,7 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
                       <Post post={pinnedPost} onOpenThread={navigateToPost} />
                     </div>
                   )}
-                  
+
                   {/* Posts list */}
                   {posts.length === 0 && !pinnedPost ? (
                     <div className="text-center py-8 text-gray-500">
@@ -1759,7 +1911,7 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
                             <Post post={item.post} reason={item.reason} onOpenThread={navigateToPost} />
                           </div>
                         ))}
-                      
+
                       {/* Load more button */}
                       {postsCursor && (
                         <div className="p-4 text-center">
@@ -1778,7 +1930,39 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
               )}
             </div>
           )}
-          
+
+          {/* Replies Tab */}
+          {activeTab === 'replies' && !loading && !error && (
+            <div className="-mx-4">
+              {repliesLoading && replies.length === 0 ? (
+                <div className="flex items-center justify-center py-12">
+                  <div className="animate-spin w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full" />
+                </div>
+              ) : replies.length === 0 ? (
+                <div className="text-center py-8 text-gray-500">No replies yet</div>
+              ) : (
+                <>
+                  {replies.map((item) => (
+                    <div key={item.post.uri} className="border-b border-gray-200 dark:border-gray-800 last:border-b-0">
+                      <Post post={item.post} reason={item.reason} onOpenThread={navigateToPost} />
+                    </div>
+                  ))}
+                  {repliesCursor && (
+                    <div className="p-4 text-center">
+                      <button
+                        onClick={loadMoreReplies}
+                        disabled={repliesLoading}
+                        className="px-4 py-2 text-sm text-blue-500 hover:text-blue-600 disabled:opacity-50"
+                      >
+                        {repliesLoading ? 'Loading...' : 'Load more'}
+                      </button>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          )}
+
           {/* Interactions Tab */}
           {activeTab === 'interactions' && !loading && !error && renderInteractionsTab()}
         </div>
