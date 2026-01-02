@@ -1,6 +1,6 @@
 # Lea
 
-A Bluesky client with protective defaults for researchers.
+A Bluesky client with protective defaults for researchers. Currently developed by Maria Antoniak and Eugene Vinitsky.
 
 ## TL;DR
 
