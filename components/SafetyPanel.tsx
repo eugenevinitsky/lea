@@ -14,6 +14,7 @@ import {
   SafetyAlert,
   AlertThresholds,
 } from '@/lib/bluesky';
+import { useSettings } from '@/lib/settings';
 
 // Suggested labelers - can be expanded later
 const SUGGESTED_LABELERS = [
@@ -49,6 +50,7 @@ interface SafetyPanelProps {
 }
 
 export default function SafetyPanel({ onOpenProfile, onOpenThread }: SafetyPanelProps) {
+  const { settings, updateSettings } = useSettings();
   const [isExpanded, setIsExpanded] = useState(false);
   const [labelers, setLabelers] = useState<LabelerInfo[]>([]);
   const [loadingLabelers, setLoadingLabelers] = useState(false);
@@ -442,6 +444,17 @@ export default function SafetyPanel({ onOpenProfile, onOpenThread }: SafetyPanel
               Control who can reply to your posts
             </p>
             
+            {/* Auto-apply toggle */}
+            <label className="flex items-center justify-between mb-3">
+              <span className="text-sm text-gray-700 dark:text-gray-300">Auto-apply to new posts</span>
+              <input
+                type="checkbox"
+                checked={settings.autoThreadgate}
+                onChange={(e) => updateSettings({ autoThreadgate: e.target.checked })}
+                className="w-4 h-4 rounded border-gray-300 text-blue-500 focus:ring-blue-500"
+              />
+            </label>
+            
             {/* Dropdown */}
             <select
               value={replyLimit}
@@ -501,6 +514,111 @@ export default function SafetyPanel({ onOpenProfile, onOpenThread }: SafetyPanel
             {applyError && (
               <p className="mt-2 text-xs text-red-600 dark:text-red-400">{applyError}</p>
             )}
+          </div>
+
+          {/* Content Filtering Section */}
+          <div className="p-3 border-b border-gray-100 dark:border-gray-800">
+            <h4 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2">
+              Content Filtering
+            </h4>
+            
+            {/* High-follower blocking */}
+            <label className="flex items-center justify-between py-2">
+              <div>
+                <p className="text-sm text-gray-700 dark:text-gray-300">Hide high-follower accounts</p>
+                <p className="text-xs text-gray-500">Accounts following many people (often bots)</p>
+              </div>
+              <input
+                type="checkbox"
+                checked={settings.highFollowerThreshold !== null}
+                onChange={(e) => updateSettings({ highFollowerThreshold: e.target.checked ? 10000 : null })}
+                className="w-4 h-4 rounded border-gray-300 text-blue-500 focus:ring-blue-500"
+              />
+            </label>
+
+            {settings.highFollowerThreshold !== null && (
+              <div className="ml-4 pl-3 border-l-2 border-gray-200 dark:border-gray-700 mb-2">
+                <p className="text-xs text-gray-500 mb-2">Hide if following more than:</p>
+                <div className="flex gap-2">
+                  {[5000, 10000, 20000].map((threshold) => (
+                    <button
+                      key={threshold}
+                      onClick={() => updateSettings({ highFollowerThreshold: threshold })}
+                      className={`px-2.5 py-1 text-xs rounded-full border ${
+                        settings.highFollowerThreshold === threshold
+                          ? 'bg-blue-500 text-white border-blue-500'
+                          : 'border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
+                      }`}
+                    >
+                      {(threshold / 1000).toFixed(0)}k
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Dim non-verified */}
+            <label className="flex items-center justify-between py-2">
+              <div>
+                <p className="text-sm text-gray-700 dark:text-gray-300">Dim non-verified</p>
+                <p className="text-xs text-gray-500">Reduce visibility of non-researcher accounts</p>
+              </div>
+              <input
+                type="checkbox"
+                checked={settings.dimNonVerified}
+                onChange={(e) => updateSettings({ dimNonVerified: e.target.checked })}
+                className="w-4 h-4 rounded border-gray-300 text-blue-500 focus:ring-blue-500"
+              />
+            </label>
+
+            {/* Dim reposts */}
+            <label className="flex items-center justify-between py-2">
+              <div>
+                <p className="text-sm text-gray-700 dark:text-gray-300">Dim reposts</p>
+                <p className="text-xs text-gray-500">Reduce visibility of reposted content</p>
+              </div>
+              <input
+                type="checkbox"
+                checked={settings.dimReposts}
+                onChange={(e) => updateSettings({ dimReposts: e.target.checked })}
+                className="w-4 h-4 rounded border-gray-300 text-blue-500 focus:ring-blue-500"
+              />
+            </label>
+          </div>
+
+          {/* Display Section */}
+          <div className="p-3 border-b border-gray-100 dark:border-gray-800">
+            <h4 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2">
+              Display
+            </h4>
+
+            {/* Paper highlights */}
+            <label className="flex items-center justify-between py-2">
+              <div>
+                <p className="text-sm text-gray-700 dark:text-gray-300">Highlight paper links</p>
+                <p className="text-xs text-gray-500">Show indicator on posts with arXiv, DOI links</p>
+              </div>
+              <input
+                type="checkbox"
+                checked={settings.showPaperHighlights}
+                onChange={(e) => updateSettings({ showPaperHighlights: e.target.checked })}
+                className="w-4 h-4 rounded border-gray-300 text-blue-500 focus:ring-blue-500"
+              />
+            </label>
+
+            {/* Expand self-threads */}
+            <label className="flex items-center justify-between py-2">
+              <div>
+                <p className="text-sm text-gray-700 dark:text-gray-300">Expand self-threads</p>
+                <p className="text-xs text-gray-500">Show full thread when someone replies to themselves</p>
+              </div>
+              <input
+                type="checkbox"
+                checked={settings.expandSelfThreads}
+                onChange={(e) => updateSettings({ expandSelfThreads: e.target.checked })}
+                className="w-4 h-4 rounded border-gray-300 text-blue-500 focus:ring-blue-500"
+              />
+            </label>
           </div>
 
           {/* Labelers Section */}
