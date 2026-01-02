@@ -174,14 +174,14 @@ export async function POST(request: NextRequest) {
       const results: { paperId: number; normalizedId: string }[] = [];
 
       for (const mention of quotedMentions) {
-        // Check if this author already mentioned this paper (rate limit: 1 mention per author per paper)
-        const [existingAuthorMention] = await db
+        // Check if mention already exists
+        const [existingMention] = await db
           .select()
           .from(paperMentions)
-          .where(sql`${paperMentions.paperId} = ${mention.paperId} AND ${paperMentions.authorDid} = ${authorDid}`)
+          .where(eq(paperMentions.postUri, postUri))
           .limit(1);
 
-        if (!existingAuthorMention) {
+        if (!existingMention) {
           // Update paper mention count
           await db
             .update(discoveredPapers)
@@ -200,9 +200,9 @@ export async function POST(request: NextRequest) {
             createdAt: new Date(createdAt),
             isVerifiedResearcher: isVerified,
           });
-
-          results.push({ paperId: mention.paperId, normalizedId: mention.normalizedId });
         }
+
+        results.push({ paperId: mention.paperId, normalizedId: mention.normalizedId });
       }
 
       return NextResponse.json({ success: true, papers: results, isQuotePost: true });
@@ -224,7 +224,7 @@ export async function POST(request: NextRequest) {
     const results: { paperId: number; normalizedId: string }[] = [];
 
     for (const paper of papers) {
-      // Check if paper exists
+      // Upsert paper
       const [existingPaper] = await db
         .select()
         .from(discoveredPapers)
@@ -232,15 +232,22 @@ export async function POST(request: NextRequest) {
         .limit(1);
 
       let paperId: number;
-      let isNewPaper = false;
 
       if (existingPaper) {
+        // Update existing paper (verified researchers count 3x)
+        await db
+          .update(discoveredPapers)
+          .set({
+            lastSeenAt: new Date(),
+            mentionCount: sql`${discoveredPapers.mentionCount} + ${mentionWeight}`,
+          })
+          .where(eq(discoveredPapers.normalizedId, paper.normalizedId));
         paperId = existingPaper.id;
       } else {
         // Fetch metadata for new paper
         const metadata = await fetchPaperMetadata(paper.normalizedId, paper.source);
 
-        // Insert new paper with metadata (start with mentionCount 0, will be updated below)
+        // Insert new paper with metadata (verified researchers count 3x)
         const [inserted] = await db
           .insert(discoveredPapers)
           .values({
@@ -251,43 +258,30 @@ export async function POST(request: NextRequest) {
             authors: metadata?.authors ? JSON.stringify(metadata.authors) : null,
             firstSeenAt: new Date(),
             lastSeenAt: new Date(),
-            mentionCount: 0,
+            mentionCount: mentionWeight,
           })
           .returning({ id: discoveredPapers.id });
         paperId = inserted.id;
-        isNewPaper = true;
       }
 
-      // Check if this author already mentioned this paper (rate limit: 1 mention per author per paper)
-      const [existingAuthorMention] = await db
+      // Check if mention already exists
+      const [existingMention] = await db
         .select()
         .from(paperMentions)
-        .where(sql`${paperMentions.paperId} = ${paperId} AND ${paperMentions.authorDid} = ${authorDid}`)
+        .where(eq(paperMentions.postUri, postUri))
         .limit(1);
 
-      if (existingAuthorMention) {
-        // Author already mentioned this paper - skip to avoid spam
-        continue;
+      if (!existingMention) {
+        // Insert mention
+        await db.insert(paperMentions).values({
+          paperId,
+          postUri,
+          authorDid,
+          postText: postText?.slice(0, 1000) || '', // Limit text length
+          createdAt: new Date(createdAt),
+          isVerifiedResearcher: isVerified,
+        });
       }
-
-      // Update paper mention count (only if this is a new mention from this author)
-      await db
-        .update(discoveredPapers)
-        .set({
-          lastSeenAt: new Date(),
-          mentionCount: sql`${discoveredPapers.mentionCount} + ${mentionWeight}`,
-        })
-        .where(eq(discoveredPapers.id, paperId));
-
-      // Insert mention
-      await db.insert(paperMentions).values({
-        paperId,
-        postUri,
-        authorDid,
-        postText: postText?.slice(0, 1000) || '', // Limit text length
-        createdAt: new Date(createdAt),
-        isVerifiedResearcher: isVerified,
-      });
 
       results.push({ paperId, normalizedId: paper.normalizedId });
     }
