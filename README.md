@@ -136,10 +136,11 @@ Lea fully supports Bluesky's content moderation system:
 - **Labeler Subscriptions** - Respects all labelers you've subscribed to in your Bluesky settings
 - **Content Filtering** - Posts with labels you've set to "hide" are automatically filtered out
 - **Content Warnings** - Posts with labels set to "warn" show blur overlays with reveal option
-- **Label Badges** - Labels appear on posts and profiles with proper display names from labeler definitions
-- **Profile Labels** - See labels on user profiles (hover cards and full profile pages)
+- **Label Badges** - Labels appear on posts and profiles based on your preferences (only shows labels you've set to "show badge")
+- **Profile Labels** - See labels on user profiles in feeds, hover cards, and profile pages
+- **Clickable Labels** - Click any label to visit the labeler's profile on Bluesky
 
-Labels are displayed with their human-readable names as defined by each labeler (e.g., "Adult Content" instead of "porn").
+Labels are displayed with their human-readable names as defined by each labeler (e.g., "Adult Content" instead of "porn"). Labels respect your moderation settings - if you've turned a label off, it won't appear.
 
 ### Safety Panel
 
@@ -391,6 +392,7 @@ scripts/
 - [x] Content moderation (labeler support with blur/warn/hide)
 - [x] Safety panel (alerts for viral content, big accounts)
 - [x] Label badges on posts and profiles
+- [x] Clickable labels linking to labeler profiles
 - [ ] Vouching UI
 
 ---
