@@ -140,12 +140,22 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
 
   const [activeTab, setActiveTabInternal] = useState<'profile' | 'posts' | 'replies' | 'papers' | 'interactions'>('posts');
 
-  // Initialize tab from URL on mount
+  // Initialize tab from URL on mount, or set default based on profile ownership
   useEffect(() => {
     if (inline) {
-      setActiveTabInternal(getTabFromUrl());
+      const urlTab = getTabFromUrl();
+      // If there's a tab in the URL, use it
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('tab')) {
+        setActiveTabInternal(urlTab);
+      } else {
+        // No tab in URL - use 'profile' for others, 'posts' for self
+        const session = getSession();
+        const isOwn = session?.did === did;
+        setActiveTabInternal(isOwn ? 'posts' : 'profile');
+      }
     }
-  }, [inline]);
+  }, [inline, did]);
 
   // Update URL when tab changes
   const setActiveTab = (tab: 'profile' | 'posts' | 'replies' | 'papers' | 'interactions') => {
@@ -565,7 +575,20 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
   // Shared content rendering
   const renderTabs = (includeProfile = true) => (
     <div className="flex border-b border-gray-200 dark:border-gray-800">
-      {/* Posts - leftmost */}
+      {/* Profile - first for others, last for self */}
+      {includeProfile && !isOwnProfile && (
+        <button
+          onClick={() => setActiveTab('profile')}
+          className={`flex-1 py-3 text-sm font-medium transition-colors ${
+            activeTab === 'profile'
+              ? 'text-blue-500 border-b-2 border-blue-500'
+              : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
+          }`}
+        >
+          Profile
+        </button>
+      )}
+      {/* Posts */}
       <button
         onClick={() => setActiveTab('posts')}
         className={`flex-1 py-3 text-sm font-medium transition-colors ${
@@ -617,8 +640,8 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
           Us
         </button>
       )}
-      {/* Profile - rightmost */}
-      {includeProfile && (
+      {/* Profile - last for self only */}
+      {includeProfile && isOwnProfile && (
         <button
           onClick={() => setActiveTab('profile')}
           className={`flex-1 py-3 text-sm font-medium transition-colors ${
