@@ -111,6 +111,48 @@ async function fetchPaperMetadata(normalizedId: string, source: string): Promise
       return { title, authors };
     }
 
+    if (source === 'openreview') {
+      // OpenReview forum ID (e.g., "openreview:abc123xyz")
+      const forumId = normalizedId.replace('openreview:', '');
+
+      try {
+        // OpenReview API v2
+        const response = await fetch(`https://api2.openreview.net/notes?id=${forumId}`, {
+          headers: { 'User-Agent': 'Lea/1.0 (mailto:support@lea.community)' }
+        });
+
+        if (!response.ok) {
+          // Try API v1 as fallback
+          const v1Response = await fetch(`https://api.openreview.net/notes?id=${forumId}`, {
+            headers: { 'User-Agent': 'Lea/1.0 (mailto:support@lea.community)' }
+          });
+          if (!v1Response.ok) return null;
+
+          const v1Data = await v1Response.json();
+          const note = v1Data.notes?.[0];
+          if (!note) return null;
+
+          const title = note.content?.title;
+          const authors = note.content?.authors;
+          return { title, authors: Array.isArray(authors) ? authors : undefined };
+        }
+
+        const data = await response.json();
+        const note = data.notes?.[0];
+        if (!note) return null;
+
+        // OpenReview API v2 structure
+        const content = note.content || {};
+        const title = content.title?.value || content.title;
+        const authors = content.authors?.value || content.authors;
+
+        return { title, authors: Array.isArray(authors) ? authors : undefined };
+      } catch (error) {
+        console.error(`Failed to fetch OpenReview metadata for ${forumId}:`, error);
+        return null;
+      }
+    }
+
     return null;
   } catch (error) {
     console.error(`Failed to fetch metadata for ${normalizedId}:`, error);

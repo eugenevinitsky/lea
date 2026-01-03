@@ -25,6 +25,9 @@ const PAPER_PATTERNS = [
   { pattern: /pnas\.org\/doi\/(10\.\d+\/[^\s]+)/i, source: 'pnas', normalize: (m: string) => `doi:${m}` },
   // Semantic Scholar
   { pattern: /semanticscholar\.org\/paper\/[^\/]+\/([a-f0-9]{40})/i, source: 'semanticscholar', normalize: (m: string) => `s2:${m}` },
+  // OpenReview - forum and pdf URLs with id parameter
+  { pattern: /openreview\.net\/forum\?id=([a-zA-Z0-9_-]+)/i, source: 'openreview', normalize: (m: string) => `openreview:${m}` },
+  { pattern: /openreview\.net\/pdf\?id=([a-zA-Z0-9_-]+)/i, source: 'openreview', normalize: (m: string) => `openreview:${m}` },
 ];
 
 interface PaperMatch {

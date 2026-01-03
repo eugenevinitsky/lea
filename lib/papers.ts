@@ -221,6 +221,12 @@ export function getPaperIdFromUrl(url: string): string {
     return `arxiv:${arxivId}`;
   }
 
+  // For OpenReview, extract the forum ID
+  const openreviewMatch = url.match(/openreview\.net\/(?:forum|pdf)\?id=([a-zA-Z0-9_-]+)/i);
+  if (openreviewMatch) {
+    return `openreview:${openreviewMatch[1]}`;
+  }
+
   // For DOI URLs, extract the DOI
   // Match doi.org, dx.doi.org, or embedded DOIs in publisher URLs
   const doiPatterns = [
@@ -271,6 +277,9 @@ export function getUrlFromPaperId(paperId: string): string {
   if (paperId.startsWith('arxiv:')) {
     return `https://arxiv.org/abs/${paperId.slice(6)}`;
   }
+  if (paperId.startsWith('openreview:')) {
+    return `https://openreview.net/forum?id=${paperId.slice(11)}`;
+  }
   if (paperId.startsWith('doi:')) {
     return `https://doi.org/${decodeURIComponent(paperId.slice(4))}`;
   }
@@ -290,6 +299,11 @@ export function getSearchQueryForPaper(paperId: string): string {
     // Search for arXiv ID - this works well
     const arxivId = paperId.slice(6);
     return `arxiv ${arxivId}`;
+  }
+  if (paperId.startsWith('openreview:')) {
+    // Search for OpenReview forum ID
+    const forumId = paperId.slice(11);
+    return `openreview ${forumId}`;
   }
   if (paperId.startsWith('doi:')) {
     // Search for DOI - use the numeric part
@@ -363,6 +377,7 @@ export function getSearchQueryForPaper(paperId: string): string {
  */
 export function getPaperTypeFromId(paperId: string): string {
   if (paperId.startsWith('arxiv:')) return 'arXiv';
+  if (paperId.startsWith('openreview:')) return 'OpenReview';
   if (paperId.startsWith('doi:')) return 'DOI';
   
   // For URL-based IDs, determine type from the URL
