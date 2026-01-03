@@ -1471,8 +1471,19 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
   } : null);
   const hasReplyInfo = replyTarget && replyTarget.author.handle;
 
+  // Handle click on the article to open the thread
+  const handleArticleClick = (e: React.MouseEvent) => {
+    // Don't trigger if clicking on interactive elements (buttons, links, inputs)
+    const target = e.target as HTMLElement;
+    const isInteractive = target.closest('button, a, input, textarea, [role="button"]');
+    if (isInteractive) return;
+    
+    // Open the thread
+    onOpenThread?.(post.uri);
+  };
+
   return (
-    <article className={articleClass}>
+    <article className={`${articleClass} ${onOpenThread ? 'cursor-pointer' : ''}`} onClick={handleArticleClick}>
       {/* Repost header */}
       {repostedBy && (
         <div className="flex items-center gap-2 px-4 pt-3 pb-1 text-sm text-gray-500">
@@ -1625,10 +1636,7 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
           <ProfileLabels profile={author as unknown as BlueskyProfile} compact />
 
           {/* Post text */}
-          <p
-            className={`mt-1 text-base lg:text-[15px] text-gray-900 dark:text-gray-100 whitespace-pre-wrap break-words ${onOpenThread ? 'cursor-pointer' : ''}`}
-            onClick={() => onOpenThread?.(post.uri)}
-          >
+          <p className="mt-1 text-base lg:text-[15px] text-gray-900 dark:text-gray-100 whitespace-pre-wrap break-words">
             <RichText text={record.text} facets={record.facets} />
           </p>
 
