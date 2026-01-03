@@ -380,7 +380,7 @@ export default function Feed({ feedId, feedUri, feedName, acceptsInteractions, r
     <div>
       {/* Header - hidden on mobile since feed name is in tabs, sticky below feed tabs */}
       {/* top-14 (3.5rem) for main header + ~2.375rem for feed tabs = ~5.875rem total */}
-      <div className="hidden lg:block sticky top-[5.875rem] z-10 bg-white dark:bg-gray-950 border-b border-gray-200 dark:border-gray-800 p-3">
+      <div className="hidden lg:block sticky top-[5.875rem] z-10 bg-white dark:bg-gray-950 border-y border-gray-200 dark:border-gray-800 p-3">
         <div className="flex items-center justify-between">
           <div>
             <div className="flex items-center gap-2">
@@ -411,21 +411,32 @@ export default function Feed({ feedId, feedUri, feedName, acceptsInteractions, r
               </p>
             )}
           </div>
-          <button
-            onClick={() => {
-              setPosts([]);
-              setCursor(undefined);
-              setLoadedPages(0);
-              loadFeed();
-            }}
-            disabled={loading}
-            className="p-2 text-gray-500 hover:text-blue-500 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors disabled:opacity-50"
-            title="Refresh feed"
-          >
-            <svg className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-            </svg>
-          </button>
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+              className="p-2 text-gray-500 hover:text-blue-500 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors"
+              title="Scroll to top"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 10l7-7m0 0l7 7m-7-7v18" />
+              </svg>
+            </button>
+            <button
+              onClick={() => {
+                setPosts([]);
+                setCursor(undefined);
+                setLoadedPages(0);
+                loadFeed();
+              }}
+              disabled={loading}
+              className="p-2 text-gray-500 hover:text-blue-500 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors disabled:opacity-50"
+              title="Refresh feed"
+            >
+              <svg className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+            </button>
+          </div>
         </div>
       </div>
 
