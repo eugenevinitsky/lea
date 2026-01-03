@@ -112,8 +112,12 @@ function MessageText({ text, isOwn }: { text: string; isOwn: boolean }) {
   return <>{elements}</>;
 }
 
-export default function DMSidebar() {
-  const [isExpanded, setIsExpanded] = useState(false);
+interface DMSidebarProps {
+  defaultExpanded?: boolean;
+}
+
+export default function DMSidebar({ defaultExpanded = false }: DMSidebarProps) {
+  const [isExpanded, setIsExpanded] = useState(defaultExpanded);
   const [convos, setConvos] = useState<Convo[]>([]);
   const [followingDids, setFollowingDids] = useState<Set<string> | null>(null);
   const [showRequests, setShowRequests] = useState(false);

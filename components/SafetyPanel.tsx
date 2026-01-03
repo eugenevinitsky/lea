@@ -50,11 +50,12 @@ const SUGGESTED_LABELERS = [
 interface SafetyPanelProps {
   onOpenProfile?: (did: string) => void;
   onOpenThread?: (uri: string) => void;
+  defaultExpanded?: boolean;
 }
 
-export default function SafetyPanel({ onOpenProfile, onOpenThread }: SafetyPanelProps) {
+export default function SafetyPanel({ onOpenProfile, onOpenThread, defaultExpanded = false }: SafetyPanelProps) {
   const { settings, updateSettings } = useSettings();
-  const [isExpanded, setIsExpanded] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(defaultExpanded);
   const [labelers, setLabelers] = useState<LabelerInfo[]>([]);
   const [loadingLabelers, setLoadingLabelers] = useState(false);
   const [showSuggestedModal, setShowSuggestedModal] = useState(false);

@@ -40,6 +40,7 @@ interface ActiveResearcher {
 
 interface ModerationBoxProps {
   onOpenProfile?: (did: string) => void;
+  defaultExpanded?: boolean;
 }
 
 type Tab = 'verified' | 'active' | 'papers';
@@ -59,8 +60,8 @@ function formatTime(dateString: string) {
   return date.toLocaleDateString();
 }
 
-export default function ModerationBox({ onOpenProfile }: ModerationBoxProps) {
-  const [isExpanded, setIsExpanded] = useState(false);
+export default function ModerationBox({ onOpenProfile, defaultExpanded = false }: ModerationBoxProps) {
+  const [isExpanded, setIsExpanded] = useState(defaultExpanded);
   const [activeTab, setActiveTab] = useState<Tab>('papers');
   const [recentResearchers, setRecentResearchers] = useState<RecentResearcher[]>([]);
   const [activeResearchers, setActiveResearchers] = useState<ActiveResearcher[]>([]);
