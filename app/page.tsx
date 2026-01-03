@@ -652,8 +652,8 @@ function AppContent() {
                     }`}
                     title="Drag to reorder • Right-click to unpin"
                   >
-                    {/* Drag handle - visible on hover */}
-                    <span className="opacity-0 group-hover:opacity-50 transition-opacity text-gray-400 mr-0.5 cursor-grab">
+                    {/* Drag handle - visible on hover, desktop only */}
+                    <span className="hidden lg:inline opacity-0 group-hover:opacity-50 transition-opacity text-gray-400 mr-0.5 cursor-grab">
                       <svg className="w-3 h-3" viewBox="0 0 24 24" fill="currentColor">
                         <circle cx="9" cy="6" r="2" />
                         <circle cx="15" cy="6" r="2" />
