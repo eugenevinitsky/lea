@@ -368,7 +368,6 @@ function BlockedAccountsContent() {
               </button>
               <div>
                 <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100">Block Management</h2>
-                <p className="text-sm text-gray-500">{blockedAccounts.length} account{blockedAccounts.length !== 1 ? 's' : ''} blocked</p>
               </div>
             </div>
             <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
