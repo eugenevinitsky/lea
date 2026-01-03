@@ -599,7 +599,7 @@ export default function SafetyPanel({ onOpenProfile, onOpenThread }: SafetyPanel
           <div className="p-3 border-b border-gray-100 dark:border-gray-800">
             <div className="flex items-center justify-between mb-2">
               <h4 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">
-                Blocked Accounts
+                Recently Blocked
               </h4>
               {!blocksLoaded && (
                 <button
@@ -627,8 +627,8 @@ export default function SafetyPanel({ onOpenProfile, onOpenThread }: SafetyPanel
               blockedAccounts.length === 0 ? (
                 <p className="text-xs text-gray-500 py-2">No blocked accounts</p>
               ) : (
-                <div className="space-y-2 max-h-48 overflow-y-auto">
-                  {blockedAccounts.map((account) => (
+                <div className="space-y-2 max-h-36 overflow-y-auto">
+                  {blockedAccounts.slice(0, 5).map((account) => (
                     <div
                       key={account.did}
                       className="flex items-center gap-2 p-2 rounded-lg bg-gray-50 dark:bg-gray-800/50"
@@ -676,6 +676,17 @@ export default function SafetyPanel({ onOpenProfile, onOpenThread }: SafetyPanel
             ) : (
               <p className="text-xs text-gray-500 py-2">Click &quot;Load&quot; to view blocked accounts</p>
             )}
+            
+            {/* Link to full management page */}
+            <button
+              onClick={() => window.location.href = '/settings/blocked'}
+              className="w-full mt-3 py-2 px-3 text-xs text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30 hover:bg-blue-100 dark:hover:bg-blue-900/50 rounded-lg transition-colors flex items-center justify-center gap-1"
+            >
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
+              </svg>
+              Manage all blocked accounts
+            </button>
           </div>
 
           {/* Display Section */}
