@@ -17,6 +17,7 @@ import ProfileHoverCard from './ProfileHoverCard';
 interface NotificationsProps {
   onOpenPost?: (uri: string) => void;
   onOpenProfile?: (did: string) => void;
+  embedded?: boolean;
 }
 
 function formatTime(dateString: string) {
@@ -259,9 +260,9 @@ function CategorySection({
   );
 }
 
-export default function Notifications({ onOpenPost, onOpenProfile }: NotificationsProps) {
+export default function Notifications({ onOpenPost, onOpenProfile, embedded = false }: NotificationsProps) {
   const { settings, updateSettings } = useSettings();
-  const [isExpanded, setIsExpanded] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(embedded);
   const [grouped, setGrouped] = useState<GroupedNotifications>({
     likes: [],
     reposts: [],
@@ -511,9 +512,9 @@ export default function Notifications({ onOpenPost, onOpenProfile }: Notificatio
     (settings.notifyMentions ? unreadCounts.mentions : 0);
 
   return (
-    <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden">
-      {/* Header - always visible */}
-      <button
+    <div className={`bg-white dark:bg-gray-900 overflow-hidden ${embedded ? '' : 'rounded-xl border border-gray-200 dark:border-gray-800'}`}>
+      {/* Header - always visible, hidden when embedded */}
+      {!embedded && <button
         onClick={() => setIsExpanded(!isExpanded)}
         className="w-full p-3 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors"
       >
@@ -536,11 +537,11 @@ export default function Notifications({ onOpenPost, onOpenProfile }: Notificatio
         >
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
         </svg>
-      </button>
+      </button>}
 
       {/* Expanded content */}
       {isExpanded && (
-        <div className="border-t border-gray-200 dark:border-gray-800">
+        <div className={embedded ? '' : 'border-t border-gray-200 dark:border-gray-800'}>
           {error && (
             <div className="p-2 bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 text-xs">
               {error}

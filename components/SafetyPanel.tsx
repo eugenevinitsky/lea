@@ -51,11 +51,12 @@ interface SafetyPanelProps {
   onOpenProfile?: (did: string) => void;
   onOpenThread?: (uri: string) => void;
   defaultExpanded?: boolean;
+  embedded?: boolean;
 }
 
-export default function SafetyPanel({ onOpenProfile, onOpenThread, defaultExpanded = false }: SafetyPanelProps) {
+export default function SafetyPanel({ onOpenProfile, onOpenThread, defaultExpanded = false, embedded = false }: SafetyPanelProps) {
   const { settings, updateSettings } = useSettings();
-  const [isExpanded, setIsExpanded] = useState(defaultExpanded);
+  const [isExpanded, setIsExpanded] = useState(defaultExpanded || embedded);
   const [labelers, setLabelers] = useState<LabelerInfo[]>([]);
   const [loadingLabelers, setLoadingLabelers] = useState(false);
   const [showSuggestedModal, setShowSuggestedModal] = useState(false);
@@ -314,9 +315,9 @@ export default function SafetyPanel({ onOpenProfile, onOpenThread, defaultExpand
   };
 
   return (
-    <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden">
-      {/* Header - always visible */}
-      <button
+    <div className={`bg-white dark:bg-gray-900 overflow-hidden ${embedded ? '' : 'rounded-xl border border-gray-200 dark:border-gray-800'}`}>
+      {/* Header - always visible, hidden when embedded */}
+      {!embedded && <button
         onClick={() => setIsExpanded(!isExpanded)}
         className="w-full p-3 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors"
       >
@@ -348,11 +349,11 @@ export default function SafetyPanel({ onOpenProfile, onOpenThread, defaultExpand
         >
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
         </svg>
-      </button>
+      </button>}
 
       {/* Expanded content */}
       {isExpanded && (
-        <div className="border-t border-gray-200 dark:border-gray-800">
+        <div className={embedded ? '' : 'border-t border-gray-200 dark:border-gray-800'}>
           {/* Safety Alerts Section */}
           <div className="border-l-4 border-l-amber-400">
             <button

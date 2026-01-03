@@ -7,6 +7,7 @@ import { useBookmarks, BookmarkedPost, BookmarkCollection, COLLECTION_COLORS, ex
 interface BookmarksProps {
   onOpenPost?: (uri: string) => void;
   onOpenProfile?: (did: string) => void;
+  embedded?: boolean;
 }
 
 function formatDate(dateString: string) {
@@ -108,7 +109,7 @@ function BookmarkItem({ bookmark, onRemove, onOpen, onOpenProfile }: {
   );
 }
 
-export default function Bookmarks({ onOpenPost, onOpenProfile }: BookmarksProps) {
+export default function Bookmarks({ onOpenPost, onOpenProfile, embedded = false }: BookmarksProps) {
   const {
     bookmarks,
     collections,
@@ -121,7 +122,7 @@ export default function Bookmarks({ onOpenPost, onOpenProfile }: BookmarksProps)
   } = useBookmarks();
   const [showExportMenu, setShowExportMenu] = useState(false);
   const [mounted, setMounted] = useState(false);
-  const [isCollapsed, setIsCollapsed] = useState(true);
+  const [isCollapsed, setIsCollapsed] = useState(!embedded);
   const [collapsedCollections, setCollapsedCollections] = useState<Set<string>>(new Set());
   const [showNewCollectionInput, setShowNewCollectionInput] = useState(false);
   const [newCollectionName, setNewCollectionName] = useState('');
@@ -251,7 +252,7 @@ export default function Bookmarks({ onOpenPost, onOpenProfile }: BookmarksProps)
   };
 
   return (
-    <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden">
+    <div className={`bg-white dark:bg-gray-900 overflow-hidden ${embedded ? '' : 'rounded-xl border border-gray-200 dark:border-gray-800'}`}>
       <button
         onClick={() => setIsCollapsed(!isCollapsed)}
         className="w-full p-3 border-b border-gray-200 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors"

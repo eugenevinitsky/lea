@@ -830,8 +830,8 @@ function AppContent() {
             <div className="w-14" /> {/* Spacer for centering */}
           </div>
           {/* DM Sidebar content */}
-          <div className="flex-1 overflow-y-auto p-4">
-            <DMSidebar defaultExpanded />
+          <div className="flex-1 overflow-y-auto">
+            <DMSidebar embedded />
           </div>
         </div>
       )}
@@ -849,8 +849,8 @@ function AppContent() {
             <span className="font-semibold text-gray-900 dark:text-gray-100">Bookmarks</span>
             <div className="w-14" />
           </div>
-          <div className="flex-1 overflow-y-auto p-4">
-            <Bookmarks onOpenPost={(uri) => { setShowMobileBookmarks(false); openThread(uri); }} onOpenProfile={(did) => { setShowMobileBookmarks(false); navigateToProfile(did); }} />
+          <div className="flex-1 overflow-y-auto">
+            <Bookmarks embedded onOpenPost={(uri) => { setShowMobileBookmarks(false); openThread(uri); }} onOpenProfile={(did) => { setShowMobileBookmarks(false); navigateToProfile(did); }} />
           </div>
         </div>
       )}
@@ -868,8 +868,8 @@ function AppContent() {
             <span className="font-semibold text-gray-900 dark:text-gray-100">Notifications</span>
             <div className="w-14" />
           </div>
-          <div className="flex-1 overflow-y-auto p-4">
-            <Notifications onOpenPost={(uri) => { setShowMobileNotifications(false); openThread(uri); }} onOpenProfile={(did) => { setShowMobileNotifications(false); navigateToProfile(did); }} />
+          <div className="flex-1 overflow-y-auto">
+            <Notifications embedded onOpenPost={(uri) => { setShowMobileNotifications(false); openThread(uri); }} onOpenProfile={(did) => { setShowMobileNotifications(false); navigateToProfile(did); }} />
           </div>
         </div>
       )}
@@ -887,8 +887,8 @@ function AppContent() {
             <span className="font-semibold text-gray-900 dark:text-gray-100">Moderation</span>
             <div className="w-14" />
           </div>
-          <div className="flex-1 overflow-y-auto p-4">
-            <SafetyPanel defaultExpanded onOpenProfile={(did) => { setShowMobileModeration(false); navigateToProfile(did); }} onOpenThread={(uri) => { setShowMobileModeration(false); openThread(uri); }} />
+          <div className="flex-1 overflow-y-auto">
+            <SafetyPanel embedded onOpenProfile={(did) => { setShowMobileModeration(false); navigateToProfile(did); }} onOpenThread={(uri) => { setShowMobileModeration(false); openThread(uri); }} />
           </div>
         </div>
       )}
@@ -906,8 +906,8 @@ function AppContent() {
             <span className="font-semibold text-gray-900 dark:text-gray-100">Discover Papers</span>
             <div className="w-14" />
           </div>
-          <div className="flex-1 overflow-y-auto p-4">
-            <ModerationBox defaultExpanded onOpenProfile={(did) => { setShowMobileDiscoverPapers(false); navigateToProfile(did); }} />
+          <div className="flex-1 overflow-y-auto">
+            <ModerationBox embedded onOpenProfile={(did) => { setShowMobileDiscoverPapers(false); navigateToProfile(did); }} />
           </div>
         </div>
       )}
