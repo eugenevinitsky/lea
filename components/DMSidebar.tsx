@@ -271,12 +271,19 @@ export default function DMSidebar({ defaultExpanded = false, embedded = false }:
     }
   }, [isExpanded, pollForUpdates]);
 
-  // Scroll to bottom when messages change
+  // Scroll to bottom when messages change or loading completes
   useEffect(() => {
-    if (messagesContainerRef.current) {
-      messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
+    if (messagesContainerRef.current && messages.length > 0 && !loading) {
+      // Use requestAnimationFrame + setTimeout to ensure DOM has fully updated
+      requestAnimationFrame(() => {
+        setTimeout(() => {
+          if (messagesContainerRef.current) {
+            messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
+          }
+        }, 10);
+      });
     }
-  }, [messages]);
+  }, [messages, loading]);
 
   // Focus input when selecting a convo
   useEffect(() => {
