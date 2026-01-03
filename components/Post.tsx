@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { AppBskyFeedDefs, AppBskyFeedPost, AppBskyEmbedExternal, AppBskyEmbedImages, AppBskyEmbedRecord, AppBskyEmbedRecordWithMedia, AppBskyEmbedVideo } from '@atproto/api';
 import Hls from 'hls.js';
 import { isVerifiedResearcher, Label, createPost, ReplyRef, QuoteRef, likePost, unlikePost, repost, deleteRepost, deletePost, sendFeedInteraction, InteractionEvent, getSession, updateThreadgate, getThreadgateType, ThreadgateType, FEEDS, searchActors } from '@/lib/bluesky';
@@ -278,28 +279,17 @@ function EmbedImages({ images }: { images: AppBskyEmbedImages.ViewImage[] }) {
   const [expandedIndex, setExpandedIndex] = useState<number | null>(null);
   const expandedImage = expandedIndex !== null ? images[expandedIndex] : null;
 
-  console.log('[EmbedImages] images:', images);
-  console.log('[EmbedImages] expandedIndex:', expandedIndex);
-  console.log('[EmbedImages] expandedImage:', expandedImage);
-
-  const closeLightbox = () => {
-    console.log('[EmbedImages] closeLightbox called');
-    setExpandedIndex(null);
-  };
+  const closeLightbox = () => setExpandedIndex(null);
 
   // Single image: show full width, natural aspect ratio up to max height
   if (images.length === 1) {
     const image = images[0];
-    console.log('[EmbedImages] Single image mode, image:', image);
-    console.log('[EmbedImages] fullsize:', image.fullsize);
-    console.log('[EmbedImages] thumb:', image.thumb);
     return (
       <>
         <div
           className="relative cursor-pointer mt-2 rounded-xl overflow-hidden"
           onClick={(e) => {
             e.stopPropagation();
-            console.log('[EmbedImages] Image clicked, setting expandedIndex to 0');
             setExpandedIndex(0);
           }}
         >
@@ -315,41 +305,34 @@ function EmbedImages({ images }: { images: AppBskyEmbedImages.ViewImage[] }) {
             </div>
           )}
         </div>
-        {expandedImage && (
-          (() => {
-            console.log('[EmbedImages] Rendering lightbox for expandedImage:', expandedImage);
-            console.log('[EmbedImages] Using src:', expandedImage.fullsize || expandedImage.thumb);
-            return (
-              <div
-                className="fixed inset-0 z-[9999] bg-black/90 flex items-center justify-center p-4"
-                onClick={closeLightbox}
-              >
-                <button
-                  onClick={closeLightbox}
-                  className="absolute top-4 right-4 p-2 text-white hover:bg-white/20 rounded-full z-10"
-                >
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-                <img
-                  src={expandedImage.fullsize || expandedImage.thumb}
-                  alt="Expanded image"
-                  className="max-w-full max-h-full object-contain"
-                  onClick={(e) => e.stopPropagation()}
-                  onLoad={() => console.log('[EmbedImages] Image loaded successfully')}
-                  onError={(e) => {
-                    console.log('[EmbedImages] Image load error, falling back to thumb');
-                    // Fallback to thumb if fullsize fails to load
-                    const img = e.target as HTMLImageElement;
-                    if (img.src !== expandedImage.thumb) {
-                      img.src = expandedImage.thumb;
-                    }
-                  }}
-                />
-              </div>
-            );
-          })()
+        {expandedImage && typeof document !== 'undefined' && createPortal(
+          <div
+            className="fixed inset-0 z-[9999] bg-black/90 flex items-center justify-center p-4"
+            onClick={closeLightbox}
+          >
+            <button
+              onClick={closeLightbox}
+              className="absolute top-4 right-4 p-2 text-white hover:bg-white/20 rounded-full z-10"
+            >
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+            <img
+              src={expandedImage.fullsize || expandedImage.thumb}
+              alt="Expanded image"
+              className="max-w-full max-h-full object-contain"
+              onClick={(e) => e.stopPropagation()}
+              onError={(e) => {
+                // Fallback to thumb if fullsize fails to load
+                const img = e.target as HTMLImageElement;
+                if (img.src !== expandedImage.thumb) {
+                  img.src = expandedImage.thumb;
+                }
+              }}
+            />
+          </div>,
+          document.body
         )}
       </>
     );
@@ -388,7 +371,7 @@ function EmbedImages({ images }: { images: AppBskyEmbedImages.ViewImage[] }) {
       </div>
 
       {/* Lightbox for expanded image */}
-      {expandedImage && (
+      {expandedImage && typeof document !== 'undefined' && createPortal(
         <div
           className="fixed inset-0 z-[9999] bg-black/90 flex items-center justify-center p-4"
           onClick={closeLightbox}
@@ -414,7 +397,8 @@ function EmbedImages({ images }: { images: AppBskyEmbedImages.ViewImage[] }) {
               }
             }}
           />
-        </div>
+        </div>,
+        document.body
       )}
     </>
   );
