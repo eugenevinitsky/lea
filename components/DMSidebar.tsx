@@ -348,7 +348,7 @@ export default function DMSidebar() {
   }, [showNewChat]);
 
   // Start a new chat with a user
-  const handleStartChat = async (userDid: string) => {
+  const handleStartChat = useCallback(async (userDid: string) => {
     setStartingChat(true);
     try {
       const result = await getConvoForMembers([session!.did, userDid]);
@@ -364,7 +364,23 @@ export default function DMSidebar() {
     } finally {
       setStartingChat(false);
     }
-  };
+  }, [session?.did, fetchMessages, fetchConvos]);
+
+  // Listen for external "open DM with user" events (e.g., from profile page DM button)
+  useEffect(() => {
+    const handleOpenDMWithUser = (event: CustomEvent<{ did: string }>) => {
+      const userDid = event.detail.did;
+      if (userDid && session?.did) {
+        setIsExpanded(true);
+        handleStartChat(userDid);
+      }
+    };
+
+    window.addEventListener('openDMWithUser', handleOpenDMWithUser as EventListener);
+    return () => {
+      window.removeEventListener('openDMWithUser', handleOpenDMWithUser as EventListener);
+    };
+  }, [session?.did, handleStartChat]);
 
   const otherMember = selectedConvo?.members.find(m => m.did !== session?.did);
 
