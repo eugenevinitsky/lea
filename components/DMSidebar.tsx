@@ -13,11 +13,15 @@ import {
   leaveConvo,
   blockUser,
   searchActors,
+  addMessageReaction,
+  removeMessageReaction,
   Convo,
   ChatMessage,
   LogEntry,
   getSession,
 } from '@/lib/bluesky';
+
+const QUICK_REACTIONS = ['❤️', '👍', '😂', '😮', '😢'];
 
 const POLL_INTERVAL = 10000;
 
@@ -127,12 +131,42 @@ export default function DMSidebar() {
   const [searchResults, setSearchResults] = useState<Array<{ did: string; handle: string; displayName?: string; avatar?: string }>>([]);
   const [searching, setSearching] = useState(false);
   const [startingChat, setStartingChat] = useState(false);
+  const [hoveredMessageId, setHoveredMessageId] = useState<string | null>(null);
+  const [showReactionPicker, setShowReactionPicker] = useState<string | null>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const session = getSession();
+
+  // Handle adding/removing reactions
+  const handleReaction = async (messageId: string, emoji: string) => {
+    if (!selectedConvoId) return;
+
+    const message = messages.find(m => m.id === messageId);
+    const existingReaction = message?.reactions?.find(
+      r => r.value === emoji && r.sender.did === session?.did
+    );
+
+    try {
+      let updatedMessage: ChatMessage;
+      if (existingReaction) {
+        updatedMessage = await removeMessageReaction(selectedConvoId, messageId, emoji);
+      } else {
+        updatedMessage = await addMessageReaction(selectedConvoId, messageId, emoji);
+      }
+
+      // Update the message in state
+      setMessages(prev => prev.map(m =>
+        m.id === messageId ? updatedMessage : m
+      ));
+    } catch (err) {
+      console.error('Failed to update reaction:', err);
+    }
+
+    setShowReactionPicker(null);
+  };
 
   // Fetch conversations
   const fetchConvos = useCallback(async () => {
@@ -481,21 +515,96 @@ export default function DMSidebar() {
                   <>
                     {messages.map((msg) => {
                       const isOwn = msg.sender.did === session?.did;
+                      const isHovered = hoveredMessageId === msg.id;
+                      const showPicker = showReactionPicker === msg.id;
+
+                      // Group reactions by emoji
+                      const reactionGroups = msg.reactions?.reduce((acc, r) => {
+                        if (!acc[r.value]) {
+                          acc[r.value] = { count: 0, hasOwn: false };
+                        }
+                        acc[r.value].count++;
+                        if (r.sender.did === session?.did) {
+                          acc[r.value].hasOwn = true;
+                        }
+                        return acc;
+                      }, {} as Record<string, { count: number; hasOwn: boolean }>) || {};
+
                       return (
-                        <div key={msg.id} className={`flex ${isOwn ? 'justify-end' : 'justify-start'}`}>
-                          <div
-                            className={`max-w-[80%] px-2.5 py-1.5 rounded-xl text-xs ${
-                              isOwn
-                                ? 'bg-blue-500 text-white rounded-br-sm'
-                                : 'bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100 rounded-bl-sm'
-                            }`}
-                          >
-                            <p className="whitespace-pre-wrap break-words">
-                              <MessageText text={msg.text} isOwn={isOwn} />
-                            </p>
-                            <p className={`text-[9px] mt-0.5 ${isOwn ? 'text-blue-100' : 'text-gray-400'}`}>
-                              {formatMessageTime(msg.sentAt)}
-                            </p>
+                        <div
+                          key={msg.id}
+                          className={`flex ${isOwn ? 'justify-end' : 'justify-start'} group relative`}
+                          onMouseEnter={() => setHoveredMessageId(msg.id)}
+                          onMouseLeave={() => {
+                            setHoveredMessageId(null);
+                            if (!showPicker) setShowReactionPicker(null);
+                          }}
+                        >
+                          {/* Reaction button - shows on hover, positioned outside message */}
+                          {isHovered && !showPicker && (
+                            <button
+                              onClick={() => setShowReactionPicker(msg.id)}
+                              className={`absolute ${isOwn ? 'left-0 -translate-x-full mr-1' : 'right-0 translate-x-full ml-1'} top-1/2 -translate-y-1/2 p-1 rounded-full bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-500 dark:text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity`}
+                            >
+                              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                              </svg>
+                            </button>
+                          )}
+
+                          {/* Reaction picker */}
+                          {showPicker && (
+                            <div
+                              className={`absolute ${isOwn ? 'right-0' : 'left-0'} -top-8 bg-white dark:bg-gray-800 rounded-full shadow-lg border border-gray-200 dark:border-gray-700 px-1 py-0.5 flex gap-0.5 z-10`}
+                              onMouseLeave={() => setShowReactionPicker(null)}
+                            >
+                              {QUICK_REACTIONS.map(emoji => (
+                                <button
+                                  key={emoji}
+                                  onClick={() => handleReaction(msg.id, emoji)}
+                                  className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors text-sm"
+                                >
+                                  {emoji}
+                                </button>
+                              ))}
+                            </div>
+                          )}
+
+                          <div className="flex flex-col">
+                            <div
+                              className={`max-w-[80%] px-2.5 py-1.5 rounded-xl text-xs ${
+                                isOwn
+                                  ? 'bg-blue-500 text-white rounded-br-sm'
+                                  : 'bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100 rounded-bl-sm'
+                              }`}
+                            >
+                              <p className="whitespace-pre-wrap break-words">
+                                <MessageText text={msg.text} isOwn={isOwn} />
+                              </p>
+                              <p className={`text-[9px] mt-0.5 ${isOwn ? 'text-blue-100' : 'text-gray-400'}`}>
+                                {formatMessageTime(msg.sentAt)}
+                              </p>
+                            </div>
+
+                            {/* Display reactions */}
+                            {Object.keys(reactionGroups).length > 0 && (
+                              <div className={`flex gap-0.5 mt-0.5 ${isOwn ? 'justify-end' : 'justify-start'}`}>
+                                {Object.entries(reactionGroups).map(([emoji, { count, hasOwn }]) => (
+                                  <button
+                                    key={emoji}
+                                    onClick={() => handleReaction(msg.id, emoji)}
+                                    className={`px-1 py-0.5 rounded-full text-[10px] flex items-center gap-0.5 transition-colors ${
+                                      hasOwn
+                                        ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400'
+                                        : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'
+                                    }`}
+                                  >
+                                    <span>{emoji}</span>
+                                    {count > 1 && <span>{count}</span>}
+                                  </button>
+                                ))}
+                              </div>
+                            )}
                           </div>
                         </div>
                       );

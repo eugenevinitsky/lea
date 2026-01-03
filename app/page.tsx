@@ -40,6 +40,9 @@ function AppContent() {
   const [canScrollRight, setCanScrollRight] = useState(false);
   const [showMobileComposer, setShowMobileComposer] = useState(false);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
+  const [showMobileBookmarks, setShowMobileBookmarks] = useState(false);
+  const [showMobileNotifications, setShowMobileNotifications] = useState(false);
+  const [showMobileModeration, setShowMobileModeration] = useState(false);
   const [showMobileDMs, setShowMobileDMs] = useState(false);
 
   // Pull-to-refresh state
@@ -399,6 +402,74 @@ function AppContent() {
         {/* Mobile dropdown menu */}
         {showMobileMenu && (
           <div className="lg:hidden border-t border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950 px-4 py-3 space-y-3">
+            {/* Bookmarks */}
+            <button
+              onClick={() => {
+                setShowMobileBookmarks(true);
+                setShowMobileMenu(false);
+              }}
+              className="flex items-center gap-2 text-gray-700 dark:text-gray-300 w-full"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
+              </svg>
+              <span>Bookmarks</span>
+            </button>
+            {/* Notifications */}
+            <button
+              onClick={() => {
+                setShowMobileNotifications(true);
+                setShowMobileMenu(false);
+              }}
+              className="flex items-center gap-2 text-gray-700 dark:text-gray-300 w-full"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+              </svg>
+              <span>Notifications</span>
+            </button>
+            {/* Moderation */}
+            <button
+              onClick={() => {
+                setShowMobileModeration(true);
+                setShowMobileMenu(false);
+              }}
+              className="flex items-center gap-2 text-gray-700 dark:text-gray-300 w-full"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              </svg>
+              <span>Moderation</span>
+            </button>
+            {/* Discover Researchers */}
+            <button
+              onClick={() => {
+                setOnboardingStartStep(3);
+                setShowOnboarding(true);
+                setShowMobileMenu(false);
+              }}
+              className="flex items-center gap-2 text-gray-700 dark:text-gray-300 w-full"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+              </svg>
+              <span>Discover Researchers</span>
+            </button>
+            {/* Discover Papers */}
+            <button
+              onClick={() => {
+                setOnboardingStartStep(4);
+                setShowOnboarding(true);
+                setShowMobileMenu(false);
+              }}
+              className="flex items-center gap-2 text-gray-700 dark:text-gray-300 w-full"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+              <span>Discover Papers</span>
+            </button>
+            {/* Verification status */}
             {isVerified ? (
               <div className="flex items-center gap-2 text-emerald-600 dark:text-emerald-500">
                 <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
@@ -420,31 +491,7 @@ function AppContent() {
                 <span className="font-medium">Get Verified</span>
               </a>
             )}
-            <button
-              onClick={() => {
-                window.location.href = '/discover';
-                setShowMobileMenu(false);
-              }}
-              className="flex items-center gap-2 text-gray-700 dark:text-gray-300 w-full"
-            >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-              </svg>
-              <span>Discover</span>
-            </button>
-            <button
-              onClick={() => {
-                setOnboardingStartStep(3);
-                setShowOnboarding(true);
-                setShowMobileMenu(false);
-              }}
-              className="flex items-center gap-2 text-gray-700 dark:text-gray-300 w-full"
-            >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-              </svg>
-              <span>Discover Researchers</span>
-            </button>
+            {/* Sign out */}
             <button
               onClick={() => {
                 handleLogout();
@@ -765,6 +812,64 @@ function AppContent() {
           {/* DM Sidebar content */}
           <div className="flex-1 overflow-y-auto p-4">
             <DMSidebar />
+          </div>
+        </div>
+      )}
+
+      {/* Mobile Bookmarks Modal */}
+      {showMobileBookmarks && (
+        <div className="lg:hidden fixed inset-0 z-50 flex flex-col bg-white dark:bg-gray-950">
+          <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 dark:border-gray-800">
+            <button
+              onClick={() => setShowMobileBookmarks(false)}
+              className="text-blue-500 hover:text-blue-600 font-medium"
+            >
+              Close
+            </button>
+            <span className="font-semibold text-gray-900 dark:text-gray-100">Bookmarks</span>
+            <div className="w-14" />
+          </div>
+          <div className="flex-1 overflow-y-auto p-4">
+            <Bookmarks onOpenPost={(uri) => { setShowMobileBookmarks(false); openThread(uri); }} onOpenProfile={(did) => { setShowMobileBookmarks(false); navigateToProfile(did); }} />
+          </div>
+        </div>
+      )}
+
+      {/* Mobile Notifications Modal */}
+      {showMobileNotifications && (
+        <div className="lg:hidden fixed inset-0 z-50 flex flex-col bg-white dark:bg-gray-950">
+          <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 dark:border-gray-800">
+            <button
+              onClick={() => setShowMobileNotifications(false)}
+              className="text-blue-500 hover:text-blue-600 font-medium"
+            >
+              Close
+            </button>
+            <span className="font-semibold text-gray-900 dark:text-gray-100">Notifications</span>
+            <div className="w-14" />
+          </div>
+          <div className="flex-1 overflow-y-auto p-4">
+            <Notifications onOpenPost={(uri) => { setShowMobileNotifications(false); openThread(uri); }} onOpenProfile={(did) => { setShowMobileNotifications(false); navigateToProfile(did); }} />
+          </div>
+        </div>
+      )}
+
+      {/* Mobile Moderation Modal */}
+      {showMobileModeration && (
+        <div className="lg:hidden fixed inset-0 z-50 flex flex-col bg-white dark:bg-gray-950">
+          <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 dark:border-gray-800">
+            <button
+              onClick={() => setShowMobileModeration(false)}
+              className="text-blue-500 hover:text-blue-600 font-medium"
+            >
+              Close
+            </button>
+            <span className="font-semibold text-gray-900 dark:text-gray-100">Moderation</span>
+            <div className="w-14" />
+          </div>
+          <div className="flex-1 overflow-y-auto p-4 space-y-4">
+            <ModerationBox onOpenProfile={(did) => { setShowMobileModeration(false); navigateToProfile(did); }} />
+            <SafetyPanel onOpenProfile={(did) => { setShowMobileModeration(false); navigateToProfile(did); }} onOpenThread={(uri) => { setShowMobileModeration(false); openThread(uri); }} />
           </div>
         </div>
       )}
