@@ -1,9 +1,10 @@
 'use client';
 
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, useRef, ReactNode } from 'react';
 import { VERIFIED_RESEARCHERS_LIST } from './constants';
 
 const FEEDS_STORAGE_KEY = 'lea-pinned-feeds';
+const FEEDS_SYNCED_KEY = 'lea-feeds-synced';
 
 // Re-export for backwards compatibility
 export { VERIFIED_RESEARCHERS_LIST };
@@ -58,6 +59,12 @@ export const SUGGESTED_FEEDS = [
 // Default pinned feeds
 const DEFAULT_FEEDS: PinnedFeed[] = [
   {
+    uri: 'verified-following',
+    displayName: 'Verified Researchers',
+    acceptsInteractions: false,
+    type: 'verified',
+  },
+  {
     uri: 'at://did:plc:uaadt6f5bbda6cycbmatcm3z/app.bsky.feed.generator/preprintdigest',
     displayName: 'Paper Skygest',
     acceptsInteractions: false,
@@ -92,6 +99,7 @@ interface FeedsContextType {
   moveFeed: (uri: string, direction: 'up' | 'down') => void;
   reorderFeeds: (fromIndex: number, toIndex: number) => void;
   isPinned: (uri: string) => boolean;
+  setUserDid: (did: string | null) => void;
 }
 
 const FeedsContext = createContext<FeedsContextType | null>(null);
@@ -99,42 +107,110 @@ const FeedsContext = createContext<FeedsContextType | null>(null);
 export function FeedsProvider({ children }: { children: ReactNode }) {
   const [pinnedFeeds, setPinnedFeeds] = useState<PinnedFeed[]>(DEFAULT_FEEDS);
   const [isLoaded, setIsLoaded] = useState(false);
+  const [userDid, setUserDid] = useState<string | null>(null);
+  const isSyncing = useRef(false);
+  const pendingSync = useRef(false);
 
-  // Load from localStorage on mount
-  useEffect(() => {
-    const stored = localStorage.getItem(FEEDS_STORAGE_KEY);
-    if (stored) {
-      try {
-        const parsed = JSON.parse(stored);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          // Migrate old list-based Verified Researchers feed to new timeline-filtered version
-          const migrated = parsed.map((feed: PinnedFeed) => {
-            if (feed.uri === VERIFIED_RESEARCHERS_LIST ||
-                (feed.displayName === 'Verified Researchers' && feed.type === 'list')) {
-              return {
-                uri: 'verified-following',
-                displayName: 'Verified Researchers',
-                acceptsInteractions: false,
-                type: 'verified' as const,
-              };
-            }
-            return feed;
-          });
-          setPinnedFeeds(migrated);
-        }
-      } catch (e) {
-        console.error('Failed to parse stored feeds:', e);
+  // Migrate feeds helper
+  const migrateFeeds = useCallback((feeds: PinnedFeed[]): PinnedFeed[] => {
+    return feeds.map((feed: PinnedFeed) => {
+      if (feed.uri === VERIFIED_RESEARCHERS_LIST ||
+          (feed.displayName === 'Verified Researchers' && feed.type === 'list')) {
+        return {
+          uri: 'verified-following',
+          displayName: 'Verified Researchers',
+          acceptsInteractions: false,
+          type: 'verified' as const,
+        };
       }
-    }
-    setIsLoaded(true);
+      return feed;
+    });
   }, []);
 
-  // Save to localStorage when feeds change
+  // Sync feeds to server
+  const syncToServer = useCallback(async (feeds: PinnedFeed[], did: string) => {
+    if (isSyncing.current) {
+      pendingSync.current = true;
+      return;
+    }
+
+    isSyncing.current = true;
+    try {
+      await fetch('/api/feeds', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ did, feeds }),
+      });
+      localStorage.setItem(FEEDS_SYNCED_KEY, 'true');
+    } catch (e) {
+      console.error('Failed to sync feeds to server:', e);
+    } finally {
+      isSyncing.current = false;
+      if (pendingSync.current) {
+        pendingSync.current = false;
+        syncToServer(feeds, did);
+      }
+    }
+  }, []);
+
+  // Load feeds from server or localStorage
+  useEffect(() => {
+    async function loadFeeds() {
+      // First, load from localStorage as fallback
+      const stored = localStorage.getItem(FEEDS_STORAGE_KEY);
+      let localFeeds: PinnedFeed[] = DEFAULT_FEEDS;
+
+      if (stored) {
+        try {
+          const parsed = JSON.parse(stored);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            localFeeds = migrateFeeds(parsed);
+          }
+        } catch (e) {
+          console.error('Failed to parse stored feeds:', e);
+        }
+      }
+
+      // If we have a user DID, try to load from server
+      if (userDid) {
+        try {
+          const res = await fetch(`/api/feeds?did=${encodeURIComponent(userDid)}`);
+          if (res.ok) {
+            const data = await res.json();
+            if (data.feeds && data.feeds.length > 0) {
+              // Server has feeds, use them
+              setPinnedFeeds(data.feeds);
+              localStorage.setItem(FEEDS_STORAGE_KEY, JSON.stringify(data.feeds));
+              setIsLoaded(true);
+              return;
+            }
+          }
+        } catch (e) {
+          console.error('Failed to fetch feeds from server:', e);
+        }
+
+        // No server feeds - if local has feeds, sync them to server
+        if (localFeeds.length > 0 && !localStorage.getItem(FEEDS_SYNCED_KEY)) {
+          syncToServer(localFeeds, userDid);
+        }
+      }
+
+      setPinnedFeeds(localFeeds);
+      setIsLoaded(true);
+    }
+
+    loadFeeds();
+  }, [userDid, migrateFeeds, syncToServer]);
+
+  // Save to localStorage and sync to server when feeds change
   useEffect(() => {
     if (isLoaded) {
       localStorage.setItem(FEEDS_STORAGE_KEY, JSON.stringify(pinnedFeeds));
+      if (userDid) {
+        syncToServer(pinnedFeeds, userDid);
+      }
     }
-  }, [pinnedFeeds, isLoaded]);
+  }, [pinnedFeeds, isLoaded, userDid, syncToServer]);
 
   const addFeed = (feed: PinnedFeed) => {
     setPinnedFeeds(prev => {
@@ -179,7 +255,7 @@ export function FeedsProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <FeedsContext.Provider value={{ pinnedFeeds, isLoaded, addFeed, removeFeed, moveFeed, reorderFeeds, isPinned }}>
+    <FeedsContext.Provider value={{ pinnedFeeds, isLoaded, addFeed, removeFeed, moveFeed, reorderFeeds, isPinned, setUserDid }}>
       {children}
     </FeedsContext.Provider>
   );

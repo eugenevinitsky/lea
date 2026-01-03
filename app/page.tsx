@@ -40,6 +40,7 @@ function AppContent() {
   const [canScrollRight, setCanScrollRight] = useState(false);
   const [showMobileComposer, setShowMobileComposer] = useState(false);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
+  const [showMobileDMs, setShowMobileDMs] = useState(false);
 
   // Pull-to-refresh state
   const [pullDistance, setPullDistance] = useState(0);
@@ -49,8 +50,8 @@ function AppContent() {
   const mainContentRef = useRef<HTMLElement>(null);
 
   const feedsContainerRef = React.useRef<HTMLDivElement>(null);
-  const { pinnedFeeds, isLoaded: feedsLoaded, removeFeed, reorderFeeds } = useFeeds();
-  const { setUserDid } = useBookmarks();
+  const { pinnedFeeds, isLoaded: feedsLoaded, removeFeed, reorderFeeds, setUserDid: setFeedsUserDid } = useFeeds();
+  const { setUserDid: setBookmarksUserDid } = useBookmarks();
   const { refreshModerationOpts } = useModeration();
 
   // Open thread by navigating to shareable post URL
@@ -174,10 +175,11 @@ function AppContent() {
     restoreSession().then((restored) => {
       if (restored) {
         setIsLoggedIn(true);
-        // Set user DID for bookmarks
+        // Set user DID for bookmarks and feeds
         const session = getSession();
         if (session?.did) {
-          setUserDid(session.did);
+          setBookmarksUserDid(session.did);
+          setFeedsUserDid(session.did);
         }
         // Refresh moderation options now that we have a session
         refreshModerationOpts();
@@ -200,14 +202,15 @@ function AppContent() {
       }
       setIsLoading(false);
     });
-  }, [setUserDid, refreshModerationOpts]);
+  }, [setBookmarksUserDid, setFeedsUserDid, refreshModerationOpts]);
 
   const handleLogin = (forceOnboarding?: boolean) => {
     setIsLoggedIn(true);
-    // Set user DID for bookmarks
+    // Set user DID for bookmarks and feeds
     const session = getSession();
     if (session?.did) {
-      setUserDid(session.did);
+      setBookmarksUserDid(session.did);
+      setFeedsUserDid(session.did);
     }
     // Refresh moderation options now that we have a session
     refreshModerationOpts();
@@ -226,7 +229,8 @@ function AppContent() {
   const handleLogout = () => {
     logout();
     setIsLoggedIn(false);
-    setUserDid(null);
+    setBookmarksUserDid(null);
+    setFeedsUserDid(null);
   };
 
   const handlePost = useCallback(() => {
@@ -316,8 +320,19 @@ function AppContent() {
       {/* Header */}
       <header className="sticky top-0 z-20 bg-white/80 dark:bg-black/80 backdrop-blur border-b border-gray-200 dark:border-gray-800">
         <div className="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between">
+          {/* Mobile header - hamburger menu on left */}
+          <button
+            onClick={() => setShowMobileMenu(!showMobileMenu)}
+            className="lg:hidden p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full"
+          >
+            <svg className="w-6 h-6 text-gray-600 dark:text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+            </svg>
+          </button>
+
+          {/* Desktop: Lea on left */}
           <h1
-            className="text-xl font-bold text-blue-500 cursor-pointer hover:text-blue-600 transition-colors"
+            className="hidden lg:block text-xl font-bold text-blue-500 cursor-pointer hover:text-blue-600 transition-colors"
             onClick={() => window.location.reload()}
           >Lea</h1>
 
@@ -374,15 +389,11 @@ function AppContent() {
             </button>
           </div>
 
-          {/* Mobile header - hamburger menu */}
-          <button
-            onClick={() => setShowMobileMenu(!showMobileMenu)}
-            className="lg:hidden p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full"
-          >
-            <svg className="w-6 h-6 text-gray-600 dark:text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-            </svg>
-          </button>
+          {/* Mobile: Lea on right */}
+          <h1
+            className="lg:hidden text-xl font-bold text-blue-500 cursor-pointer hover:text-blue-600 transition-colors"
+            onClick={() => window.location.reload()}
+          >Lea</h1>
         </div>
 
         {/* Mobile dropdown menu */}
@@ -409,6 +420,18 @@ function AppContent() {
                 <span className="font-medium">Get Verified</span>
               </a>
             )}
+            <button
+              onClick={() => {
+                window.location.href = '/discover';
+                setShowMobileMenu(false);
+              }}
+              className="flex items-center gap-2 text-gray-700 dark:text-gray-300 w-full"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+              <span>Discover</span>
+            </button>
             <button
               onClick={() => {
                 setOnboardingStartStep(3);
@@ -671,7 +694,7 @@ function AppContent() {
           </button>
           {/* Messages/DMs */}
           <button
-            onClick={() => window.location.href = 'https://bsky.app/messages'}
+            onClick={() => setShowMobileDMs(true)}
             className="flex flex-col items-center justify-center flex-1 h-full text-gray-500"
           >
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -721,6 +744,27 @@ function AppContent() {
               handlePost();
               setShowMobileComposer(false);
             }} />
+          </div>
+        </div>
+      )}
+
+      {/* Mobile DMs Modal */}
+      {showMobileDMs && (
+        <div className="lg:hidden fixed inset-0 z-50 flex flex-col bg-white dark:bg-gray-950">
+          {/* Modal header */}
+          <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 dark:border-gray-800">
+            <button
+              onClick={() => setShowMobileDMs(false)}
+              className="text-blue-500 hover:text-blue-600 font-medium"
+            >
+              Close
+            </button>
+            <span className="font-semibold text-gray-900 dark:text-gray-100">Messages</span>
+            <div className="w-14" /> {/* Spacer for centering */}
+          </div>
+          {/* DM Sidebar content */}
+          <div className="flex-1 overflow-y-auto p-4">
+            <DMSidebar />
           </div>
         </div>
       )}

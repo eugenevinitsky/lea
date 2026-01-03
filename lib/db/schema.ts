@@ -135,6 +135,25 @@ export const userBookmarkCollections = pgTable(
   ]
 );
 
+// User pinned feeds (for syncing across devices)
+export const userFeeds = pgTable(
+  'user_feeds',
+  {
+    id: varchar('id', { length: 50 }).primaryKey(),
+    userDid: varchar('user_did', { length: 255 }).notNull(),
+    feedUri: varchar('feed_uri', { length: 500 }).notNull(),
+    displayName: varchar('display_name', { length: 255 }).notNull(),
+    acceptsInteractions: boolean('accepts_interactions').default(false),
+    feedType: varchar('feed_type', { length: 20 }), // 'feed' | 'keyword' | 'list' | 'verified'
+    keyword: varchar('keyword', { length: 255 }),
+    position: integer('position').notNull().default(0), // For ordering
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+  },
+  (table) => [
+    index('user_feeds_user_idx').on(table.userDid),
+  ]
+);
+
 // User bookmarks
 export const userBookmarks = pgTable(
   'user_bookmarks',
@@ -204,6 +223,7 @@ export type ResearcherProfile = typeof researcherProfiles.$inferSelect;
 export type NewResearcherProfile = typeof researcherProfiles.$inferInsert;
 export type UserBookmarkCollection = typeof userBookmarkCollections.$inferSelect;
 export type UserBookmark = typeof userBookmarks.$inferSelect;
+export type UserFeed = typeof userFeeds.$inferSelect;
 export type DiscoveredPaper = typeof discoveredPapers.$inferSelect;
 export type NewDiscoveredPaper = typeof discoveredPapers.$inferInsert;
 export type PaperMention = typeof paperMentions.$inferSelect;
