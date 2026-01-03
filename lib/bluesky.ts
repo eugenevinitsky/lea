@@ -1051,6 +1051,13 @@ function getChatHeaders() {
 }
 
 // DM Types
+export interface MessageReaction {
+  value: string; // The emoji
+  sender: {
+    did: string;
+  };
+}
+
 export interface ChatMessage {
   id: string;
   rev: string;
@@ -1059,6 +1066,7 @@ export interface ChatMessage {
     did: string;
   };
   sentAt: string;
+  reactions?: MessageReaction[];
 }
 
 export interface ConvoMember {
@@ -1196,6 +1204,28 @@ export async function leaveConvo(convoId: string): Promise<void> {
     { convoId },
     { headers: getChatHeaders() }
   );
+}
+
+// Add a reaction to a message
+export async function addMessageReaction(convoId: string, messageId: string, value: string): Promise<ChatMessage> {
+  if (!agent) throw new Error('Not logged in');
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const response = await (agent.api.chat.bsky.convo as any).addReaction(
+    { convoId, messageId, value },
+    { headers: getChatHeaders() }
+  );
+  return response.data.message as ChatMessage;
+}
+
+// Remove a reaction from a message
+export async function removeMessageReaction(convoId: string, messageId: string, value: string): Promise<ChatMessage> {
+  if (!agent) throw new Error('Not logged in');
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const response = await (agent.api.chat.bsky.convo as any).removeReaction(
+    { convoId, messageId, value },
+    { headers: getChatHeaders() }
+  );
+  return response.data.message as ChatMessage;
 }
 
 // Block a user - returns the URI of the block record for unblocking later

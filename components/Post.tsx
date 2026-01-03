@@ -1533,7 +1533,7 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
         {/* Content */}
         <div className="flex-1 min-w-0">
           {/* Header */}
-          <div className="flex items-center gap-1 text-sm flex-wrap">
+          <div className="flex items-center gap-1 text-base lg:text-sm flex-wrap">
             <ProfileHoverCard
               did={author.did}
               handle={author.handle}
@@ -1596,7 +1596,7 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
 
           {/* Post text */}
           <p
-            className={`mt-1 text-gray-900 dark:text-gray-100 whitespace-pre-wrap break-words ${onOpenThread ? 'cursor-pointer' : ''}`}
+            className={`mt-1 text-base lg:text-[15px] text-gray-900 dark:text-gray-100 whitespace-pre-wrap break-words ${onOpenThread ? 'cursor-pointer' : ''}`}
             onClick={() => onOpenThread?.(post.uri)}
           >
             <RichText text={record.text} facets={record.facets} />
@@ -1619,13 +1619,13 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
           )}
 
           {/* Engagement actions */}
-          <div className="flex gap-4 mt-3 text-sm text-gray-500">
+          <div className="flex gap-6 lg:gap-4 mt-3 text-base lg:text-sm text-gray-500">
             {/* Reply button */}
             <button
               onClick={() => setShowReplyComposer(!showReplyComposer)}
-              className="flex items-center gap-1 hover:text-blue-500 transition-colors"
+              className="flex items-center gap-1.5 lg:gap-1 hover:text-blue-500 transition-colors py-1"
             >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-5 h-5 lg:w-4 lg:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
               </svg>
               {post.replyCount || 0}
@@ -1636,14 +1636,14 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
               <button
                 onClick={() => setShowRepostMenu(!showRepostMenu)}
                 disabled={reposting}
-                className={`flex items-center gap-1 transition-colors ${
+                className={`flex items-center gap-1.5 lg:gap-1 transition-colors py-1 ${
                   isReposted
                     ? 'text-green-500 hover:text-green-600'
                     : 'hover:text-green-500'
                 } ${reposting ? 'opacity-50' : ''}`}
                 title="Repost or quote"
               >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-5 h-5 lg:w-4 lg:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                 </svg>
                 {repostCount}
@@ -1685,10 +1685,10 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
             {(post.quoteCount ?? 0) > 0 && (
               <button
                 onClick={() => setShowQuotes(true)}
-                className="flex items-center gap-1 hover:text-purple-500 transition-colors"
+                className="flex items-center gap-1.5 lg:gap-1 hover:text-purple-500 transition-colors py-1"
                 title="View quotes"
               >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-5 h-5 lg:w-4 lg:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
                 </svg>
                 {post.quoteCount}
@@ -1699,14 +1699,14 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
             <button
               onClick={handleLike}
               disabled={liking}
-              className={`flex items-center gap-1 transition-colors ${
+              className={`flex items-center gap-1.5 lg:gap-1 transition-colors py-1 ${
                 isLiked
                   ? 'text-red-500 hover:text-red-600'
                   : 'hover:text-red-500'
               } ${liking ? 'opacity-50' : ''}`}
             >
               <svg
-                className="w-4 h-4"
+                className="w-5 h-5 lg:w-4 lg:h-4"
                 fill={isLiked ? 'currentColor' : 'none'}
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -1720,7 +1720,7 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
             <div className="relative" ref={bookmarkMenuRef}>
               <button
                 onClick={handleBookmarkClick}
-                className={`flex items-center gap-1 transition-colors ${
+                className={`flex items-center gap-1.5 lg:gap-1 transition-colors py-1 ${
                   bookmarked
                     ? 'text-blue-500 hover:text-blue-600'
                     : 'hover:text-blue-500'
@@ -1728,7 +1728,7 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
                 title={bookmarked ? 'Manage bookmark' : 'Bookmark'}
               >
                 <svg
-                  className="w-4 h-4"
+                  className="w-5 h-5 lg:w-4 lg:h-4"
                   fill={bookmarked ? 'currentColor' : 'none'}
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -1809,17 +1809,17 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
             {/* Share button */}
             <button
               onClick={handleShare}
-              className={`flex items-center gap-1 transition-colors ${
+              className={`flex items-center gap-1.5 lg:gap-1 transition-colors py-1 ${
                 showCopied ? 'text-green-500' : 'hover:text-blue-500'
               }`}
               title={showCopied ? 'Copied!' : 'Copy link'}
             >
               {showCopied ? (
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-5 h-5 lg:w-4 lg:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M5 13l4 4L19 7" />
                 </svg>
               ) : (
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-5 h-5 lg:w-4 lg:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
                 </svg>
               )}
@@ -1829,17 +1829,17 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
             {isOwnPost && (
               <button
                 onClick={() => setShowThreadgateEditor(!showThreadgateEditor)}
-                className={`flex items-center gap-1 transition-colors ${
+                className={`flex items-center gap-1.5 lg:gap-1 transition-colors py-1 ${
                   currentThreadgate !== 'open'
                     ? 'text-amber-500 hover:text-amber-600'
                     : 'hover:text-amber-500'
                 }`}
-                title={`Reply settings: ${currentThreadgate === 'open' ? 'Anyone can reply' : 
+                title={`Reply settings: ${currentThreadgate === 'open' ? 'Anyone can reply' :
                   currentThreadgate === 'following' ? 'Only people you follow' :
                   currentThreadgate === 'verified' ? 'Your community' : 'Verified researchers only'}`}
               >
                 <svg
-                  className="w-4 h-4"
+                  className="w-5 h-5 lg:w-4 lg:h-4"
                   fill={currentThreadgate !== 'open' ? 'currentColor' : 'none'}
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -1854,10 +1854,10 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
               <button
                 onClick={handleDelete}
                 disabled={deleting}
-                className={`flex items-center gap-1 transition-colors hover:text-red-500 ${deleting ? 'opacity-50' : ''}`}
+                className={`flex items-center gap-1.5 lg:gap-1 transition-colors py-1 hover:text-red-500 ${deleting ? 'opacity-50' : ''}`}
                 title="Delete post"
               >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-5 h-5 lg:w-4 lg:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                 </svg>
               </button>
