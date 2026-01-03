@@ -654,35 +654,145 @@ function EmbedRecord({ record, onOpenThread }: { record: AppBskyEmbedRecord.View
 
   // Handle feed generator embeds
   if (record.$type === 'app.bsky.feed.defs#generatorView') {
-    const feed = record as unknown as { displayName?: string; description?: string; uri?: string };
-    return (
-      <div className="mt-2 p-3 border border-gray-200 dark:border-gray-700 rounded-xl bg-gray-50 dark:bg-gray-800/50">
-        <p className="text-sm font-medium text-gray-700 dark:text-gray-300">{feed.displayName || 'Feed'}</p>
-        {feed.description && <p className="text-xs text-gray-500 mt-1">{feed.description}</p>}
+    const feed = record as unknown as {
+      displayName?: string;
+      description?: string;
+      uri?: string;
+      creator?: { handle?: string };
+    };
+
+    // Build the bsky.app URL for this feed
+    let feedUrl: string | null = null;
+    if (feed.uri) {
+      // URI format: at://did:xxx/app.bsky.feed.generator/rkey
+      const match = feed.uri.match(/^at:\/\/([^/]+)\/app\.bsky\.feed\.generator\/([^/]+)$/);
+      if (match) {
+        const [, did, rkey] = match;
+        const handle = feed.creator?.handle || did;
+        feedUrl = `https://bsky.app/profile/${handle}/feed/${rkey}`;
+      }
+    }
+
+    const content = (
+      <div className="mt-2 p-3 border border-gray-200 dark:border-gray-700 rounded-xl bg-gray-50 dark:bg-gray-800/50 hover:bg-gray-100 dark:hover:bg-gray-700/50 transition-colors">
+        <div className="flex items-center gap-2">
+          <svg className="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z" />
+          </svg>
+          <p className="text-sm font-medium text-gray-700 dark:text-gray-300">{feed.displayName || 'Feed'}</p>
+        </div>
+        {feed.description && <p className="text-xs text-gray-500 mt-1 line-clamp-2">{feed.description}</p>}
       </div>
     );
+
+    if (feedUrl) {
+      return (
+        <a
+          href={feedUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={(e) => e.stopPropagation()}
+        >
+          {content}
+        </a>
+      );
+    }
+    return content;
   }
 
   // Handle list embeds
   if (record.$type === 'app.bsky.graph.defs#listView') {
-    const list = record as unknown as { name?: string; description?: string };
-    return (
-      <div className="mt-2 p-3 border border-gray-200 dark:border-gray-700 rounded-xl bg-gray-50 dark:bg-gray-800/50">
-        <p className="text-sm font-medium text-gray-700 dark:text-gray-300">{list.name || 'List'}</p>
-        {list.description && <p className="text-xs text-gray-500 mt-1">{list.description}</p>}
+    const list = record as unknown as {
+      name?: string;
+      description?: string;
+      uri?: string;
+      creator?: { handle?: string };
+    };
+
+    // Build the bsky.app URL for this list
+    let listUrl: string | null = null;
+    if (list.uri) {
+      // URI format: at://did:xxx/app.bsky.graph.list/rkey
+      const match = list.uri.match(/^at:\/\/([^/]+)\/app\.bsky\.graph\.list\/([^/]+)$/);
+      if (match) {
+        const [, did, rkey] = match;
+        const handle = list.creator?.handle || did;
+        listUrl = `https://bsky.app/profile/${handle}/lists/${rkey}`;
+      }
+    }
+
+    const content = (
+      <div className="mt-2 p-3 border border-gray-200 dark:border-gray-700 rounded-xl bg-gray-50 dark:bg-gray-800/50 hover:bg-gray-100 dark:hover:bg-gray-700/50 transition-colors">
+        <div className="flex items-center gap-2">
+          <svg className="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
+          </svg>
+          <p className="text-sm font-medium text-gray-700 dark:text-gray-300">{list.name || 'List'}</p>
+        </div>
+        {list.description && <p className="text-xs text-gray-500 mt-1 line-clamp-2">{list.description}</p>}
       </div>
     );
+
+    if (listUrl) {
+      return (
+        <a
+          href={listUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={(e) => e.stopPropagation()}
+        >
+          {content}
+        </a>
+      );
+    }
+    return content;
   }
 
   // Handle starter pack embeds
   if (record.$type === 'app.bsky.graph.defs#starterPackViewBasic') {
-    const pack = record as unknown as { record?: { name?: string; description?: string } };
-    return (
-      <div className="mt-2 p-3 border border-gray-200 dark:border-gray-700 rounded-xl bg-gray-50 dark:bg-gray-800/50">
-        <p className="text-sm font-medium text-gray-700 dark:text-gray-300">{pack.record?.name || 'Starter Pack'}</p>
-        {pack.record?.description && <p className="text-xs text-gray-500 mt-1">{pack.record.description}</p>}
+    const pack = record as unknown as {
+      uri?: string;
+      record?: { name?: string; description?: string };
+      creator?: { handle?: string };
+    };
+
+    // Build the bsky.app URL for this starter pack
+    let starterPackUrl: string | null = null;
+    if (pack.uri) {
+      // URI format: at://did:plc:xxx/app.bsky.graph.starterpack/rkey
+      const match = pack.uri.match(/^at:\/\/([^/]+)\/app\.bsky\.graph\.starterpack\/([^/]+)$/);
+      if (match) {
+        const [, did, rkey] = match;
+        const handle = pack.creator?.handle || did;
+        starterPackUrl = `https://bsky.app/starter-pack/${handle}/${rkey}`;
+      }
+    }
+
+    const content = (
+      <div className="mt-2 p-3 border border-gray-200 dark:border-gray-700 rounded-xl bg-gray-50 dark:bg-gray-800/50 hover:bg-gray-100 dark:hover:bg-gray-700/50 transition-colors">
+        <div className="flex items-center gap-2">
+          <svg className="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+          </svg>
+          <p className="text-sm font-medium text-gray-700 dark:text-gray-300">{pack.record?.name || 'Starter Pack'}</p>
+        </div>
+        {pack.record?.description && <p className="text-xs text-gray-500 mt-1 line-clamp-2">{pack.record.description}</p>}
       </div>
     );
+
+    if (starterPackUrl) {
+      return (
+        <a
+          href={starterPackUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={(e) => e.stopPropagation()}
+        >
+          {content}
+        </a>
+      );
+    }
+    return content;
   }
 
   // Fallback for other record types - show type for debugging
