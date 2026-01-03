@@ -143,7 +143,7 @@ export default function ModerationBox({ onOpenProfile, defaultExpanded = false, 
   });
 
   return (
-    <div className={`bg-white dark:bg-gray-900 overflow-hidden ${embedded ? 'flex flex-col h-full' : 'rounded-xl border border-gray-200 dark:border-gray-800'}`}>
+    <div className={`bg-white dark:bg-gray-900 overflow-hidden ${embedded ? 'flex flex-col h-full min-h-0' : 'rounded-xl border border-gray-200 dark:border-gray-800'}`}>
       {/* Header - always visible, hidden when embedded */}
       {!embedded && <button
         onClick={() => setIsExpanded(!isExpanded)}
@@ -167,7 +167,7 @@ export default function ModerationBox({ onOpenProfile, defaultExpanded = false, 
 
       {/* Expanded content */}
       {isExpanded && (
-        <div className={embedded ? 'flex-1 flex flex-col' : 'border-t border-gray-200 dark:border-gray-800'}>
+        <div className={embedded ? 'flex-1 flex flex-col min-h-0' : 'border-t border-gray-200 dark:border-gray-800'}>
           {error && (
             <div className="p-2 bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 text-xs">
               {error}

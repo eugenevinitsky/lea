@@ -916,7 +916,7 @@ function AppContent() {
             <span className="absolute left-1/2 -translate-x-1/2 font-semibold text-gray-900 dark:text-gray-100">Discover Papers</span>
             <div className="w-10" />
           </div>
-          <div className="flex-1 overflow-y-auto flex flex-col [&_.text-xs]:text-sm [&_.text-\[10px\]]:text-xs">
+          <div className="flex-1 flex flex-col min-h-0 [&_.text-xs]:text-sm [&_.text-\[10px\]]:text-xs">
             <ModerationBox embedded onOpenProfile={(did) => { setShowMobileDiscoverPapers(false); navigateToProfile(did); }} />
           </div>
         </div>
