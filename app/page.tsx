@@ -323,7 +323,7 @@ function AppContent() {
     <div className="min-h-screen bg-gray-50 dark:bg-black">
       {/* Header */}
       <header className="sticky top-0 z-20 bg-white/80 dark:bg-black/80 backdrop-blur border-b border-gray-200 dark:border-gray-800">
-        <div className="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between">
+        <div className="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between relative">
           {/* Mobile header - hamburger menu on left */}
           <button
             onClick={() => setShowMobileMenu(!showMobileMenu)}
