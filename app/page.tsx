@@ -39,6 +39,7 @@ function AppContent() {
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(false);
   const [showMobileComposer, setShowMobileComposer] = useState(false);
+  const [showMobileMenu, setShowMobileMenu] = useState(false);
   const feedsContainerRef = React.useRef<HTMLDivElement>(null);
   const { pinnedFeeds, isLoaded: feedsLoaded, removeFeed, reorderFeeds } = useFeeds();
   const { setUserDid } = useBookmarks();
@@ -264,11 +265,13 @@ function AppContent() {
       {/* Header */}
       <header className="sticky top-0 z-20 bg-white/80 dark:bg-black/80 backdrop-blur border-b border-gray-200 dark:border-gray-800">
         <div className="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between">
-          <h1 
+          <h1
             className="text-xl font-bold text-blue-500 cursor-pointer hover:text-blue-600 transition-colors"
             onClick={() => window.location.reload()}
           >Lea</h1>
-          <div className="flex items-center gap-3">
+
+          {/* Desktop header items */}
+          <div className="hidden lg:flex items-center gap-3">
             <ResearcherSearch onSelectResearcher={navigateToProfile} onOpenThread={openThread} onSearch={(q) => window.location.href = `/search?q=${encodeURIComponent(q)}`} />
             <button
               onClick={() => window.location.href = `/u/${session?.handle}`}
@@ -319,7 +322,69 @@ function AppContent() {
               Sign out
             </button>
           </div>
+
+          {/* Mobile header - hamburger menu */}
+          <button
+            onClick={() => setShowMobileMenu(!showMobileMenu)}
+            className="lg:hidden p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full"
+          >
+            <svg className="w-6 h-6 text-gray-600 dark:text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+            </svg>
+          </button>
         </div>
+
+        {/* Mobile dropdown menu */}
+        {showMobileMenu && (
+          <div className="lg:hidden border-t border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950 px-4 py-3 space-y-3">
+            {isVerified ? (
+              <div className="flex items-center gap-2 text-emerald-600 dark:text-emerald-500">
+                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                  <path fillRule="evenodd" d="M8.603 3.799A4.49 4.49 0 0112 2.25c1.357 0 2.573.6 3.397 1.549a4.49 4.49 0 013.498 1.307 4.491 4.491 0 011.307 3.497A4.49 4.49 0 0121.75 12a4.49 4.49 0 01-1.549 3.397 4.491 4.491 0 01-1.307 3.497 4.491 4.491 0 01-3.497 1.307A4.49 4.49 0 0112 21.75a4.49 4.49 0 01-3.397-1.549 4.49 4.49 0 01-3.498-1.306 4.491 4.491 0 01-1.307-3.498A4.49 4.49 0 012.25 12c0-1.357.6-2.573 1.549-3.397a4.49 4.49 0 011.307-3.497 4.49 4.49 0 013.497-1.307zm7.007 6.387a.75.75 0 10-1.22-.872l-3.236 4.53L9.53 12.22a.75.75 0 00-1.06 1.06l2.25 2.25a.75.75 0 001.14-.094l3.75-5.25z" clipRule="evenodd" />
+                </svg>
+                <span className="font-medium">Verified Researcher</span>
+              </div>
+            ) : (
+              <a
+                href="https://lea-verify.vercel.app/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-2 text-emerald-600 dark:text-emerald-500"
+                onClick={() => setShowMobileMenu(false)}
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <span className="font-medium">Get Verified</span>
+              </a>
+            )}
+            <button
+              onClick={() => {
+                setOnboardingStartStep(3);
+                setShowOnboarding(true);
+                setShowMobileMenu(false);
+              }}
+              className="flex items-center gap-2 text-gray-700 dark:text-gray-300 w-full"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+              </svg>
+              <span>Discover Researchers</span>
+            </button>
+            <button
+              onClick={() => {
+                handleLogout();
+                setShowMobileMenu(false);
+              }}
+              className="flex items-center gap-2 text-gray-500 w-full"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+              </svg>
+              <span>Sign out</span>
+            </button>
+          </div>
+        )}
       </header>
 
       {/* Main layout with sidebar */}
@@ -334,7 +399,7 @@ function AppContent() {
         </aside>
 
         {/* Main content - full width on mobile, constrained on desktop */}
-        <main className="flex-1 w-full lg:max-w-xl bg-white dark:bg-gray-950 min-h-screen border-x border-gray-200 dark:border-gray-800">
+        <main className="flex-1 w-full lg:max-w-xl bg-white dark:bg-gray-950 min-h-screen border-x border-gray-200 dark:border-gray-800 pb-16 lg:pb-0">
           {/* Composer - hidden on mobile, shown inline on desktop */}
           <div className="hidden lg:block">
             <Composer onPost={handlePost} />
@@ -513,10 +578,52 @@ function AppContent() {
       {/* Profile Editor modal */}
       {showProfileEditor && <ProfileEditor onClose={() => setShowProfileEditor(false)} />}
 
-      {/* Mobile Floating Action Button (FAB) for composing */}
+      {/* Mobile Bottom Navigation Bar */}
+      <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-white dark:bg-gray-950 border-t border-gray-200 dark:border-gray-800 z-30 safe-area-inset-bottom">
+        <div className="flex items-center justify-around h-14">
+          {/* Home */}
+          <button
+            onClick={() => window.location.href = '/'}
+            className="flex flex-col items-center justify-center flex-1 h-full text-blue-500"
+          >
+            <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M12 2L2 12h3v9h6v-6h2v6h6v-9h3L12 2z" />
+            </svg>
+          </button>
+          {/* Search */}
+          <button
+            onClick={() => window.location.href = '/search'}
+            className="flex flex-col items-center justify-center flex-1 h-full text-gray-500"
+          >
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+          </button>
+          {/* Messages/DMs */}
+          <button
+            onClick={() => window.location.href = 'https://bsky.app/messages'}
+            className="flex flex-col items-center justify-center flex-1 h-full text-gray-500"
+          >
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+            </svg>
+          </button>
+          {/* Profile */}
+          <button
+            onClick={() => window.location.href = `/u/${session?.handle}`}
+            className="flex flex-col items-center justify-center flex-1 h-full text-gray-500"
+          >
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+            </svg>
+          </button>
+        </div>
+      </nav>
+
+      {/* Mobile Floating Action Button (FAB) for composing - positioned above bottom nav */}
       <button
         onClick={() => setShowMobileComposer(true)}
-        className="lg:hidden fixed bottom-6 right-6 w-14 h-14 bg-blue-500 hover:bg-blue-600 text-white rounded-full shadow-lg flex items-center justify-center z-30 transition-transform hover:scale-105 active:scale-95"
+        className="lg:hidden fixed bottom-20 right-4 w-14 h-14 bg-blue-500 hover:bg-blue-600 text-white rounded-full shadow-lg flex items-center justify-center z-30 transition-transform hover:scale-105 active:scale-95"
         aria-label="Compose post"
       >
         <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
