@@ -378,8 +378,8 @@ export default function Feed({ feedId, feedUri, feedName, acceptsInteractions, r
 
   return (
     <div>
-      {/* Header */}
-      <div className="sticky top-0 z-10 bg-white/80 dark:bg-black/80 backdrop-blur border-b border-gray-200 dark:border-gray-800 p-3">
+      {/* Header - hidden on mobile since feed name is in tabs */}
+      <div className="hidden lg:block sticky top-0 z-10 bg-white/80 dark:bg-black/80 backdrop-blur border-b border-gray-200 dark:border-gray-800 p-3">
         <div className="flex items-center justify-between">
           <div>
             <div className="flex items-center gap-2">
