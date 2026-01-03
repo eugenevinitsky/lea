@@ -558,16 +558,16 @@ function AppContent() {
 
           {/* Feed Tabs - sticky below header when scrolling */}
           <div className="relative border-b border-gray-200 dark:border-gray-800 sticky top-14 z-10 bg-white dark:bg-gray-950">
-            {/* Left scroll arrow - always visible */}
+            {/* Left scroll arrow - desktop only */}
             <button
               onClick={() => {
                 const container = feedsContainerRef.current;
                 if (container) container.scrollBy({ left: -150, behavior: 'smooth' });
               }}
               disabled={!canScrollLeft}
-              className={`absolute left-0 top-0 bottom-0 w-8 bg-white dark:bg-gray-950 z-10 flex items-center justify-center border-r border-gray-200 dark:border-gray-800 transition-colors ${
-                canScrollLeft 
-                  ? 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 cursor-pointer' 
+              className={`hidden lg:flex absolute left-0 top-0 bottom-0 w-8 bg-white dark:bg-gray-950 z-10 items-center justify-center border-r border-gray-200 dark:border-gray-800 transition-colors ${
+                canScrollLeft
+                  ? 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 cursor-pointer'
                   : 'text-gray-300 dark:text-gray-700 cursor-default'
               }`}
             >
@@ -575,16 +575,16 @@ function AppContent() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
               </svg>
             </button>
-            {/* Right scroll arrow - always visible */}
+            {/* Right scroll arrow - desktop only */}
             <button
               onClick={() => {
                 const container = feedsContainerRef.current;
                 if (container) container.scrollBy({ left: 150, behavior: 'smooth' });
               }}
               disabled={!canScrollRight}
-              className={`absolute right-0 top-0 bottom-0 w-8 bg-white dark:bg-gray-950 z-10 flex items-center justify-center border-l border-gray-200 dark:border-gray-800 transition-colors ${
-                canScrollRight 
-                  ? 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 cursor-pointer' 
+              className={`hidden lg:flex absolute right-0 top-0 bottom-0 w-8 bg-white dark:bg-gray-950 z-10 items-center justify-center border-l border-gray-200 dark:border-gray-800 transition-colors ${
+                canScrollRight
+                  ? 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 cursor-pointer'
                   : 'text-gray-300 dark:text-gray-700 cursor-default'
               }`}
             >
@@ -592,9 +592,9 @@ function AppContent() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
               </svg>
             </button>
-            <div 
+            <div
               ref={feedsContainerRef}
-              className="flex overflow-x-auto scrollbar-hide mx-8"
+              className="flex overflow-x-auto scrollbar-hide lg:mx-8"
             >
               {pinnedFeeds.map((feed, index) => {
                 const isActive = activeFeedUri === feed.uri || (activeFeedUri === null && index === 0);
@@ -685,10 +685,10 @@ function AppContent() {
                   </button>
                 );
               })}
-              {/* Manage feeds button */}
+              {/* Manage feeds button - desktop only (mobile uses header hashtag) */}
               <button
                 onClick={() => setShowFeedDiscovery(true)}
-                className="flex-shrink-0 px-2.5 py-2.5 text-blue-500 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                className="hidden lg:block flex-shrink-0 px-2.5 py-2.5 text-blue-500 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
                 title="Manage feeds"
               >
                 <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
