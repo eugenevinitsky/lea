@@ -189,6 +189,23 @@ function BlockedAccountsContent() {
     });
   };
 
+  // Sort users: relationships first, then alphabetically
+  const sortedMassBlockUsers = useMemo(() => {
+    return [...massBlockUsers].sort((a, b) => {
+      const aHasRelationship = (a.followsYou || a.youFollow) && !a.alreadyBlocked;
+      const bHasRelationship = (b.followsYou || b.youFollow) && !b.alreadyBlocked;
+      if (aHasRelationship && !bHasRelationship) return -1;
+      if (!aHasRelationship && bHasRelationship) return 1;
+      // Already blocked at the bottom
+      if (a.alreadyBlocked && !b.alreadyBlocked) return 1;
+      if (!a.alreadyBlocked && b.alreadyBlocked) return -1;
+      // Alphabetical by display name or handle
+      const aName = (a.displayName || a.handle).toLowerCase();
+      const bName = (b.displayName || b.handle).toLowerCase();
+      return aName.localeCompare(bName);
+    });
+  }, [massBlockUsers]);
+
   const usersToBlock = useMemo(() => {
     return massBlockUsers.filter(u => !massBlockExcluded.has(u.did) && !u.alreadyBlocked);
   }, [massBlockUsers, massBlockExcluded]);
@@ -378,7 +395,7 @@ function BlockedAccountsContent() {
                     <label className="block text-xs font-medium text-gray-500 mb-1">Post URL</label>
                     <input
                       type="text"
-                      placeholder="https://bsky.app/profile/handle/post/rkey"
+                      placeholder="Paste a Bluesky or Lea post URL"
                       value={postUrl}
                       onChange={(e) => setPostUrl(e.target.value)}
                       disabled={massBlockLoading || isExecutingBlock}
@@ -460,7 +477,7 @@ function BlockedAccountsContent() {
                       
                       {/* User list */}
                       <div className="max-h-64 overflow-y-auto border border-gray-200 dark:border-gray-700 rounded-lg divide-y divide-gray-200 dark:divide-gray-700">
-                        {massBlockUsers.map((user) => (
+                        {sortedMassBlockUsers.map((user) => (
                           <div
                             key={user.did}
                             className={`flex items-center gap-3 px-3 py-2 ${

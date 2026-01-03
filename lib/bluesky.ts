@@ -216,8 +216,9 @@ export async function getAllReposters(
   return allUsers;
 }
 
-// Parse a Bluesky post URL to get the AT URI
+// Parse a Bluesky or Lea post URL to get the AT URI
 // Supports: https://bsky.app/profile/handle/post/rkey
+//           https://lea.example.com/post/handle/rkey (Lea format)
 // Returns: at://did/app.bsky.feed.post/rkey
 export async function parsePostUrl(url: string): Promise<string | null> {
   if (!agent) return null;
@@ -227,26 +228,39 @@ export async function parsePostUrl(url: string): Promise<string | null> {
     return url;
   }
   
-  // Parse bsky.app URL
+  let handleOrDid: string | null = null;
+  let rkey: string | null = null;
+  
+  // Parse bsky.app URL: /profile/handle/post/rkey
   const bskyMatch = url.match(/bsky\.app\/profile\/([^/]+)\/post\/([^/?]+)/);
   if (bskyMatch) {
-    const [, handleOrDid, rkey] = bskyMatch;
-    
-    // If it's already a DID, use it directly
-    if (handleOrDid.startsWith('did:')) {
-      return `at://${handleOrDid}/app.bsky.feed.post/${rkey}`;
-    }
-    
-    // Otherwise resolve the handle to a DID
-    try {
-      const resolved = await agent.resolveHandle({ handle: handleOrDid });
-      return `at://${resolved.data.did}/app.bsky.feed.post/${rkey}`;
-    } catch {
-      return null;
+    [, handleOrDid, rkey] = bskyMatch;
+  }
+  
+  // Parse Lea URL: /post/handle/rkey
+  if (!handleOrDid) {
+    const leaMatch = url.match(/\/post\/([^/]+)\/([^/?]+)/);
+    if (leaMatch) {
+      [, handleOrDid, rkey] = leaMatch;
     }
   }
   
-  return null;
+  if (!handleOrDid || !rkey) {
+    return null;
+  }
+  
+  // If it's already a DID, use it directly
+  if (handleOrDid.startsWith('did:')) {
+    return `at://${handleOrDid}/app.bsky.feed.post/${rkey}`;
+  }
+  
+  // Otherwise resolve the handle to a DID
+  try {
+    const resolved = await agent.resolveHandle({ handle: handleOrDid });
+    return `at://${resolved.data.did}/app.bsky.feed.post/${rkey}`;
+  } catch {
+    return null;
+  }
 }
 
 // Block multiple users with progress callback
