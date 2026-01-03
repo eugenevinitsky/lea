@@ -1031,15 +1031,28 @@ export async function leaveConvo(convoId: string): Promise<void> {
   );
 }
 
-// Block a user
-export async function blockUser(did: string): Promise<void> {
+// Block a user - returns the URI of the block record for unblocking later
+export async function blockUser(did: string): Promise<{ uri: string }> {
   if (!agent?.session?.did) throw new Error('Not logged in');
-  await agent.api.app.bsky.graph.block.create(
+  const response = await agent.api.app.bsky.graph.block.create(
     { repo: agent.session.did },
     {
       subject: did,
       createdAt: new Date().toISOString(),
     }
+  );
+  return { uri: response.uri };
+}
+
+// Unblock a user by deleting the block record
+export async function unblockUser(blockUri: string): Promise<void> {
+  if (!agent?.session?.did) throw new Error('Not logged in');
+  // Parse the rkey from the block URI (at://did:plc:xxx/app.bsky.graph.block/rkey)
+  const match = blockUri.match(/\/app\.bsky\.graph\.block\/([^/]+)$/);
+  if (!match) throw new Error('Invalid block URI');
+  const rkey = match[1];
+  await agent.api.app.bsky.graph.block.delete(
+    { repo: agent.session.did, rkey }
   );
 }
 
@@ -1056,6 +1069,8 @@ export interface BlueskyProfile {
   viewer?: {
     following?: string;
     followedBy?: string;
+    blocking?: string;  // URI of the block record if you're blocking this user
+    blockedBy?: boolean; // True if this user is blocking you
   };
   labels?: Label[];
 }
@@ -1088,6 +1103,8 @@ export async function getBlueskyProfile(actor: string): Promise<BlueskyProfile |
       viewer: response.data.viewer ? {
         following: response.data.viewer.following,
         followedBy: response.data.viewer.followedBy,
+        blocking: response.data.viewer.blocking,
+        blockedBy: response.data.viewer.blockedBy,
       } : undefined,
       labels: response.data.labels as Label[] | undefined,
     };

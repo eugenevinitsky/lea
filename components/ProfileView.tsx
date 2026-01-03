@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { AppBskyFeedDefs, AppBskyFeedPost, AppBskyEmbedExternal } from '@atproto/api';
 import type { ProfileLink, ProfilePaper } from '@/lib/db/schema';
-import { getAuthorFeed, getBlueskyProfile, getKnownFollowers, BlueskyProfile, KnownFollowersResult, followUser, unfollowUser, getSession, searchPosts, Label } from '@/lib/bluesky';
+import { getAuthorFeed, getBlueskyProfile, getKnownFollowers, BlueskyProfile, KnownFollowersResult, followUser, unfollowUser, blockUser, unblockUser, getSession, searchPosts, Label } from '@/lib/bluesky';
 import { detectPaperLink, getPaperIdFromUrl } from '@/lib/papers';
 import { useFollowing } from '@/lib/following-context';
 import Post from './Post';
@@ -129,6 +129,11 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
   const [followLoading, setFollowLoading] = useState(false);
   const { refresh: refreshFollowing } = useFollowing();
 
+  // Block state
+  const [isBlocking, setIsBlocking] = useState(false);
+  const [blockUri, setBlockUri] = useState<string | undefined>();
+  const [blockLoading, setBlockLoading] = useState(false);
+
   // Posts state - read initial tab from URL
   const getTabFromUrl = (): 'profile' | 'posts' | 'replies' | 'papers' | 'interactions' => {
     if (typeof window === 'undefined') return 'posts';
@@ -226,6 +231,14 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
           } else {
             setIsFollowing(false);
             setFollowUri(undefined);
+          }
+          // Set blocking state from viewer info
+          if (bskyData.viewer?.blocking) {
+            setIsBlocking(true);
+            setBlockUri(bskyData.viewer.blocking);
+          } else {
+            setIsBlocking(false);
+            setBlockUri(undefined);
           }
         }
         
@@ -494,6 +507,35 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
     }
   };
 
+  // Block/unblock handlers
+  const handleBlock = async () => {
+    if (blockLoading) return;
+    setBlockLoading(true);
+    try {
+      const result = await blockUser(did);
+      setIsBlocking(true);
+      setBlockUri(result.uri);
+    } catch (err) {
+      console.error('Failed to block user:', err);
+    } finally {
+      setBlockLoading(false);
+    }
+  };
+
+  const handleUnblock = async () => {
+    if (blockLoading || !blockUri) return;
+    setBlockLoading(true);
+    try {
+      await unblockUser(blockUri);
+      setIsBlocking(false);
+      setBlockUri(undefined);
+    } catch (err) {
+      console.error('Failed to unblock user:', err);
+    } finally {
+      setBlockLoading(false);
+    }
+  };
+
   // Filter posts to those containing paper links AND authored by this profile owner
   const paperPosts = useMemo(() => {
     return posts.filter(item => {
@@ -569,6 +611,36 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
         </svg>
         DM
       </a>
+    );
+  };
+
+  // Render block/unblock button
+  const renderBlockButton = () => {
+    if (isOwnProfile) return null;
+
+    return (
+      <button
+        onClick={isBlocking ? handleUnblock : handleBlock}
+        disabled={blockLoading}
+        className={`px-2 py-0.5 rounded text-xs font-medium transition-colors flex items-center gap-1 ${
+          isBlocking
+            ? 'bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-900/50'
+            : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-red-100 hover:text-red-600 dark:hover:bg-red-900/30 dark:hover:text-red-400'
+        } disabled:opacity-50`}
+        title={isBlocking ? 'Unblock this user' : 'Block this user'}
+      >
+        {blockLoading ? (
+          <svg className="animate-spin w-3 h-3" fill="none" viewBox="0 0 24 24">
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+          </svg>
+        ) : (
+          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
+          </svg>
+        )}
+        {isBlocking ? 'Blocked' : 'Block'}
+      </button>
     );
   };
 
@@ -860,6 +932,47 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
             <div className="flex items-center justify-center py-12 px-4">
               <div className="animate-spin w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full" />
             </div>
+          ) : isBlocking ? (
+            /* Blocked profile view - minimal display with unblock option */
+            <div className="mx-4 mt-4 mb-4 bg-white dark:bg-gray-900 rounded-2xl shadow-lg p-6">
+              <div className="flex flex-col items-center text-center">
+                {/* Block icon */}
+                <div className="w-16 h-16 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center mb-4">
+                  <svg className="w-8 h-8 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
+                  </svg>
+                </div>
+                {/* Name and handle */}
+                <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100">
+                  {finalDisplayName}
+                </h3>
+                {finalHandle && (
+                  <p className="text-sm text-gray-500 mt-1">@{finalHandle}</p>
+                )}
+                {/* Blocked message */}
+                <p className="text-gray-500 mt-4 mb-4">
+                  You have blocked this account
+                </p>
+                {/* Unblock button */}
+                <button
+                  onClick={handleUnblock}
+                  disabled={blockLoading}
+                  className="px-4 py-2 bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 rounded-full font-medium hover:bg-red-200 dark:hover:bg-red-900/50 transition-colors disabled:opacity-50 flex items-center gap-2"
+                >
+                  {blockLoading ? (
+                    <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                    </svg>
+                  ) : (
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
+                    </svg>
+                  )}
+                  Unblock
+                </button>
+              </div>
+            </div>
           ) : error === 'not_verified' ? (
             <>
               {/* Non-verified profile header (inline mode) */}
@@ -893,6 +1006,7 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
                     <div className="flex items-center gap-2 mt-2">
                       {renderFollowButton()}
                       {renderDMButton()}
+                      {renderBlockButton()}
                       {bskyProfile?.viewer?.followedBy && (
                         <span className="px-2 py-0.5 bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 text-xs rounded">
                           Follows you
@@ -1098,6 +1212,7 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
                         <>
                           {renderFollowButton()}
                           {renderDMButton()}
+                          {renderBlockButton()}
                         </>
                       )}
                       {bskyProfile?.viewer?.followedBy && (
@@ -1458,13 +1573,54 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
           </button>
         </div>
 
-        {/* Tabs - only show when profile is loaded and user is verified */}
-        {!loading && !error && renderTabs()}
+        {/* Tabs - only show when profile is loaded, user is verified, and not blocked */}
+        {!loading && !error && !isBlocking && renderTabs()}
 
         <div>
           {loading ? (
             <div className="flex items-center justify-center py-12 px-4">
               <div className="animate-spin w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full" />
+            </div>
+          ) : isBlocking ? (
+            /* Blocked profile view - minimal display with unblock option */
+            <div className="p-6">
+              <div className="flex flex-col items-center text-center">
+                {/* Block icon */}
+                <div className="w-16 h-16 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center mb-4">
+                  <svg className="w-8 h-8 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
+                  </svg>
+                </div>
+                {/* Name and handle */}
+                <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100">
+                  {finalDisplayName}
+                </h3>
+                {finalHandle && (
+                  <p className="text-sm text-gray-500 mt-1">@{finalHandle}</p>
+                )}
+                {/* Blocked message */}
+                <p className="text-gray-500 mt-4 mb-4">
+                  You have blocked this account
+                </p>
+                {/* Unblock button */}
+                <button
+                  onClick={handleUnblock}
+                  disabled={blockLoading}
+                  className="px-4 py-2 bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 rounded-full font-medium hover:bg-red-200 dark:hover:bg-red-900/50 transition-colors disabled:opacity-50 flex items-center gap-2"
+                >
+                  {blockLoading ? (
+                    <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                    </svg>
+                  ) : (
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
+                    </svg>
+                  )}
+                  Unblock
+                </button>
+              </div>
             </div>
           ) : error === 'not_verified' ? (
             <>
@@ -1499,6 +1655,7 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
                   <div className="mt-3 flex items-center gap-2">
                     {renderFollowButton()}
                     {renderDMButton()}
+                    {renderBlockButton()}
                   </div>
                 </div>
               </div>
@@ -1706,6 +1863,7 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
                       <>
                         {renderFollowButton()}
                         {renderDMButton()}
+                        {renderBlockButton()}
                       </>
                     )}
                   </div>
