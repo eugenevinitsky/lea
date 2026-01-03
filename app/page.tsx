@@ -819,15 +819,17 @@ function AppContent() {
       {showMobileDMs && (
         <div className="lg:hidden fixed inset-0 z-50 flex flex-col bg-white dark:bg-gray-950">
           {/* Modal header */}
-          <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 dark:border-gray-800">
+          <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 dark:border-gray-800 relative">
             <button
               onClick={() => setShowMobileDMs(false)}
-              className="text-blue-500 hover:text-blue-600 font-medium"
+              className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full"
             >
-              Close
+              <svg className="w-6 h-6 text-gray-600 dark:text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+              </svg>
             </button>
-            <span className="font-semibold text-gray-900 dark:text-gray-100">Messages</span>
-            <div className="w-14" /> {/* Spacer for centering */}
+            <span className="absolute left-1/2 -translate-x-1/2 font-semibold text-gray-900 dark:text-gray-100">Messages</span>
+            <div className="w-10" />
           </div>
           {/* DM Sidebar content */}
           <div className="flex-1 overflow-y-auto">
@@ -839,17 +841,19 @@ function AppContent() {
       {/* Mobile Bookmarks Modal */}
       {showMobileBookmarks && (
         <div className="lg:hidden fixed inset-0 z-50 flex flex-col bg-white dark:bg-gray-950">
-          <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 dark:border-gray-800">
+          <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 dark:border-gray-800 relative">
             <button
               onClick={() => setShowMobileBookmarks(false)}
-              className="text-blue-500 hover:text-blue-600 font-medium"
+              className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full"
             >
-              Close
+              <svg className="w-6 h-6 text-gray-600 dark:text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+              </svg>
             </button>
-            <span className="font-semibold text-gray-900 dark:text-gray-100">Bookmarks</span>
-            <div className="w-14" />
+            <span className="absolute left-1/2 -translate-x-1/2 font-semibold text-gray-900 dark:text-gray-100">Bookmarks</span>
+            <div className="w-10" />
           </div>
-          <div className="flex-1 overflow-y-auto">
+          <div className="flex-1 overflow-y-auto [&_.text-xs]:text-sm [&_.text-\[9px\]]:text-xs [&_.w-7]:w-9 [&_.h-7]:h-9">
             <Bookmarks embedded onOpenPost={(uri) => { setShowMobileBookmarks(false); openThread(uri); }} onOpenProfile={(did) => { setShowMobileBookmarks(false); navigateToProfile(did); }} />
           </div>
         </div>
@@ -858,17 +862,19 @@ function AppContent() {
       {/* Mobile Notifications Modal */}
       {showMobileNotifications && (
         <div className="lg:hidden fixed inset-0 z-50 flex flex-col bg-white dark:bg-gray-950">
-          <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 dark:border-gray-800">
+          <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 dark:border-gray-800 relative">
             <button
               onClick={() => setShowMobileNotifications(false)}
-              className="text-blue-500 hover:text-blue-600 font-medium"
+              className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full"
             >
-              Close
+              <svg className="w-6 h-6 text-gray-600 dark:text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+              </svg>
             </button>
-            <span className="font-semibold text-gray-900 dark:text-gray-100">Notifications</span>
-            <div className="w-14" />
+            <span className="absolute left-1/2 -translate-x-1/2 font-semibold text-gray-900 dark:text-gray-100">Notifications</span>
+            <div className="w-10" />
           </div>
-          <div className="flex-1 overflow-y-auto">
+          <div className="flex-1 overflow-y-auto [&_.text-xs]:text-sm [&_.text-\[9px\]]:text-xs [&_.w-7]:w-9 [&_.h-7]:h-9">
             <Notifications embedded onOpenPost={(uri) => { setShowMobileNotifications(false); openThread(uri); }} onOpenProfile={(did) => { setShowMobileNotifications(false); navigateToProfile(did); }} />
           </div>
         </div>
@@ -877,17 +883,19 @@ function AppContent() {
       {/* Mobile Moderation Modal */}
       {showMobileModeration && (
         <div className="lg:hidden fixed inset-0 z-50 flex flex-col bg-white dark:bg-gray-950">
-          <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 dark:border-gray-800">
+          <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 dark:border-gray-800 relative">
             <button
               onClick={() => setShowMobileModeration(false)}
-              className="text-blue-500 hover:text-blue-600 font-medium"
+              className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full"
             >
-              Close
+              <svg className="w-6 h-6 text-gray-600 dark:text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+              </svg>
             </button>
-            <span className="font-semibold text-gray-900 dark:text-gray-100">Moderation</span>
-            <div className="w-14" />
+            <span className="absolute left-1/2 -translate-x-1/2 font-semibold text-gray-900 dark:text-gray-100">Moderation</span>
+            <div className="w-10" />
           </div>
-          <div className="flex-1 overflow-y-auto">
+          <div className="flex-1 overflow-y-auto [&_.text-xs]:text-sm [&_.text-\[9px\]]:text-xs [&_.w-7]:w-9 [&_.h-7]:h-9">
             <SafetyPanel embedded onOpenProfile={(did) => { setShowMobileModeration(false); navigateToProfile(did); }} onOpenThread={(uri) => { setShowMobileModeration(false); openThread(uri); }} />
           </div>
         </div>
@@ -896,17 +904,19 @@ function AppContent() {
       {/* Mobile Discover Papers Modal */}
       {showMobileDiscoverPapers && (
         <div className="lg:hidden fixed inset-0 z-50 flex flex-col bg-white dark:bg-gray-950">
-          <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 dark:border-gray-800">
+          <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 dark:border-gray-800 relative">
             <button
               onClick={() => setShowMobileDiscoverPapers(false)}
-              className="text-blue-500 hover:text-blue-600 font-medium"
+              className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full"
             >
-              Close
+              <svg className="w-6 h-6 text-gray-600 dark:text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+              </svg>
             </button>
-            <span className="font-semibold text-gray-900 dark:text-gray-100">Discover Papers</span>
-            <div className="w-14" />
+            <span className="absolute left-1/2 -translate-x-1/2 font-semibold text-gray-900 dark:text-gray-100">Discover Papers</span>
+            <div className="w-10" />
           </div>
-          <div className="flex-1 overflow-y-auto">
+          <div className="flex-1 overflow-y-auto flex flex-col [&_.text-xs]:text-sm [&_.text-\[10px\]]:text-xs">
             <ModerationBox embedded onOpenProfile={(did) => { setShowMobileDiscoverPapers(false); navigateToProfile(did); }} />
           </div>
         </div>

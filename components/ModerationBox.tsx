@@ -143,7 +143,7 @@ export default function ModerationBox({ onOpenProfile, defaultExpanded = false, 
   });
 
   return (
-    <div className={`bg-white dark:bg-gray-900 overflow-hidden ${embedded ? '' : 'rounded-xl border border-gray-200 dark:border-gray-800'}`}>
+    <div className={`bg-white dark:bg-gray-900 overflow-hidden ${embedded ? 'flex flex-col h-full' : 'rounded-xl border border-gray-200 dark:border-gray-800'}`}>
       {/* Header - always visible, hidden when embedded */}
       {!embedded && <button
         onClick={() => setIsExpanded(!isExpanded)}
@@ -167,7 +167,7 @@ export default function ModerationBox({ onOpenProfile, defaultExpanded = false, 
 
       {/* Expanded content */}
       {isExpanded && (
-        <div className={embedded ? '' : 'border-t border-gray-200 dark:border-gray-800'}>
+        <div className={embedded ? 'flex-1 flex flex-col' : 'border-t border-gray-200 dark:border-gray-800'}>
           {error && (
             <div className="p-2 bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 text-xs">
               {error}
@@ -210,7 +210,7 @@ export default function ModerationBox({ onOpenProfile, defaultExpanded = false, 
 
           {/* Tab Content */}
           {activeTab === 'verified' && (
-            <div>
+            <div className={embedded ? 'flex-1 flex flex-col min-h-0' : ''}>
               {loading ? (
                 <div className="flex items-center justify-center py-6">
                   <div className="animate-spin w-5 h-5 border-2 border-emerald-500 border-t-transparent rounded-full" />
@@ -220,7 +220,7 @@ export default function ModerationBox({ onOpenProfile, defaultExpanded = false, 
                   <p className="text-xs text-gray-400">No new researchers to discover</p>
                 </div>
               ) : (
-                <div className="max-h-[280px] overflow-y-auto divide-y divide-gray-100 dark:divide-gray-800">
+                <div className={`overflow-y-auto divide-y divide-gray-100 dark:divide-gray-800 ${embedded ? 'flex-1' : 'max-h-[280px]'}`}>
                   {filteredRecentResearchers.map((researcher) => (
                     <button
                       key={researcher.did}
@@ -271,7 +271,7 @@ export default function ModerationBox({ onOpenProfile, defaultExpanded = false, 
           )}
 
           {activeTab === 'active' && (
-            <div>
+            <div className={embedded ? 'flex-1 flex flex-col min-h-0' : ''}>
               {filteredActiveResearchers.length === 0 ? (
                 <div className="p-4 text-center">
                   <svg className="w-8 h-8 mx-auto text-gray-300 dark:text-gray-600 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -282,7 +282,7 @@ export default function ModerationBox({ onOpenProfile, defaultExpanded = false, 
                   <p className="text-[10px] text-gray-400">Browse your feeds to discover active researchers</p>
                 </div>
               ) : (
-                <div className="max-h-[280px] overflow-y-auto divide-y divide-gray-100 dark:divide-gray-800">
+                <div className={`overflow-y-auto divide-y divide-gray-100 dark:divide-gray-800 ${embedded ? 'flex-1' : 'max-h-[280px]'}`}>
                   {filteredActiveResearchers.slice(0, 20).map((researcher) => (
                     <button
                       key={researcher.did}
@@ -337,7 +337,7 @@ export default function ModerationBox({ onOpenProfile, defaultExpanded = false, 
           )}
 
           {activeTab === 'papers' && (
-            <div>
+            <div className={embedded ? 'flex-1 flex flex-col min-h-0' : ''}>
               {papersLoading ? (
                 <div className="flex items-center justify-center py-6">
                   <div className="animate-spin w-5 h-5 border-2 border-purple-500 border-t-transparent rounded-full" />
@@ -351,7 +351,7 @@ export default function ModerationBox({ onOpenProfile, defaultExpanded = false, 
                   <p className="text-[10px] text-gray-400 mt-1">Papers shared on Bluesky will appear here</p>
                 </div>
               ) : (
-                <div className="max-h-[280px] overflow-y-auto divide-y divide-gray-100 dark:divide-gray-800">
+                <div className={`overflow-y-auto divide-y divide-gray-100 dark:divide-gray-800 ${embedded ? 'flex-1' : 'max-h-[280px]'}`}>
                   {trendingPapers.map((paper) => {
                     const sourceColors: Record<string, string> = {
                       arxiv: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400',
