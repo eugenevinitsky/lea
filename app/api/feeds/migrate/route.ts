@@ -1,10 +1,11 @@
 import { NextResponse } from 'next/server';
-import { sql } from '@vercel/postgres';
+import { db } from '@/lib/db';
+import { sql } from 'drizzle-orm';
 
 // GET /api/feeds/migrate - Create the user_feeds table
 export async function GET() {
   try {
-    await sql`
+    await db.execute(sql`
       CREATE TABLE IF NOT EXISTS user_feeds (
         id VARCHAR(50) PRIMARY KEY,
         user_did VARCHAR(255) NOT NULL,
@@ -16,8 +17,8 @@ export async function GET() {
         position INTEGER NOT NULL DEFAULT 0,
         created_at TIMESTAMP DEFAULT NOW() NOT NULL
       )
-    `;
-    await sql`CREATE INDEX IF NOT EXISTS user_feeds_user_idx ON user_feeds(user_did)`;
+    `);
+    await db.execute(sql`CREATE INDEX IF NOT EXISTS user_feeds_user_idx ON user_feeds(user_did)`);
 
     return NextResponse.json({ success: true, message: 'Table created successfully' });
   } catch (error) {
