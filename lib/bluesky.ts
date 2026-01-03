@@ -132,6 +132,159 @@ export async function getRepostedBy(uri: string, cursor?: string) {
   return agent.app.bsky.feed.getRepostedBy({ uri, limit: 50, cursor });
 }
 
+// User info for mass blocking (includes relationship data)
+export interface MassBlockUser {
+  did: string;
+  handle: string;
+  displayName?: string;
+  avatar?: string;
+  followsYou: boolean;
+  youFollow: boolean;
+  alreadyBlocked: boolean;
+}
+
+// Get ALL users who liked a post (paginated, with relationship info)
+export async function getAllLikers(
+  uri: string,
+  onProgress?: (loaded: number) => void
+): Promise<MassBlockUser[]> {
+  if (!agent) throw new Error('Not logged in');
+  
+  const allUsers: MassBlockUser[] = [];
+  let cursor: string | undefined;
+  
+  do {
+    const response = await agent.app.bsky.feed.getLikes({ uri, limit: 100, cursor });
+    const likes = response.data.likes || [];
+    
+    for (const like of likes) {
+      const actor = like.actor;
+      allUsers.push({
+        did: actor.did,
+        handle: actor.handle,
+        displayName: actor.displayName,
+        avatar: actor.avatar,
+        followsYou: !!actor.viewer?.followedBy,
+        youFollow: !!actor.viewer?.following,
+        alreadyBlocked: !!actor.viewer?.blocking,
+      });
+    }
+    
+    cursor = response.data.cursor;
+    onProgress?.(allUsers.length);
+    
+    // Small delay to avoid rate limiting
+    if (cursor) await new Promise(r => setTimeout(r, 100));
+  } while (cursor);
+  
+  return allUsers;
+}
+
+// Get ALL users who reposted a post (paginated, with relationship info)
+export async function getAllReposters(
+  uri: string,
+  onProgress?: (loaded: number) => void
+): Promise<MassBlockUser[]> {
+  if (!agent) throw new Error('Not logged in');
+  
+  const allUsers: MassBlockUser[] = [];
+  let cursor: string | undefined;
+  
+  do {
+    const response = await agent.app.bsky.feed.getRepostedBy({ uri, limit: 100, cursor });
+    const repostedBy = response.data.repostedBy || [];
+    
+    for (const actor of repostedBy) {
+      allUsers.push({
+        did: actor.did,
+        handle: actor.handle,
+        displayName: actor.displayName,
+        avatar: actor.avatar,
+        followsYou: !!actor.viewer?.followedBy,
+        youFollow: !!actor.viewer?.following,
+        alreadyBlocked: !!actor.viewer?.blocking,
+      });
+    }
+    
+    cursor = response.data.cursor;
+    onProgress?.(allUsers.length);
+    
+    // Small delay to avoid rate limiting
+    if (cursor) await new Promise(r => setTimeout(r, 100));
+  } while (cursor);
+  
+  return allUsers;
+}
+
+// Parse a Bluesky post URL to get the AT URI
+// Supports: https://bsky.app/profile/handle/post/rkey
+// Returns: at://did/app.bsky.feed.post/rkey
+export async function parsePostUrl(url: string): Promise<string | null> {
+  if (!agent) return null;
+  
+  // Already an AT URI
+  if (url.startsWith('at://')) {
+    return url;
+  }
+  
+  // Parse bsky.app URL
+  const bskyMatch = url.match(/bsky\.app\/profile\/([^/]+)\/post\/([^/?]+)/);
+  if (bskyMatch) {
+    const [, handleOrDid, rkey] = bskyMatch;
+    
+    // If it's already a DID, use it directly
+    if (handleOrDid.startsWith('did:')) {
+      return `at://${handleOrDid}/app.bsky.feed.post/${rkey}`;
+    }
+    
+    // Otherwise resolve the handle to a DID
+    try {
+      const resolved = await agent.resolveHandle({ handle: handleOrDid });
+      return `at://${resolved.data.did}/app.bsky.feed.post/${rkey}`;
+    } catch {
+      return null;
+    }
+  }
+  
+  return null;
+}
+
+// Block multiple users with progress callback
+export async function blockMultipleUsers(
+  dids: string[],
+  onProgress?: (completed: number, total: number) => void
+): Promise<{ succeeded: number; failed: number }> {
+  if (!agent?.session?.did) throw new Error('Not logged in');
+  
+  let succeeded = 0;
+  let failed = 0;
+  
+  for (let i = 0; i < dids.length; i++) {
+    try {
+      await agent.api.app.bsky.graph.block.create(
+        { repo: agent.session.did },
+        {
+          subject: dids[i],
+          createdAt: new Date().toISOString(),
+        }
+      );
+      succeeded++;
+    } catch (err) {
+      console.error(`Failed to block ${dids[i]}:`, err);
+      failed++;
+    }
+    
+    onProgress?.(i + 1, dids.length);
+    
+    // Small delay to avoid rate limiting
+    if (i < dids.length - 1) {
+      await new Promise(r => setTimeout(r, 50));
+    }
+  }
+  
+  return { succeeded, failed };
+}
+
 // Feed generator info type
 export interface FeedGeneratorInfo {
   uri: string;
