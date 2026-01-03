@@ -23,21 +23,23 @@ export async function GET(request: NextRequest) {
         firstSeenAt: discoveredPapers.firstSeenAt,
         lastSeenAt: discoveredPapers.lastSeenAt,
         mentionCount: discoveredPapers.mentionCount,
-        // Actual post count (not weighted)
+        // Unique author count (not weighted) - each person only counts once
         postCount: sql<number>`(
-          SELECT COUNT(*)
+          SELECT COUNT(DISTINCT paper_mentions.author_did)
           FROM paper_mentions
           WHERE paper_mentions.paper_id = discovered_papers.id
         )`.as('post_count'),
+        // Weighted unique authors: verified researchers count 3x, others 1x
         recentMentions: sql<number>`(
-          SELECT COALESCE(SUM(CASE WHEN paper_mentions.is_verified_researcher THEN 3 ELSE 1 END), 0)
+          SELECT COUNT(DISTINCT paper_mentions.author_did) +
+                 2 * COUNT(DISTINCT CASE WHEN paper_mentions.is_verified_researcher THEN paper_mentions.author_did END)
           FROM paper_mentions
           WHERE paper_mentions.paper_id = discovered_papers.id
           AND paper_mentions.created_at > ${cutoffTime}
         )`.as('recent_mentions'),
-        // Actual recent post count (not weighted) - for display
+        // Unique authors in time window - for display
         recentPostCount: sql<number>`(
-          SELECT COUNT(*)
+          SELECT COUNT(DISTINCT paper_mentions.author_did)
           FROM paper_mentions
           WHERE paper_mentions.paper_id = discovered_papers.id
           AND paper_mentions.created_at > ${cutoffTime}
@@ -49,13 +51,20 @@ export async function GET(request: NextRequest) {
             AND ${discoveredPapers.normalizedId} NOT LIKE 'doi:10.1234/%'`
       )
       .orderBy(
+        // Order by weighted unique authors in time window
         desc(sql`(
-          SELECT COALESCE(SUM(CASE WHEN paper_mentions.is_verified_researcher THEN 3 ELSE 1 END), 0)
+          SELECT COUNT(DISTINCT paper_mentions.author_did) +
+                 2 * COUNT(DISTINCT CASE WHEN paper_mentions.is_verified_researcher THEN paper_mentions.author_did END)
           FROM paper_mentions
           WHERE paper_mentions.paper_id = discovered_papers.id
           AND paper_mentions.created_at > ${cutoffTime}
         )`),
-        desc(discoveredPapers.mentionCount)
+        // Then by total unique authors
+        desc(sql`(
+          SELECT COUNT(DISTINCT paper_mentions.author_did)
+          FROM paper_mentions
+          WHERE paper_mentions.paper_id = discovered_papers.id
+        )`)
       )
       .limit(limit);
 
