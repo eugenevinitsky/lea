@@ -74,8 +74,8 @@ function TopicPageContent() {
       </header>
 
       {/* Main content */}
-      <div className="max-w-5xl mx-auto flex gap-4 px-4">
-        <main className="flex-1 max-w-xl mx-auto bg-white dark:bg-gray-950 min-h-screen border-x border-gray-200 dark:border-gray-800">
+      <div className="max-w-5xl mx-auto flex gap-4 px-0 lg:px-4">
+        <main className="flex-1 w-full lg:max-w-xl lg:mx-auto bg-white dark:bg-gray-950 min-h-screen border-x border-gray-200 dark:border-gray-800">
           {/* Back button */}
           <div className="sticky top-14 z-10 bg-white dark:bg-gray-950 border-b border-gray-200 dark:border-gray-800 p-3 flex items-center gap-3">
             <button

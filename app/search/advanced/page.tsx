@@ -250,7 +250,7 @@ function AdvancedSearchPageContent() {
       </header>
 
       {/* Main layout */}
-      <div className="max-w-5xl mx-auto flex gap-4 px-4">
+      <div className="max-w-5xl mx-auto flex gap-4 px-0 lg:px-4">
         {/* Left Sidebar */}
         <aside className="hidden lg:block w-72 flex-shrink-0 sticky top-16 max-h-[calc(100vh-5rem)] overflow-y-auto pt-4 pb-4 space-y-4 scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-gray-700">
           <Bookmarks onOpenPost={openThread} onOpenProfile={navigateToProfile} />

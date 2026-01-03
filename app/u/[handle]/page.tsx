@@ -223,7 +223,7 @@ function ProfilePageContent() {
       </header>
 
       {/* Main layout with sidebar */}
-      <div className="max-w-5xl mx-auto flex gap-4 px-4">
+      <div className="max-w-5xl mx-auto flex gap-4 px-0 lg:px-4">
         {/* Left Sidebar - Bookmarks & Messages */}
         <aside className="hidden lg:block w-72 flex-shrink-0 sticky top-16 max-h-[calc(100vh-5rem)] overflow-y-auto pt-4 pb-4 space-y-4 scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-gray-700">
           <Bookmarks onOpenPost={openThread} onOpenProfile={handleOpenProfile} />
@@ -234,7 +234,7 @@ function ProfilePageContent() {
         </aside>
 
         {/* Main content */}
-        <main className="flex-1 max-w-xl bg-white dark:bg-gray-950 min-h-screen border-x border-gray-200 dark:border-gray-800">
+        <main className="flex-1 w-full lg:max-w-xl bg-white dark:bg-gray-950 min-h-screen border-x border-gray-200 dark:border-gray-800">
           {resolveError ? (
             <div className="flex flex-col items-center justify-center py-16 px-4">
               <div className="w-16 h-16 mb-4 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center">
