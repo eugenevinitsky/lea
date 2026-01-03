@@ -354,20 +354,26 @@ export default function SafetyPanel({ onOpenProfile, onOpenThread, defaultExpand
       {isExpanded && (
         <div className="border-t border-gray-200 dark:border-gray-800">
           {/* Safety Alerts Section */}
-          <div className="p-3 border-b border-gray-100 dark:border-gray-800">
-            <div className="flex items-center justify-between mb-2">
-              <h4 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">
-                Alerts
-              </h4>
+          <div className="border-l-4 border-l-amber-400">
+            <button
+              onClick={() => toggleSection('alerts')}
+              className="w-full px-3 py-2 flex items-center justify-between bg-amber-50 dark:bg-amber-900/20 hover:bg-amber-100 dark:hover:bg-amber-900/30 transition-colors"
+            >
               <div className="flex items-center gap-2">
+                <svg className="w-3.5 h-3.5 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                </svg>
+                <h4 className="text-xs font-medium text-amber-700 dark:text-amber-300">Alerts</h4>
                 {alerts.length > 0 && (
                   <span className="px-1.5 py-0.5 text-xs font-medium bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 rounded-full">
                     {alerts.length}
                   </span>
                 )}
+              </div>
+              <div className="flex items-center gap-2">
                 <button
-                  onClick={() => setShowAlertSettings(true)}
-                  className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+                  onClick={(e) => { e.stopPropagation(); setShowAlertSettings(true); }}
+                  className="p-1 text-amber-400 hover:text-amber-600 dark:hover:text-amber-300 transition-colors"
                   title="Alert settings"
                 >
                   <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -375,89 +381,102 @@ export default function SafetyPanel({ onOpenProfile, onOpenThread, defaultExpand
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                   </svg>
                 </button>
-              </div>
-            </div>
-            <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
-              Activity that may need your attention
-            </p>
-
-            {loadingAlerts ? (
-              <div className="flex items-center justify-center py-4">
-                <div className="animate-spin w-5 h-5 border-2 border-amber-500 border-t-transparent rounded-full" />
-              </div>
-            ) : alerts.length === 0 ? (
-              <div className="py-3 text-center">
-                <svg className="w-6 h-6 mx-auto text-gray-300 dark:text-gray-600 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                <svg
+                  className={`w-3.5 h-3.5 text-amber-500 transition-transform ${expandedSections.has('alerts') ? 'rotate-180' : ''}`}
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                 </svg>
-                <p className="text-xs text-gray-400">No alerts right now</p>
               </div>
-            ) : (
-              <div className="space-y-2">
-                {alerts.map((alert) => (
-                  <div
-                    key={alert.id}
-                    className="relative p-2 bg-gray-50 dark:bg-gray-800/50 rounded-lg group"
-                  >
-                    <div className="flex items-start gap-2">
-                      <div className="flex-shrink-0 mt-0.5">
-                        {getAlertIcon(alert.type)}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-xs font-medium text-gray-900 dark:text-gray-100">
-                          {alert.message}
-                        </p>
-                        <p className="text-xs text-gray-500 dark:text-gray-400 truncate mt-0.5">
-                          &ldquo;{alert.postText}&rdquo;
-                        </p>
-                        {alert.relatedAccount && (
-                          <button
-                            onClick={() => onOpenProfile?.(alert.relatedAccount!.did)}
-                            className="mt-1 flex items-center gap-1 text-xs text-blue-500 hover:text-blue-600"
-                          >
-                            {alert.relatedAccount.avatar && (
-                              <img
-                                src={alert.relatedAccount.avatar}
-                                alt=""
-                                className="w-4 h-4 rounded-full"
-                              />
-                            )}
-                            <span>View @{alert.relatedAccount.handle}</span>
-                          </button>
-                        )}
-                        <button
-                          onClick={() => onOpenThread?.(alert.postUri)}
-                          className="mt-1 text-xs text-blue-500 hover:text-blue-600 hover:underline"
-                        >
-                          View post →
-                        </button>
-                      </div>
-                      <button
-                        onClick={() => handleDismissAlert(alert.id)}
-                        className="opacity-0 group-hover:opacity-100 p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded transition-opacity"
-                        title="Dismiss"
-                      >
-                        <svg className="w-3 h-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                        </svg>
-                      </button>
-                    </div>
+            </button>
+
+            {expandedSections.has('alerts') && (
+              <div className="p-3 border-b border-gray-100 dark:border-gray-800">
+                <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
+                  Activity that may need your attention
+                </p>
+
+                {loadingAlerts ? (
+                  <div className="flex items-center justify-center py-4">
+                    <div className="animate-spin w-5 h-5 border-2 border-amber-500 border-t-transparent rounded-full" />
                   </div>
-                ))}
+                ) : alerts.length === 0 ? (
+                  <div className="py-3 text-center">
+                    <svg className="w-6 h-6 mx-auto text-gray-300 dark:text-gray-600 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <p className="text-xs text-gray-400">No alerts right now</p>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {alerts.map((alert) => (
+                      <div
+                        key={alert.id}
+                        className="relative p-2 bg-gray-50 dark:bg-gray-800/50 rounded-lg group"
+                      >
+                        <div className="flex items-start gap-2">
+                          <div className="flex-shrink-0 mt-0.5">
+                            {getAlertIcon(alert.type)}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs font-medium text-gray-900 dark:text-gray-100">
+                              {alert.message}
+                            </p>
+                            <p className="text-xs text-gray-500 dark:text-gray-400 truncate mt-0.5">
+                              &ldquo;{alert.postText}&rdquo;
+                            </p>
+                            {alert.relatedAccount && (
+                              <button
+                                onClick={() => onOpenProfile?.(alert.relatedAccount!.did)}
+                                className="mt-1 flex items-center gap-1 text-xs text-blue-500 hover:text-blue-600"
+                              >
+                                {alert.relatedAccount.avatar && (
+                                  <img
+                                    src={alert.relatedAccount.avatar}
+                                    alt=""
+                                    className="w-4 h-4 rounded-full"
+                                  />
+                                )}
+                                <span>View @{alert.relatedAccount.handle}</span>
+                              </button>
+                            )}
+                            <button
+                              onClick={() => onOpenThread?.(alert.postUri)}
+                              className="mt-1 text-xs text-blue-500 hover:text-blue-600 hover:underline"
+                            >
+                              View post →
+                            </button>
+                          </div>
+                          <button
+                            onClick={() => handleDismissAlert(alert.id)}
+                            className="opacity-0 group-hover:opacity-100 p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded transition-opacity"
+                            title="Dismiss"
+                          >
+                            <svg className="w-3 h-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Refresh button */}
+                <button
+                  onClick={loadAlerts}
+                  disabled={loadingAlerts}
+                  className="w-full mt-3 py-1.5 px-3 text-xs text-gray-600 dark:text-gray-400 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg transition-colors disabled:opacity-50 flex items-center justify-center gap-1"
+                >
+                  <svg className={`w-3 h-3 ${loadingAlerts ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                  </svg>
+                  {loadingAlerts ? 'Checking...' : 'Check for alerts'}
+                </button>
               </div>
             )}
-
-            {/* Refresh button */}
-            <button
-              onClick={loadAlerts}
-              disabled={loadingAlerts}
-              className="w-full mt-3 py-1.5 px-3 text-xs text-gray-600 dark:text-gray-400 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg transition-colors disabled:opacity-50 flex items-center justify-center gap-1"
-            >
-              <svg className={`w-3 h-3 ${loadingAlerts ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-              </svg>
-              {loadingAlerts ? 'Checking...' : 'Check for alerts'}
-            </button>
           </div>
 
           {/* Reply Limits Section */}
