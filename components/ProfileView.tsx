@@ -932,8 +932,8 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
             <div className="flex items-center justify-center py-12 px-4">
               <div className="animate-spin w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full" />
             </div>
-          ) : isBlocking ? (
-            /* Blocked profile view - minimal display with unblock option */
+          ) : isBlocking || bskyProfile?.viewer?.blockedBy ? (
+            /* Blocked profile view - minimal display */
             <div className="mx-4 mt-4 mb-4 bg-white dark:bg-gray-900 rounded-2xl shadow-lg p-6">
               <div className="flex flex-col items-center text-center">
                 {/* Block icon */}
@@ -951,26 +951,28 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
                 )}
                 {/* Blocked message */}
                 <p className="text-gray-500 mt-4 mb-4">
-                  You have blocked this account
+                  {isBlocking ? 'You have blocked this account' : 'You have been blocked by this account'}
                 </p>
-                {/* Unblock button */}
-                <button
-                  onClick={handleUnblock}
-                  disabled={blockLoading}
-                  className="px-4 py-2 bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 rounded-full font-medium hover:bg-red-200 dark:hover:bg-red-900/50 transition-colors disabled:opacity-50 flex items-center gap-2"
-                >
-                  {blockLoading ? (
-                    <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                    </svg>
-                  ) : (
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
-                    </svg>
-                  )}
-                  Unblock
-                </button>
+                {/* Unblock button - only show if you blocked them */}
+                {isBlocking && (
+                  <button
+                    onClick={handleUnblock}
+                    disabled={blockLoading}
+                    className="px-4 py-2 bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 rounded-full font-medium hover:bg-red-200 dark:hover:bg-red-900/50 transition-colors disabled:opacity-50 flex items-center gap-2"
+                  >
+                    {blockLoading ? (
+                      <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                      </svg>
+                    ) : (
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
+                      </svg>
+                    )}
+                    Unblock
+                  </button>
+                )}
               </div>
             </div>
           ) : error === 'not_verified' ? (
@@ -1581,8 +1583,8 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
             <div className="flex items-center justify-center py-12 px-4">
               <div className="animate-spin w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full" />
             </div>
-          ) : isBlocking ? (
-            /* Blocked profile view - minimal display with unblock option */
+          ) : isBlocking || bskyProfile?.viewer?.blockedBy ? (
+            /* Blocked profile view - minimal display */
             <div className="p-6">
               <div className="flex flex-col items-center text-center">
                 {/* Block icon */}
@@ -1600,26 +1602,28 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
                 )}
                 {/* Blocked message */}
                 <p className="text-gray-500 mt-4 mb-4">
-                  You have blocked this account
+                  {isBlocking ? 'You have blocked this account' : 'You have been blocked by this account'}
                 </p>
-                {/* Unblock button */}
-                <button
-                  onClick={handleUnblock}
-                  disabled={blockLoading}
-                  className="px-4 py-2 bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 rounded-full font-medium hover:bg-red-200 dark:hover:bg-red-900/50 transition-colors disabled:opacity-50 flex items-center gap-2"
-                >
-                  {blockLoading ? (
-                    <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                    </svg>
-                  ) : (
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
-                    </svg>
-                  )}
-                  Unblock
-                </button>
+                {/* Unblock button - only show if you blocked them */}
+                {isBlocking && (
+                  <button
+                    onClick={handleUnblock}
+                    disabled={blockLoading}
+                    className="px-4 py-2 bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 rounded-full font-medium hover:bg-red-200 dark:hover:bg-red-900/50 transition-colors disabled:opacity-50 flex items-center gap-2"
+                  >
+                    {blockLoading ? (
+                      <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                      </svg>
+                    ) : (
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
+                      </svg>
+                    )}
+                    Unblock
+                  </button>
+                )}
               </div>
             </div>
           ) : error === 'not_verified' ? (
