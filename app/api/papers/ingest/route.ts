@@ -114,12 +114,14 @@ async function fetchPaperMetadata(normalizedId: string, source: string): Promise
     if (source === 'openreview') {
       // OpenReview forum ID (e.g., "openreview:abc123xyz")
       const forumId = normalizedId.replace('openreview:', '');
+      console.log(`[OpenReview] Fetching metadata for forum ID: ${forumId}`);
 
       try {
         // OpenReview API v2
         const response = await fetch(`https://api2.openreview.net/notes?id=${forumId}`, {
           headers: { 'User-Agent': 'Lea/1.0 (mailto:support@lea.community)' }
         });
+        console.log(`[OpenReview] API v2 response status: ${response.status}`);
 
         if (!response.ok) {
           // Try API v1 as fallback
@@ -139,12 +141,14 @@ async function fetchPaperMetadata(normalizedId: string, source: string): Promise
 
         const data = await response.json();
         const note = data.notes?.[0];
+        console.log(`[OpenReview] Found note: ${!!note}`);
         if (!note) return null;
 
         // OpenReview API v2 structure
         const content = note.content || {};
         const title = content.title?.value || content.title;
         const authors = content.authors?.value || content.authors;
+        console.log(`[OpenReview] Extracted title: ${title}, authors: ${JSON.stringify(authors)}`);
 
         return { title, authors: Array.isArray(authors) ? authors : undefined };
       } catch (error) {
@@ -186,6 +190,10 @@ export async function POST(request: NextRequest) {
   try {
     const body: IngestRequest = await request.json();
     const { papers, postUri, authorDid, postText, createdAt, quotedPostUri } = body;
+    console.log(`[Ingest] Received: ${papers?.length || 0} papers, quotedPostUri: ${!!quotedPostUri}, from: ${authorDid}`);
+    if (papers?.length > 0) {
+      console.log(`[Ingest] Papers:`, JSON.stringify(papers));
+    }
 
     // Handle quote posts - if no direct paper links, check if quoted post mentions papers
     if ((!papers || !Array.isArray(papers) || papers.length === 0) && quotedPostUri) {

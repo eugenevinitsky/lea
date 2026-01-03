@@ -49,6 +49,12 @@ function isTruncated(text: string): boolean {
   return truncationPatterns.some(pattern => pattern.test(text));
 }
 
+// Check if text immediately after match position indicates truncation
+function isFollowedByTruncation(text: string, matchEnd: number): boolean {
+  const after = text.slice(matchEnd, matchEnd + 3);
+  return after.startsWith('...') || after.startsWith('…');
+}
+
 function extractPaperLinks(text: string): PaperMatch[] {
   const papers: PaperMatch[] = [];
   const seen = new Set<string>();
@@ -60,8 +66,9 @@ function extractPaperLinks(text: string): PaperMatch[] {
     let match;
     while ((match = globalPattern.exec(text)) !== null) {
       if (match[1]) {
-        // Skip truncated URLs/IDs
-        if (isTruncated(match[0]) || isTruncated(match[1])) {
+        // Skip truncated URLs/IDs - check both the match itself and what follows
+        const matchEnd = match.index + match[0].length;
+        if (isTruncated(match[0]) || isTruncated(match[1]) || isFollowedByTruncation(text, matchEnd)) {
           console.log(`Skipping truncated paper URL: ${match[0]}`);
           continue;
         }
@@ -296,9 +303,11 @@ export class JetstreamConnection implements DurableObject {
         }),
       });
 
+      // Always consume the response body to prevent connection stalling
+      const responseText = await response.text();
+
       if (!response.ok) {
-        const errorText = await response.text();
-        console.error('API error:', response.status, errorText);
+        console.error('API error:', response.status, responseText);
         this.lastError = `API error: ${response.status}`;
       } else {
         const logMsg = papers.length > 0
