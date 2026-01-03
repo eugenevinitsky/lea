@@ -38,6 +38,7 @@ function AppContent() {
   const [isVerified, setIsVerified] = useState(false);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(false);
+  const [showMobileComposer, setShowMobileComposer] = useState(false);
   const feedsContainerRef = React.useRef<HTMLDivElement>(null);
   const { pinnedFeeds, isLoaded: feedsLoaded, removeFeed, reorderFeeds } = useFeeds();
   const { setUserDid } = useBookmarks();
@@ -334,8 +335,10 @@ function AppContent() {
 
         {/* Main content - full width on mobile, constrained on desktop */}
         <main className="flex-1 w-full lg:max-w-xl bg-white dark:bg-gray-950 min-h-screen border-x border-gray-200 dark:border-gray-800">
-          {/* Composer */}
-          <Composer onPost={handlePost} />
+          {/* Composer - hidden on mobile, shown inline on desktop */}
+          <div className="hidden lg:block">
+            <Composer onPost={handlePost} />
+          </div>
 
           {/* Feed Tabs - sticky below header when scrolling */}
           <div className="relative border-b border-gray-200 dark:border-gray-800 sticky top-14 z-10 bg-white dark:bg-gray-950">
@@ -509,6 +512,41 @@ function AppContent() {
 
       {/* Profile Editor modal */}
       {showProfileEditor && <ProfileEditor onClose={() => setShowProfileEditor(false)} />}
+
+      {/* Mobile Floating Action Button (FAB) for composing */}
+      <button
+        onClick={() => setShowMobileComposer(true)}
+        className="lg:hidden fixed bottom-6 right-6 w-14 h-14 bg-blue-500 hover:bg-blue-600 text-white rounded-full shadow-lg flex items-center justify-center z-30 transition-transform hover:scale-105 active:scale-95"
+        aria-label="Compose post"
+      >
+        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+        </svg>
+      </button>
+
+      {/* Mobile Composer Modal */}
+      {showMobileComposer && (
+        <div className="lg:hidden fixed inset-0 z-50 flex flex-col bg-white dark:bg-gray-950">
+          {/* Modal header */}
+          <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 dark:border-gray-800">
+            <button
+              onClick={() => setShowMobileComposer(false)}
+              className="text-blue-500 hover:text-blue-600 font-medium"
+            >
+              Cancel
+            </button>
+            <span className="font-semibold text-gray-900 dark:text-gray-100">New Post</span>
+            <div className="w-14" /> {/* Spacer for centering */}
+          </div>
+          {/* Composer */}
+          <div className="flex-1 overflow-y-auto">
+            <Composer onPost={() => {
+              handlePost();
+              setShowMobileComposer(false);
+            }} />
+          </div>
+        </div>
+      )}
     </div>
   );
 }
