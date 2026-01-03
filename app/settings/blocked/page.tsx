@@ -572,11 +572,6 @@ function BlockedAccountsContent() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                 </svg>
                 View Blocked Accounts
-                {blockedAccounts.length > 0 && (
-                  <span className="px-1.5 py-0.5 text-xs font-medium bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400 rounded-full">
-                    {blockedAccounts.length}
-                  </span>
-                )}
               </button>
               
               {blockedListExpanded && (

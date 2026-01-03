@@ -693,7 +693,7 @@ export default function SafetyPanel({ onOpenProfile, onOpenThread }: SafetyPanel
                       disabled={loadingBlocks}
                       className="text-xs text-blue-600 dark:text-blue-400 hover:underline disabled:opacity-50"
                     >
-                      {loadingBlocks ? 'Loading...' : 'Load blocked accounts'}
+{loadingBlocks ? 'Loading...' : 'Load recently blocked accounts'}
                     </button>
                   </div>
                 ) : blockedAccounts.length === 0 ? (
