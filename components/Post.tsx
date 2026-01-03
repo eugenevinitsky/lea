@@ -956,6 +956,8 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
   // Feed interaction state
   const [interactionSent, setInteractionSent] = useState<InteractionEvent | null>(null);
   const [sendingInteraction, setSendingInteraction] = useState(false);
+  const [showMobileInteractionMenu, setShowMobileInteractionMenu] = useState(false);
+  const mobileInteractionMenuRef = useRef<HTMLDivElement>(null);
 
   // Profile view state
   const [showProfile, setShowProfile] = useState(false);
@@ -1075,16 +1077,30 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
   // Close repost menu when clicking outside
   useEffect(() => {
     if (!showRepostMenu) return;
-    
+
     const handleClickOutside = (e: MouseEvent) => {
       if (repostMenuRef.current && !repostMenuRef.current.contains(e.target as Node)) {
         setShowRepostMenu(false);
       }
     };
-    
+
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [showRepostMenu]);
+
+  // Close mobile interaction menu when clicking outside
+  useEffect(() => {
+    if (!showMobileInteractionMenu) return;
+
+    const handleClickOutside = (e: MouseEvent) => {
+      if (mobileInteractionMenuRef.current && !mobileInteractionMenuRef.current.contains(e.target as Node)) {
+        setShowMobileInteractionMenu(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showMobileInteractionMenu]);
 
   const handleBookmarkClick = () => {
     // If collections exist, show menu for both adding and managing
@@ -1872,10 +1888,11 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
                   </span>
                 ) : (
                   <>
+                    {/* Desktop: show inline buttons */}
                     <button
                       onClick={() => handleFeedInteraction('requestMore')}
                       disabled={sendingInteraction}
-                      className="flex items-center gap-1 hover:text-green-500 transition-colors ml-auto"
+                      className="hidden lg:flex items-center gap-1 hover:text-green-500 transition-colors ml-auto"
                       title="Show more like this"
                     >
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1886,7 +1903,7 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
                     <button
                       onClick={() => handleFeedInteraction('requestLess')}
                       disabled={sendingInteraction}
-                      className="flex items-center gap-1 hover:text-orange-500 transition-colors"
+                      className="hidden lg:flex items-center gap-1 hover:text-orange-500 transition-colors"
                       title="Show less like this"
                     >
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1894,6 +1911,44 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
                       </svg>
                       <span className="text-xs">Less</span>
                     </button>
+                    {/* Mobile: show ... menu that expands */}
+                    <div className="lg:hidden ml-auto relative" ref={mobileInteractionMenuRef}>
+                      <button
+                        onClick={() => setShowMobileInteractionMenu(!showMobileInteractionMenu)}
+                        className="p-1 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors"
+                        title="Feed preferences"
+                      >
+                        <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                          <circle cx="12" cy="6" r="2" />
+                          <circle cx="12" cy="12" r="2" />
+                          <circle cx="12" cy="18" r="2" />
+                        </svg>
+                      </button>
+                      {showMobileInteractionMenu && (
+                        <div className="absolute right-0 bottom-full mb-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg py-1 min-w-[140px] z-20">
+                          <button
+                            onClick={() => { handleFeedInteraction('requestMore'); setShowMobileInteractionMenu(false); }}
+                            disabled={sendingInteraction}
+                            className="w-full flex items-center gap-2 px-3 py-2 text-left hover:bg-gray-100 dark:hover:bg-gray-700 text-green-600 dark:text-green-400"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M5 15l7-7 7 7" />
+                            </svg>
+                            <span className="text-sm">More like this</span>
+                          </button>
+                          <button
+                            onClick={() => { handleFeedInteraction('requestLess'); setShowMobileInteractionMenu(false); }}
+                            disabled={sendingInteraction}
+                            className="w-full flex items-center gap-2 px-3 py-2 text-left hover:bg-gray-100 dark:hover:bg-gray-700 text-orange-600 dark:text-orange-400"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 9l-7 7-7-7" />
+                            </svg>
+                            <span className="text-sm">Less like this</span>
+                          </button>
+                        </div>
+                      )}
+                    </div>
                   </>
                 )}
               </>
