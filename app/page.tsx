@@ -641,7 +641,7 @@ function AppContent() {
                         }
                       }
                     }}
-                    className={`flex-shrink-0 px-3 py-2.5 text-sm font-medium transition-colors relative flex items-center justify-center gap-1 group cursor-grab active:cursor-grabbing ${
+                    className={`flex-shrink-0 px-4 lg:px-3 py-3 lg:py-2.5 text-base lg:text-sm font-medium transition-colors relative flex items-center justify-center gap-1 group cursor-grab active:cursor-grabbing ${
                       isDragging ? 'opacity-50' : ''
                     } ${
                       isDragOver ? 'bg-blue-50 dark:bg-blue-900/20' : ''
