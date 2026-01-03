@@ -393,11 +393,22 @@ function AppContent() {
             </button>
           </div>
 
-          {/* Mobile: Lea on right */}
-          <h1
-            className="lg:hidden text-xl font-bold text-blue-500 cursor-pointer hover:text-blue-600 transition-colors"
-            onClick={() => window.location.reload()}
-          >Lea</h1>
+          {/* Mobile: Feed settings + Lea on right */}
+          <div className="lg:hidden flex items-center gap-2">
+            <button
+              onClick={() => setShowFeedDiscovery(true)}
+              className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full"
+              title="Manage feeds"
+            >
+              <svg className="w-5 h-5 text-gray-600 dark:text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 20l4-16m2 16l4-16M6 9h14M4 15h14" />
+              </svg>
+            </button>
+            <h1
+              className="text-xl font-bold text-blue-500 cursor-pointer hover:text-blue-600 transition-colors"
+              onClick={() => window.location.reload()}
+            >Lea</h1>
+          </div>
         </div>
 
         {/* Mobile dropdown menu */}
@@ -876,8 +887,7 @@ function AppContent() {
             <span className="font-semibold text-gray-900 dark:text-gray-100">Moderation</span>
             <div className="w-14" />
           </div>
-          <div className="flex-1 overflow-y-auto p-4 space-y-4">
-            <ModerationBox defaultExpanded onOpenProfile={(did) => { setShowMobileModeration(false); navigateToProfile(did); }} />
+          <div className="flex-1 overflow-y-auto p-4">
             <SafetyPanel defaultExpanded onOpenProfile={(did) => { setShowMobileModeration(false); navigateToProfile(did); }} onOpenThread={(uri) => { setShowMobileModeration(false); openThread(uri); }} />
           </div>
         </div>
