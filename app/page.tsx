@@ -40,6 +40,14 @@ function AppContent() {
   const [canScrollRight, setCanScrollRight] = useState(false);
   const [showMobileComposer, setShowMobileComposer] = useState(false);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
+
+  // Pull-to-refresh state
+  const [pullDistance, setPullDistance] = useState(0);
+  const [isPulling, setIsPulling] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const touchStartY = useRef(0);
+  const mainContentRef = useRef<HTMLElement>(null);
+
   const feedsContainerRef = React.useRef<HTMLDivElement>(null);
   const { pinnedFeeds, isLoaded: feedsLoaded, removeFeed, reorderFeeds } = useFeeds();
   const { setUserDid } = useBookmarks();
@@ -225,6 +233,49 @@ function AppContent() {
     setRefreshKey(k => k + 1);
   }, []);
 
+  // Pull-to-refresh handlers
+  const PULL_THRESHOLD = 80;
+
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    // Only enable pull-to-refresh when at top of page
+    if (window.scrollY === 0) {
+      touchStartY.current = e.touches[0].clientY;
+      setIsPulling(true);
+    }
+  }, []);
+
+  const handleTouchMove = useCallback((e: React.TouchEvent) => {
+    if (!isPulling || isRefreshing) return;
+
+    const currentY = e.touches[0].clientY;
+    const distance = Math.max(0, currentY - touchStartY.current);
+
+    // Apply resistance to pull
+    const resistedDistance = Math.min(distance * 0.5, 120);
+    setPullDistance(resistedDistance);
+  }, [isPulling, isRefreshing]);
+
+  const handleTouchEnd = useCallback(() => {
+    if (!isPulling) return;
+
+    if (pullDistance >= PULL_THRESHOLD && !isRefreshing) {
+      // Trigger refresh
+      setIsRefreshing(true);
+      setPullDistance(50); // Keep some distance while refreshing
+      setRefreshKey(k => k + 1);
+
+      // Reset after a delay
+      setTimeout(() => {
+        setIsRefreshing(false);
+        setPullDistance(0);
+      }, 1000);
+    } else {
+      setPullDistance(0);
+    }
+
+    setIsPulling(false);
+  }, [isPulling, pullDistance, isRefreshing]);
+
   // Navigate to a profile by DID - resolves handle for URL, falls back to DID if needed
   const navigateToProfile = useCallback(async (did: string) => {
     try {
@@ -399,7 +450,26 @@ function AppContent() {
         </aside>
 
         {/* Main content - full width on mobile, constrained on desktop */}
-        <main className="flex-1 w-full lg:max-w-xl bg-white dark:bg-gray-950 min-h-screen border-x border-gray-200 dark:border-gray-800 pb-16 lg:pb-0">
+        <main
+          ref={mainContentRef}
+          onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handleTouchEnd}
+          className="flex-1 w-full lg:max-w-xl bg-white dark:bg-gray-950 min-h-screen border-x border-gray-200 dark:border-gray-800 pb-16 lg:pb-0"
+          style={{ transform: `translateY(${pullDistance}px)`, transition: isPulling ? 'none' : 'transform 0.2s ease-out' }}
+        >
+          {/* Pull-to-refresh indicator */}
+          {(pullDistance > 0 || isRefreshing) && (
+            <div
+              className="lg:hidden absolute left-0 right-0 flex items-center justify-center pointer-events-none"
+              style={{ top: -50, height: 50 }}
+            >
+              <div className={`w-8 h-8 border-3 border-blue-500 border-t-transparent rounded-full ${isRefreshing ? 'animate-spin' : ''}`}
+                style={{ transform: `rotate(${pullDistance * 3}deg)` }}
+              />
+            </div>
+          )}
+
           {/* Composer - hidden on mobile, shown inline on desktop */}
           <div className="hidden lg:block">
             <Composer onPost={handlePost} />
