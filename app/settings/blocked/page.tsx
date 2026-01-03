@@ -355,7 +355,7 @@ function BlockedAccountsContent() {
         <main className="flex-1 w-full lg:max-w-xl bg-white dark:bg-gray-950 min-h-screen border-x border-gray-200 dark:border-gray-800">
           {/* Header with back button */}
           <div className="sticky top-14 z-10 bg-white dark:bg-gray-950 border-b border-gray-200 dark:border-gray-800 p-4">
-            <div className="flex items-center gap-3 mb-4">
+            <div className="flex items-center gap-3 mb-3">
               <button
                 onClick={() => window.history.back()}
                 className="p-2 -ml-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full"
@@ -366,10 +366,13 @@ function BlockedAccountsContent() {
                 </svg>
               </button>
               <div>
-                <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100">Blocked Accounts</h2>
+                <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100">Block Management</h2>
                 <p className="text-sm text-gray-500">{blockedAccounts.length} account{blockedAccounts.length !== 1 ? 's' : ''} blocked</p>
               </div>
             </div>
+            <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+              Manage your blocked accounts and use mass blocking to quickly block everyone who engaged with a specific post—useful when dealing with pile-ons or coordinated harassment.
+            </p>
             
             {/* Mass Block Section */}
             <div className="mb-4">
