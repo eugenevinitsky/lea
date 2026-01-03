@@ -44,6 +44,7 @@ function AppContent() {
   const [showMobileNotifications, setShowMobileNotifications] = useState(false);
   const [showMobileModeration, setShowMobileModeration] = useState(false);
   const [showMobileDMs, setShowMobileDMs] = useState(false);
+  const [showMobileDiscoverPapers, setShowMobileDiscoverPapers] = useState(false);
 
   // Pull-to-refresh state
   const [pullDistance, setPullDistance] = useState(0);
@@ -458,8 +459,7 @@ function AppContent() {
             {/* Discover Papers */}
             <button
               onClick={() => {
-                setOnboardingStartStep(4);
-                setShowOnboarding(true);
+                setShowMobileDiscoverPapers(true);
                 setShowMobileMenu(false);
               }}
               className="flex items-center gap-2 text-gray-700 dark:text-gray-300 w-full"
@@ -870,6 +870,25 @@ function AppContent() {
           <div className="flex-1 overflow-y-auto p-4 space-y-4">
             <ModerationBox onOpenProfile={(did) => { setShowMobileModeration(false); navigateToProfile(did); }} />
             <SafetyPanel onOpenProfile={(did) => { setShowMobileModeration(false); navigateToProfile(did); }} onOpenThread={(uri) => { setShowMobileModeration(false); openThread(uri); }} />
+          </div>
+        </div>
+      )}
+
+      {/* Mobile Discover Papers Modal */}
+      {showMobileDiscoverPapers && (
+        <div className="lg:hidden fixed inset-0 z-50 flex flex-col bg-white dark:bg-gray-950">
+          <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 dark:border-gray-800">
+            <button
+              onClick={() => setShowMobileDiscoverPapers(false)}
+              className="text-blue-500 hover:text-blue-600 font-medium"
+            >
+              Close
+            </button>
+            <span className="font-semibold text-gray-900 dark:text-gray-100">Discover Papers</span>
+            <div className="w-14" />
+          </div>
+          <div className="flex-1 overflow-y-auto p-4">
+            <ModerationBox onOpenProfile={(did) => { setShowMobileDiscoverPapers(false); navigateToProfile(did); }} />
           </div>
         </div>
       )}
