@@ -9,10 +9,13 @@ import {
   updateThreadgate,
   checkSafetyAlerts,
   dismissSafetyAlert,
+  getBlockedAccounts,
+  unblockUser,
   ThreadgateType,
   LabelerInfo,
   SafetyAlert,
   AlertThresholds,
+  BlockedAccount,
 } from '@/lib/bluesky';
 import { useSettings } from '@/lib/settings';
 
@@ -76,6 +79,12 @@ export default function SafetyPanel({ onOpenProfile, onOpenThread }: SafetyPanel
     bigAccountFollowers: 20000,
     viralQuote: 25,
   });
+
+  // Blocked accounts state
+  const [blockedAccounts, setBlockedAccounts] = useState<BlockedAccount[]>([]);
+  const [loadingBlocks, setLoadingBlocks] = useState(false);
+  const [blocksLoaded, setBlocksLoaded] = useState(false);
+  const [unblockingDid, setUnblockingDid] = useState<string | null>(null);
 
   // Track mount state for portal and load alerts on mount
   useEffect(() => {
@@ -584,6 +593,89 @@ export default function SafetyPanel({ onOpenProfile, onOpenThread }: SafetyPanel
                 className="w-4 h-4 rounded border-gray-300 text-blue-500 focus:ring-blue-500"
               />
             </label>
+          </div>
+
+          {/* Manage Blocks Section */}
+          <div className="p-3 border-b border-gray-100 dark:border-gray-800">
+            <div className="flex items-center justify-between mb-2">
+              <h4 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">
+                Blocked Accounts
+              </h4>
+              {!blocksLoaded && (
+                <button
+                  onClick={async () => {
+                    setLoadingBlocks(true);
+                    try {
+                      const result = await getBlockedAccounts();
+                      setBlockedAccounts(result.blocks);
+                      setBlocksLoaded(true);
+                    } catch (err) {
+                      console.error('Failed to load blocked accounts:', err);
+                    } finally {
+                      setLoadingBlocks(false);
+                    }
+                  }}
+                  disabled={loadingBlocks}
+                  className="text-xs text-blue-600 dark:text-blue-400 hover:underline disabled:opacity-50"
+                >
+                  {loadingBlocks ? 'Loading...' : 'Load'}
+                </button>
+              )}
+            </div>
+            
+            {blocksLoaded ? (
+              blockedAccounts.length === 0 ? (
+                <p className="text-xs text-gray-500 py-2">No blocked accounts</p>
+              ) : (
+                <div className="space-y-2 max-h-48 overflow-y-auto">
+                  {blockedAccounts.map((account) => (
+                    <div
+                      key={account.did}
+                      className="flex items-center gap-2 p-2 rounded-lg bg-gray-50 dark:bg-gray-800/50"
+                    >
+                      {account.avatar ? (
+                        <img
+                          src={account.avatar}
+                          alt=""
+                          className="w-8 h-8 rounded-full flex-shrink-0"
+                        />
+                      ) : (
+                        <div className="w-8 h-8 rounded-full bg-gray-300 dark:bg-gray-600 flex-shrink-0" />
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <button
+                          onClick={() => onOpenProfile?.(account.did)}
+                          className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate block text-left hover:underline"
+                        >
+                          {account.displayName || account.handle}
+                        </button>
+                        <p className="text-xs text-gray-500 truncate">@{account.handle}</p>
+                      </div>
+                      <button
+                        onClick={async () => {
+                          if (!account.blockUri) return;
+                          setUnblockingDid(account.did);
+                          try {
+                            await unblockUser(account.blockUri);
+                            setBlockedAccounts(prev => prev.filter(a => a.did !== account.did));
+                          } catch (err) {
+                            console.error('Failed to unblock:', err);
+                          } finally {
+                            setUnblockingDid(null);
+                          }
+                        }}
+                        disabled={unblockingDid === account.did}
+                        className="px-2 py-1 text-xs font-medium text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/30 hover:bg-red-100 dark:hover:bg-red-900/50 rounded transition-colors disabled:opacity-50 flex-shrink-0"
+                      >
+                        {unblockingDid === account.did ? '...' : 'Unblock'}
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )
+            ) : (
+              <p className="text-xs text-gray-500 py-2">Click &quot;Load&quot; to view blocked accounts</p>
+            )}
           </div>
 
           {/* Display Section */}

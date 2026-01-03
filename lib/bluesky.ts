@@ -1056,6 +1056,32 @@ export async function unblockUser(blockUri: string): Promise<void> {
   );
 }
 
+// Blocked account info
+export interface BlockedAccount {
+  did: string;
+  handle: string;
+  displayName?: string;
+  avatar?: string;
+  blockUri: string;
+}
+
+// Get list of accounts you have blocked
+export async function getBlockedAccounts(cursor?: string): Promise<{ blocks: BlockedAccount[]; cursor?: string }> {
+  if (!agent) throw new Error('Not logged in');
+  const response = await agent.api.app.bsky.graph.getBlocks({ limit: 50, cursor });
+  const blocks = response.data.blocks.map(block => ({
+    did: block.did,
+    handle: block.handle,
+    displayName: block.displayName,
+    avatar: block.avatar,
+    blockUri: block.viewer?.blocking || '',
+  }));
+  return {
+    blocks,
+    cursor: response.data.cursor,
+  };
+}
+
 // Full Bluesky profile data
 export interface BlueskyProfile {
   did: string;
