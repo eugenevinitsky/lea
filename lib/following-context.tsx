@@ -32,6 +32,9 @@ function loadFromCache(userDid: string): Set<string> | null {
     // Check if cache is for current user
     if (data.userDid !== userDid) return null;
 
+    // Don't use empty cache - likely an error, force refresh
+    if (!data.dids || data.dids.length === 0) return null;
+
     return new Set(data.dids);
   } catch {
     return null;
@@ -86,7 +89,10 @@ export function FollowingProvider({ children }: { children: ReactNode }) {
     try {
       const follows = await getMyFollows();
       setFollowingDids(follows);
-      saveToCache(follows, session.did);
+      // Only cache non-empty results to avoid caching errors
+      if (follows.size > 0) {
+        saveToCache(follows, session.did);
+      }
       hasLoadedFromApiRef.current = true;
     } catch (err) {
       console.error('Failed to fetch following list:', err);

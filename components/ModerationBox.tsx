@@ -158,8 +158,6 @@ export default function ModerationBox({ onOpenProfile, defaultExpanded = false, 
   const session = getSession();
   const myDid = session?.did;
 
-  console.log('[ModerationBox] followingDids:', followingDids ? `Set(${followingDids.size})` : 'null');
-
   const filteredRecentResearchers = recentResearchers.filter(r => {
     if (myDid && r.did === myDid) return false;
     if (followingDids && followingDids.has(r.did)) return false;
@@ -171,9 +169,6 @@ export default function ModerationBox({ onOpenProfile, defaultExpanded = false, 
     if (followingDids && followingDids.has(r.did)) return false;
     return true;
   });
-
-  console.log('[ModerationBox] Recent:', recentResearchers.length, '-> Filtered:', filteredRecentResearchers.length);
-  console.log('[ModerationBox] Active:', activeResearchers.length, '-> Filtered:', filteredActiveResearchers.length);
 
   return (
     <div className={`bg-white dark:bg-gray-900 overflow-hidden ${embedded ? 'flex flex-col h-full min-h-0' : 'rounded-xl border border-gray-200 dark:border-gray-800'}`}>
