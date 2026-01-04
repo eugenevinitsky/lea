@@ -62,8 +62,36 @@ function formatTime(dateString: string) {
 }
 
 export default function ModerationBox({ onOpenProfile, defaultExpanded = false, embedded = false }: ModerationBoxProps) {
-  const [isExpanded, setIsExpanded] = useState(defaultExpanded || embedded);
-  const [activeTab, setActiveTab] = useState<Tab>('papers');
+  // Persist expanded state and active tab in localStorage
+  const [isExpanded, setIsExpanded] = useState(() => {
+    if (embedded) return true;
+    if (defaultExpanded) return true;
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('moderationBox_expanded');
+      return saved === 'true';
+    }
+    return false;
+  });
+  const [activeTab, setActiveTab] = useState<Tab>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('moderationBox_activeTab');
+      if (saved === 'verified' || saved === 'active' || saved === 'papers') {
+        return saved;
+      }
+    }
+    return 'papers';
+  });
+
+  // Save state to localStorage when it changes
+  useEffect(() => {
+    if (!embedded) {
+      localStorage.setItem('moderationBox_expanded', String(isExpanded));
+    }
+  }, [isExpanded, embedded]);
+
+  useEffect(() => {
+    localStorage.setItem('moderationBox_activeTab', activeTab);
+  }, [activeTab]);
   const [recentResearchers, setRecentResearchers] = useState<RecentResearcher[]>([]);
   const [activeResearchers, setActiveResearchers] = useState<ActiveResearcher[]>([]);
   const [trendingPapers, setTrendingPapers] = useState<TrendingPaper[]>([]);
