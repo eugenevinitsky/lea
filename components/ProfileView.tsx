@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { AppBskyFeedDefs, AppBskyFeedPost, AppBskyEmbedExternal } from '@atproto/api';
 import type { ProfileLink, ProfilePaper } from '@/lib/db/schema';
 import { getAuthorFeed, getBlueskyProfile, getKnownFollowers, BlueskyProfile, KnownFollowersResult, followUser, unfollowUser, blockUser, unblockUser, getSession, searchPosts, Label } from '@/lib/bluesky';
@@ -186,6 +186,11 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
   const [repliesLoading, setRepliesLoading] = useState(false);
   const [repliesCursor, setRepliesCursor] = useState<string | undefined>();
   const [repliesLoaded, setRepliesLoaded] = useState(false);
+
+  // Infinite scroll observers
+  const postsObserverRef = useRef<IntersectionObserver | null>(null);
+  const repliesObserverRef = useRef<IntersectionObserver | null>(null);
+  const papersObserverRef = useRef<IntersectionObserver | null>(null);
   // Navigate to shareable post URL instead of opening modal
   const navigateToPost = useCallback(async (uri: string) => {
     // Parse the AT URI: at://did:plc:xxx/app.bsky.feed.post/rkey
@@ -363,8 +368,8 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
 
       setRepliesLoading(true);
       try {
-        // Fetch with posts_and_author_threads to get replies
-        const result = await getAuthorFeed(did, undefined, 'posts_and_author_threads');
+        // Fetch with posts_with_replies to get ALL replies including to others
+        const result = await getAuthorFeed(did, undefined, 'posts_with_replies');
         // Filter to only replies (posts that have a reply property)
         const replyPosts = result.feed.filter(item => {
           const post = item.post as AppBskyFeedDefs.PostView & { record?: { reply?: unknown } };
@@ -388,7 +393,7 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
 
     setRepliesLoading(true);
     try {
-      const result = await getAuthorFeed(did, repliesCursor, 'posts_and_author_threads');
+      const result = await getAuthorFeed(did, repliesCursor, 'posts_with_replies');
       const replyPosts = result.feed.filter(item => {
         const post = item.post as AppBskyFeedDefs.PostView & { record?: { reply?: unknown } };
         return post.record?.reply;
@@ -401,6 +406,61 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
       setRepliesLoading(false);
     }
   };
+
+  // Refs for infinite scroll (avoid stale closures in IntersectionObserver)
+  const postsLoadingRef = useRef(postsLoading);
+  const postsCursorRef = useRef(postsCursor);
+  const loadMorePostsRef = useRef(loadMorePosts);
+  const repliesLoadingRef = useRef(repliesLoading);
+  const repliesCursorRef = useRef(repliesCursor);
+  const loadMoreRepliesRef = useRef(loadMoreReplies);
+
+  useEffect(() => { postsLoadingRef.current = postsLoading; }, [postsLoading]);
+  useEffect(() => { postsCursorRef.current = postsCursor; }, [postsCursor]);
+  useEffect(() => { loadMorePostsRef.current = loadMorePosts; });
+  useEffect(() => { repliesLoadingRef.current = repliesLoading; }, [repliesLoading]);
+  useEffect(() => { repliesCursorRef.current = repliesCursor; }, [repliesCursor]);
+  useEffect(() => { loadMoreRepliesRef.current = loadMoreReplies; });
+
+  // Sentinel callback for posts infinite scroll
+  const postsSentinelRef = useCallback((node: HTMLDivElement | null) => {
+    if (postsObserverRef.current) {
+      postsObserverRef.current.disconnect();
+      postsObserverRef.current = null;
+    }
+    if (!node) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && !postsLoadingRef.current && postsCursorRef.current) {
+          loadMorePostsRef.current();
+        }
+      },
+      { rootMargin: '200px' }
+    );
+    observer.observe(node);
+    postsObserverRef.current = observer;
+  }, []);
+
+  // Sentinel callback for replies infinite scroll
+  const repliesSentinelRef = useCallback((node: HTMLDivElement | null) => {
+    if (repliesObserverRef.current) {
+      repliesObserverRef.current.disconnect();
+      repliesObserverRef.current = null;
+    }
+    if (!node) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && !repliesLoadingRef.current && repliesCursorRef.current) {
+          loadMoreRepliesRef.current();
+        }
+      },
+      { rootMargin: '200px' }
+    );
+    observer.observe(node);
+    repliesObserverRef.current = observer;
+  }, []);
 
   // Fetch interactions when switching to interactions tab
   useEffect(() => {
@@ -1048,17 +1108,10 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
                           <Post post={item.post} reason={item.reason} onOpenThread={navigateToPost} />
                         </div>
                       ))}
-                      {postsCursor && (
-                        <div className="p-4 text-center">
-                          <button
-                            onClick={loadMorePosts}
-                            disabled={postsLoading}
-                            className="px-4 py-2 text-sm text-blue-500 hover:text-blue-600 disabled:opacity-50"
-                          >
-                            {postsLoading ? 'Loading...' : 'Load more'}
-                          </button>
-                        </div>
-                      )}
+                      {/* Infinite scroll sentinel */}
+                      <div ref={postsSentinelRef} className="h-20 flex items-center justify-center">
+                        {postsLoading && <div className="animate-spin w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full" />}
+                      </div>
                     </>
                   )}
                 </div>
@@ -1080,17 +1133,10 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
                           <Post post={item.post} reason={item.reason} onOpenThread={navigateToPost} />
                         </div>
                       ))}
-                      {repliesCursor && (
-                        <div className="p-4 text-center">
-                          <button
-                            onClick={loadMoreReplies}
-                            disabled={repliesLoading}
-                            className="px-4 py-2 text-sm text-blue-500 hover:text-blue-600 disabled:opacity-50"
-                          >
-                            {repliesLoading ? 'Loading...' : 'Load more'}
-                          </button>
-                        </div>
-                      )}
+                      {/* Infinite scroll sentinel */}
+                      <div ref={repliesSentinelRef} className="h-20 flex items-center justify-center">
+                        {repliesLoading && <div className="animate-spin w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full" />}
+                      </div>
                     </>
                   )}
                 </div>
@@ -1115,11 +1161,10 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
                       </div>
                       <p className="text-gray-500 mb-2">No paper posts found</p>
                       <p className="text-sm text-gray-400 mb-1">Scanned {posts.length} post{posts.length !== 1 ? 's' : ''}</p>
-                      {postsCursor && (
-                        <button onClick={loadMorePosts} disabled={postsLoading} className="mt-4 px-4 py-2 text-sm bg-purple-500 text-white rounded-full hover:bg-purple-600 disabled:opacity-50">
-                          {postsLoading ? 'Scanning...' : 'Load more posts'}
-                        </button>
-                      )}
+                      {/* Infinite scroll to scan more posts */}
+                      <div ref={postsSentinelRef} className="h-20 flex items-center justify-center">
+                        {postsLoading && <div className="animate-spin w-6 h-6 border-2 border-purple-500 border-t-transparent rounded-full" />}
+                      </div>
                     </div>
                   ) : (
                     <>
@@ -1133,13 +1178,10 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
                           <Post post={item.post} reason={item.reason} onOpenThread={navigateToPost} />
                         </div>
                       ))}
-                      {postsCursor && (
-                        <div className="p-4 text-center">
-                          <button onClick={loadMorePosts} disabled={postsLoading} className="px-4 py-2 text-sm text-purple-500 hover:text-purple-600 disabled:opacity-50">
-                            {postsLoading ? 'Scanning...' : 'Load more'}
-                          </button>
-                        </div>
-                      )}
+                      {/* Infinite scroll sentinel */}
+                      <div ref={postsSentinelRef} className="h-20 flex items-center justify-center">
+                        {postsLoading && <div className="animate-spin w-6 h-6 border-2 border-purple-500 border-t-transparent rounded-full" />}
+                      </div>
                     </>
                   )}
                 </div>
@@ -1468,11 +1510,9 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
                       {posts.filter(item => item.post.uri !== pinnedPost?.uri).map((item) => (
                         <div key={item.post.uri} className="border-b border-gray-200 dark:border-gray-800 last:border-b-0"><Post post={item.post} reason={item.reason} onOpenThread={navigateToPost} /></div>
                       ))}
-                      {postsCursor && (
-                        <div className="p-4 text-center">
-                          <button onClick={loadMorePosts} disabled={postsLoading} className="px-4 py-2 text-sm text-blue-500 hover:text-blue-600 disabled:opacity-50">{postsLoading ? 'Loading...' : 'Load more'}</button>
-                        </div>
-                      )}
+                      <div ref={postsSentinelRef} className="h-20 flex items-center justify-center">
+                        {postsLoading && <div className="animate-spin w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full" />}
+                      </div>
                     </>
                   )}
                 </>
@@ -1492,11 +1532,9 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
                   {replies.map((item) => (
                     <div key={item.post.uri} className="border-b border-gray-200 dark:border-gray-800 last:border-b-0"><Post post={item.post} reason={item.reason} onOpenThread={navigateToPost} /></div>
                   ))}
-                  {repliesCursor && (
-                    <div className="p-4 text-center">
-                      <button onClick={loadMoreReplies} disabled={repliesLoading} className="px-4 py-2 text-sm text-blue-500 hover:text-blue-600 disabled:opacity-50">{repliesLoading ? 'Loading...' : 'Load more'}</button>
-                    </div>
-                  )}
+                  <div ref={repliesSentinelRef} className="h-20 flex items-center justify-center">
+                    {repliesLoading && <div className="animate-spin w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full" />}
+                  </div>
                 </>
               )}
             </div>
@@ -1522,11 +1560,10 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
                   <p className="text-gray-500 mb-2">No paper posts found</p>
                   <p className="text-sm text-gray-400 mb-1">Scanned {posts.length} post{posts.length !== 1 ? 's' : ''}</p>
                   <p className="text-xs text-gray-400">Posts with links to arXiv, DOI, bioRxiv, etc. will appear here</p>
-                  {postsCursor && (
-                    <button onClick={loadMorePosts} disabled={postsLoading} className="mt-4 px-4 py-2 text-sm bg-purple-500 text-white rounded-full hover:bg-purple-600 disabled:opacity-50">
-                      {postsLoading ? 'Scanning...' : 'Load more posts'}
-                    </button>
-                  )}
+                  {/* Infinite scroll to scan more posts */}
+                  <div ref={postsSentinelRef} className="h-20 flex items-center justify-center">
+                    {postsLoading && <div className="animate-spin w-6 h-6 border-2 border-purple-500 border-t-transparent rounded-full" />}
+                  </div>
                 </div>
               ) : (
                 <>
@@ -1538,11 +1575,10 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
                   {paperPosts.map((item) => (
                     <div key={item.post.uri} className="border-b border-gray-200 dark:border-gray-800 last:border-b-0"><Post post={item.post} reason={item.reason} onOpenThread={navigateToPost} /></div>
                   ))}
-                  {postsCursor && (
-                    <div className="p-4 text-center">
-                      <button onClick={loadMorePosts} disabled={postsLoading} className="px-4 py-2 text-sm text-purple-500 hover:text-purple-600 disabled:opacity-50">{postsLoading ? 'Scanning...' : 'Load more'}</button>
-                    </div>
-                  )}
+                  {/* Infinite scroll sentinel */}
+                  <div ref={postsSentinelRef} className="h-20 flex items-center justify-center">
+                    {postsLoading && <div className="animate-spin w-6 h-6 border-2 border-purple-500 border-t-transparent rounded-full" />}
+                  </div>
                 </>
               )}
             </div>
@@ -1688,17 +1724,9 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
                           <Post post={item.post} reason={item.reason} onOpenThread={navigateToPost} />
                         </div>
                       ))}
-                      {postsCursor && (
-                        <div className="p-4 text-center">
-                          <button
-                            onClick={loadMorePosts}
-                            disabled={postsLoading}
-                            className="px-4 py-2 text-sm text-blue-500 hover:text-blue-600 disabled:opacity-50"
-                          >
-                            {postsLoading ? 'Loading...' : 'Load more'}
-                          </button>
-                        </div>
-                      )}
+                      <div ref={postsSentinelRef} className="h-20 flex items-center justify-center">
+                        {postsLoading && <div className="animate-spin w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full" />}
+                      </div>
                     </>
                   )}
                 </div>
@@ -1720,17 +1748,9 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
                           <Post post={item.post} reason={item.reason} onOpenThread={navigateToPost} />
                         </div>
                       ))}
-                      {repliesCursor && (
-                        <div className="p-4 text-center">
-                          <button
-                            onClick={loadMoreReplies}
-                            disabled={repliesLoading}
-                            className="px-4 py-2 text-sm text-blue-500 hover:text-blue-600 disabled:opacity-50"
-                          >
-                            {repliesLoading ? 'Loading...' : 'Load more'}
-                          </button>
-                        </div>
-                      )}
+                      <div ref={repliesSentinelRef} className="h-20 flex items-center justify-center">
+                        {repliesLoading && <div className="animate-spin w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full" />}
+                      </div>
                     </>
                   )}
                 </div>
@@ -1755,11 +1775,10 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
                       </div>
                       <p className="text-gray-500 mb-2">No paper posts found</p>
                       <p className="text-sm text-gray-400 mb-1">Scanned {posts.length} post{posts.length !== 1 ? 's' : ''}</p>
-                      {postsCursor && (
-                        <button onClick={loadMorePosts} disabled={postsLoading} className="mt-4 px-4 py-2 text-sm bg-purple-500 text-white rounded-full hover:bg-purple-600 disabled:opacity-50">
-                          {postsLoading ? 'Scanning...' : 'Load more posts'}
-                        </button>
-                      )}
+                      {/* Infinite scroll to scan more posts */}
+                      <div ref={postsSentinelRef} className="h-20 flex items-center justify-center">
+                        {postsLoading && <div className="animate-spin w-6 h-6 border-2 border-purple-500 border-t-transparent rounded-full" />}
+                      </div>
                     </div>
                   ) : (
                     <>
@@ -1773,13 +1792,10 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
                           <Post post={item.post} reason={item.reason} onOpenThread={navigateToPost} />
                         </div>
                       ))}
-                      {postsCursor && (
-                        <div className="p-4 text-center">
-                          <button onClick={loadMorePosts} disabled={postsLoading} className="px-4 py-2 text-sm text-purple-500 hover:text-purple-600 disabled:opacity-50">
-                            {postsLoading ? 'Scanning...' : 'Load more'}
-                          </button>
-                        </div>
-                      )}
+                      {/* Infinite scroll sentinel */}
+                      <div ref={postsSentinelRef} className="h-20 flex items-center justify-center">
+                        {postsLoading && <div className="animate-spin w-6 h-6 border-2 border-purple-500 border-t-transparent rounded-full" />}
+                      </div>
                     </>
                   )}
                 </div>
@@ -2100,18 +2116,10 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
                           </div>
                         ))}
 
-                      {/* Load more button */}
-                      {postsCursor && (
-                        <div className="p-4 text-center">
-                          <button
-                            onClick={loadMorePosts}
-                            disabled={postsLoading}
-                            className="px-4 py-2 text-sm text-blue-500 hover:text-blue-600 disabled:opacity-50"
-                          >
-                            {postsLoading ? 'Loading...' : 'Load more'}
-                          </button>
-                        </div>
-                      )}
+                      {/* Infinite scroll sentinel */}
+                      <div ref={postsSentinelRef} className="h-20 flex items-center justify-center">
+                        {postsLoading && <div className="animate-spin w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full" />}
+                      </div>
                     </>
                   )}
                 </>
@@ -2135,17 +2143,10 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
                       <Post post={item.post} reason={item.reason} onOpenThread={navigateToPost} />
                     </div>
                   ))}
-                  {repliesCursor && (
-                    <div className="p-4 text-center">
-                      <button
-                        onClick={loadMoreReplies}
-                        disabled={repliesLoading}
-                        className="px-4 py-2 text-sm text-blue-500 hover:text-blue-600 disabled:opacity-50"
-                      >
-                        {repliesLoading ? 'Loading...' : 'Load more'}
-                      </button>
-                    </div>
-                  )}
+                  {/* Infinite scroll sentinel */}
+                  <div ref={repliesSentinelRef} className="h-20 flex items-center justify-center">
+                    {repliesLoading && <div className="animate-spin w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full" />}
+                  </div>
                 </>
               )}
             </div>

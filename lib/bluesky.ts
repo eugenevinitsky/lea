@@ -1402,7 +1402,7 @@ export async function searchActors(query: string, limit: number = 10): Promise<A
 export async function getAuthorFeed(
   actor: string,
   cursor?: string,
-  filter: 'posts_and_author_threads' | 'posts_no_replies' | 'posts_with_media' = 'posts_no_replies'
+  filter: 'posts_and_author_threads' | 'posts_no_replies' | 'posts_with_media' | 'posts_with_replies' = 'posts_no_replies'
 ): Promise<{ feed: AppBskyFeedDefs.FeedViewPost[]; cursor?: string; pinnedPost?: AppBskyFeedDefs.PostView }> {
   if (!agent) throw new Error('Not logged in');
   
