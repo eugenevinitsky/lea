@@ -509,12 +509,10 @@ export default function ModerationBox({ onOpenProfile, defaultExpanded = false, 
                 <div className={`overflow-y-auto divide-y divide-gray-100 dark:divide-gray-800 ${embedded ? 'flex-1' : 'max-h-[280px]'}`}>
                   {trendingSubstackPosts.map((post) => {
                     return (
-                      <a
+                      <div
                         key={post.id}
-                        href={post.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="block p-2.5 hover:bg-gray-50 dark:hover:bg-gray-800/50"
+                        className="block p-2.5 hover:bg-gray-50 dark:hover:bg-gray-800/50 cursor-pointer"
+                        onClick={() => window.location.href = `/blog/${encodeURIComponent(post.normalizedId)}`}
                       >
                         <div className="flex items-start gap-2">
                           <div className="flex-shrink-0 w-8 h-8 rounded-lg bg-orange-100 dark:bg-orange-900/30 flex items-center justify-center overflow-hidden">
@@ -544,11 +542,20 @@ export default function ModerationBox({ onOpenProfile, defaultExpanded = false, 
                               </p>
                             )}
                           </div>
-                          <svg className="w-4 h-4 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                          </svg>
+                          <a
+                            href={post.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            onClick={(e) => e.stopPropagation()}
+                            className="p-1 hover:bg-orange-100 dark:hover:bg-orange-900/30 rounded"
+                            title="View on Substack"
+                          >
+                            <svg className="w-4 h-4 text-gray-400 hover:text-orange-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                            </svg>
+                          </a>
                         </div>
-                      </a>
+                      </div>
                     );
                   })}
                 </div>
