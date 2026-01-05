@@ -459,8 +459,6 @@ function QuotePost({
   isVerified,
   formatDate,
   onOpenThread,
-  parentPostUri,
-  currentUserDid,
 }: {
   author: AppBskyEmbedRecord.ViewRecord['author'];
   postRecord: AppBskyFeedPost.Record;
@@ -468,40 +466,7 @@ function QuotePost({
   isVerified: boolean;
   formatDate: (dateString: string) => string;
   onOpenThread?: (uri: string) => void;
-  parentPostUri?: string; // URI of the post containing this quote
-  currentUserDid?: string; // Current logged-in user's DID
 }) {
-  const [isDetaching, setIsDetaching] = useState(false);
-  const [isDetached, setIsDetached] = useState(false);
-  const [showConfirm, setShowConfirm] = useState(false);
-
-  // Check if current user is the author of the quoted post (their post is being quoted)
-  // If so, they can detach their post from this quote
-  const canDetach = currentUserDid && author.did === currentUserDid && parentPostUri;
-
-  const handleDetach = async () => {
-    if (!parentPostUri || !viewRecord.uri) return;
-    setIsDetaching(true);
-    try {
-      await detachQuote(parentPostUri, viewRecord.uri);
-      setIsDetached(true);
-      setShowConfirm(false);
-    } catch (error) {
-      console.error('Failed to detach quote:', error);
-    } finally {
-      setIsDetaching(false);
-    }
-  };
-
-  // Show detached state
-  if (isDetached) {
-    return (
-      <div className="mt-2 p-3 border border-gray-200 dark:border-gray-700 rounded-xl bg-gray-50 dark:bg-gray-800/50">
-        <p className="text-sm text-gray-500">Quote detached</p>
-      </div>
-    );
-  }
-
   return (
     <div
       className={`mt-2 border border-gray-200 dark:border-gray-700 rounded-xl p-3 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors ${onOpenThread ? 'cursor-pointer' : ''}`}
@@ -512,37 +477,6 @@ function QuotePost({
         }
       }}
     >
-      {/* Detach Quote button */}
-      {canDetach && (
-        <div className="mb-2 -mt-1">
-          {showConfirm ? (
-            <div className="flex items-center gap-2 p-2 bg-rose-50 dark:bg-rose-900/20 rounded-lg" onClick={(e) => e.stopPropagation()}>
-              <span className="text-xs text-rose-700 dark:text-rose-300">Detach your post from this quote?</span>
-              <button
-                onClick={handleDetach}
-                disabled={isDetaching}
-                className="px-2 py-0.5 text-xs font-medium text-white bg-rose-500 hover:bg-rose-600 rounded transition-colors disabled:opacity-50"
-              >
-                {isDetaching ? 'Detaching...' : 'Yes, detach'}
-              </button>
-              <button
-                onClick={() => setShowConfirm(false)}
-                className="px-2 py-0.5 text-xs font-medium text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200"
-              >
-                Cancel
-              </button>
-            </div>
-          ) : (
-            <button
-              onClick={(e) => { e.stopPropagation(); setShowConfirm(true); }}
-              className="text-xs text-rose-500 hover:text-rose-600 dark:text-rose-400 dark:hover:text-rose-300 font-medium"
-            >
-              Detach Quote?
-            </button>
-          )}
-        </div>
-      )}
-
       {/* Quoted post header */}
       <div className="flex items-center gap-2">
         {author.avatar ? (
@@ -698,11 +632,9 @@ function QuotePost({
 }
 
 // Render embedded/quoted post
-function EmbedRecord({ record, onOpenThread, parentPostUri, currentUserDid }: { 
+function EmbedRecord({ record, onOpenThread }: { 
   record: AppBskyEmbedRecord.View['record']; 
   onOpenThread?: (uri: string) => void;
-  parentPostUri?: string; // URI of the post containing this quote
-  currentUserDid?: string; // Current logged-in user's DID
 }) {
   // Handle different record types
   if (!record || record.$type === 'app.bsky.embed.record#viewNotFound') {
@@ -759,8 +691,6 @@ function EmbedRecord({ record, onOpenThread, parentPostUri, currentUserDid }: {
       isVerified={isVerified}
       formatDate={formatDate}
       onOpenThread={onOpenThread}
-      parentPostUri={parentPostUri}
-      currentUserDid={currentUserDid}
     />;
   }
 
@@ -973,11 +903,9 @@ function EmbedVideo({ video }: { video: AppBskyEmbedVideo.View }) {
 }
 
 // Main embed renderer
-function PostEmbed({ embed, onOpenThread, parentPostUri, currentUserDid }: { 
+function PostEmbed({ embed, onOpenThread }: { 
   embed: AppBskyFeedDefs.PostView['embed']; 
   onOpenThread?: (uri: string) => void;
-  parentPostUri?: string;
-  currentUserDid?: string;
 }) {
   if (!embed) return null;
 
@@ -1018,7 +946,7 @@ function PostEmbed({ embed, onOpenThread, parentPostUri, currentUserDid }: {
           <EmbedVideo video={media as AppBskyEmbedVideo.View} />
         )}
         {/* Render the quoted record */}
-        {recordWithMedia.record && <EmbedRecord record={recordWithMedia.record.record} onOpenThread={onOpenThread} parentPostUri={parentPostUri} currentUserDid={currentUserDid} />}
+        {recordWithMedia.record && <EmbedRecord record={recordWithMedia.record.record} onOpenThread={onOpenThread} />}
       </>
     );
   }
@@ -1026,7 +954,7 @@ function PostEmbed({ embed, onOpenThread, parentPostUri, currentUserDid }: {
   // Quoted post (pure record embed, no media)
   if ('record' in embed && (embed as AppBskyEmbedRecord.View).record) {
     const recordEmbed = embed as AppBskyEmbedRecord.View;
-    return <EmbedRecord record={recordEmbed.record} onOpenThread={onOpenThread} parentPostUri={parentPostUri} currentUserDid={currentUserDid} />;
+    return <EmbedRecord record={recordEmbed.record} onOpenThread={onOpenThread} />;
   }
 
   return null;
@@ -1106,6 +1034,11 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
   const [showRepostMenu, setShowRepostMenu] = useState(false);
   const repostMenuRef = useRef<HTMLDivElement>(null);
 
+  // Detach quote state
+  const [isDetaching, setIsDetaching] = useState(false);
+  const [isDetached, setIsDetached] = useState(false);
+  const [showDetachConfirm, setShowDetachConfirm] = useState(false);
+
   const handleThreadgateUpdate = async (newType: ThreadgateType) => {
     if (updatingThreadgate || newType === currentThreadgate) return;
     
@@ -1145,6 +1078,51 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
   // Check if this is the current user's post
   const session = getSession();
   const isOwnPost = session?.did === author.did;
+  
+  // Check if this post quotes the current user's content (for detach feature)
+  // We need to check if the embed contains a quote of one of our posts
+  const getQuotedPostInfo = (): { quotedPostUri: string; quotedPostAuthorDid: string } | null => {
+    if (!post.embed || !session?.did) return null;
+    
+    // Check for record embed (quote post)
+    if ('record' in post.embed) {
+      const recordEmbed = post.embed as AppBskyEmbedRecord.View;
+      const embeddedRecord = recordEmbed.record;
+      if (embeddedRecord && embeddedRecord.$type === 'app.bsky.embed.record#viewRecord') {
+        const viewRecord = embeddedRecord as AppBskyEmbedRecord.ViewRecord;
+        return { quotedPostUri: viewRecord.uri, quotedPostAuthorDid: viewRecord.author.did };
+      }
+    }
+    
+    // Check for recordWithMedia embed (quote + images)
+    if ('media' in post.embed && 'record' in post.embed) {
+      const rwm = post.embed as AppBskyEmbedRecordWithMedia.View;
+      const embeddedRecord = rwm.record?.record;
+      if (embeddedRecord && embeddedRecord.$type === 'app.bsky.embed.record#viewRecord') {
+        const viewRecord = embeddedRecord as AppBskyEmbedRecord.ViewRecord;
+        return { quotedPostUri: viewRecord.uri, quotedPostAuthorDid: viewRecord.author.did };
+      }
+    }
+    
+    return null;
+  };
+  
+  const quotedPostInfo = getQuotedPostInfo();
+  const canDetachQuote = quotedPostInfo && quotedPostInfo.quotedPostAuthorDid === session?.did && !isDetached;
+  
+  const handleDetachQuote = async () => {
+    if (!quotedPostInfo || isDetaching) return;
+    setIsDetaching(true);
+    try {
+      await detachQuote(post.uri, quotedPostInfo.quotedPostUri);
+      setIsDetached(true);
+      setShowDetachConfirm(false);
+    } catch (error) {
+      console.error('Failed to detach quote:', error);
+    } finally {
+      setIsDetaching(false);
+    }
+  };
   
   // Check if this post is from Paper Skygest feed - if so, it's definitely a paper post
   const isFromPaperFeed = feedUri === FEEDS.skygest.uri;
@@ -1669,7 +1647,38 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
         </ProfileHoverCard>
 
         {/* Content */}
-        <div className="flex-1 min-w-0">
+        <div className="flex-1 min-w-0 relative">
+          {/* Detach Quote button - shown if this post quotes one of our posts */}
+          {canDetachQuote && (
+            <div className="absolute top-0 right-0">
+              {showDetachConfirm ? (
+                <div className="flex items-center gap-2 p-2 bg-amber-50 dark:bg-amber-900/20 rounded-lg" onClick={(e) => e.stopPropagation()}>
+                  <span className="text-xs text-amber-700 dark:text-amber-300">Detach your post?</span>
+                  <button
+                    onClick={handleDetachQuote}
+                    disabled={isDetaching}
+                    className="px-2 py-0.5 text-xs font-medium text-white bg-amber-500 hover:bg-amber-600 rounded transition-colors disabled:opacity-50"
+                  >
+                    {isDetaching ? '...' : 'Yes'}
+                  </button>
+                  <button
+                    onClick={() => setShowDetachConfirm(false)}
+                    className="px-2 py-0.5 text-xs font-medium text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200"
+                  >
+                    No
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={(e) => { e.stopPropagation(); setShowDetachConfirm(true); }}
+                  className="text-xs text-amber-500 hover:text-amber-600 dark:text-amber-400 dark:hover:text-amber-300 font-medium"
+                >
+                  Detach Quote?
+                </button>
+              )}
+            </div>
+          )}
+
           {/* Header */}
           <div className="flex items-center gap-1 text-base lg:text-sm flex-wrap">
             <ProfileHoverCard
@@ -1738,7 +1747,7 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
           </p>
 
           {/* Embedded content (images, links, etc.) */}
-          <PostEmbed embed={post.embed} onOpenThread={onOpenThread} parentPostUri={post.uri} currentUserDid={getSession()?.did} />
+          <PostEmbed embed={post.embed} onOpenThread={onOpenThread} />
 
           {/* Engagement actions */}
           <div className="flex gap-6 lg:gap-4 mt-3 text-base lg:text-sm text-gray-500">

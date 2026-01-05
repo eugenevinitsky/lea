@@ -291,7 +291,7 @@ function SafetyHelpContent() {
                     If someone has already quoted your post in a harassing way, you can &quot;detach&quot; your post from their quote. This removes your content from their post—they&apos;ll still have their quote, but your original content will show as &quot;removed.&quot;
                   </p>
                   <p className="text-xs text-gray-500 dark:text-gray-500">
-                    <strong>How to:</strong> When viewing a post that quotes your content, you&apos;ll see a &quot;Detach Quote?&quot; link above the quoted post. Click it to remove your content from that quote.
+                    <strong>How to:</strong> When viewing a post that quotes your content, you&apos;ll see a &quot;Detach Quote?&quot; link in the upper right corner of that post. Click it to remove your content from their quote.
                   </p>
                 </div>
               </div>
