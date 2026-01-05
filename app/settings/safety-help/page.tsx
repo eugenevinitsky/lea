@@ -196,7 +196,7 @@ function SafetyHelpContent() {
                     Block the account
                   </h4>
                   <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
-                    Blocking prevents someone from seeing your posts and interacting with you. On any profile, click the menu (•••) and select &quot;Block Account&quot;.
+                    Blocking prevents someone from seeing your posts and interacting with you. On any profile, click the menu (•••) and select &quot;Block Account&quot;. When you block someone on Lea/Bluesky, your block is <i>total</i>: no one will be able to see any of your interactions any more (for example, any replies they left on your posts will disappear), and neither of you will be able to interact in the future.
                   </p>
                   <p className="text-xs text-gray-500 dark:text-gray-500">
                     <strong>Tip:</strong> You can manage all your blocks from the Moderation panel → Blocked Accounts.
