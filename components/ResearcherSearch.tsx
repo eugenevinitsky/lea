@@ -243,7 +243,7 @@ export default function ResearcherSearch({ onSelectResearcher, onOpenThread, onS
           onChange={(e) => setQuery(e.target.value)}
           onFocus={() => query.trim() && searchResults.length > 0 && setIsOpen(true)}
           onKeyDown={handleKeyDown}
-          placeholder="Search users and posts..."
+          placeholder="Search"
           className="w-48 pl-9 pr-3 py-1.5 text-sm bg-gray-100 dark:bg-gray-800 border border-transparent focus:border-blue-500 focus:bg-white dark:focus:bg-gray-900 rounded-full outline-none transition-all focus:w-64 text-gray-900 dark:text-gray-100 placeholder-gray-500"
         />
         {(loading || searching) && (
