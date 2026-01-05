@@ -609,25 +609,29 @@ function QuotePost({
     >
       {/* Quoted post header */}
       <div className="flex items-center gap-2">
-        {author.avatar ? (
-          <img
-            src={author.avatar}
-            alt={author.displayName || author.handle}
-            className="w-5 h-5 rounded-full"
-          />
-        ) : (
-          <div className="w-5 h-5 rounded-full bg-blue-500 flex items-center justify-center text-white text-xs font-bold">
-            {(author.displayName || author.handle)[0].toUpperCase()}
-          </div>
-        )}
+        <div className="relative flex-shrink-0">
+          {author.avatar ? (
+            <img
+              src={author.avatar}
+              alt={author.displayName || author.handle}
+              className="w-5 h-5 rounded-full"
+            />
+          ) : (
+            <div className="w-5 h-5 rounded-full bg-blue-500 flex items-center justify-center text-white text-xs font-bold">
+              {(author.displayName || author.handle)[0].toUpperCase()}
+            </div>
+          )}
+          {isVerified && (
+            <span className="absolute -bottom-0.5 -right-0.5 inline-flex items-center justify-center w-3 h-3 bg-emerald-500 rounded-full">
+              <svg className="w-2 h-2 text-white" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+              </svg>
+            </span>
+          )}
+        </div>
         <span className="font-medium text-sm text-gray-900 dark:text-gray-100 truncate">
           {author.displayName || author.handle}
         </span>
-        {isVerified && (
-          <span className="text-emerald-500 text-xs font-medium px-1 py-0.5 bg-emerald-50 dark:bg-emerald-900/30 rounded">
-            Researcher
-          </span>
-        )}
         <span className="text-gray-500 text-sm truncate">@{author.handle}</span>
         <span className="text-gray-400 text-sm">·</span>
         <span className="text-gray-400 text-sm">{formatDate(postRecord.createdAt)}</span>
@@ -1773,6 +1777,11 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
                 {(author.displayName || author.handle)[0].toUpperCase()}
               </div>
             )}
+            {isVerified && (
+              <span className="absolute -bottom-0.5 -right-0.5">
+                <VerifiedBadge />
+              </span>
+            )}
           </button>
         </ProfileHoverCard>
 
@@ -1840,33 +1849,9 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
                 {author.displayName || author.handle}
               </button>
             </ProfileHoverCard>
-            {isVerified && (
-              <span className="text-emerald-500 text-xs font-medium px-1.5 py-0.5 bg-emerald-50 dark:bg-emerald-900/30 rounded">
-                Researcher
-              </span>
-            )}
             <span className="text-gray-500 truncate">@{author.handle}</span>
             <span className="text-gray-500">·</span>
             <span className="text-gray-500">{formatDate(record.createdAt)}</span>
-            {/* Paper indicator and discussion link */}
-            {hasPaper && settings.showPaperHighlights && (
-              <>
-                <PaperIndicator domain={domain} />
-                {paperId && (
-                  <a
-                    href={`/paper/${encodeURIComponent(paperId)}${paperUrl ? `?url=${encodeURIComponent(paperUrl)}` : ''}`}
-                    onClick={(e) => e.stopPropagation()}
-                    className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 rounded-full hover:bg-purple-200 dark:hover:bg-purple-800/40 transition-colors relative z-10"
-                    title="View paper discussion"
-                  >
-                    Discussion
-                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                    </svg>
-                  </a>
-                )}
-              </>
-            )}
           </div>
           {/* Labels from moderation services - shown below author info */}
           <ProfileLabels profile={author as unknown as BlueskyProfile} compact />
