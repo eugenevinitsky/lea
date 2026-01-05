@@ -110,6 +110,8 @@ export function FeedsProvider({ children }: { children: ReactNode }) {
   const [userDid, setUserDid] = useState<string | null>(null);
   const isSyncing = useRef(false);
   const pendingSync = useRef(false);
+  const hasFetchedFromServer = useRef(false); // Track if we've fetched for current user
+  const userModifiedFeeds = useRef(false); // Track if user explicitly changed feeds
 
   // Migrate feeds helper
   const migrateFeeds = useCallback((feeds: PinnedFeed[]): PinnedFeed[] => {
@@ -156,6 +158,10 @@ export function FeedsProvider({ children }: { children: ReactNode }) {
   // Load feeds from server or localStorage
   useEffect(() => {
     async function loadFeeds() {
+      // Reset fetch flag when userDid changes
+      hasFetchedFromServer.current = false;
+      userModifiedFeeds.current = false;
+
       // First, load from localStorage as fallback
       const stored = localStorage.getItem(FEEDS_STORAGE_KEY);
       let localFeeds: PinnedFeed[] = DEFAULT_FEEDS;
@@ -177,6 +183,7 @@ export function FeedsProvider({ children }: { children: ReactNode }) {
           const res = await fetch(`/api/feeds?did=${encodeURIComponent(userDid)}`);
           if (res.ok) {
             const data = await res.json();
+            hasFetchedFromServer.current = true; // Mark that we've fetched
             if (data.feeds && data.feeds.length > 0) {
               // Server has feeds, use them
               setPinnedFeeds(data.feeds);
@@ -191,6 +198,7 @@ export function FeedsProvider({ children }: { children: ReactNode }) {
 
         // No server feeds - if local has feeds, sync them to server
         if (localFeeds.length > 0 && !localStorage.getItem(FEEDS_SYNCED_KEY)) {
+          hasFetchedFromServer.current = true; // We've checked server, it's empty
           syncToServer(localFeeds, userDid);
         }
       }
@@ -206,13 +214,16 @@ export function FeedsProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (isLoaded) {
       localStorage.setItem(FEEDS_STORAGE_KEY, JSON.stringify(pinnedFeeds));
-      if (userDid) {
+      // Only sync to server if user explicitly modified feeds AND we've already fetched from server
+      // This prevents overwriting server data on initial load
+      if (userDid && userModifiedFeeds.current && hasFetchedFromServer.current) {
         syncToServer(pinnedFeeds, userDid);
       }
     }
   }, [pinnedFeeds, isLoaded, userDid, syncToServer]);
 
   const addFeed = (feed: PinnedFeed) => {
+    userModifiedFeeds.current = true;
     setPinnedFeeds(prev => {
       if (prev.some(f => f.uri === feed.uri)) return prev;
       return [...prev, feed];
@@ -220,10 +231,12 @@ export function FeedsProvider({ children }: { children: ReactNode }) {
   };
 
   const removeFeed = (uri: string) => {
+    userModifiedFeeds.current = true;
     setPinnedFeeds(prev => prev.filter(f => f.uri !== uri));
   };
 
   const moveFeed = (uri: string, direction: 'up' | 'down') => {
+    userModifiedFeeds.current = true;
     setPinnedFeeds(prev => {
       const index = prev.findIndex(f => f.uri === uri);
       if (index === -1) return prev;
@@ -238,6 +251,7 @@ export function FeedsProvider({ children }: { children: ReactNode }) {
   };
 
   const reorderFeeds = (fromIndex: number, toIndex: number) => {
+    userModifiedFeeds.current = true;
     setPinnedFeeds(prev => {
       if (fromIndex === toIndex) return prev;
       if (fromIndex < 0 || fromIndex >= prev.length) return prev;
