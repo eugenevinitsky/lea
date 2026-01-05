@@ -3,10 +3,11 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { AppBskyFeedDefs, AppBskyFeedPost, AppBskyEmbedExternal } from '@atproto/api';
 import type { ProfileLink, ProfilePaper } from '@/lib/db/schema';
-import { getAuthorFeed, getBlueskyProfile, getKnownFollowers, BlueskyProfile, KnownFollowersResult, followUser, unfollowUser, blockUser, unblockUser, getSession, searchPosts, Label } from '@/lib/bluesky';
+import { getAuthorFeed, getBlueskyProfile, getKnownFollowers, BlueskyProfile, KnownFollowersResult, followUser, unfollowUser, blockUser, unblockUser, getSession, searchPosts, Label, getSelfThread, hasReplies, isReplyPost, SelfThreadResult } from '@/lib/bluesky';
 import { detectPaperLink, getPaperIdFromUrl } from '@/lib/papers';
 import { useFollowing } from '@/lib/following-context';
 import Post from './Post';
+import SelfThread from './SelfThread';
 import ProfileLabels from './ProfileLabels';
 
 // Helper to convert URLs in text to clickable links
@@ -181,6 +182,11 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
   const [postsCursor, setPostsCursor] = useState<string | undefined>();
   const [postsError, setPostsError] = useState<string | null>(null);
 
+  // Self-thread expansion state
+  const [expandedThreads, setExpandedThreads] = useState<Map<string, SelfThreadResult>>(new Map());
+  const loadingThreadsRef = useRef<Set<string>>(new Set());
+  const checkedUrisRef = useRef<Set<string>>(new Set());
+
   // Replies state
   const [replies, setReplies] = useState<AppBskyFeedDefs.FeedViewPost[]>([]);
   const [repliesLoading, setRepliesLoading] = useState(false);
@@ -209,6 +215,41 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
       window.location.href = `/post/${postDid}/${rkey}`;
     }
   }, []);
+
+  // Function to expand a self-thread
+  const expandSelfThread = useCallback(async (postUri: string, authorDid: string) => {
+    if (loadingThreadsRef.current.has(postUri) || checkedUrisRef.current.has(postUri)) return;
+
+    loadingThreadsRef.current.add(postUri);
+    checkedUrisRef.current.add(postUri);
+
+    try {
+      const result = await getSelfThread(postUri, authorDid);
+      if (result && result.posts.length > 1) {
+        setExpandedThreads(prev => new Map(prev).set(postUri, result));
+      }
+    } finally {
+      loadingThreadsRef.current.delete(postUri);
+    }
+  }, []);
+
+  // Auto-expand self-threads in posts tab
+  useEffect(() => {
+    if (activeTab !== 'posts') return;
+
+    for (const item of posts) {
+      // Skip posts we've already checked
+      if (checkedUrisRef.current.has(item.post.uri)) continue;
+
+      // Skip posts that are replies (we only expand from root posts)
+      if (isReplyPost(item)) continue;
+
+      // Check if post has replies (potential for self-thread)
+      if (hasReplies(item)) {
+        expandSelfThread(item.post.uri, item.post.author.did);
+      }
+    }
+  }, [posts, activeTab, expandSelfThread]);
 
   // Interactions state
   const [interactions, setInteractions] = useState<{
@@ -1507,9 +1548,28 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
                     <div className="text-center py-8 text-gray-500">No posts yet</div>
                   ) : (
                     <>
-                      {posts.filter(item => item.post.uri !== pinnedPost?.uri).map((item) => (
-                        <div key={item.post.uri} className="border-b border-gray-200 dark:border-gray-800 last:border-b-0"><Post post={item.post} reason={item.reason} onOpenThread={navigateToPost} /></div>
-                      ))}
+                      {posts.filter(item => item.post.uri !== pinnedPost?.uri).map((item) => {
+                        const postUri = item.post.uri;
+                        const expandedThread = expandedThreads.get(postUri);
+
+                        // If this post has an expanded self-thread, render it
+                        if (expandedThread) {
+                          return (
+                            <SelfThread
+                              key={`thread-${postUri}`}
+                              posts={expandedThread.posts}
+                              onOpenThread={navigateToPost}
+                            />
+                          );
+                        }
+
+                        // Regular post
+                        return (
+                          <div key={postUri} className="border-b border-gray-200 dark:border-gray-800 last:border-b-0">
+                            <Post post={item.post} reason={item.reason} onOpenThread={navigateToPost} />
+                          </div>
+                        );
+                      })}
                       <div ref={postsSentinelRef} className="h-20 flex items-center justify-center">
                         {postsLoading && <div className="animate-spin w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full" />}
                       </div>
@@ -2110,11 +2170,28 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
                     <>
                       {posts
                         .filter(item => item.post.uri !== pinnedPost?.uri) // Exclude pinned from list
-                        .map((item) => (
-                          <div key={item.post.uri} className="border-b border-gray-200 dark:border-gray-800 last:border-b-0">
-                            <Post post={item.post} reason={item.reason} onOpenThread={navigateToPost} />
-                          </div>
-                        ))}
+                        .map((item) => {
+                          const postUri = item.post.uri;
+                          const expandedThread = expandedThreads.get(postUri);
+
+                          // If this post has an expanded self-thread, render it
+                          if (expandedThread) {
+                            return (
+                              <SelfThread
+                                key={`thread-${postUri}`}
+                                posts={expandedThread.posts}
+                                onOpenThread={navigateToPost}
+                              />
+                            );
+                          }
+
+                          // Regular post
+                          return (
+                            <div key={postUri} className="border-b border-gray-200 dark:border-gray-800 last:border-b-0">
+                              <Post post={item.post} reason={item.reason} onOpenThread={navigateToPost} />
+                            </div>
+                          );
+                        })}
 
                       {/* Infinite scroll sentinel */}
                       <div ref={postsSentinelRef} className="h-20 flex items-center justify-center">
