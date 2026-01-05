@@ -1,0 +1,201 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { db, discoveredSubstackPosts, substackMentions, verifiedResearchers } from '@/lib/db';
+import { eq, sql } from 'drizzle-orm';
+
+// Secret for authenticating requests from the Cloudflare Worker
+const API_SECRET = process.env.PAPER_FIREHOSE_SECRET;
+
+// Fetch metadata from Substack post via Open Graph tags
+async function fetchSubstackMetadata(url: string): Promise<{
+  title?: string;
+  description?: string;
+  author?: string;
+  newsletterName?: string;
+  imageUrl?: string;
+} | null> {
+  try {
+    const response = await fetch(url, {
+      headers: {
+        'User-Agent': 'Lea/1.0 (mailto:support@lea.community)',
+        'Accept': 'text/html',
+      },
+      redirect: 'follow',
+    });
+
+    if (!response.ok) return null;
+
+    const html = await response.text();
+
+    // Extract Open Graph metadata
+    const ogTitle = html.match(/<meta[^>]*property="og:title"[^>]*content="([^"]+)"/i)?.[1] ||
+                    html.match(/<meta[^>]*content="([^"]+)"[^>]*property="og:title"/i)?.[1];
+    const ogDescription = html.match(/<meta[^>]*property="og:description"[^>]*content="([^"]+)"/i)?.[1] ||
+                          html.match(/<meta[^>]*content="([^"]+)"[^>]*property="og:description"/i)?.[1];
+    const ogSiteName = html.match(/<meta[^>]*property="og:site_name"[^>]*content="([^"]+)"/i)?.[1] ||
+                       html.match(/<meta[^>]*content="([^"]+)"[^>]*property="og:site_name"/i)?.[1];
+    const ogImage = html.match(/<meta[^>]*property="og:image"[^>]*content="([^"]+)"/i)?.[1] ||
+                    html.match(/<meta[^>]*content="([^"]+)"[^>]*property="og:image"/i)?.[1];
+
+    // Try to extract author from meta tags or JSON-LD
+    let author: string | undefined;
+    const authorMeta = html.match(/<meta[^>]*name="author"[^>]*content="([^"]+)"/i)?.[1] ||
+                       html.match(/<meta[^>]*content="([^"]+)"[^>]*name="author"/i)?.[1];
+    if (authorMeta) {
+      author = authorMeta;
+    } else {
+      // Try JSON-LD
+      const jsonLdMatch = html.match(/<script[^>]*type="application\/ld\+json"[^>]*>([\s\S]*?)<\/script>/i);
+      if (jsonLdMatch) {
+        try {
+          const jsonLd = JSON.parse(jsonLdMatch[1]);
+          if (jsonLd.author?.name) {
+            author = jsonLd.author.name;
+          } else if (Array.isArray(jsonLd.author) && jsonLd.author[0]?.name) {
+            author = jsonLd.author[0].name;
+          }
+        } catch {
+          // Ignore JSON parse errors
+        }
+      }
+    }
+
+    // Decode HTML entities in extracted strings
+    const decodeHtml = (str: string | undefined) => {
+      if (!str) return str;
+      return str
+        .replace(/&amp;/g, '&')
+        .replace(/&lt;/g, '<')
+        .replace(/&gt;/g, '>')
+        .replace(/&quot;/g, '"')
+        .replace(/&#39;/g, "'")
+        .replace(/&#x27;/g, "'");
+    };
+
+    return {
+      title: decodeHtml(ogTitle),
+      description: decodeHtml(ogDescription),
+      newsletterName: decodeHtml(ogSiteName),
+      author: decodeHtml(author),
+      imageUrl: ogImage,
+    };
+  } catch (error) {
+    console.error(`Failed to fetch Substack metadata for ${url}:`, error);
+    return null;
+  }
+}
+
+interface SubstackData {
+  url: string;
+  normalizedId: string;
+  subdomain: string;
+  slug: string;
+}
+
+interface IngestRequest {
+  substackPosts: SubstackData[];
+  postUri: string;
+  authorDid: string;
+  postText: string;
+  createdAt: string;
+}
+
+// POST /api/substack/ingest - Ingest Substack mentions from firehose worker
+export async function POST(request: NextRequest) {
+  // Verify API secret
+  const authHeader = request.headers.get('Authorization');
+  if (!API_SECRET || authHeader !== `Bearer ${API_SECRET}`) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  try {
+    const body: IngestRequest = await request.json();
+    const { substackPosts, postUri, authorDid, postText, createdAt } = body;
+
+    if (!substackPosts || !Array.isArray(substackPosts) || substackPosts.length === 0) {
+      return NextResponse.json({ error: 'No Substack posts provided' }, { status: 400 });
+    }
+
+    // Check if author is a verified researcher (3x weight for mentions)
+    const [verifiedAuthor] = await db
+      .select()
+      .from(verifiedResearchers)
+      .where(eq(verifiedResearchers.did, authorDid))
+      .limit(1);
+    const isVerified = !!verifiedAuthor;
+    const mentionWeight = isVerified ? 3 : 1;
+
+    const results: { substackPostId: number; normalizedId: string }[] = [];
+
+    for (const post of substackPosts) {
+      // Upsert Substack post
+      const [existingPost] = await db
+        .select()
+        .from(discoveredSubstackPosts)
+        .where(eq(discoveredSubstackPosts.normalizedId, post.normalizedId))
+        .limit(1);
+
+      let substackPostId: number;
+
+      if (existingPost) {
+        // Update existing post
+        await db
+          .update(discoveredSubstackPosts)
+          .set({
+            lastSeenAt: new Date(),
+            mentionCount: sql`${discoveredSubstackPosts.mentionCount} + ${mentionWeight}`,
+          })
+          .where(eq(discoveredSubstackPosts.normalizedId, post.normalizedId));
+        substackPostId = existingPost.id;
+      } else {
+        // Fetch metadata for new post
+        const metadata = await fetchSubstackMetadata(post.url);
+
+        // Insert new Substack post with metadata
+        const [inserted] = await db
+          .insert(discoveredSubstackPosts)
+          .values({
+            url: post.url,
+            normalizedId: post.normalizedId,
+            subdomain: post.subdomain,
+            slug: post.slug,
+            title: metadata?.title || null,
+            description: metadata?.description || null,
+            author: metadata?.author || null,
+            newsletterName: metadata?.newsletterName || null,
+            imageUrl: metadata?.imageUrl || null,
+            firstSeenAt: new Date(),
+            lastSeenAt: new Date(),
+            mentionCount: mentionWeight,
+          })
+          .returning({ id: discoveredSubstackPosts.id });
+        substackPostId = inserted.id;
+      }
+
+      // Check if mention already exists
+      const [existingMention] = await db
+        .select()
+        .from(substackMentions)
+        .where(eq(substackMentions.postUri, postUri))
+        .limit(1);
+
+      if (!existingMention) {
+        // Insert mention
+        await db.insert(substackMentions).values({
+          substackPostId,
+          postUri,
+          authorDid,
+          postText: postText?.slice(0, 1000) || '',
+          createdAt: new Date(createdAt),
+          isVerifiedResearcher: isVerified,
+        });
+      }
+
+      results.push({ substackPostId, normalizedId: post.normalizedId });
+    }
+
+    return NextResponse.json({ success: true, substackPosts: results });
+  } catch (error) {
+    console.error('Failed to ingest Substack posts:', error);
+    return NextResponse.json({ error: 'Failed to ingest Substack posts' }, { status: 500 });
+  }
+}

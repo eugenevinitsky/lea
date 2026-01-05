@@ -28,6 +28,25 @@ interface TrendingPaper {
   recentPostCount?: number;
 }
 
+interface TrendingSubstackPost {
+  id: number;
+  url: string;
+  normalizedId: string;
+  subdomain: string;
+  slug: string;
+  title: string | null;
+  description: string | null;
+  author: string | null;
+  newsletterName: string | null;
+  imageUrl: string | null;
+  firstSeenAt: string;
+  lastSeenAt: string;
+  mentionCount: number;
+  postCount?: number;
+  recentMentions?: number;
+  recentPostCount?: number;
+}
+
 interface ActiveResearcher {
   did: string;
   handle: string;
@@ -44,7 +63,7 @@ interface ModerationBoxProps {
   embedded?: boolean;
 }
 
-type Tab = 'verified' | 'active' | 'papers';
+type Tab = 'verified' | 'active' | 'papers' | 'substack';
 
 function formatTime(dateString: string) {
   const date = new Date(dateString);
@@ -75,7 +94,7 @@ export default function ModerationBox({ onOpenProfile, defaultExpanded = false, 
   const [activeTab, setActiveTab] = useState<Tab>(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('moderationBox_activeTab');
-      if (saved === 'verified' || saved === 'active' || saved === 'papers') {
+      if (saved === 'verified' || saved === 'active' || saved === 'papers' || saved === 'substack') {
         return saved;
       }
     }
@@ -95,8 +114,10 @@ export default function ModerationBox({ onOpenProfile, defaultExpanded = false, 
   const [recentResearchers, setRecentResearchers] = useState<RecentResearcher[]>([]);
   const [activeResearchers, setActiveResearchers] = useState<ActiveResearcher[]>([]);
   const [trendingPapers, setTrendingPapers] = useState<TrendingPaper[]>([]);
+  const [trendingSubstackPosts, setTrendingSubstackPosts] = useState<TrendingSubstackPost[]>([]);
   const [loading, setLoading] = useState(false);
   const [papersLoading, setPapersLoading] = useState(false);
+  const [substackLoading, setSubstackLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { followingDids } = useFollowing();
 
@@ -119,6 +140,13 @@ export default function ModerationBox({ onOpenProfile, defaultExpanded = false, 
   useEffect(() => {
     if (isExpanded && activeTab === 'papers' && trendingPapers.length === 0) {
       fetchTrendingPapers();
+    }
+  }, [isExpanded, activeTab]);
+
+  // Fetch trending Substack posts when tab is selected
+  useEffect(() => {
+    if (isExpanded && activeTab === 'substack' && trendingSubstackPosts.length === 0) {
+      fetchTrendingSubstackPosts();
     }
   }, [isExpanded, activeTab]);
 
@@ -151,6 +179,22 @@ export default function ModerationBox({ onOpenProfile, defaultExpanded = false, 
       setError(err instanceof Error ? err.message : 'Failed to load papers');
     } finally {
       setPapersLoading(false);
+    }
+  };
+
+  const fetchTrendingSubstackPosts = async () => {
+    setSubstackLoading(true);
+    setError(null);
+    try {
+      const response = await fetch('/api/substack/trending?hours=24&limit=20');
+      const data = await response.json();
+      if (data.posts) {
+        setTrendingSubstackPosts(data.posts);
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load Substack posts');
+    } finally {
+      setSubstackLoading(false);
     }
   };
 
@@ -206,7 +250,7 @@ export default function ModerationBox({ onOpenProfile, defaultExpanded = false, 
           <div className="flex border-b border-gray-100 dark:border-gray-800">
             <button
               onClick={() => setActiveTab('papers')}
-              className={`flex-1 px-3 py-2 text-xs font-medium transition-colors ${
+              className={`flex-1 px-2 py-2 text-xs font-medium transition-colors ${
                 activeTab === 'papers'
                   ? 'text-purple-600 dark:text-purple-400 border-b-2 border-purple-500'
                   : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
@@ -215,18 +259,28 @@ export default function ModerationBox({ onOpenProfile, defaultExpanded = false, 
               Papers
             </button>
             <button
+              onClick={() => setActiveTab('substack')}
+              className={`flex-1 px-2 py-2 text-xs font-medium transition-colors ${
+                activeTab === 'substack'
+                  ? 'text-orange-600 dark:text-orange-400 border-b-2 border-orange-500'
+                  : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
+              }`}
+            >
+              Substack
+            </button>
+            <button
               onClick={() => setActiveTab('verified')}
-              className={`flex-1 px-3 py-2 text-xs font-medium transition-colors ${
+              className={`flex-1 px-2 py-2 text-xs font-medium transition-colors ${
                 activeTab === 'verified'
                   ? 'text-emerald-600 dark:text-emerald-400 border-b-2 border-emerald-500'
                   : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
               }`}
             >
-              Newly Verified
+              Verified
             </button>
             <button
               onClick={() => setActiveTab('active')}
-              className={`flex-1 px-3 py-2 text-xs font-medium transition-colors ${
+              className={`flex-1 px-2 py-2 text-xs font-medium transition-colors ${
                 activeTab === 'active'
                   ? 'text-blue-600 dark:text-blue-400 border-b-2 border-blue-500'
                   : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
@@ -427,6 +481,71 @@ export default function ModerationBox({ onOpenProfile, defaultExpanded = false, 
                           </div>
                           <svg className="w-4 h-4 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                          </svg>
+                        </div>
+                      </a>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+
+          {activeTab === 'substack' && (
+            <div className={embedded ? 'flex-1 flex flex-col min-h-0' : ''}>
+              {substackLoading ? (
+                <div className="flex items-center justify-center py-6">
+                  <div className="animate-spin w-5 h-5 border-2 border-orange-500 border-t-transparent rounded-full" />
+                </div>
+              ) : trendingSubstackPosts.length === 0 ? (
+                <div className="p-4 text-center">
+                  <svg className="w-8 h-8 mx-auto text-gray-300 dark:text-gray-600 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z" />
+                  </svg>
+                  <p className="text-xs text-gray-400">No Substack posts trending yet</p>
+                  <p className="text-[10px] text-gray-400 mt-1">Substack articles shared on Bluesky will appear here</p>
+                </div>
+              ) : (
+                <div className={`overflow-y-auto divide-y divide-gray-100 dark:divide-gray-800 ${embedded ? 'flex-1' : 'max-h-[280px]'}`}>
+                  {trendingSubstackPosts.map((post) => {
+                    return (
+                      <a
+                        key={post.id}
+                        href={post.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="block p-2.5 hover:bg-gray-50 dark:hover:bg-gray-800/50"
+                      >
+                        <div className="flex items-start gap-2">
+                          <div className="flex-shrink-0 w-8 h-8 rounded-lg bg-orange-100 dark:bg-orange-900/30 flex items-center justify-center overflow-hidden">
+                            {post.imageUrl ? (
+                              <img src={post.imageUrl} alt="" className="w-full h-full object-cover" />
+                            ) : (
+                              <svg className="w-4 h-4 text-orange-600 dark:text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z" />
+                              </svg>
+                            )}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-1.5 mb-0.5">
+                              <span className="px-1.5 py-0.5 text-[10px] font-medium rounded bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400">
+                                {post.newsletterName || post.subdomain}
+                              </span>
+                              <span className="text-orange-600 dark:text-orange-400 text-[10px] font-medium">
+                                {post.recentPostCount ?? post.postCount ?? post.mentionCount} sharing
+                              </span>
+                            </div>
+                            <p className="text-xs text-gray-900 dark:text-gray-100 font-medium truncate">
+                              {post.title || post.slug}
+                            </p>
+                            {post.author && (
+                              <p className="text-[10px] text-gray-500 truncate">
+                                by {post.author}
+                              </p>
+                            )}
+                          </div>
+                          <svg className="w-4 h-4 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
                           </svg>
                         </div>
                       </a>

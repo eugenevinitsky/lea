@@ -213,6 +213,52 @@ export const paperMentions = pgTable(
   ]
 );
 
+// Substack posts discovered from the firehose
+export const discoveredSubstackPosts = pgTable(
+  'discovered_substack_posts',
+  {
+    id: integer('id').primaryKey().generatedAlwaysAsIdentity(),
+    url: text('url').notNull(),
+    normalizedId: varchar('normalized_id', { length: 255 }).notNull().unique(), // e.g., substack:eugenewei/status-as-a-service
+    subdomain: varchar('subdomain', { length: 100 }).notNull(), // e.g., eugenewei
+    slug: varchar('slug', { length: 255 }).notNull(), // e.g., status-as-a-service
+    title: text('title'), // Fetched from Open Graph
+    description: text('description'), // og:description
+    author: varchar('author', { length: 255 }), // Newsletter author name
+    newsletterName: varchar('newsletter_name', { length: 255 }), // og:site_name
+    imageUrl: text('image_url'), // og:image
+    firstSeenAt: timestamp('first_seen_at').defaultNow().notNull(),
+    lastSeenAt: timestamp('last_seen_at').defaultNow().notNull(),
+    mentionCount: integer('mention_count').default(1).notNull(),
+  },
+  (table) => [
+    index('discovered_substack_posts_subdomain_idx').on(table.subdomain),
+    index('discovered_substack_posts_last_seen_idx').on(table.lastSeenAt),
+    index('discovered_substack_posts_mention_count_idx').on(table.mentionCount),
+  ]
+);
+
+// Posts that mention Substack articles
+export const substackMentions = pgTable(
+  'substack_mentions',
+  {
+    id: integer('id').primaryKey().generatedAlwaysAsIdentity(),
+    substackPostId: integer('substack_post_id').notNull(),
+    postUri: varchar('post_uri', { length: 500 }).notNull(),
+    authorDid: varchar('author_did', { length: 255 }).notNull(),
+    authorHandle: varchar('author_handle', { length: 255 }),
+    postText: text('post_text'),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+    isVerifiedResearcher: boolean('is_verified_researcher').default(false),
+  },
+  (table) => [
+    index('substack_mentions_post_idx').on(table.substackPostId),
+    index('substack_mentions_author_idx').on(table.authorDid),
+    index('substack_mentions_created_idx').on(table.createdAt),
+    index('substack_mentions_verified_idx').on(table.isVerifiedResearcher),
+  ]
+);
+
 // Type exports
 export type VerifiedResearcher = typeof verifiedResearchers.$inferSelect;
 export type NewVerifiedResearcher = typeof verifiedResearchers.$inferInsert;
@@ -228,6 +274,10 @@ export type DiscoveredPaper = typeof discoveredPapers.$inferSelect;
 export type NewDiscoveredPaper = typeof discoveredPapers.$inferInsert;
 export type PaperMention = typeof paperMentions.$inferSelect;
 export type NewPaperMention = typeof paperMentions.$inferInsert;
+export type DiscoveredSubstackPost = typeof discoveredSubstackPosts.$inferSelect;
+export type NewDiscoveredSubstackPost = typeof discoveredSubstackPosts.$inferInsert;
+export type SubstackMention = typeof substackMentions.$inferSelect;
+export type NewSubstackMention = typeof substackMentions.$inferInsert;
 
 // Profile field types
 export interface ProfileLink {

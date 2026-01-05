@@ -4,6 +4,23 @@ interface Env {
   LEA_API_SECRET: string;
 }
 
+// Substack URL patterns
+const SUBSTACK_PATTERNS = [
+  // Custom subdomain format: eugenewei.substack.com/p/status-as-a-service
+  { pattern: /([a-z0-9-]+)\.substack\.com\/p\/([a-z0-9-]+)/i },
+  // Newer @ format: substack.com/@username/p/slug
+  { pattern: /substack\.com\/@([a-z0-9-]+)\/p\/([a-z0-9-]+)/i },
+  // Open/share format: open.substack.com/pub/username/p/slug
+  { pattern: /open\.substack\.com\/pub\/([a-z0-9-]+)\/p\/([a-z0-9-]+)/i },
+];
+
+interface SubstackMatch {
+  url: string;
+  normalizedId: string;
+  subdomain: string;
+  slug: string;
+}
+
 // Paper URL patterns
 const PAPER_PATTERNS = [
   // arXiv
@@ -94,6 +111,39 @@ function extractPaperLinks(text: string): PaperMatch[] {
   return papers;
 }
 
+function extractSubstackLinks(text: string): SubstackMatch[] {
+  const substackPosts: SubstackMatch[] = [];
+  const seen = new Set<string>();
+
+  for (const { pattern } of SUBSTACK_PATTERNS) {
+    const globalPattern = new RegExp(pattern.source, 'gi');
+    let match;
+    while ((match = globalPattern.exec(text)) !== null) {
+      if (match[1] && match[2]) {
+        // Skip truncated URLs
+        const matchEnd = match.index + match[0].length;
+        if (isTruncated(match[0]) || isFollowedByTruncation(text, matchEnd)) {
+          console.log(`Skipping truncated Substack URL: ${match[0]}`);
+          continue;
+        }
+
+        const subdomain = match[1].toLowerCase();
+        const slug = match[2].toLowerCase();
+        const normalizedId = `substack:${subdomain}/${slug}`;
+
+        if (!seen.has(normalizedId)) {
+          seen.add(normalizedId);
+          // Reconstruct URL with https:// if missing
+          const url = match[0].startsWith('http') ? match[0] : `https://${match[0]}`;
+          substackPosts.push({ url, normalizedId, subdomain, slug });
+        }
+      }
+    }
+  }
+
+  return substackPosts;
+}
+
 // Jetstream event types
 interface JetstreamCommit {
   did: string;
@@ -132,6 +182,7 @@ export class JetstreamConnection implements DurableObject {
   private isConnected = false;
   private processedCount = 0;
   private papersFound = 0;
+  private substackFound = 0;
   private lastError: string | null = null;
 
   constructor(state: DurableObjectState, env: Env) {
@@ -183,6 +234,7 @@ export class JetstreamConnection implements DurableObject {
         connected: this.isConnected,
         processedCount: this.processedCount,
         papersFound: this.papersFound,
+        substackFound: this.substackFound,
         lastError: this.lastError,
       }), {
         headers: { 'Content-Type': 'application/json' }
@@ -271,55 +323,90 @@ export class JetstreamConnection implements DurableObject {
       fullText += ' ' + record.embed.external.uri;
     }
 
-    // Extract paper links
+    // Extract paper links and Substack links
     const papers = extractPaperLinks(fullText);
+    const substackPosts = extractSubstackLinks(fullText);
 
     // Check for quoted post URI
     const quotedPostUri = record.embed?.record?.uri || null;
 
-    // Skip if no paper links and no quoted post
-    if (papers.length === 0 && !quotedPostUri) return;
+    // Skip if no paper links, no Substack links, and no quoted post
+    if (papers.length === 0 && substackPosts.length === 0 && !quotedPostUri) return;
 
     this.papersFound += papers.length;
+    this.substackFound += substackPosts.length;
 
-    // Send to API
+    // Build common request data
     const postUri = `at://${event.did}/app.bsky.feed.post/${event.commit.rkey}`;
     const createdAt = record.createdAt || new Date().toISOString();
 
-    try {
-      const response = await fetch(`${this.env.LEA_API_URL}/api/papers/ingest`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${this.env.LEA_API_SECRET}`,
-        },
-        body: JSON.stringify({
-          papers,
-          postUri,
-          authorDid: event.did,
-          postText: record.text || '',
-          createdAt,
-          quotedPostUri,
-        }),
-      });
+    // Send papers to papers API (if any papers or quote post)
+    if (papers.length > 0 || quotedPostUri) {
+      try {
+        const response = await fetch(`${this.env.LEA_API_URL}/api/papers/ingest`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${this.env.LEA_API_SECRET}`,
+          },
+          body: JSON.stringify({
+            papers,
+            postUri,
+            authorDid: event.did,
+            postText: record.text || '',
+            createdAt,
+            quotedPostUri,
+          }),
+        });
 
-      // Always consume the response body to prevent connection stalling
-      const responseText = await response.text();
-
-      if (!response.ok) {
-        console.error('API error:', response.status, responseText);
-        this.lastError = `API error: ${response.status}`;
-      } else {
-        const logMsg = papers.length > 0
-          ? `Ingested ${papers.length} paper(s) from ${event.did}`
-          : `Processed quote post from ${event.did}`;
-        console.log(logMsg);
-        this.lastError = null;
+        const responseText = await response.text();
+        if (!response.ok) {
+          console.error('Papers API error:', response.status, responseText);
+          this.lastError = `Papers API error: ${response.status}`;
+        } else {
+          const logMsg = papers.length > 0
+            ? `Ingested ${papers.length} paper(s) from ${event.did}`
+            : `Processed quote post from ${event.did}`;
+          console.log(logMsg);
+        }
+      } catch (e) {
+        console.error('Failed to send papers to API:', e);
+        this.lastError = `Papers fetch error: ${e}`;
       }
-    } catch (e) {
-      console.error('Failed to send to API:', e);
-      this.lastError = `Fetch error: ${e}`;
     }
+
+    // Send Substack posts to Substack API (if any)
+    if (substackPosts.length > 0) {
+      try {
+        const response = await fetch(`${this.env.LEA_API_URL}/api/substack/ingest`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${this.env.LEA_API_SECRET}`,
+          },
+          body: JSON.stringify({
+            substackPosts,
+            postUri,
+            authorDid: event.did,
+            postText: record.text || '',
+            createdAt,
+          }),
+        });
+
+        const responseText = await response.text();
+        if (!response.ok) {
+          console.error('Substack API error:', response.status, responseText);
+          this.lastError = `Substack API error: ${response.status}`;
+        } else {
+          console.log(`Ingested ${substackPosts.length} Substack post(s) from ${event.did}`);
+        }
+      } catch (e) {
+        console.error('Failed to send Substack to API:', e);
+        this.lastError = `Substack fetch error: ${e}`;
+      }
+    }
+
+    this.lastError = null;
   }
 }
 
