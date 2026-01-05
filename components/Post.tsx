@@ -1791,18 +1791,18 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
           {canDetachQuote && (
             <div className="absolute top-0 right-0">
               {showDetachConfirm ? (
-                <div className="flex items-center gap-2 p-2 bg-amber-50 dark:bg-amber-900/20 rounded-lg" onClick={(e) => e.stopPropagation()}>
-                  <span className="text-xs text-amber-700 dark:text-amber-300">Detach your post?</span>
+                <div className="flex items-center gap-2 p-2 bg-gray-100 dark:bg-gray-800 rounded-lg" onClick={(e) => e.stopPropagation()}>
+                  <span className="text-xs text-gray-600 dark:text-gray-300">Detach your post?</span>
                   <button
                     onClick={handleDetachQuote}
                     disabled={isDetaching}
-                    className="px-2 py-0.5 text-xs font-medium text-white bg-amber-500 hover:bg-amber-600 rounded transition-colors disabled:opacity-50"
+                    className="px-2 py-0.5 text-xs font-medium text-white bg-gray-500 hover:bg-gray-600 rounded transition-colors disabled:opacity-50"
                   >
                     {isDetaching ? '...' : 'Yes'}
                   </button>
                   <button
                     onClick={() => setShowDetachConfirm(false)}
-                    className="px-2 py-0.5 text-xs font-medium text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200"
+                    className="px-2 py-0.5 text-xs font-medium text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
                   >
                     No
                   </button>
@@ -1810,9 +1810,12 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
               ) : (
                 <button
                   onClick={(e) => { e.stopPropagation(); setShowDetachConfirm(true); }}
-                  className="text-xs text-amber-500 hover:text-amber-600 dark:text-amber-400 dark:hover:text-amber-300 font-medium"
+                  className="p-1.5 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-md transition-colors"
+                  title="Detach your quoted post"
                 >
-                  Detach Quote?
+                  <svg className="w-4 h-4 text-gray-500 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                  </svg>
                 </button>
               )}
             </div>
