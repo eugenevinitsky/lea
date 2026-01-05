@@ -1916,3 +1916,69 @@ export function clearModerationCache(): void {
   cachedModerationOpts = null;
   moderationOptsLastFetched = 0;
 }
+
+// Detach a quote from your post
+// This adds the quoting post's URI to your post's postgate detachedEmbeddingUris
+// quotingPostUri: The URI of the post that quotes your post (the one you want to detach from)
+// quotedPostUri: Your post's URI (the one being quoted)
+export async function detachQuote(
+  quotingPostUri: string,
+  quotedPostUri: string
+): Promise<void> {
+  if (!agent) throw new Error('Not logged in');
+  
+  // Extract rkey from your post's URI
+  const rkey = quotedPostUri.split('/').pop()!;
+  
+  // Track existing postgate data
+  let existingDetached: string[] = [];
+  let existingRules: Array<{ $type: string }> = [];
+  let hasExistingPostgate = false;
+  
+  // Try to get existing postgate for your post
+  try {
+    const response = await agent.api.app.bsky.feed.postgate.get({
+      repo: agent.session!.did,
+      rkey,
+    });
+    // Extract values from the response
+    const record = response.value as { 
+      detachedEmbeddingUris?: string[]; 
+      embeddingRules?: Array<{ $type: string }>;
+    };
+    existingDetached = record.detachedEmbeddingUris || [];
+    existingRules = record.embeddingRules || [];
+    hasExistingPostgate = true;
+  } catch {
+    // No existing postgate, we'll create a new one
+  }
+  
+  // Add the quoting post URI to detached list if not already there
+  if (!existingDetached.includes(quotingPostUri)) {
+    existingDetached.push(quotingPostUri);
+  }
+  
+  // If there's an existing postgate, we need to delete and recreate it
+  // (ATProto doesn't have a direct update method for records)
+  if (hasExistingPostgate) {
+    try {
+      await agent.api.app.bsky.feed.postgate.delete({
+        repo: agent.session!.did,
+        rkey,
+      });
+    } catch {
+      // Ignore delete errors
+    }
+  }
+  
+  // Create the postgate with updated detachedEmbeddingUris
+  await agent.api.app.bsky.feed.postgate.create(
+    { repo: agent.session!.did, rkey },
+    {
+      post: quotedPostUri,
+      createdAt: new Date().toISOString(),
+      detachedEmbeddingUris: existingDetached,
+      ...(existingRules.length > 0 && { embeddingRules: existingRules }),
+    }
+  );
+}
