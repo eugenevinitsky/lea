@@ -354,6 +354,20 @@ export default function SafetyPanel({ onOpenProfile, onOpenThread, defaultExpand
       {/* Expanded content */}
       {isExpanded && (
         <div className={embedded ? '' : 'border-t border-gray-200 dark:border-gray-800'}>
+          {/* Quick Help Link */}
+          <a
+            href="/settings/safety-help"
+            className="flex items-center gap-2 px-3 py-2.5 bg-rose-50 dark:bg-rose-900/20 hover:bg-rose-100 dark:hover:bg-rose-900/30 transition-colors border-b border-gray-200 dark:border-gray-800"
+          >
+            <svg className="w-4 h-4 text-rose-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 5.636l-3.536 3.536m0 5.656l3.536 3.536M9.172 9.172L5.636 5.636m3.536 9.192l-3.536 3.536M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-5 0a4 4 0 11-8 0 4 4 0 018 0z" />
+            </svg>
+            <span className="text-sm font-medium text-rose-700 dark:text-rose-300">Quick Help: Dealing with Harassment</span>
+            <svg className="w-3.5 h-3.5 text-rose-400 ml-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            </svg>
+          </a>
+
           {/* Safety Alerts Section */}
           <div className="border-l-4 border-l-amber-400">
             <button
