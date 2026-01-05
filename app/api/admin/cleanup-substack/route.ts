@@ -31,7 +31,7 @@ export async function POST(request: NextRequest) {
         removed.push({
           id: post.id,
           title: post.title,
-          reason: `political keywords: ${details.matchedPolitical.join(', ') || 'none'}, technical: ${details.matchedTechnical.join(', ') || 'none'}`,
+          reason: `pol=[${details.matchedPolitical.join(', ') || 'none'}] strong=[${details.matchedStrong.join(', ') || 'none'}] weak=[${details.matchedWeak.join(', ') || 'none'}]`,
         });
       }
     }

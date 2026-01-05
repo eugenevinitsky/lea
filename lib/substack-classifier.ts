@@ -1,35 +1,50 @@
 // BOW classifier to filter Substack posts for technical/intellectual content
 
-// Technical/intellectual keywords (positive signals)
-const TECHNICAL_KEYWORDS = [
-  // Technology
+// STRONG technical keywords - one match is sufficient
+// These are unambiguously technical/scientific terms
+const STRONG_TECHNICAL_KEYWORDS = [
+  // AI/ML (very specific)
   'ai', 'artificial intelligence', 'machine learning', 'ml', 'deep learning',
-  'programming', 'software', 'engineering', 'algorithm', 'data', 'api',
-  'code', 'coding', 'developer', 'tech', 'startup', 'product', 'database',
-  'cloud', 'infrastructure', 'architecture', 'system', 'computer', 'computing',
-  'neural network', 'llm', 'gpt', 'transformer', 'model', 'training',
+  'neural network', 'llm', 'gpt', 'transformer', 'chatgpt', 'openai',
 
-  // Science
+  // Programming (very specific)
+  'programming', 'algorithm', 'api', 'database', 'software engineering',
+  'code', 'coding', 'github', 'python', 'javascript', 'typescript',
+
+  // Hard sciences (very specific)
+  'physics', 'biology', 'chemistry', 'neuroscience', 'quantum',
+  'genomics', 'mathematics', 'statistics', 'calculus',
+
+  // Academia (specific)
+  'peer-review', 'dissertation', 'arxiv',
+];
+
+// WEAK technical keywords - need 2+ matches or 1 strong + 1 weak
+// These can appear in non-technical contexts
+const WEAK_TECHNICAL_KEYWORDS = [
+  // Tech (could be generic)
+  'software', 'developer', 'tech', 'startup', 'data', 'model', 'training',
+  'cloud', 'infrastructure', 'system', 'computer', 'computing', 'engineering',
+
+  // Science (could be generic)
   'research', 'study', 'experiment', 'hypothesis', 'science', 'scientific',
-  'physics', 'biology', 'chemistry', 'neuroscience', 'psychology', 'cognitive',
-  'mathematics', 'math', 'statistics', 'statistical', 'quantum', 'genomics',
-  'climate', 'evolution', 'brain', 'medical', 'health', 'clinical',
+  'psychology', 'cognitive', 'climate', 'evolution', 'brain', 'medical', 'clinical',
 
-  // Business/Startup/Economics
-  'founder', 'venture', 'investment', 'growth', 'metrics', 'strategy',
-  'market', 'economics', 'economic', 'finance', 'financial', 'business',
-  'entrepreneur', 'innovation', 'scale', 'revenue', 'pricing',
+  // Business/Economics
+  'founder', 'venture', 'investment', 'metrics',
+  'economics', 'economic', 'finance', 'financial',
+  'entrepreneur', 'innovation', 'revenue', 'pricing',
 
   // Academia
-  'paper', 'publication', 'peer-review', 'academic', 'professor', 'university',
-  'journal', 'thesis', 'dissertation', 'scholar', 'lecture',
+  'paper', 'academic', 'professor', 'university',
+  'journal', 'thesis', 'scholar', 'lecture',
 
   // Philosophy/Ideas
   'philosophy', 'philosophical', 'theory', 'framework', 'concept', 'analysis',
   'rationality', 'epistemology', 'ethics', 'logic', 'reasoning',
 
-  // Writing/Media craft
-  'writing', 'essay', 'book review', 'literature', 'critique', 'narrative',
+  // Writing/Media craft (specific)
+  'book review', 'literature', 'critique',
 ];
 
 // Political keywords (negative signals)
@@ -80,13 +95,21 @@ function hasKeyword(text: string, keyword: string): boolean {
 export function isTechnicalContent(title: string, description?: string): boolean {
   const text = `${title} ${description || ''}`.toLowerCase();
 
-  let technicalScore = 0;
+  let strongCount = 0;
+  let weakCount = 0;
   let politicalScore = 0;
 
-  // Count technical keywords
-  for (const keyword of TECHNICAL_KEYWORDS) {
+  // Count strong technical keywords
+  for (const keyword of STRONG_TECHNICAL_KEYWORDS) {
     if (hasKeyword(text, keyword)) {
-      technicalScore++;
+      strongCount++;
+    }
+  }
+
+  // Count weak technical keywords
+  for (const keyword of WEAK_TECHNICAL_KEYWORDS) {
+    if (hasKeyword(text, keyword)) {
+      weakCount++;
     }
   }
 
@@ -97,25 +120,24 @@ export function isTechnicalContent(title: string, description?: string): boolean
     }
   }
 
+  const totalTechnical = strongCount + weakCount;
+
   // Scoring logic:
-  // - Technical keywords count positively (weight 2)
-  // - Political keywords count negatively (weight 3)
-  // - If no keywords found at all, reject (likely general interest)
-  const score = (technicalScore * 2) - (politicalScore * 3);
+  // - 1 strong keyword is enough (unambiguously technical)
+  // - 2+ weak keywords is enough (corroborating evidence)
+  // - 1 strong + 1 weak is enough
+  // - Political keywords still count negatively
 
-  // Accept if:
-  // 1. Score is positive (more technical than political)
-  // 2. OR has technical keywords and no political keywords
-  // 3. AND has at least some technical signal
-  if (technicalScore > 0 && politicalScore === 0) {
-    return true;
+  // If any political keywords, need stronger technical signal
+  if (politicalScore > 0) {
+    const score = (totalTechnical * 2) - (politicalScore * 3);
+    return score > 0 && (strongCount >= 1 || weakCount >= 2);
   }
 
-  if (score > 0) {
-    return true;
-  }
-
-  return false;
+  // No political keywords - accept if:
+  // 1. At least 1 strong keyword, OR
+  // 2. At least 2 weak keywords
+  return strongCount >= 1 || weakCount >= 2;
 }
 
 /**
@@ -123,19 +145,28 @@ export function isTechnicalContent(title: string, description?: string): boolean
  */
 export function classifyContent(title: string, description?: string): {
   isTechnical: boolean;
-  technicalScore: number;
+  strongCount: number;
+  weakCount: number;
   politicalScore: number;
-  matchedTechnical: string[];
+  matchedStrong: string[];
+  matchedWeak: string[];
   matchedPolitical: string[];
 } {
   const text = `${title} ${description || ''}`.toLowerCase();
 
-  const matchedTechnical: string[] = [];
+  const matchedStrong: string[] = [];
+  const matchedWeak: string[] = [];
   const matchedPolitical: string[] = [];
 
-  for (const keyword of TECHNICAL_KEYWORDS) {
+  for (const keyword of STRONG_TECHNICAL_KEYWORDS) {
     if (hasKeyword(text, keyword)) {
-      matchedTechnical.push(keyword);
+      matchedStrong.push(keyword);
+    }
+  }
+
+  for (const keyword of WEAK_TECHNICAL_KEYWORDS) {
+    if (hasKeyword(text, keyword)) {
+      matchedWeak.push(keyword);
     }
   }
 
@@ -145,17 +176,26 @@ export function classifyContent(title: string, description?: string): {
     }
   }
 
-  const technicalScore = matchedTechnical.length;
+  const strongCount = matchedStrong.length;
+  const weakCount = matchedWeak.length;
   const politicalScore = matchedPolitical.length;
-  const score = (technicalScore * 2) - (politicalScore * 3);
+  const totalTechnical = strongCount + weakCount;
 
-  const isTechnical = (technicalScore > 0 && politicalScore === 0) || score > 0;
+  let isTechnical: boolean;
+  if (politicalScore > 0) {
+    const score = (totalTechnical * 2) - (politicalScore * 3);
+    isTechnical = score > 0 && (strongCount >= 1 || weakCount >= 2);
+  } else {
+    isTechnical = strongCount >= 1 || weakCount >= 2;
+  }
 
   return {
     isTechnical,
-    technicalScore,
+    strongCount,
+    weakCount,
     politicalScore,
-    matchedTechnical,
+    matchedStrong,
+    matchedWeak,
     matchedPolitical,
   };
 }
