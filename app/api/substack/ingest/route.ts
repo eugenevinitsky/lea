@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db, discoveredSubstackPosts, substackMentions, verifiedResearchers } from '@/lib/db';
 import { eq, sql } from 'drizzle-orm';
+import { isTechnicalContent } from '@/lib/substack-classifier';
 
 // Secret for authenticating requests from the Cloudflare Worker
 const API_SECRET = process.env.PAPER_FIREHOSE_SECRET;
@@ -213,6 +214,12 @@ export async function POST(request: NextRequest) {
       } else {
         // Fetch metadata for new post
         const metadata = await fetchSubstackMetadata(post.url);
+
+        // Filter for technical/intellectual content using BOW classifier
+        if (!isTechnicalContent(metadata?.title || '', metadata?.description || '')) {
+          console.log(`Skipping non-technical Substack post: ${post.url} (title: ${metadata?.title})`);
+          continue;
+        }
 
         // Insert new Substack post with metadata
         const [inserted] = await db
