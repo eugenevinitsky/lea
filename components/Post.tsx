@@ -41,6 +41,25 @@ interface PostProps {
   isInSelfThread?: boolean;
   isFirstInThread?: boolean;
   isLastInThread?: boolean;
+  // Thread view styling - removes bottom border when in thread
+  isInThread?: boolean;
+}
+
+// Format large numbers with k/m suffix (e.g., 1071 -> "1.1k", 14838 -> "15k")
+function formatCount(count: number): string {
+  if (count < 1000) return count.toString();
+  if (count < 10000) {
+    // 1000-9999: show one decimal (1.1k, 9.9k)
+    const k = count / 1000;
+    return `${k.toFixed(1).replace(/\.0$/, '')}k`;
+  }
+  if (count < 1000000) {
+    // 10000-999999: show no decimal (10k, 999k)
+    return `${Math.round(count / 1000)}k`;
+  }
+  // 1000000+: show with m suffix
+  const m = count / 1000000;
+  return `${m.toFixed(1).replace(/\.0$/, '')}m`;
 }
 
 function containsPaperLink(text: string, embed?: AppBskyFeedDefs.PostView['embed']): { hasPaper: boolean; domain?: string } {
@@ -935,7 +954,7 @@ function PostEmbed({ embed, onOpenThread }: { embed: AppBskyFeedDefs.PostView['e
   return null;
 }
 
-export default function Post({ post, onReply, onOpenThread, feedContext, reqId, supportsInteractions, feedUri, onOpenProfile, reason, replyParent, isInSelfThread, isFirstInThread, isLastInThread }: PostProps & { onReply?: () => void; onOpenThread?: (uri: string) => void; onOpenProfile?: (did: string) => void }) {
+export default function Post({ post, onReply, onOpenThread, feedContext, reqId, supportsInteractions, feedUri, onOpenProfile, reason, replyParent, isInSelfThread, isFirstInThread, isLastInThread, isInThread }: PostProps & { onReply?: () => void; onOpenThread?: (uri: string) => void; onOpenProfile?: (did: string) => void }) {
   const { settings } = useSettings();
   
   // Check if this is a repost
@@ -1461,8 +1480,8 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
   }
 
   // Build article class based on context
-  const articleClass = isInSelfThread
-    ? `hover:bg-gray-50 dark:hover:bg-gray-900/50 transition-colors ${dimmed ? 'opacity-60' : ''} ${!isLastInThread ? '' : ''}`
+  const articleClass = isInSelfThread || isInThread
+    ? `hover:bg-gray-50 dark:hover:bg-gray-900/50 transition-colors ${dimmed ? 'opacity-60' : ''}`
     : `border-b border-gray-200 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-900/50 transition-colors ${dimmed ? 'opacity-60' : ''}`;
 
   // Determine reply target - prefer feed-provided parent, fall back to extracting from record.reply
@@ -1643,19 +1662,6 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
           {/* Embedded content (images, links, etc.) */}
           <PostEmbed embed={post.embed} onOpenThread={onOpenThread} />
 
-          {/* Reply context indicator - only show if post has replies */}
-          {record.reply && onOpenThread && (post.replyCount ?? 0) > 0 && (
-            <button
-              onClick={() => onOpenThread(post.uri)}
-              className="mt-1 text-xs text-blue-500 hover:text-blue-600 flex items-center gap-1"
-            >
-              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
-              </svg>
-              View thread
-            </button>
-          )}
-
           {/* Engagement actions */}
           <div className="flex gap-6 lg:gap-4 mt-3 text-base lg:text-sm text-gray-500">
             {/* Reply button */}
@@ -1666,7 +1672,7 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
               <svg className="w-5 h-5 lg:w-4 lg:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
               </svg>
-              {post.replyCount || 0}
+              {formatCount(post.replyCount || 0)}
             </button>
 
             {/* Repost/Quote button with dropdown */}
@@ -1684,7 +1690,7 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
                 <svg className="w-5 h-5 lg:w-4 lg:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                 </svg>
-                {repostCount}
+                {formatCount(repostCount)}
               </button>
 
               {/* Repost dropdown menu */}
@@ -1729,7 +1735,7 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
                 <svg className="w-5 h-5 lg:w-4 lg:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
                 </svg>
-                {post.quoteCount}
+                {formatCount(post.quoteCount || 0)}
               </button>
             )}
 
@@ -1751,7 +1757,7 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
               >
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
               </svg>
-              {likeCount}
+              {formatCount(likeCount)}
             </button>
 
             {/* Bookmark button */}

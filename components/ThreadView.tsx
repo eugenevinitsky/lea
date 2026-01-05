@@ -1,8 +1,9 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { AppBskyFeedDefs } from '@atproto/api';
-import { getThread, getBlueskyProfile } from '@/lib/bluesky';
+import { getThread, getBlueskyProfile, getSession } from '@/lib/bluesky';
+import { useFollowing } from '@/lib/following-context';
 import Post from './Post';
 import EngagementTabs from './EngagementTabs';
 
@@ -15,6 +16,11 @@ interface ThreadViewProps {
 }
 
 type ThreadViewPost = AppBskyFeedDefs.ThreadViewPost;
+type SortMode = 'newest' | 'oldest' | 'top';
+
+// Constants for truncation
+const REPLIES_PER_LEVEL = 3; // Show 3 replies per nesting level initially
+const MAX_VISIBLE_DEPTH = 3; // Collapse threads deeper than this
 
 function isThreadViewPost(node: unknown): node is ThreadViewPost {
   return (
@@ -38,25 +44,188 @@ function collectParents(thread: ThreadViewPost): AppBskyFeedDefs.PostView[] {
   return parents;
 }
 
-// Reply with nesting level for indentation
-interface NestedReply {
+// Tree structure for replies with proper nesting
+interface ReplyNode {
   post: AppBskyFeedDefs.PostView;
   depth: number;
+  replies: ReplyNode[];
+  isOP: boolean; // Is this from the original poster?
+  isFollowing: boolean; // Is this from someone you follow?
+  isSelf: boolean; // Is this your own reply?
 }
 
-// Recursively collect all replies with their depth
-function collectAllReplies(thread: ThreadViewPost, depth: number = 0): NestedReply[] {
+// Build a tree of replies
+function buildReplyTree(
+  thread: ThreadViewPost,
+  opDid: string,
+  myDid: string | undefined,
+  followingDids: Set<string> | null,
+  depth: number = 0
+): ReplyNode[] {
   if (!thread.replies) return [];
 
-  const replies: NestedReply[] = [];
+  const nodes: ReplyNode[] = [];
   for (const reply of thread.replies) {
     if (isThreadViewPost(reply)) {
-      replies.push({ post: reply.post, depth });
-      // Recursively get nested replies
-      replies.push(...collectAllReplies(reply, depth + 1));
+      const authorDid = reply.post.author.did;
+      nodes.push({
+        post: reply.post,
+        depth,
+        replies: buildReplyTree(reply, opDid, myDid, followingDids, depth + 1),
+        isOP: authorDid === opDid,
+        isFollowing: followingDids?.has(authorDid) || false,
+        isSelf: authorDid === myDid,
+      });
     }
   }
-  return replies;
+  return nodes;
+}
+
+// Sort replies based on mode
+function sortReplies(replies: ReplyNode[], mode: SortMode): ReplyNode[] {
+  const sorted = [...replies];
+
+  sorted.sort((a, b) => {
+    // Always bump OP, self, and following to top (in that priority order)
+    const aPriority = a.isOP ? 3 : a.isSelf ? 2 : a.isFollowing ? 1 : 0;
+    const bPriority = b.isOP ? 3 : b.isSelf ? 2 : b.isFollowing ? 1 : 0;
+    if (aPriority !== bPriority) return bPriority - aPriority;
+
+    // Then sort by mode
+    switch (mode) {
+      case 'newest':
+        return new Date(b.post.indexedAt).getTime() - new Date(a.post.indexedAt).getTime();
+      case 'oldest':
+        return new Date(a.post.indexedAt).getTime() - new Date(b.post.indexedAt).getTime();
+      case 'top':
+        return (b.post.likeCount || 0) - (a.post.likeCount || 0);
+      default:
+        return 0;
+    }
+  });
+
+  // Recursively sort nested replies
+  return sorted.map(node => ({
+    ...node,
+    replies: sortReplies(node.replies, mode),
+  }));
+}
+
+// Flatten tree for rendering with visibility tracking
+interface FlatReply {
+  post: AppBskyFeedDefs.PostView;
+  depth: number;
+  hasMoreReplies: boolean;
+  hiddenReplyCount: number;
+  isLastAtDepth: boolean;
+  parentUri: string | null;
+  isShowMoreMarker: boolean; // True if this is a "show X more" placeholder, not a real post
+}
+
+function flattenTree(
+  nodes: ReplyNode[],
+  expandedPaths: Set<string>,
+  depth: number = 0,
+  parentUri: string | null = null
+): FlatReply[] {
+  const result: FlatReply[] = [];
+
+  // Determine how many to show at this level
+  const pathKey = parentUri || 'root';
+  const isExpanded = expandedPaths.has(pathKey);
+  const visibleCount = isExpanded ? nodes.length : Math.min(nodes.length, REPLIES_PER_LEVEL);
+  const hiddenCount = nodes.length - visibleCount;
+
+  nodes.slice(0, visibleCount).forEach((node, index) => {
+    const isLastAtDepth = index === visibleCount - 1 && hiddenCount === 0;
+
+    // Check if this node's replies are truncated
+    const replyPathKey = node.post.uri;
+    const repliesExpanded = expandedPaths.has(replyPathKey);
+    const visibleReplies = repliesExpanded ? node.replies.length : Math.min(node.replies.length, REPLIES_PER_LEVEL);
+    const hiddenReplies = node.replies.length - visibleReplies;
+
+    // Should we show nested replies at all?
+    const shouldShowNestedReplies = depth < MAX_VISIBLE_DEPTH || expandedPaths.has(`depth:${node.post.uri}`);
+
+    result.push({
+      post: node.post,
+      depth,
+      hasMoreReplies: node.replies.length > 0 && (!shouldShowNestedReplies || hiddenReplies > 0),
+      hiddenReplyCount: shouldShowNestedReplies ? hiddenReplies : node.replies.length,
+      isLastAtDepth,
+      parentUri,
+      isShowMoreMarker: false,
+    });
+
+    // Add nested replies if within depth limit or expanded
+    if (shouldShowNestedReplies && node.replies.length > 0) {
+      result.push(...flattenTree(
+        node.replies.slice(0, visibleReplies),
+        expandedPaths,
+        depth + 1,
+        node.post.uri
+      ));
+    }
+  });
+
+  // Add a "show more" marker if there are hidden replies at this level
+  if (hiddenCount > 0) {
+    result.push({
+      post: nodes[visibleCount].post, // Use first hidden post as reference
+      depth,
+      hasMoreReplies: false,
+      hiddenReplyCount: hiddenCount,
+      isLastAtDepth: true,
+      parentUri,
+      isShowMoreMarker: true,
+    });
+  }
+
+  return result;
+}
+
+// Auto-expand sentinel that triggers expansion when scrolled into view
+function AutoExpandSentinel({
+  onExpand,
+  count,
+  depth
+}: {
+  onExpand: () => void;
+  count: number;
+  depth: number;
+}) {
+  const sentinelRef = useRef<HTMLDivElement>(null);
+  const hasExpandedRef = useRef(false);
+
+  useEffect(() => {
+    const sentinel = sentinelRef.current;
+    if (!sentinel) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && !hasExpandedRef.current) {
+          hasExpandedRef.current = true;
+          onExpand();
+        }
+      },
+      { threshold: 0.1 }
+    );
+
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [onExpand]);
+
+  return (
+    <div
+      ref={sentinelRef}
+      style={{ marginLeft: `${Math.min(depth * 24, 96)}px` }}
+      className="py-2 pl-4 flex items-center gap-2 text-sm text-gray-400"
+    >
+      <div className="animate-pulse w-4 h-4 bg-gray-200 dark:bg-gray-700 rounded-full" />
+      Loading {count} more {count === 1 ? 'reply' : 'replies'}...
+    </div>
+  );
 }
 
 export default function ThreadView({ uri, onClose, onOpenThread, onOpenProfile, inline }: ThreadViewProps) {
@@ -66,26 +235,49 @@ export default function ThreadView({ uri, onClose, onOpenThread, onOpenProfile, 
   const [error, setError] = useState<string | null>(null);
   const [parents, setParents] = useState<AppBskyFeedDefs.PostView[]>([]);
   const [mainPost, setMainPost] = useState<AppBskyFeedDefs.PostView | null>(null);
-  const [replies, setReplies] = useState<NestedReply[]>([]);
+  const [rawThread, setRawThread] = useState<ThreadViewPost | null>(null); // Store raw thread for rebuilding
+  const [sortMode, setSortMode] = useState<SortMode>('top');
+  const [expandedPaths, setExpandedPaths] = useState<Set<string>>(new Set());
+
+  const { followingDids } = useFollowing();
+  const session = getSession();
+  const myDid = session?.did;
+
+  // Build reply tree from raw thread data (rebuilds when followingDids changes without resetting expandedPaths)
+  const replyTree = useMemo(() => {
+    if (!rawThread) return [];
+    const opDid = rawThread.post.author.did;
+    return buildReplyTree(rawThread, opDid, myDid, followingDids);
+  }, [rawThread, myDid, followingDids]);
+
+  // Sort and flatten replies for display
+  const displayReplies = useMemo(() => {
+    const sorted = sortReplies(replyTree, sortMode);
+    return flattenTree(sorted, expandedPaths);
+  }, [replyTree, sortMode, expandedPaths]);
+
+  // Count total replies
+  const totalReplyCount = useMemo(() => {
+    function countReplies(nodes: ReplyNode[]): number {
+      return nodes.reduce((sum, node) => sum + 1 + countReplies(node.replies), 0);
+    }
+    return countReplies(replyTree);
+  }, [replyTree]);
 
   const navigateToThread = (newUri: string) => {
-    // If external navigation handler provided, use it
     if (onOpenThread) {
       onOpenThread(newUri);
       return;
     }
-    // Otherwise use internal navigation
     setHistory(prev => [...prev, currentUri]);
     setCurrentUri(newUri);
   };
 
-  // Navigate to profile - use provided handler or default to page navigation
   const navigateToProfile = useCallback(async (did: string) => {
     if (onOpenProfile) {
       onOpenProfile(did);
       return;
     }
-    // Default: navigate to profile page
     try {
       const profile = await getBlueskyProfile(did);
       if (profile?.handle) {
@@ -98,17 +290,13 @@ export default function ThreadView({ uri, onClose, onOpenThread, onOpenProfile, 
     }
   }, [onOpenProfile]);
 
-  // Refresh the current thread (e.g., after posting a reply)
-  // Uses delay and retry since Bluesky's indexer takes time to process new posts
   const refreshThread = useCallback(async () => {
-    const currentReplyCount = replies.length;
-    
-    // Try up to 5 times with increasing delays
+    const currentReplyCount = totalReplyCount;
+
     for (let attempt = 0; attempt < 5; attempt++) {
-      // Wait before fetching (longer delays on subsequent attempts)
       const delay = attempt === 0 ? 500 : 1000 * attempt;
       await new Promise(resolve => setTimeout(resolve, delay));
-      
+
       try {
         const response = await getThread(currentUri);
         const thread = response.data.thread;
@@ -117,29 +305,29 @@ export default function ThreadView({ uri, onClose, onOpenThread, onOpenProfile, 
           return;
         }
 
-        const newReplies = collectAllReplies(thread);
-        
-        // If we got more replies than before, update and stop retrying
-        if (newReplies.length > currentReplyCount) {
-          setMainPost(thread.post);
-          setParents(collectParents(thread));
-          setReplies(newReplies);
-          return;
+        // Count replies in the new thread
+        function countRepliesInThread(t: ThreadViewPost): number {
+          if (!t.replies) return 0;
+          return t.replies.reduce((sum, r) => {
+            if (isThreadViewPost(r)) {
+              return sum + 1 + countRepliesInThread(r);
+            }
+            return sum;
+          }, 0);
         }
-        
-        // On last attempt, update anyway (maybe the reply is deeply nested)
-        if (attempt === 4) {
+
+        if (countRepliesInThread(thread) > currentReplyCount || attempt === 4) {
           setMainPost(thread.post);
           setParents(collectParents(thread));
-          setReplies(newReplies);
+          setRawThread(thread); // replyTree will be recomputed via useMemo
+          return;
         }
       } catch (err) {
         console.error('Failed to refresh thread:', err);
-        // On error, don't retry
         return;
       }
     }
-  }, [currentUri, replies.length]);
+  }, [currentUri, totalReplyCount]);
 
   const goBack = () => {
     if (history.length > 0) {
@@ -149,11 +337,20 @@ export default function ThreadView({ uri, onClose, onOpenThread, onOpenProfile, 
     }
   };
 
+  const expandPath = (pathKey: string) => {
+    setExpandedPaths(prev => {
+      const next = new Set(prev);
+      next.add(pathKey);
+      return next;
+    });
+  };
+
   useEffect(() => {
     async function loadThread() {
       try {
         setLoading(true);
         setError(null);
+        setExpandedPaths(new Set()); // Reset expansion state only when loading new thread
 
         const response = await getThread(currentUri);
         const thread = response.data.thread;
@@ -165,7 +362,7 @@ export default function ThreadView({ uri, onClose, onOpenThread, onOpenProfile, 
 
         setMainPost(thread.post);
         setParents(collectParents(thread));
-        setReplies(collectAllReplies(thread));
+        setRawThread(thread); // Store raw thread, replyTree will be computed via useMemo
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to load thread');
       } finally {
@@ -174,12 +371,11 @@ export default function ThreadView({ uri, onClose, onOpenThread, onOpenProfile, 
     }
 
     loadThread();
-  }, [currentUri]);
+  }, [currentUri]); // Only reload when URI changes, not when followingDids changes
 
-  // Thread content (shared between modal and inline modes)
+  // Thread content
   const threadContent = (
     <>
-      {/* Content */}
       {loading && (
         <div className="p-8 text-center">
           <div className="animate-spin w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full mx-auto"></div>
@@ -195,13 +391,23 @@ export default function ThreadView({ uri, onClose, onOpenThread, onOpenProfile, 
 
       {!loading && !error && mainPost && (
         <div>
-          {/* Parent posts (context) */}
+          {/* Parent posts with thread lines */}
           {parents.length > 0 && (
-            <div>
+            <div className="relative">
               {parents.map((post, index) => (
-                <div key={post.uri} className="relative border-l-4 border-blue-300 dark:border-blue-700">
+                <div key={post.uri} className="relative">
+                  {/* Vertical thread line */}
+                  <div
+                    className="absolute left-[34px] top-0 bottom-0 w-0.5 bg-gray-300 dark:bg-gray-600"
+                  />
                   <div className="opacity-75">
-                    <Post post={post} onOpenThread={navigateToThread} onOpenProfile={navigateToProfile} onReply={refreshThread} />
+                    <Post
+                      post={post}
+                      onOpenThread={navigateToThread}
+                      onOpenProfile={navigateToProfile}
+                      onReply={refreshThread}
+                      isInThread={true}
+                    />
                   </div>
                 </div>
               ))}
@@ -209,11 +415,20 @@ export default function ThreadView({ uri, onClose, onOpenThread, onOpenProfile, 
           )}
 
           {/* Main post (highlighted) */}
-          <div className="bg-blue-50 dark:bg-blue-900/20 border-l-4 border-blue-500">
-            <Post post={mainPost} onOpenThread={navigateToThread} onOpenProfile={navigateToProfile} onReply={refreshThread} />
+          <div className="relative bg-blue-50 dark:bg-blue-900/20 border-l-4 border-blue-500">
+            {/* Thread line connecting from parents */}
+            {parents.length > 0 && (
+              <div className="absolute left-[34px] top-0 h-4 w-0.5 bg-gray-300 dark:bg-gray-600" />
+            )}
+            <Post
+              post={mainPost}
+              onOpenThread={navigateToThread}
+              onOpenProfile={navigateToProfile}
+              onReply={refreshThread}
+            />
           </div>
 
-          {/* Engagement tabs (likes, reposts, quotes) */}
+          {/* Engagement tabs */}
           <EngagementTabs
             uri={mainPost.uri}
             likeCount={mainPost.likeCount || 0}
@@ -223,30 +438,108 @@ export default function ThreadView({ uri, onClose, onOpenThread, onOpenProfile, 
             onOpenProfile={navigateToProfile}
           />
 
-          {/* Replies */}
-          {replies.length > 0 && (
+          {/* Replies section */}
+          {totalReplyCount > 0 && (
             <div>
-              <div className="px-4 py-2 text-sm font-medium text-gray-500 border-b border-gray-200 dark:border-gray-800">
-                {replies.length} {replies.length === 1 ? 'reply' : 'replies'}
-              </div>
-              {replies.map(({ post, depth }) => (
-                <div
-                  key={post.uri}
-                  style={{ marginLeft: `${Math.min(depth * 16, 64)}px` }}
-                  className={depth > 0 ? 'border-l-2 border-gray-200 dark:border-gray-700' : ''}
-                >
-                  <Post
-                    post={post}
-                    onOpenThread={navigateToThread}
-                    onOpenProfile={navigateToProfile}
-                    onReply={refreshThread}
-                  />
+              {/* Reply header with sort options */}
+              <div className="px-4 py-2 flex items-center justify-between border-b border-gray-200 dark:border-gray-800">
+                <span className="text-sm font-medium text-gray-500">
+                  {totalReplyCount} {totalReplyCount === 1 ? 'reply' : 'replies'}
+                </span>
+                <div className="flex gap-1">
+                  {(['top', 'newest', 'oldest'] as SortMode[]).map(mode => (
+                    <button
+                      key={mode}
+                      onClick={() => setSortMode(mode)}
+                      className={`px-2 py-1 text-xs rounded-full transition-colors ${
+                        sortMode === mode
+                          ? 'bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-400'
+                          : 'text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800'
+                      }`}
+                    >
+                      {mode.charAt(0).toUpperCase() + mode.slice(1)}
+                    </button>
+                  ))}
                 </div>
-              ))}
+              </div>
+
+              {/* Replies with thread lines */}
+              <div className="relative">
+                {displayReplies.map((item) => {
+                  // Render auto-expand sentinel for hidden replies
+                  if (item.isShowMoreMarker) {
+                    return (
+                      <AutoExpandSentinel
+                        key={`more-${item.parentUri || 'root'}-${item.depth}`}
+                        onExpand={() => expandPath(item.parentUri || 'root')}
+                        count={item.hiddenReplyCount}
+                        depth={item.depth}
+                      />
+                    );
+                  }
+
+                  // Check if there are more nested replies to expand
+                  const hasCollapsedReplies = item.hasMoreReplies && item.hiddenReplyCount > 0;
+                  const isDeepThread = item.depth >= MAX_VISIBLE_DEPTH;
+
+                  return (
+                    <div key={item.post.uri} className="relative">
+                      {/* Thread line from parent */}
+                      {item.depth > 0 && (
+                        <div
+                          className="absolute w-0.5 bg-gray-200 dark:bg-gray-700"
+                          style={{
+                            left: `${Math.min((item.depth - 1) * 24 + 34, 34 + 72)}px`,
+                            top: 0,
+                            height: item.isLastAtDepth ? '24px' : '100%',
+                          }}
+                        />
+                      )}
+
+                      {/* Horizontal connector */}
+                      {item.depth > 0 && (
+                        <div
+                          className="absolute h-0.5 bg-gray-200 dark:bg-gray-700"
+                          style={{
+                            left: `${Math.min((item.depth - 1) * 24 + 34, 34 + 72)}px`,
+                            top: '24px',
+                            width: '12px',
+                          }}
+                        />
+                      )}
+
+                      <div style={{ marginLeft: `${Math.min(item.depth * 24, 96)}px` }}>
+                        <Post
+                          post={item.post}
+                          onOpenThread={navigateToThread}
+                          onOpenProfile={navigateToProfile}
+                          onReply={refreshThread}
+                          isInThread={true}
+                        />
+
+                        {/* Auto-expand nested replies when scrolled into view */}
+                        {hasCollapsedReplies && (
+                          <AutoExpandSentinel
+                            onExpand={() => {
+                              if (isDeepThread) {
+                                expandPath(`depth:${item.post.uri}`);
+                              } else {
+                                expandPath(item.post.uri);
+                              }
+                            }}
+                            count={item.hiddenReplyCount}
+                            depth={item.depth + 1}
+                          />
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           )}
 
-          {replies.length === 0 && (
+          {totalReplyCount === 0 && (
             <div className="p-4 text-center text-gray-500 text-sm">
               No replies yet
             </div>
@@ -256,12 +549,12 @@ export default function ThreadView({ uri, onClose, onOpenThread, onOpenProfile, 
     </>
   );
 
-  // Inline mode - just render the content directly
+  // Inline mode
   if (inline) {
     return <div>{threadContent}</div>;
   }
 
-  // Modal mode - wrap in overlay
+  // Modal mode
   return (
     <div
       className="fixed inset-0 bg-black/50 flex items-start justify-center z-50 p-4 overflow-y-auto"
