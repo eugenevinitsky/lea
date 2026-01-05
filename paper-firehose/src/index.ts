@@ -375,8 +375,8 @@ export class JetstreamConnection implements DurableObject {
       }
     }
 
-    // Send Substack posts to Substack API (if any)
-    if (substackPosts.length > 0) {
+    // Send Substack posts to Substack API (if any Substack links or quote post)
+    if (substackPosts.length > 0 || quotedPostUri) {
       try {
         const response = await fetch(`${this.env.LEA_API_URL}/api/substack/ingest`, {
           method: 'POST',
@@ -390,6 +390,7 @@ export class JetstreamConnection implements DurableObject {
             authorDid: event.did,
             postText: record.text || '',
             createdAt,
+            quotedPostUri,
           }),
         });
 
@@ -398,7 +399,10 @@ export class JetstreamConnection implements DurableObject {
           console.error('Substack API error:', response.status, responseText);
           this.lastError = `Substack API error: ${response.status}`;
         } else {
-          console.log(`Ingested ${substackPosts.length} Substack post(s) from ${event.did}`);
+          const logMsg = substackPosts.length > 0
+            ? `Ingested ${substackPosts.length} Substack post(s) from ${event.did}`
+            : `Processed quote post (Substack) from ${event.did}`;
+          console.log(logMsg);
         }
       } catch (e) {
         console.error('Failed to send Substack to API:', e);

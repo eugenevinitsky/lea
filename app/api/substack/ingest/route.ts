@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db, discoveredSubstackPosts, substackMentions, verifiedResearchers } from '@/lib/db';
 import { eq, sql } from 'drizzle-orm';
+import { isTechnicalContent } from '@/lib/substack-classifier';
 
 // Secret for authenticating requests from the Cloudflare Worker
 const API_SECRET = process.env.PAPER_FIREHOSE_SECRET;
@@ -97,6 +98,7 @@ interface IngestRequest {
   authorDid: string;
   postText: string;
   createdAt: string;
+  quotedPostUri?: string; // URI of quoted post (for quote posts)
 }
 
 // POST /api/substack/ingest - Ingest Substack mentions from firehose worker
@@ -109,7 +111,70 @@ export async function POST(request: NextRequest) {
 
   try {
     const body: IngestRequest = await request.json();
-    const { substackPosts, postUri, authorDid, postText, createdAt } = body;
+    const { substackPosts, postUri, authorDid, postText, createdAt, quotedPostUri } = body;
+
+    // Handle quote posts - if no direct Substack links, check if quoted post mentions Substack
+    if ((!substackPosts || !Array.isArray(substackPosts) || substackPosts.length === 0) && quotedPostUri) {
+      // Look up Substack posts mentioned by the quoted post
+      const quotedMentions = await db
+        .select({
+          substackPostId: substackMentions.substackPostId,
+          normalizedId: discoveredSubstackPosts.normalizedId,
+        })
+        .from(substackMentions)
+        .innerJoin(discoveredSubstackPosts, eq(substackMentions.substackPostId, discoveredSubstackPosts.id))
+        .where(eq(substackMentions.postUri, quotedPostUri));
+
+      if (quotedMentions.length === 0) {
+        // Quoted post doesn't mention any Substack posts we track
+        return NextResponse.json({ success: true, substackPosts: [], isQuotePost: true });
+      }
+
+      // Check if author is a verified researcher
+      const [verifiedAuthor] = await db
+        .select()
+        .from(verifiedResearchers)
+        .where(eq(verifiedResearchers.did, authorDid))
+        .limit(1);
+      const isVerified = !!verifiedAuthor;
+      const mentionWeight = isVerified ? 3 : 1;
+
+      const results: { substackPostId: number; normalizedId: string }[] = [];
+
+      for (const mention of quotedMentions) {
+        // Check if mention already exists
+        const [existingMention] = await db
+          .select()
+          .from(substackMentions)
+          .where(eq(substackMentions.postUri, postUri))
+          .limit(1);
+
+        if (!existingMention) {
+          // Update Substack post mention count
+          await db
+            .update(discoveredSubstackPosts)
+            .set({
+              lastSeenAt: new Date(),
+              mentionCount: sql`${discoveredSubstackPosts.mentionCount} + ${mentionWeight}`,
+            })
+            .where(eq(discoveredSubstackPosts.id, mention.substackPostId));
+
+          // Insert mention
+          await db.insert(substackMentions).values({
+            substackPostId: mention.substackPostId,
+            postUri,
+            authorDid,
+            postText: postText?.slice(0, 1000) || '',
+            createdAt: new Date(createdAt),
+            isVerifiedResearcher: isVerified,
+          });
+        }
+
+        results.push({ substackPostId: mention.substackPostId, normalizedId: mention.normalizedId });
+      }
+
+      return NextResponse.json({ success: true, substackPosts: results, isQuotePost: true });
+    }
 
     if (!substackPosts || !Array.isArray(substackPosts) || substackPosts.length === 0) {
       return NextResponse.json({ error: 'No Substack posts provided' }, { status: 400 });
@@ -149,6 +214,12 @@ export async function POST(request: NextRequest) {
       } else {
         // Fetch metadata for new post
         const metadata = await fetchSubstackMetadata(post.url);
+
+        // Filter for technical/intellectual content using BOW classifier
+        if (!isTechnicalContent(metadata?.title || '', metadata?.description || '')) {
+          console.log(`Skipping non-technical Substack post: ${post.url} (title: ${metadata?.title})`);
+          continue;
+        }
 
         // Insert new Substack post with metadata
         const [inserted] = await db
