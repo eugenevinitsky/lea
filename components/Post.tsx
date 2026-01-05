@@ -423,8 +423,138 @@ function EmbedImages({ images }: { images: AppBskyEmbedImages.ViewImage[] }) {
   );
 }
 
+// Check if URL is a paper link
+function isPaperUrl(url: string): boolean {
+  const lowerUrl = url.toLowerCase();
+  return PAPER_DOMAINS.some(domain => lowerUrl.includes(domain));
+}
+
+// Get source label for paper URL
+function getPaperSourceLabel(url: string): string {
+  const lowerUrl = url.toLowerCase();
+  if (lowerUrl.includes('arxiv.org')) return 'arXiv';
+  if (lowerUrl.includes('biorxiv.org')) return 'bioRxiv';
+  if (lowerUrl.includes('medrxiv.org')) return 'medRxiv';
+  if (lowerUrl.includes('nature.com')) return 'Nature';
+  if (lowerUrl.includes('science.org') || lowerUrl.includes('sciencemag.org')) return 'Science';
+  if (lowerUrl.includes('pnas.org')) return 'PNAS';
+  if (lowerUrl.includes('cell.com')) return 'Cell';
+  if (lowerUrl.includes('pubmed')) return 'PubMed';
+  if (lowerUrl.includes('doi.org')) return 'DOI';
+  if (lowerUrl.includes('openreview.net')) return 'OpenReview';
+  if (lowerUrl.includes('acm.org')) return 'ACM';
+  if (lowerUrl.includes('ieee')) return 'IEEE';
+  if (lowerUrl.includes('springer.com')) return 'Springer';
+  if (lowerUrl.includes('wiley.com')) return 'Wiley';
+  if (lowerUrl.includes('plos.org')) return 'PLOS';
+  if (lowerUrl.includes('semanticscholar.org')) return 'Semantic Scholar';
+  if (lowerUrl.includes('aclanthology.org')) return 'ACL';
+  return 'Paper';
+}
+
+// Enhanced paper embed with metadata fetching
+function PaperEmbed({ external }: { external: AppBskyEmbedExternal.ViewExternal }) {
+  const [metadata, setMetadata] = useState<{
+    title?: string;
+    authors?: string[];
+    journal?: string;
+    year?: number;
+  } | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [fetched, setFetched] = useState(false);
+
+  const sourceLabel = getPaperSourceLabel(external.uri);
+  const hasGoodTitle = external.title &&
+    !external.title.includes('http') &&
+    external.title.length > 10 &&
+    external.title !== external.uri;
+
+  // Fetch metadata if the embed doesn't have good data
+  useEffect(() => {
+    if (fetched || hasGoodTitle) return;
+
+    const fetchMetadata = async () => {
+      setLoading(true);
+      try {
+        const res = await fetch(`/api/papers/metadata?url=${encodeURIComponent(external.uri)}`);
+        if (res.ok) {
+          const data = await res.json();
+          setMetadata(data);
+        }
+      } catch (e) {
+        console.error('Failed to fetch paper metadata:', e);
+      } finally {
+        setLoading(false);
+        setFetched(true);
+      }
+    };
+
+    fetchMetadata();
+  }, [external.uri, hasGoodTitle, fetched]);
+
+  const displayTitle = metadata?.title || external.title || 'View Paper';
+  const displayAuthors = metadata?.authors;
+  const displayJournal = metadata?.journal;
+  const displayYear = metadata?.year;
+
+  return (
+    <a
+      href={external.uri}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="mt-2 block border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors"
+      onClick={(e) => e.stopPropagation()}
+    >
+      <div className="p-3">
+        {/* Source badge */}
+        <div className="flex items-center gap-2 mb-2">
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 text-xs font-medium rounded-full">
+            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+            </svg>
+            {sourceLabel}
+          </span>
+          {displayYear && (
+            <span className="text-xs text-gray-500">{displayYear}</span>
+          )}
+          {loading && (
+            <span className="text-xs text-gray-400">Loading...</span>
+          )}
+        </div>
+
+        {/* Title */}
+        <p className="font-medium text-sm text-gray-900 dark:text-gray-100 line-clamp-3">
+          {displayTitle}
+        </p>
+
+        {/* Authors */}
+        {displayAuthors && displayAuthors.length > 0 && (
+          <p className="text-xs text-gray-500 mt-1.5 line-clamp-1">
+            {displayAuthors.length > 3
+              ? `${displayAuthors.slice(0, 3).join(', ')} et al.`
+              : displayAuthors.join(', ')}
+          </p>
+        )}
+
+        {/* Journal/Description */}
+        {(displayJournal || external.description) && (
+          <p className="text-xs text-gray-400 mt-1 line-clamp-1">
+            {displayJournal || external.description}
+          </p>
+        )}
+      </div>
+    </a>
+  );
+}
+
 // Render external link card
 function EmbedExternal({ external }: { external: AppBskyEmbedExternal.ViewExternal }) {
+  // Use enhanced paper embed for paper links
+  if (isPaperUrl(external.uri)) {
+    return <PaperEmbed external={external} />;
+  }
+
+  // Regular external link embed
   return (
     <a
       href={external.uri}
@@ -442,7 +572,7 @@ function EmbedExternal({ external }: { external: AppBskyEmbedExternal.ViewExtern
       )}
       <div className="p-3">
         <p className="text-xs text-gray-500 truncate">{new URL(external.uri).hostname}</p>
-        <p className="font-medium text-sm text-gray-900 dark:text-gray-100 line-clamp-2">{external.title}</p>
+        <p className="font-medium text-sm text-gray-900 dark:text-gray-100 line-clamp-2">{external.title || 'View link'}</p>
         {external.description && (
           <p className="text-xs text-gray-500 mt-1 line-clamp-2">{external.description}</p>
         )}
