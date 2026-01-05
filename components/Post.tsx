@@ -1852,6 +1852,20 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
             <span className="text-gray-500 truncate">@{author.handle}</span>
             <span className="text-gray-500">·</span>
             <span className="text-gray-500">{formatDate(record.createdAt)}</span>
+            {/* Paper discussion link */}
+            {hasPaper && settings.showPaperHighlights && paperId && (
+              <a
+                href={`/paper/${encodeURIComponent(paperId)}${paperUrl ? `?url=${encodeURIComponent(paperUrl)}` : ''}`}
+                onClick={(e) => e.stopPropagation()}
+                className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 rounded-full hover:bg-purple-200 dark:hover:bg-purple-800/40 transition-colors relative z-10"
+                title="View paper discussion"
+              >
+                Discussion
+                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                </svg>
+              </a>
+            )}
           </div>
           {/* Labels from moderation services - shown below author info */}
           <ProfileLabels profile={author as unknown as BlueskyProfile} compact />
