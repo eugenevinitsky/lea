@@ -5,7 +5,16 @@
 const STRONG_TECHNICAL_KEYWORDS = [
   // AI/ML (very specific)
   'ai', 'artificial intelligence', 'machine learning', 'ml', 'deep learning',
-  'neural network', 'llm', 'gpt', 'transformer', 'chatgpt', 'openai',
+  'neural network', 'llm', 'llms', 'gpt', 'transformer', 'chatgpt', 'openai',
+  'reinforcement learning', 'rl', 'diffusion model', 'vision-language',
+  'overfitting', 'overfit', 'underfitting', 'generalization',
+  'language model', 'language models', 'representation learning',
+  'prompt engineering', 'adversarial', 'contrastive', 'hallucination',
+  'gpu', 'gpus', 'inference', 'fine-tuning', 'fine-tune', 'pretraining',
+
+  // Robotics (very specific)
+  'robotics', 'robotic', 'robot', 'humanoid', 'robotaxi', 'autonomous vehicle',
+  'self-driving', 'manipulation', 'locomotion',
 
   // Programming (very specific)
   'programming', 'algorithm', 'api', 'database', 'software engineering',
@@ -14,6 +23,9 @@ const STRONG_TECHNICAL_KEYWORDS = [
   // Hard sciences (very specific)
   'physics', 'biology', 'chemistry', 'neuroscience', 'quantum',
   'genomics', 'mathematics', 'statistics', 'calculus',
+
+  // Control theory / Systems (very specific)
+  'cybernetics', 'control theory', 'dynamical systems', 'feedback',
 
   // Academia (specific)
   'peer-review', 'dissertation', 'arxiv',
@@ -25,6 +37,9 @@ const WEAK_TECHNICAL_KEYWORDS = [
   // Tech (could be generic)
   'software', 'developer', 'tech', 'startup', 'data', 'model', 'training',
   'cloud', 'infrastructure', 'system', 'computer', 'computing', 'engineering',
+  'automation', 'automated', 'autonomous', 'benchmark', 'optimization',
+  'optimized', 'optimizer', 'distribution', 'manufacturing', 'simulation',
+  'neural', 'gradient', 'kernel', 'embeddings', 'tokenization', 'generation',
 
   // Science (could be generic)
   'research', 'study', 'experiment', 'hypothesis', 'science', 'scientific',
