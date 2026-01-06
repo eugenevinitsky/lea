@@ -1,158 +1,90 @@
-// BOW classifier to filter Substack posts for technical/intellectual content
+// Naive Bayes BOW classifier for filtering Substack posts
+// Uses a pre-trained model from lib/classifier-model.json
 
-// STRONG technical keywords - one match is sufficient
-// These are unambiguously technical/scientific terms
-const STRONG_TECHNICAL_KEYWORDS = [
-  // AI/ML (very specific)
-  'ai', 'artificial intelligence', 'machine learning', 'ml', 'deep learning',
-  'neural network', 'llm', 'llms', 'gpt', 'transformer', 'chatgpt', 'openai',
-  'reinforcement learning', 'rl', 'diffusion model', 'vision-language',
-  'overfitting', 'overfit', 'underfitting', 'generalization',
-  'language model', 'language models', 'representation learning',
-  'prompt engineering', 'adversarial', 'contrastive', 'hallucination',
-  'gpu', 'gpus', 'inference', 'fine-tuning', 'fine-tune', 'pretraining',
+interface TrainedModel {
+  vocabulary: string[];
+  classPriors: Record<string, number>;
+  wordLogProbs: Record<string, Record<string, number>>;
+  unknownWordLogProb: Record<string, number>;
+  metadata: {
+    trainedAt: string;
+    numExamples: Record<string, number>;
+    vocabularySize: number;
+  };
+}
 
-  // Robotics (very specific)
-  'robotics', 'robotic', 'robot', 'humanoid', 'robotaxi', 'autonomous vehicle',
-  'self-driving', 'manipulation', 'locomotion',
+// Load the trained model
+// Note: This is loaded at module initialization time
+let model: TrainedModel | null = null;
 
-  // Programming (very specific)
-  'programming', 'algorithm', 'api', 'database', 'software engineering',
-  'code', 'coding', 'github', 'python', 'javascript', 'typescript',
+try {
+  // Dynamic import for the model JSON
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  model = require('./classifier-model.json') as TrainedModel;
+} catch {
+  console.warn('Warning: classifier-model.json not found. Run "npm run train:classifier" to train the model.');
+}
 
-  // Hard sciences (very specific)
-  'physics', 'biology', 'chemistry', 'neuroscience', 'quantum',
-  'genomics', 'mathematics', 'statistics', 'calculus',
+// Tokenize text into words (same logic as training script)
+function tokenize(text: string): string[] {
+  return text
+    .toLowerCase()
+    // Remove punctuation except hyphens within words
+    .replace(/[^\w\s-]/g, ' ')
+    // Replace multiple spaces with single space
+    .replace(/\s+/g, ' ')
+    .trim()
+    .split(' ')
+    .filter(word => word.length > 0);
+}
 
-  // Control theory / Systems (very specific)
-  'cybernetics', 'control theory', 'dynamical systems', 'feedback',
+// Calculate log probability for a class given tokens
+function classifyWithModel(tokens: string[], model: TrainedModel): { prediction: string; scores: Record<string, number> } {
+  const scores: Record<string, number> = {};
 
-  // Academia (specific)
-  'peer-review', 'dissertation', 'arxiv',
-];
+  for (const cls of ['technical', 'non-technical']) {
+    let score = model.classPriors[cls];
 
-// WEAK technical keywords - need 2+ matches or 1 strong + 1 weak
-// These can appear in non-technical contexts
-const WEAK_TECHNICAL_KEYWORDS = [
-  // Tech (could be generic)
-  'software', 'developer', 'tech', 'startup', 'data', 'model', 'training',
-  'cloud', 'infrastructure', 'system', 'computer', 'computing', 'engineering',
-  'automation', 'automated', 'autonomous', 'benchmark', 'optimization',
-  'optimized', 'optimizer', 'distribution', 'manufacturing', 'simulation',
-  'neural', 'gradient', 'kernel', 'embeddings', 'tokenization', 'generation',
+    for (const token of tokens) {
+      if (model.wordLogProbs[cls][token] !== undefined) {
+        score += model.wordLogProbs[cls][token];
+      } else {
+        score += model.unknownWordLogProb[cls];
+      }
+    }
 
-  // Science (could be generic)
-  'research', 'study', 'experiment', 'hypothesis', 'science', 'scientific',
-  'psychology', 'cognitive', 'climate', 'evolution', 'brain', 'medical', 'clinical',
-
-  // Business/Economics
-  'founder', 'venture', 'investment', 'metrics',
-  'economics', 'economic', 'finance', 'financial',
-  'entrepreneur', 'innovation', 'revenue', 'pricing',
-
-  // Academia
-  'paper', 'academic', 'professor', 'university',
-  'journal', 'thesis', 'scholar', 'lecture',
-
-  // Philosophy/Ideas
-  'philosophy', 'philosophical', 'theory', 'framework', 'concept', 'analysis',
-  'rationality', 'epistemology', 'ethics', 'logic', 'reasoning',
-
-  // Writing/Media craft (specific)
-  'book review', 'literature', 'critique',
-];
-
-// Political keywords (negative signals)
-const POLITICAL_KEYWORDS = [
-  // Politicians (US)
-  'trump', 'biden', 'harris', 'pelosi', 'mcconnell', 'aoc', 'desantis',
-  'obama', 'clinton', 'pence', 'schumer', 'mccarthy', 'newsom', 'sanders',
-  'warren', 'cruz', 'rubio', 'maga', 'musk',
-
-  // Political parties/movements
-  'democrat', 'democrats', 'democratic party', 'republican', 'republicans',
-  'gop', 'liberal', 'liberals', 'conservative', 'conservatives',
-  'progressive', 'progressives', 'maga', 'woke', 'antifa', 'alt-right',
-
-  // Political processes
-  'election', 'elections', 'vote', 'voting', 'ballot', 'poll', 'polls',
-  'congress', 'senate', 'house of representatives', 'legislation', 'bill',
-  'partisan', 'bipartisan', 'caucus', 'filibuster', 'impeach', 'impeachment',
-
-  // Hot-button political topics (when framed politically)
-  'immigration', 'border', 'abortion', 'pro-life', 'pro-choice',
-  'gun control', 'second amendment', '2nd amendment', 'nra',
-  'january 6', 'jan 6', 'insurrection', 'coup',
-
-  // Political media/rhetoric
-  'fox news', 'msnbc', 'cnn', 'breitbart', 'huffpost',
-  'left-wing', 'right-wing', 'far-left', 'far-right',
-  'outrage', 'slam', 'blasts', 'rips', 'destroys', 'owns',
-];
-
-// Helper to check if keyword exists as a word (not substring)
-function hasKeyword(text: string, keyword: string): boolean {
-  // For multi-word keywords, use simple includes
-  if (keyword.includes(' ')) {
-    return text.includes(keyword);
+    scores[cls] = score;
   }
-  // For single words, use word boundary matching
-  const regex = new RegExp(`\\b${keyword}\\b`, 'i');
-  return regex.test(text);
+
+  const prediction = scores['technical'] > scores['non-technical'] ? 'technical' : 'non-technical';
+  return { prediction, scores };
 }
 
 /**
- * Check if content is technical/intellectual vs political
+ * Check if content is technical/intellectual vs non-technical
+ * Uses Naive Bayes classifier trained on labeled data
+ *
  * @param title - The title of the Substack post
  * @param description - Optional description/summary
- * @returns true if content appears technical, false if political
+ * @returns true if content is classified as technical
  */
 export function isTechnicalContent(title: string, description?: string): boolean {
-  const text = `${title} ${description || ''}`.toLowerCase();
-
-  let strongCount = 0;
-  let weakCount = 0;
-  let politicalScore = 0;
-
-  // Count strong technical keywords
-  for (const keyword of STRONG_TECHNICAL_KEYWORDS) {
-    if (hasKeyword(text, keyword)) {
-      strongCount++;
-    }
+  if (!model) {
+    // If no model is loaded, default to accepting all content
+    console.warn('No classifier model loaded - accepting all content');
+    return true;
   }
 
-  // Count weak technical keywords
-  for (const keyword of WEAK_TECHNICAL_KEYWORDS) {
-    if (hasKeyword(text, keyword)) {
-      weakCount++;
-    }
+  const text = `${title} ${description || ''}`;
+  const tokens = tokenize(text);
+
+  if (tokens.length === 0) {
+    // Empty text - default to non-technical
+    return false;
   }
 
-  // Count political keywords
-  for (const keyword of POLITICAL_KEYWORDS) {
-    if (hasKeyword(text, keyword)) {
-      politicalScore++;
-    }
-  }
-
-  const totalTechnical = strongCount + weakCount;
-
-  // Scoring logic:
-  // - 1 strong keyword is enough (unambiguously technical)
-  // - 2+ weak keywords is enough (corroborating evidence)
-  // - 1 strong + 1 weak is enough
-  // - Political keywords still count negatively
-
-  // If any political keywords, need stronger technical signal
-  if (politicalScore > 0) {
-    const score = (totalTechnical * 2) - (politicalScore * 3);
-    return score > 0 && (strongCount >= 1 || weakCount >= 2);
-  }
-
-  // No political keywords - accept if:
-  // 1. At least 1 strong keyword, OR
-  // 2. At least 2 weak keywords
-  return strongCount >= 1 || weakCount >= 2;
+  const { prediction } = classifyWithModel(tokens, model);
+  return prediction === 'technical';
 }
 
 /**
@@ -160,57 +92,58 @@ export function isTechnicalContent(title: string, description?: string): boolean
  */
 export function classifyContent(title: string, description?: string): {
   isTechnical: boolean;
-  strongCount: number;
-  weakCount: number;
-  politicalScore: number;
-  matchedStrong: string[];
-  matchedWeak: string[];
-  matchedPolitical: string[];
+  prediction: string;
+  scores: Record<string, number>;
+  tokens: string[];
+  modelLoaded: boolean;
 } {
-  const text = `${title} ${description || ''}`.toLowerCase();
-
-  const matchedStrong: string[] = [];
-  const matchedWeak: string[] = [];
-  const matchedPolitical: string[] = [];
-
-  for (const keyword of STRONG_TECHNICAL_KEYWORDS) {
-    if (hasKeyword(text, keyword)) {
-      matchedStrong.push(keyword);
-    }
+  if (!model) {
+    return {
+      isTechnical: true,
+      prediction: 'unknown',
+      scores: {},
+      tokens: [],
+      modelLoaded: false,
+    };
   }
 
-  for (const keyword of WEAK_TECHNICAL_KEYWORDS) {
-    if (hasKeyword(text, keyword)) {
-      matchedWeak.push(keyword);
-    }
+  const text = `${title} ${description || ''}`;
+  const tokens = tokenize(text);
+
+  if (tokens.length === 0) {
+    return {
+      isTechnical: false,
+      prediction: 'non-technical',
+      scores: { technical: 0, 'non-technical': 0 },
+      tokens: [],
+      modelLoaded: true,
+    };
   }
 
-  for (const keyword of POLITICAL_KEYWORDS) {
-    if (hasKeyword(text, keyword)) {
-      matchedPolitical.push(keyword);
-    }
-  }
+  const { prediction, scores } = classifyWithModel(tokens, model);
 
-  const strongCount = matchedStrong.length;
-  const weakCount = matchedWeak.length;
-  const politicalScore = matchedPolitical.length;
-  const totalTechnical = strongCount + weakCount;
+  return {
+    isTechnical: prediction === 'technical',
+    prediction,
+    scores,
+    tokens,
+    modelLoaded: true,
+  };
+}
 
-  let isTechnical: boolean;
-  if (politicalScore > 0) {
-    const score = (totalTechnical * 2) - (politicalScore * 3);
-    isTechnical = score > 0 && (strongCount >= 1 || weakCount >= 2);
-  } else {
-    isTechnical = strongCount >= 1 || weakCount >= 2;
+/**
+ * Get model metadata
+ */
+export function getModelInfo(): {
+  loaded: boolean;
+  metadata?: TrainedModel['metadata'];
+} {
+  if (!model) {
+    return { loaded: false };
   }
 
   return {
-    isTechnical,
-    strongCount,
-    weakCount,
-    politicalScore,
-    matchedStrong,
-    matchedWeak,
-    matchedPolitical,
+    loaded: true,
+    metadata: model.metadata,
   };
 }
