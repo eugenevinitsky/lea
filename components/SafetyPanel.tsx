@@ -368,12 +368,9 @@ export default function SafetyPanel({ onOpenProfile, onOpenThread, defaultExpand
             </svg>
           </a>
 
-          {/* Safety Alerts Section */}
+          {/* Safety Alerts Section - Always expanded */}
           <div className="border-l-4 border-l-amber-400">
-            <button
-              onClick={() => toggleSection('alerts')}
-              className="w-full px-3 py-2 flex items-center justify-between bg-amber-50 dark:bg-amber-900/20 hover:bg-amber-100 dark:hover:bg-amber-900/30 transition-colors"
-            >
+            <div className="px-3 py-2 flex items-center justify-between bg-amber-50 dark:bg-amber-900/20">
               <div className="flex items-center gap-2">
                 <svg className="w-3.5 h-3.5 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
@@ -385,29 +382,20 @@ export default function SafetyPanel({ onOpenProfile, onOpenThread, defaultExpand
                   </span>
                 )}
               </div>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={(e) => { e.stopPropagation(); setShowAlertSettings(true); }}
-                  className="p-1 text-amber-400 hover:text-amber-600 dark:hover:text-amber-300 transition-colors"
-                  title="Alert settings"
-                >
-                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                  </svg>
-                </button>
-                <svg
-                  className={`w-3.5 h-3.5 text-amber-500 transition-transform ${expandedSections.has('alerts') ? 'rotate-180' : ''}`}
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              <button
+                onClick={() => setShowAlertSettings(true)}
+                className="p-1 text-amber-400 hover:text-amber-600 dark:hover:text-amber-300 transition-colors"
+                title="Alert settings"
+              >
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                 </svg>
-              </div>
-            </button>
+              </button>
+            </div>
 
-            {expandedSections.has('alerts') && (
+            {/* Alerts content - always shown */}
+            {(
               <div className="p-3 border-b border-gray-100 dark:border-gray-800">
                 <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
                   Activity that may need your attention
@@ -494,441 +482,76 @@ export default function SafetyPanel({ onOpenProfile, onOpenThread, defaultExpand
             )}
           </div>
 
-          {/* Reply Limits Section */}
-          <div className="border-l-4 border-l-blue-400">
-            <button
-              onClick={() => toggleSection('replyLimits')}
-              className="w-full px-3 py-2 flex items-center justify-between bg-blue-50 dark:bg-blue-900/20 hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors"
-            >
-              <div className="flex items-center gap-2">
-                <svg className="w-3.5 h-3.5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
-                </svg>
-                <h4 className="text-xs font-medium text-blue-700 dark:text-blue-300">Reply Limits</h4>
-              </div>
-              <svg
-                className={`w-3.5 h-3.5 text-blue-500 transition-transform ${expandedSections.has('replyLimits') ? 'rotate-180' : ''}`}
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-              </svg>
-            </button>
-            
-            {expandedSections.has('replyLimits') && (
-              <div className="p-3 border-b border-gray-100 dark:border-gray-800">
-                <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
-                  Control who can reply to your posts
-                </p>
-                
-                {/* Auto-apply toggle */}
-                <label className="flex items-center justify-between mb-3">
-                  <span className="text-sm text-gray-700 dark:text-gray-300">Auto-apply to new posts</span>
-                  <input
-                    type="checkbox"
-                    checked={settings.autoThreadgate}
-                    onChange={(e) => updateSettings({ autoThreadgate: e.target.checked })}
-                    className="w-4 h-4 rounded border-gray-300 text-blue-500 focus:ring-blue-500"
-                  />
-                </label>
-                
-                {/* Dropdown */}
-                <select
-                  value={replyLimit}
-                  onChange={(e) => handleReplyLimitChange(e.target.value as ThreadgateType)}
-                  className="w-full px-3 py-2 text-sm bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 dark:text-gray-100"
-                >
-                  <option value="following">People I follow</option>
-                  <option value="researchers">Verified researchers only</option>
-                  <option value="open">Everyone</option>
-                </select>
+          {/* Reply Limits Link */}
+          <a
+            href="/settings/reply-limits"
+            className="flex items-center gap-2 px-3 py-2.5 border-l-4 border-l-blue-400 bg-blue-50 dark:bg-blue-900/20 hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors"
+          >
+            <svg className="w-3.5 h-3.5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+            </svg>
+            <span className="text-xs font-medium text-blue-700 dark:text-blue-300">Reply Limits</span>
+            <svg className="w-3.5 h-3.5 text-blue-400 ml-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            </svg>
+          </a>
 
-                {/* Action buttons */}
-                <div className="mt-3 space-y-2">
-                  <button
-                    onClick={applyToFuture}
-                    disabled={applyingTo !== null}
-                    className="w-full px-3 py-1.5 text-xs font-medium bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/50 disabled:opacity-50 transition-colors"
-                  >
-                    Set as default for future posts
-                  </button>
-                  <button
-                    onClick={applyToPast}
-                    disabled={applyingTo !== null}
-                    className="w-full px-3 py-1.5 text-xs font-medium bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 disabled:opacity-50 transition-colors"
-                  >
-                    {applyingTo === 'past' ? 'Applying...' : 'Apply to all past posts'}
-                  </button>
-                  <button
-                    onClick={applyToBoth}
-                    disabled={applyingTo !== null}
-                    className="w-full px-3 py-1.5 text-xs font-medium bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 disabled:opacity-50 transition-colors"
-                  >
-                    Apply to all (future + past)
-                  </button>
-                </div>
+          {/* Content Filtering Link */}
+          <a
+            href="/settings/content-filtering"
+            className="flex items-center gap-2 px-3 py-2.5 border-l-4 border-l-emerald-400 bg-emerald-50 dark:bg-emerald-900/20 hover:bg-emerald-100 dark:hover:bg-emerald-900/30 transition-colors"
+          >
+            <svg className="w-3.5 h-3.5 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+            </svg>
+            <span className="text-xs font-medium text-emerald-700 dark:text-emerald-300">Content Filtering</span>
+            <svg className="w-3.5 h-3.5 text-emerald-400 ml-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            </svg>
+          </a>
 
-                {/* Progress indicator */}
-                {progress && (
-                  <div className="mt-3">
-                    <div className="flex items-center justify-between text-xs text-gray-500 mb-1">
-                      <span>Updating posts...</span>
-                      <span>{progress.current} / {progress.total}</span>
-                    </div>
-                    <div className="w-full h-1.5 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
-                      <div
-                        className="h-full bg-blue-500 transition-all duration-300"
-                        style={{ width: `${progress.total > 0 ? (progress.current / progress.total) * 100 : 0}%` }}
-                      />
-                    </div>
-                  </div>
-                )}
+          {/* Blocked Accounts Link */}
+          <a
+            href="/settings/blocked"
+            className="flex items-center gap-2 px-3 py-2.5 border-l-4 border-l-red-400 bg-red-50 dark:bg-red-900/20 hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors"
+          >
+            <svg className="w-3.5 h-3.5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
+            </svg>
+            <span className="text-xs font-medium text-red-700 dark:text-red-300">Blocked Accounts</span>
+            <svg className="w-3.5 h-3.5 text-red-400 ml-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            </svg>
+          </a>
 
-                {/* Success/Error messages */}
-                {applySuccess && (
-                  <p className="mt-2 text-xs text-emerald-600 dark:text-emerald-400">{applySuccess}</p>
-                )}
-                {applyError && (
-                  <p className="mt-2 text-xs text-red-600 dark:text-red-400">{applyError}</p>
-                )}
-              </div>
-            )}
-          </div>
+          {/* Display Link */}
+          <a
+            href="/settings/display"
+            className="flex items-center gap-2 px-3 py-2.5 border-l-4 border-l-purple-400 bg-purple-50 dark:bg-purple-900/20 hover:bg-purple-100 dark:hover:bg-purple-900/30 transition-colors"
+          >
+            <svg className="w-3.5 h-3.5 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+            </svg>
+            <span className="text-xs font-medium text-purple-700 dark:text-purple-300">Display</span>
+            <svg className="w-3.5 h-3.5 text-purple-400 ml-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            </svg>
+          </a>
 
-          {/* Content Filtering Section */}
-          <div className="border-l-4 border-l-emerald-400">
-            <button
-              onClick={() => toggleSection('filtering')}
-              className="w-full px-3 py-2 flex items-center justify-between bg-emerald-50 dark:bg-emerald-900/20 hover:bg-emerald-100 dark:hover:bg-emerald-900/30 transition-colors"
-            >
-              <div className="flex items-center gap-2">
-                <svg className="w-3.5 h-3.5 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
-                </svg>
-                <h4 className="text-xs font-medium text-emerald-700 dark:text-emerald-300">Content Filtering</h4>
-              </div>
-              <svg
-                className={`w-3.5 h-3.5 text-emerald-500 transition-transform ${expandedSections.has('filtering') ? 'rotate-180' : ''}`}
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-              </svg>
-            </button>
-            
-            {expandedSections.has('filtering') && (
-              <div className="p-3 border-b border-gray-100 dark:border-gray-800">
-                {/* High-follower blocking */}
-                <label className="flex items-center justify-between py-2">
-                  <div>
-                    <p className="text-sm text-gray-700 dark:text-gray-300">Hide high-follower accounts</p>
-                    <p className="text-xs text-gray-500">Accounts following many people (often bots)</p>
-                  </div>
-                  <input
-                    type="checkbox"
-                    checked={settings.highFollowerThreshold !== null}
-                    onChange={(e) => updateSettings({ highFollowerThreshold: e.target.checked ? 10000 : null })}
-                    className="w-4 h-4 rounded border-gray-300 text-blue-500 focus:ring-blue-500"
-                  />
-                </label>
-
-                {settings.highFollowerThreshold !== null && (
-                  <div className="ml-4 pl-3 border-l-2 border-gray-200 dark:border-gray-700 mb-2">
-                    <p className="text-xs text-gray-500 mb-2">Hide if following more than:</p>
-                    <div className="flex gap-2">
-                      {[5000, 10000, 20000].map((threshold) => (
-                        <button
-                          key={threshold}
-                          onClick={() => updateSettings({ highFollowerThreshold: threshold })}
-                          className={`px-2.5 py-1 text-xs rounded-full border ${
-                            settings.highFollowerThreshold === threshold
-                              ? 'bg-blue-500 text-white border-blue-500'
-                              : 'border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
-                          }`}
-                        >
-                          {(threshold / 1000).toFixed(0)}k
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Dim non-verified */}
-                <label className="flex items-center justify-between py-2">
-                  <div>
-                    <p className="text-sm text-gray-700 dark:text-gray-300">Dim non-verified</p>
-                    <p className="text-xs text-gray-500">Reduce visibility of non-researcher accounts</p>
-                  </div>
-                  <input
-                    type="checkbox"
-                    checked={settings.dimNonVerified}
-                    onChange={(e) => updateSettings({ dimNonVerified: e.target.checked })}
-                    className="w-4 h-4 rounded border-gray-300 text-blue-500 focus:ring-blue-500"
-                  />
-                </label>
-
-                {/* Dim reposts */}
-                <label className="flex items-center justify-between py-2">
-                  <div>
-                    <p className="text-sm text-gray-700 dark:text-gray-300">Dim reposts</p>
-                    <p className="text-xs text-gray-500">Reduce visibility of reposted content</p>
-                  </div>
-                  <input
-                    type="checkbox"
-                    checked={settings.dimReposts}
-                    onChange={(e) => updateSettings({ dimReposts: e.target.checked })}
-                    className="w-4 h-4 rounded border-gray-300 text-blue-500 focus:ring-blue-500"
-                  />
-                </label>
-              </div>
-            )}
-          </div>
-
-          {/* Manage Blocks Section */}
-          <div className="border-l-4 border-l-red-400">
-            <button
-              onClick={() => toggleSection('blocks')}
-              className="w-full px-3 py-2 flex items-center justify-between bg-red-50 dark:bg-red-900/20 hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors"
-            >
-              <div className="flex items-center gap-2">
-                <svg className="w-3.5 h-3.5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
-                </svg>
-                <h4 className="text-xs font-medium text-red-700 dark:text-red-300">Blocked Accounts</h4>
-              </div>
-              <svg
-                className={`w-3.5 h-3.5 text-red-500 transition-transform ${expandedSections.has('blocks') ? 'rotate-180' : ''}`}
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-              </svg>
-            </button>
-            
-            {expandedSections.has('blocks') && (
-              <div className="p-3 border-b border-gray-100 dark:border-gray-800">
-                {!blocksLoaded ? (
-                  <div className="text-center py-2">
-                    <button
-                      onClick={async () => {
-                        setLoadingBlocks(true);
-                        try {
-                          const result = await getBlockedAccounts();
-                          setBlockedAccounts(result.blocks);
-                          setBlocksLoaded(true);
-                        } catch (err) {
-                          console.error('Failed to load blocked accounts:', err);
-                        } finally {
-                          setLoadingBlocks(false);
-                        }
-                      }}
-                      disabled={loadingBlocks}
-                      className="text-xs text-blue-600 dark:text-blue-400 hover:underline disabled:opacity-50"
-                    >
-{loadingBlocks ? 'Loading...' : 'Load recently blocked accounts'}
-                    </button>
-                  </div>
-                ) : blockedAccounts.length === 0 ? (
-                  <p className="text-xs text-gray-500 py-2">No blocked accounts</p>
-                ) : (
-                  <div className="space-y-2 max-h-36 overflow-y-auto">
-                    {blockedAccounts.slice(0, 5).map((account) => (
-                      <div
-                        key={account.did}
-                        className="flex items-center gap-2 p-2 rounded-lg bg-gray-50 dark:bg-gray-800/50"
-                      >
-                        {account.avatar ? (
-                          <img
-                            src={account.avatar}
-                            alt=""
-                            className="w-8 h-8 rounded-full flex-shrink-0"
-                          />
-                        ) : (
-                          <div className="w-8 h-8 rounded-full bg-gray-300 dark:bg-gray-600 flex-shrink-0" />
-                        )}
-                        <div className="flex-1 min-w-0">
-                          <button
-                            onClick={() => onOpenProfile?.(account.did)}
-                            className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate block text-left hover:underline"
-                          >
-                            {account.displayName || account.handle}
-                          </button>
-                          <p className="text-xs text-gray-500 truncate">@{account.handle}</p>
-                        </div>
-                        <button
-                          onClick={async () => {
-                            if (!account.blockUri) return;
-                            setUnblockingDid(account.did);
-                            try {
-                              await unblockUser(account.blockUri);
-                              setBlockedAccounts(prev => prev.filter(a => a.did !== account.did));
-                            } catch (err) {
-                              console.error('Failed to unblock:', err);
-                            } finally {
-                              setUnblockingDid(null);
-                            }
-                          }}
-                          disabled={unblockingDid === account.did}
-                          className="px-2 py-1 text-xs font-medium text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/30 hover:bg-red-100 dark:hover:bg-red-900/50 rounded transition-colors disabled:opacity-50 flex-shrink-0"
-                        >
-                          {unblockingDid === account.did ? '...' : 'Unblock'}
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-                
-                {/* Link to full management page */}
-                <button
-                  onClick={() => window.location.href = '/settings/blocked'}
-                  className="w-full mt-3 py-2 px-3 text-xs text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30 hover:bg-blue-100 dark:hover:bg-blue-900/50 rounded-lg transition-colors flex items-center justify-center gap-1"
-                >
-                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
-                  </svg>
-                  Manage all blocked accounts
-                </button>
-              </div>
-            )}
-          </div>
-
-          {/* Display Section */}
-          <div className="border-l-4 border-l-purple-400">
-            <button
-              onClick={() => toggleSection('display')}
-              className="w-full px-3 py-2 flex items-center justify-between bg-purple-50 dark:bg-purple-900/20 hover:bg-purple-100 dark:hover:bg-purple-900/30 transition-colors"
-            >
-              <div className="flex items-center gap-2">
-                <svg className="w-3.5 h-3.5 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                </svg>
-                <h4 className="text-xs font-medium text-purple-700 dark:text-purple-300">Display</h4>
-              </div>
-              <svg
-                className={`w-3.5 h-3.5 text-purple-500 transition-transform ${expandedSections.has('display') ? 'rotate-180' : ''}`}
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-              </svg>
-            </button>
-            
-            {expandedSections.has('display') && (
-              <div className="p-3 border-b border-gray-100 dark:border-gray-800">
-                {/* Paper highlights */}
-                <label className="flex items-center justify-between py-2">
-                  <div>
-                    <p className="text-sm text-gray-700 dark:text-gray-300">Highlight paper links</p>
-                    <p className="text-xs text-gray-500">Show indicator on posts with arXiv, DOI links</p>
-                  </div>
-                  <input
-                    type="checkbox"
-                    checked={settings.showPaperHighlights}
-                    onChange={(e) => updateSettings({ showPaperHighlights: e.target.checked })}
-                    className="w-4 h-4 rounded border-gray-300 text-blue-500 focus:ring-blue-500"
-                  />
-                </label>
-
-                {/* Expand self-threads */}
-                <label className="flex items-center justify-between py-2">
-                  <div>
-                    <p className="text-sm text-gray-700 dark:text-gray-300">Expand self-threads</p>
-                    <p className="text-xs text-gray-500">Show full thread when someone replies to themselves</p>
-                  </div>
-                  <input
-                    type="checkbox"
-                    checked={settings.expandSelfThreads}
-                    onChange={(e) => updateSettings({ expandSelfThreads: e.target.checked })}
-                    className="w-4 h-4 rounded border-gray-300 text-blue-500 focus:ring-blue-500"
-                  />
-                </label>
-              </div>
-            )}
-          </div>
-
-          {/* Labelers Section */}
-          <div className="border-l-4 border-l-amber-400">
-            <button
-              onClick={() => toggleSection('labelers')}
-              className="w-full px-3 py-2 flex items-center justify-between bg-amber-50 dark:bg-amber-900/20 hover:bg-amber-100 dark:hover:bg-amber-900/30 transition-colors"
-            >
-              <div className="flex items-center gap-2">
-                <svg className="w-3.5 h-3.5 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
-                </svg>
-                <h4 className="text-xs font-medium text-amber-700 dark:text-amber-300">Labelers</h4>
-              </div>
-              <svg
-                className={`w-3.5 h-3.5 text-amber-500 transition-transform ${expandedSections.has('labelers') ? 'rotate-180' : ''}`}
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-              </svg>
-            </button>
-            
-            {expandedSections.has('labelers') && (
-              <div className="p-3">
-                <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
-                  Labelers you&apos;ve subscribed to on Bluesky
-                </p>
-
-                {loadingLabelers ? (
-                  <div className="flex items-center justify-center py-4">
-                    <div className="animate-spin w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full" />
-                  </div>
-                ) : labelers.length === 0 ? (
-                  <p className="text-xs text-gray-400 py-2">No labelers subscribed</p>
-                ) : (
-                  <div className="space-y-2">
-                    {labelers.map((labeler) => (
-                      <a
-                        key={labeler.did}
-                        href={`https://bsky.app/profile/${labeler.handle}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex items-center gap-2 p-2 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors"
-                      >
-                        {labeler.avatar ? (
-                          <img
-                            src={labeler.avatar}
-                            alt={labeler.displayName || labeler.handle}
-                            className="w-8 h-8 rounded-full"
-                          />
-                        ) : (
-                          <div className="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center text-white text-xs font-bold">
-                            {(labeler.displayName || labeler.handle)[0].toUpperCase()}
-                          </div>
-                        )}
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
-                            {labeler.displayName || labeler.handle}
-                          </p>
-                          <p className="text-xs text-gray-500 truncate">@{labeler.handle}</p>
-                        </div>
-                        <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                        </svg>
-                      </a>
-                    ))}
-                  </div>
-                )}
-
-                <button
-                  onClick={() => setShowSuggestedModal(true)}
-                  className="w-full mt-3 py-2 px-3 text-xs text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30 hover:bg-blue-100 dark:hover:bg-blue-900/50 rounded-lg transition-colors"
-                >
-                  Discover more labelers
-                </button>
-              </div>
-            )}
-          </div>
+          {/* Labelers Link */}
+          <a
+            href="/settings/labelers"
+            className="flex items-center gap-2 px-3 py-2.5 border-l-4 border-l-orange-400 bg-orange-50 dark:bg-orange-900/20 hover:bg-orange-100 dark:hover:bg-orange-900/30 transition-colors"
+          >
+            <svg className="w-3.5 h-3.5 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+            </svg>
+            <span className="text-xs font-medium text-orange-700 dark:text-orange-300">Labelers</span>
+            <svg className="w-3.5 h-3.5 text-orange-400 ml-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            </svg>
+          </a>
         </div>
       )}
 
