@@ -253,9 +253,7 @@ function RichText({ text, facets }: { text: string; facets?: AppBskyFeedPost.Rec
       elements.push(
         <a
           key={byteStart}
-          href={`https://bsky.app/profile/${did}`}
-          target="_blank"
-          rel="noopener noreferrer"
+          href={`/u/${did}`}
           className="text-blue-500 hover:underline"
           onClick={(e) => e.stopPropagation()}
         >
@@ -267,9 +265,7 @@ function RichText({ text, facets }: { text: string; facets?: AppBskyFeedPost.Rec
       elements.push(
         <a
           key={byteStart}
-          href={`https://bsky.app/hashtag/${tag}`}
-          target="_blank"
-          rel="noopener noreferrer"
+          href={`/search?q=${encodeURIComponent('#' + tag)}`}
           className="text-blue-500 hover:underline"
           onClick={(e) => e.stopPropagation()}
         >
@@ -327,7 +323,10 @@ function EmbedImages({ images }: { images: AppBskyEmbedImages.ViewImage[] }) {
         {expandedImage && typeof document !== 'undefined' && createPortal(
           <div
             className="fixed inset-0 z-[9999] bg-black/90 flex items-center justify-center p-4"
-            onClick={closeLightbox}
+            onClick={(e) => {
+              e.stopPropagation();
+              closeLightbox();
+            }}
           >
             <button
               onClick={closeLightbox}
@@ -393,7 +392,10 @@ function EmbedImages({ images }: { images: AppBskyEmbedImages.ViewImage[] }) {
       {expandedImage && typeof document !== 'undefined' && createPortal(
         <div
           className="fixed inset-0 z-[9999] bg-black/90 flex items-center justify-center p-4"
-          onClick={closeLightbox}
+          onClick={(e) => {
+            e.stopPropagation();
+            closeLightbox();
+          }}
         >
           <button
             onClick={closeLightbox}
