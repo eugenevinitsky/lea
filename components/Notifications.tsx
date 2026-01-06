@@ -560,27 +560,39 @@ export default function Notifications({ onOpenPost, onOpenProfile, embedded = fa
               <p className="text-xs text-gray-400">No notifications yet</p>
             </div>
           ) : (
-            <div className="divide-y divide-gray-200 dark:divide-gray-800">
-              {categories.map((cat) => (
-                <CategorySection
-                  key={cat.key}
-                  title={cat.title}
-                  icon={cat.icon}
-                  notifications={cat.items}
-                  unreadCount={cat.unread}
-                  isExpanded={expandedCategories.has(cat.key)}
-                  onToggle={() => handleCategoryToggle(cat.key)}
-                  onLoadMore={() => fetchData(true)}
-                  hasMore={!!cursor}
-                  loading={loadingMore}
-                  colors={cat.colors}
-                  onOpenPost={onOpenPost}
-                  onOpenProfile={onOpenProfile}
-                  enabled={cat.enabled}
-                  onToggleEnabled={() => updateSettings({ [cat.settingKey]: !cat.enabled })}
-                />
-              ))}
-            </div>
+            <>
+              <div className="divide-y divide-gray-200 dark:divide-gray-800">
+                {categories.map((cat) => (
+                  <CategorySection
+                    key={cat.key}
+                    title={cat.title}
+                    icon={cat.icon}
+                    notifications={cat.items}
+                    unreadCount={cat.unread}
+                    isExpanded={expandedCategories.has(cat.key)}
+                    onToggle={() => handleCategoryToggle(cat.key)}
+                    onLoadMore={() => fetchData(true)}
+                    hasMore={!!cursor}
+                    loading={loadingMore}
+                    colors={cat.colors}
+                    onOpenPost={onOpenPost}
+                    onOpenProfile={onOpenProfile}
+                    enabled={cat.enabled}
+                    onToggleEnabled={() => updateSettings({ [cat.settingKey]: !cat.enabled })}
+                  />
+                ))}
+              </div>
+              {/* Explore link */}
+              <a
+                href="/notifications"
+                className="flex items-center justify-center gap-2 p-2 text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors border-t border-gray-200 dark:border-gray-800"
+              >
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                </svg>
+                Explore Notifications
+              </a>
+            </>
           )}
         </div>
       )}
