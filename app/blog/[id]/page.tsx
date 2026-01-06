@@ -3,7 +3,7 @@
 import { useParams, useRouter } from 'next/navigation';
 import { useState, useEffect, useCallback, Suspense } from 'react';
 import { AppBskyFeedDefs } from '@atproto/api';
-import { restoreSession, getSession, getBlueskyProfile, getPostsByUris } from '@/lib/bluesky';
+import { restoreSession, getSession, getBlueskyProfile, getPostsByUris, searchPosts } from '@/lib/bluesky';
 import { SettingsProvider } from '@/lib/settings';
 import { BookmarksProvider } from '@/lib/bookmarks';
 import { FeedsProvider } from '@/lib/feeds';
@@ -47,6 +47,7 @@ function BlogPageContent() {
   const [postsLoading, setPostsLoading] = useState(false);
   const [hasMore, setHasMore] = useState(false);
   const [offset, setOffset] = useState(0);
+  const [searchCursor, setSearchCursor] = useState<string | undefined>();
   const [error, setError] = useState<string | null>(null);
   const [blogInfo, setBlogInfo] = useState<BlogPostInfo>({});
   const [threadUri, setThreadUri] = useState<string | null>(null);
@@ -127,38 +128,128 @@ function BlogPageContent() {
         }
       }
 
+      // Bluesky search for blog URL (to find posts not yet in our DB)
+      let searchResults: AppBskyFeedDefs.PostView[] = [];
+      let newSearchCursor: string | undefined;
+      const blogUrl = data.post?.url;
+
+      if (blogUrl) {
+        try {
+          let result: { posts: AppBskyFeedDefs.PostView[]; cursor?: string } = { posts: [], cursor: undefined };
+
+          // Strategy 1: Search for the full Substack URL
+          if (!loadMore) {
+            console.log('[Blog Search] Strategy 1 (full URL):', blogUrl);
+            result = await searchPosts(blogUrl, undefined, 'latest');
+            console.log('[Blog Search] Strategy 1 results:', result.posts.length);
+          }
+
+          // Strategy 2: Try URL without query params
+          if (!loadMore && result.posts.length === 0) {
+            const urlNoParams = blogUrl.replace(/\?.*$/, '');
+            if (urlNoParams !== blogUrl) {
+              console.log('[Blog Search] Strategy 2 (URL without params):', urlNoParams);
+              result = await searchPosts(urlNoParams, undefined, 'latest');
+              console.log('[Blog Search] Strategy 2 results:', result.posts.length);
+            }
+          }
+
+          // Strategy 3: Search by subdomain + slug (for pagination or if URL search fails)
+          if (result.posts.length === 0 || loadMore) {
+            // Extract subdomain.substack.com/p/slug pattern
+            const urlMatch = blogUrl.match(/([a-z0-9-]+)\.substack\.com\/p\/([a-z0-9-]+)/i);
+            if (urlMatch) {
+              const [, subdomain, slug] = urlMatch;
+              const searchQuery = `${subdomain}.substack.com ${slug}`;
+              console.log('[Blog Search] Strategy 3 (subdomain + slug):', searchQuery, loadMore ? `cursor: ${searchCursor}` : '');
+              const slugResult = await searchPosts(searchQuery, loadMore ? searchCursor : undefined, 'latest');
+              console.log('[Blog Search] Strategy 3 results:', slugResult.posts.length);
+              if (loadMore || result.posts.length === 0) {
+                result = slugResult;
+              }
+            }
+          }
+
+          console.log('[Blog Search] Total raw results:', result.posts.length);
+          newSearchCursor = result.cursor;
+
+          // Filter to only posts that actually contain this blog URL
+          searchResults = result.posts.filter(post => {
+            const record = post.record as { text?: string };
+            const embedUri = post.embed && 'external' in post.embed
+              ? (post.embed as { external?: { uri?: string } }).external?.uri
+              : undefined;
+
+            // Check if post text or embed contains the blog URL (or subdomain/slug combo)
+            const textHasUrl = record.text?.includes(blogUrl) || record.text?.includes(blogUrl.replace(/\?.*$/, ''));
+            const embedHasUrl = embedUri?.includes(blogUrl) || embedUri?.includes(blogUrl.replace(/\?.*$/, ''));
+
+            return textHasUrl || embedHasUrl;
+          });
+
+          console.log('[Blog Search] Filtered results:', searchResults.length);
+        } catch (searchErr) {
+          console.log('[Blog Search] Search failed (continuing with DB results):', searchErr);
+        }
+      }
+
+      // Merge and deduplicate by URI
+      const seenUris = new Set<string>();
+      const allPosts: AppBskyFeedDefs.PostView[] = [];
+
+      // Add DB posts first (they're authoritative)
+      for (const post of dbPosts) {
+        if (!seenUris.has(post.uri)) {
+          seenUris.add(post.uri);
+          allPosts.push(post);
+        }
+      }
+
+      // Add search posts that aren't already included
+      for (const post of searchResults) {
+        if (!seenUris.has(post.uri)) {
+          seenUris.add(post.uri);
+          allPosts.push(post);
+        }
+      }
+
       // Sort by indexedAt to maintain chronological order (newest first)
-      dbPosts.sort((a, b) => {
+      allPosts.sort((a, b) => {
         const dateA = new Date(a.indexedAt).getTime();
         const dateB = new Date(b.indexedAt).getTime();
         return dateB - dateA;
       });
 
+      // Filter out fallback posts that now have live versions (from search)
+      const finalFallbacks = newFallbackPosts.filter(f => !seenUris.has(f.postUri));
+
       if (loadMore) {
         setPosts(prev => {
           const prevUris = new Set(prev.map(p => p.uri));
-          const newPosts = dbPosts.filter(p => !prevUris.has(p.uri));
+          const newPosts = allPosts.filter(p => !prevUris.has(p.uri));
           return [...prev, ...newPosts];
         });
         setFallbackPosts(prev => {
           const prevUris = new Set(prev.map(p => p.postUri));
-          const newFallbacks = newFallbackPosts.filter(p => !prevUris.has(p.postUri));
+          const newFallbacks = finalFallbacks.filter(p => !prevUris.has(p.postUri));
           return [...prev, ...newFallbacks];
         });
       } else {
-        setPosts(dbPosts);
-        setFallbackPosts(newFallbackPosts);
+        setPosts(allPosts);
+        setFallbackPosts(finalFallbacks);
       }
 
       setOffset(currentOffset + data.mentions.length);
-      setHasMore(data.mentions.length === limit);
+      setSearchCursor(newSearchCursor);
+      // Has more if either DB has more or search has more results
+      setHasMore(data.mentions.length === limit || !!newSearchCursor);
     } catch (err) {
       console.error('Failed to fetch blog posts:', err);
       setError('Failed to load discussions');
     } finally {
       setPostsLoading(false);
     }
-  }, [blogId, offset]);
+  }, [blogId, offset, searchCursor]);
 
   // Initial fetch when logged in
   useEffect(() => {
