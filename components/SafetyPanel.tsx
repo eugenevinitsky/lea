@@ -372,12 +372,12 @@ export default function SafetyPanel({ onOpenProfile, onOpenThread, defaultExpand
           {/* Quick Help Link */}
           <a
             href="/settings/safety-help"
-            className="flex items-center gap-2 px-3 py-2.5 bg-rose-50 dark:bg-rose-900/20 hover:bg-rose-100 dark:hover:bg-rose-900/30 transition-colors border-b border-gray-200 dark:border-gray-800"
+            className="flex items-center gap-2 px-3 py-2 bg-rose-50 dark:bg-rose-900/20 hover:bg-rose-100 dark:hover:bg-rose-900/30 transition-colors border-b border-gray-200 dark:border-gray-800"
           >
-            <svg className="w-4 h-4 text-rose-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-3.5 h-3.5 text-rose-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 5.636l-3.536 3.536m0 5.656l3.536 3.536M9.172 9.172L5.636 5.636m3.536 9.192l-3.536 3.536M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-5 0a4 4 0 11-8 0 4 4 0 018 0z" />
             </svg>
-            <span className="text-sm font-medium text-rose-700 dark:text-rose-300">Quick Help</span>
+            <span className="text-xs font-medium text-rose-700 dark:text-rose-300">Quick Help</span>
             <svg className="w-3.5 h-3.5 text-rose-400 ml-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
             </svg>
@@ -412,10 +412,6 @@ export default function SafetyPanel({ onOpenProfile, onOpenThread, defaultExpand
             {/* Alerts content - always shown */}
             {(
               <div className="p-3 border-b border-gray-200 dark:border-gray-800">
-                <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
-                  Activity that may need your attention
-                </p>
-
                 {loadingAlerts ? (
                   <div className="flex items-center justify-center py-4">
                     <div className="animate-spin w-5 h-5 border-2 border-amber-500 border-t-transparent rounded-full" />
