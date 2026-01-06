@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { restoreSession, getSession, getBlueskyProfile } from '@/lib/bluesky';
+import { restoreSession, getSession, getBlueskyProfile, checkSafetyAlerts, dismissSafetyAlert, SafetyAlert, AlertThresholds } from '@/lib/bluesky';
 import { SettingsProvider } from '@/lib/settings';
 import { BookmarksProvider, useBookmarks } from '@/lib/bookmarks';
 import { FeedsProvider } from '@/lib/feeds';
@@ -35,6 +35,202 @@ function formatTime(dateString: string) {
   if (diffHours < 24) return `${diffHours}h ago`;
   if (diffDays < 7) return `${diffDays}d ago`;
   return date.toLocaleDateString();
+}
+
+// Alert icon helper
+function getAlertIcon(type: SafetyAlert['type']) {
+  switch (type) {
+    case 'high_engagement':
+      return (
+        <svg className="w-5 h-5 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+        </svg>
+      );
+    case 'big_account_repost':
+      return (
+        <svg className="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+        </svg>
+      );
+    case 'big_account_quote':
+      return (
+        <svg className="w-5 h-5 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
+        </svg>
+      );
+    case 'quote_going_viral':
+      return (
+        <svg className="w-5 h-5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 18.657A8 8 0 016.343 7.343S7 9 9 10c0-2 .5-5 2.986-7C14 5 16.09 5.777 17.656 7.343A7.975 7.975 0 0120 13a7.975 7.975 0 01-2.343 5.657z" />
+        </svg>
+      );
+  }
+}
+
+// Alerts section component
+function AlertsSection({
+  onOpenPost,
+  onOpenProfile,
+}: {
+  onOpenPost: (uri: string) => void;
+  onOpenProfile: (did: string) => void;
+}) {
+  const [alerts, setAlerts] = useState<SafetyAlert[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [thresholds] = useState<AlertThresholds>(() => {
+    if (typeof window === 'undefined') return {};
+    const saved = localStorage.getItem('lea-alert-thresholds');
+    return saved ? JSON.parse(saved) : {};
+  });
+
+  useEffect(() => {
+    loadAlerts();
+  }, []);
+
+  const loadAlerts = async () => {
+    setLoading(true);
+    try {
+      const newAlerts = await checkSafetyAlerts(thresholds);
+      setAlerts(newAlerts);
+    } catch (err) {
+      console.error('Failed to load alerts:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDismiss = (alertId: string) => {
+    dismissSafetyAlert(alertId);
+    setAlerts(prev => prev.filter(a => a.id !== alertId));
+  };
+
+  return (
+    <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden">
+      <div className="p-4 border-b border-gray-200 dark:border-gray-800 bg-amber-50 dark:bg-amber-900/20 flex items-center justify-between">
+        <h3 className="text-sm font-semibold text-amber-700 dark:text-amber-300 flex items-center gap-2">
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+          </svg>
+          Safety Alerts
+          {alerts.length > 0 && (
+            <span className="px-1.5 py-0.5 text-xs font-medium bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 rounded-full">
+              {alerts.length}
+            </span>
+          )}
+        </h3>
+        <button
+          onClick={loadAlerts}
+          disabled={loading}
+          className="p-1 text-amber-400 hover:text-amber-600 dark:hover:text-amber-300 transition-colors disabled:opacity-50"
+          title="Refresh alerts"
+        >
+          <svg className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+          </svg>
+        </button>
+      </div>
+
+      <div className="divide-y divide-gray-100 dark:divide-gray-800">
+        {loading ? (
+          <div className="flex items-center justify-center py-8">
+            <div className="animate-spin w-5 h-5 border-2 border-amber-500 border-t-transparent rounded-full" />
+          </div>
+        ) : alerts.length === 0 ? (
+          <div className="p-6 text-center">
+            <svg className="w-8 h-8 mx-auto text-gray-300 dark:text-gray-600 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <p className="text-sm text-gray-400">No alerts right now</p>
+            <p className="text-xs text-gray-400 mt-1">We&apos;ll notify you when your posts get unusual attention</p>
+          </div>
+        ) : (
+          alerts.map((alert) => (
+            <div
+              key={alert.id}
+              className="p-4 hover:bg-gray-50 dark:hover:bg-gray-800/50 group"
+            >
+              <div className="flex items-start gap-3">
+                <div className="flex-shrink-0 mt-0.5">
+                  {getAlertIcon(alert.type)}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                    {alert.message}
+                  </p>
+                  <p
+                    className="text-sm text-gray-500 dark:text-gray-400 mt-1 line-clamp-2 cursor-pointer hover:text-blue-500"
+                    onClick={() => onOpenPost(alert.postUri)}
+                  >
+                    &ldquo;{alert.postText}&rdquo;
+                  </p>
+                  {alert.relatedAccount && (
+                    <button
+                      onClick={() => onOpenProfile(alert.relatedAccount!.did)}
+                      className="mt-2 flex items-center gap-2 text-sm text-blue-500 hover:text-blue-600"
+                    >
+                      {alert.relatedAccount.avatar && (
+                        <img
+                          src={alert.relatedAccount.avatar}
+                          alt=""
+                          className="w-5 h-5 rounded-full"
+                        />
+                      )}
+                      <span>View @{alert.relatedAccount.handle}</span>
+                    </button>
+                  )}
+                  <div className="mt-2 flex items-center gap-3">
+                    <button
+                      onClick={() => onOpenPost(alert.postUri)}
+                      className="text-xs text-blue-500 hover:text-blue-600 hover:underline"
+                    >
+                      View post →
+                    </button>
+                    {alert.metrics && (
+                      <div className="flex items-center gap-2 text-xs text-gray-400">
+                        {alert.metrics.likes !== undefined && (
+                          <span className="flex items-center gap-1">
+                            <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24">
+                              <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />
+                            </svg>
+                            {alert.metrics.likes}
+                          </span>
+                        )}
+                        {alert.metrics.reposts !== undefined && (
+                          <span className="flex items-center gap-1">
+                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                            </svg>
+                            {alert.metrics.reposts}
+                          </span>
+                        )}
+                        {alert.metrics.replies !== undefined && (
+                          <span className="flex items-center gap-1">
+                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
+                            </svg>
+                            {alert.metrics.replies}
+                          </span>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+                <button
+                  onClick={() => handleDismiss(alert.id)}
+                  className="opacity-0 group-hover:opacity-100 p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded transition-opacity"
+                  title="Dismiss"
+                >
+                  <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+    </div>
+  );
 }
 
 // Category color configs
@@ -1062,6 +1258,10 @@ function NotificationsExplorerContent() {
 
             {/* Right column - Stats and insights */}
             <div className="space-y-6">
+              <AlertsSection
+                onOpenPost={openThread}
+                onOpenProfile={handleOpenProfile}
+              />
               <CategoryBreakdown grouped={grouped} />
               <TopInteractors
                 notifications={allNotifications}
