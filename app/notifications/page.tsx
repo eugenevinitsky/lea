@@ -1260,7 +1260,6 @@ function NotificationsExplorerContent() {
     mentions: [],
   });
   const [loading, setLoading] = useState(false);
-  const [cursor, setCursor] = useState<string | undefined>();
 
   // Restore session on mount
   useEffect(() => {
@@ -1320,7 +1319,6 @@ function NotificationsExplorerContent() {
 
       setAllNotifications(allNotifs);
       setGrouped(groupNotifications(allNotifs));
-      setCursor(undefined); // Reset cursor since we loaded everything
     } catch (err) {
       console.error('Failed to fetch notifications:', err);
     } finally {
@@ -1442,16 +1440,7 @@ function NotificationsExplorerContent() {
             <div>
               <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Notification Explorer</h2>
               <p className="text-sm text-gray-500 dark:text-gray-400">
-                {totalNotifications} notifications loaded
-                {cursor && (
-                  <button
-                    onClick={() => fetchData(true)}
-                    disabled={loading}
-                    className="ml-2 text-blue-500 hover:text-blue-600 disabled:opacity-50"
-                  >
-                    {loading ? 'Loading...' : 'Load more'}
-                  </button>
-                )}
+                {loading ? 'Loading notifications from the last 24 hours...' : `${totalNotifications} notifications in the last 24 hours`}
               </p>
             </div>
           </div>
