@@ -919,6 +919,198 @@ function clusterLikesByPost(likes: NotificationItem[]): LikeCluster[] {
   );
 }
 
+// Repost cluster interface
+interface RepostCluster {
+  postUri: string;
+  postText: string;
+  reposters: NotificationItem['author'][];
+  latestTime: string;
+}
+
+// Clustered repost row component
+function ClusteredRepostRow({
+  cluster,
+  onOpenPost,
+  onOpenProfile,
+}: {
+  cluster: RepostCluster;
+  onOpenPost: (uri: string) => void;
+  onOpenProfile: (did: string) => void;
+}) {
+  const [isExpanded, setIsExpanded] = useState(false);
+  const displayAvatars = cluster.reposters.slice(0, 5);
+  const firstName = cluster.reposters[0]?.displayName || cluster.reposters[0]?.handle || 'Someone';
+  const othersCount = cluster.reposters.length - 1;
+
+  return (
+    <div className="p-3 hover:bg-gray-50 dark:hover:bg-gray-800/50">
+      {/* Main cluster view */}
+      <div
+        className="cursor-pointer"
+        onClick={() => onOpenPost(cluster.postUri)}
+      >
+        {/* Stacked avatars */}
+        <div className="flex items-center mb-2">
+          <div className="flex -space-x-2">
+            {displayAvatars.map((author, i) => (
+              <ProfileHoverCard
+                key={author.did}
+                did={author.did}
+                handle={author.handle}
+                onOpenProfile={() => onOpenProfile(author.did)}
+              >
+                {author.avatar ? (
+                  <img
+                    src={author.avatar}
+                    alt=""
+                    className="w-7 h-7 rounded-full border-2 border-white dark:border-gray-900 cursor-pointer hover:z-10 hover:scale-110 transition-transform"
+                    style={{ zIndex: displayAvatars.length - i }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onOpenProfile(author.did);
+                    }}
+                  />
+                ) : (
+                  <div
+                    className="w-7 h-7 rounded-full bg-emerald-500 flex items-center justify-center text-white text-xs font-bold border-2 border-white dark:border-gray-900 cursor-pointer hover:z-10 hover:scale-110 transition-transform"
+                    style={{ zIndex: displayAvatars.length - i }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onOpenProfile(author.did);
+                    }}
+                  >
+                    {(author.displayName || author.handle)[0].toUpperCase()}
+                  </div>
+                )}
+              </ProfileHoverCard>
+            ))}
+            {cluster.reposters.length > 5 && (
+              <div
+                className="w-7 h-7 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center text-xs font-medium text-gray-600 dark:text-gray-300 border-2 border-white dark:border-gray-900"
+                style={{ zIndex: 0 }}
+              >
+                +{cluster.reposters.length - 5}
+              </div>
+            )}
+          </div>
+          <span className="ml-3 text-xs text-gray-400">{formatTime(cluster.latestTime)}</span>
+        </div>
+
+        {/* Summary text */}
+        <p className="text-sm text-gray-700 dark:text-gray-300 mb-1">
+          <span
+            className="font-medium text-gray-900 dark:text-gray-100 hover:text-blue-500 cursor-pointer"
+            onClick={(e) => {
+              e.stopPropagation();
+              onOpenProfile(cluster.reposters[0].did);
+            }}
+          >
+            {firstName}
+          </span>
+          {othersCount > 0 && (
+            <span className="text-gray-500 dark:text-gray-400">
+              {' '}and {othersCount} other{othersCount !== 1 ? 's' : ''}
+            </span>
+          )}
+          <span className="text-gray-500 dark:text-gray-400"> reposted your post</span>
+        </p>
+
+        {/* Post text preview */}
+        {cluster.postText && (
+          <p className="text-xs text-gray-500 dark:text-gray-500 line-clamp-2 italic">
+            &ldquo;{cluster.postText}&rdquo;
+          </p>
+        )}
+      </div>
+
+      {/* Expand/collapse button */}
+      {cluster.reposters.length > 1 && (
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            setIsExpanded(!isExpanded);
+          }}
+          className="mt-2 flex items-center gap-1 text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+        >
+          <svg
+            className={`w-3 h-3 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+          </svg>
+          {isExpanded ? 'Hide' : `Show all ${cluster.reposters.length} people`}
+        </button>
+      )}
+
+      {/* Expanded list */}
+      {isExpanded && (
+        <div className="mt-2 pl-2 border-l-2 border-emerald-200 dark:border-emerald-700 space-y-2">
+          {cluster.reposters.map((author) => (
+            <div
+              key={author.did}
+              className="flex items-center gap-2 py-1 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 rounded px-1 -mx-1"
+              onClick={(e) => {
+                e.stopPropagation();
+                onOpenProfile(author.did);
+              }}
+            >
+              {author.avatar ? (
+                <img src={author.avatar} alt="" className="w-6 h-6 rounded-full" />
+              ) : (
+                <div className="w-6 h-6 rounded-full bg-emerald-500 flex items-center justify-center text-white text-xs font-bold">
+                  {(author.displayName || author.handle)[0].toUpperCase()}
+                </div>
+              )}
+              <span className="text-sm text-gray-700 dark:text-gray-300 truncate">
+                {author.displayName || author.handle}
+              </span>
+              <span className="text-xs text-gray-400 truncate">@{author.handle}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Group reposts by post URI
+function clusterRepostsByPost(reposts: NotificationItem[]): RepostCluster[] {
+  const clusters: Record<string, RepostCluster> = {};
+  
+  for (const repost of reposts) {
+    const postUri = repost.reasonSubject || '';
+    if (!postUri) continue;
+    
+    if (!clusters[postUri]) {
+      clusters[postUri] = {
+        postUri,
+        postText: repost.subjectText || '',
+        reposters: [],
+        latestTime: repost.indexedAt,
+      };
+    }
+    
+    clusters[postUri].reposters.push(repost.author);
+    
+    // Update latest time
+    if (new Date(repost.indexedAt) > new Date(clusters[postUri].latestTime)) {
+      clusters[postUri].latestTime = repost.indexedAt;
+    }
+    
+    // Update post text if we have it
+    if (repost.subjectText && !clusters[postUri].postText) {
+      clusters[postUri].postText = repost.subjectText;
+    }
+  }
+  
+  // Sort by latest time
+  return Object.values(clusters).sort(
+    (a, b) => new Date(b.latestTime).getTime() - new Date(a.latestTime).getTime()
+  );
+}
+
 // Grouped activity by type
 function GroupedActivity({
   grouped,
@@ -943,12 +1135,13 @@ function GroupedActivity({
     });
   };
 
-  // Cluster likes by post
+  // Cluster likes and reposts by post
   const likeClusters = useMemo(() => clusterLikesByPost(grouped.likes), [grouped.likes]);
+  const repostClusters = useMemo(() => clusterRepostsByPost(grouped.reposts), [grouped.reposts]);
 
   const sections = [
     { key: 'likes', label: 'Likes', items: grouped.likes, clustered: true },
-    { key: 'reposts', label: 'Reposts', items: grouped.reposts, clustered: false },
+    { key: 'reposts', label: 'Reposts', items: grouped.reposts, clustered: true },
     { key: 'quotes', label: 'Quotes', items: grouped.quotes, clustered: false },
     { key: 'replies', label: 'Replies', items: grouped.replies, clustered: false },
     { key: 'follows', label: 'Follows', items: grouped.follows, clustered: false },
@@ -1008,6 +1201,16 @@ function GroupedActivity({
                         onOpenProfile={onOpenProfile}
                       />
                     ))
+                  ) : clustered && key === 'reposts' ? (
+                    // Clustered reposts view
+                    repostClusters.slice(0, 10).map((cluster) => (
+                      <ClusteredRepostRow
+                        key={cluster.postUri}
+                        cluster={cluster}
+                        onOpenPost={onOpenPost}
+                        onOpenProfile={onOpenProfile}
+                      />
+                    ))
                   ) : (
                     // Regular notification rows
                     items.slice(0, 10).map((n) => (
@@ -1019,9 +1222,9 @@ function GroupedActivity({
                       />
                     ))
                   )}
-                  {(clustered ? likeClusters.length : items.length) > 10 && (
+                  {(clustered && key === 'likes' ? likeClusters.length : clustered && key === 'reposts' ? repostClusters.length : items.length) > 10 && (
                     <div className="p-2 text-center text-xs text-gray-400">
-                      +{(clustered ? likeClusters.length : items.length) - 10} more
+                      +{(clustered && key === 'likes' ? likeClusters.length : clustered && key === 'reposts' ? repostClusters.length : items.length) - 10} more
                     </div>
                   )}
                 </div>
