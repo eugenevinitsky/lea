@@ -199,7 +199,7 @@ function SafetyHelpContent() {
                     Blocking prevents someone from seeing your posts and interacting with you. On any profile, click the menu (•••) and select &quot;Block Account&quot;. When you block someone on Lea/Bluesky, your block is <i>total</i>: no one will be able to see any of your interactions any more (for example, any replies they left on your posts will disappear), and neither of you will be able to interact in the future.
                   </p>
                   <p className="text-xs text-gray-500 dark:text-gray-500">
-                    <strong>Tip:</strong> You can manage all your blocks from the Moderation panel → Blocked Accounts.
+                    <strong>Tip:</strong> You can manage all your blocks from <a href="/settings/blocked" className="text-blue-500 hover:underline">Block Management</a>.
                   </p>
                 </div>
 
@@ -236,7 +236,7 @@ function SafetyHelpContent() {
                   Limit who can reply to your posts
                 </h4>
                 <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
-                  In the Moderation panel, find &quot;Reply Limits&quot; to control who can reply:
+                  Go to <a href="/settings/reply-limits" className="text-blue-500 hover:underline">Reply Limits</a> to control who can reply:
                 </p>
                 <ul className="text-sm text-gray-600 dark:text-gray-400 space-y-1.5 ml-4">
                   <li className="flex items-start gap-2">
@@ -312,7 +312,7 @@ function SafetyHelpContent() {
                   Use content filters and labelers
                 </h4>
                 <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
-                  In the Moderation panel, find &quot;Content Filtering&quot; to hide certain types of content, and &quot;Labelers&quot; to subscribe to community moderation services that can help filter out bad actors.
+                  Go to <a href="/settings/content-filtering" className="text-blue-500 hover:underline">Content Filtering</a> to hide certain types of content, and <a href="/settings/labelers" className="text-blue-500 hover:underline">Labelers</a> to subscribe to community moderation services that can help filter out bad actors.
                 </p>
               </div>
             </section>
@@ -332,48 +332,6 @@ function SafetyHelpContent() {
               </div>
             </div>
 
-            {/* Quick links */}
-            <div className="pt-2 border-t border-gray-200 dark:border-gray-800">
-              <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">Quick Links</h4>
-              <div className="flex flex-wrap gap-2">
-                <a
-                  href="/settings/blocked"
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 hover:bg-red-100 dark:hover:bg-red-900/30 rounded-full transition-colors"
-                >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
-                  </svg>
-                  Block Management
-                </a>
-                <a
-                  href="/settings/reply-limits"
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 hover:bg-blue-100 dark:hover:bg-blue-900/30 rounded-full transition-colors"
-                >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
-                  </svg>
-                  Reply Limits
-                </a>
-                <a
-                  href="/settings/content-filtering"
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/20 hover:bg-emerald-100 dark:hover:bg-emerald-900/30 rounded-full transition-colors"
-                >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
-                  </svg>
-                  Content Filtering
-                </a>
-                <a
-                  href="/settings/labelers"
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-orange-600 dark:text-orange-400 bg-orange-50 dark:bg-orange-900/20 hover:bg-orange-100 dark:hover:bg-orange-900/30 rounded-full transition-colors"
-                >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
-                  </svg>
-                  Labelers
-                </a>
-              </div>
-            </div>
           </div>
         </main>
       </div>
