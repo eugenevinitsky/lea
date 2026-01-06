@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { AppBskyFeedDefs, AppBskyFeedPost, AppBskyEmbedExternal, AppBskyEmbedImages, AppBskyEmbedRecord, AppBskyEmbedRecordWithMedia, AppBskyEmbedVideo } from '@atproto/api';
 import Hls from 'hls.js';
-import { isVerifiedResearcher, Label, createPost, ReplyRef, QuoteRef, likePost, unlikePost, repost, deleteRepost, deletePost, sendFeedInteraction, InteractionEvent, getSession, updateThreadgate, getThreadgateType, ThreadgateType, FEEDS, searchActors, detachQuote } from '@/lib/bluesky';
+import { isVerifiedResearcher, Label, createPost, ReplyRef, QuoteRef, likePost, unlikePost, repost, deleteRepost, deletePost, editPost, sendFeedInteraction, InteractionEvent, getSession, updateThreadgate, getThreadgateType, ThreadgateType, FEEDS, searchActors, detachQuote } from '@/lib/bluesky';
 import { useSettings } from '@/lib/settings';
 import { useBookmarks, BookmarkedPost, COLLECTION_COLORS } from '@/lib/bookmarks';
 import ProfileView from './ProfileView';
@@ -1341,6 +1341,12 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
   const [deleting, setDeleting] = useState(false);
   const [deleted, setDeleted] = useState(false);
 
+  // Edit state (for own posts)
+  const [editing, setEditing] = useState(false);
+  const [editText, setEditText] = useState('');
+  const [saving, setSaving] = useState(false);
+  const editTextareaRef = useRef<HTMLTextAreaElement>(null);
+
   // Share state
   const [showCopied, setShowCopied] = useState(false);
 
@@ -1392,6 +1398,9 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
   const record = post.record as AppBskyFeedPost.Record;
   const author = post.author;
   const isVerified = isVerifiedResearcher(author.labels as Label[] | undefined);
+
+  // Track current text for editing (initialized from record, updated on save)
+  const [currentText, setCurrentText] = useState(record.text);
   
   // Check if this is the current user's post
   const session = getSession();
@@ -1587,6 +1596,48 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
       alert('Failed to delete post. Please try again.');
     } finally {
       setDeleting(false);
+    }
+  };
+
+  const handleStartEdit = () => {
+    // Warn user about losing engagement
+    const hasEngagement = (post.likeCount || 0) > 0 || (post.repostCount || 0) > 0 || (post.replyCount || 0) > 0;
+    if (hasEngagement) {
+      const confirmed = window.confirm(
+        'Warning: Editing will remove all likes and reposts. Reply counts will reset to 0 (though replies may still appear in thread view).\n\nThis cannot be undone. Continue?'
+      );
+      if (!confirmed) return;
+    }
+
+    setEditText(currentText);
+    setEditing(true);
+    // Focus textarea after render
+    setTimeout(() => editTextareaRef.current?.focus(), 0);
+  };
+
+  const handleCancelEdit = () => {
+    setEditing(false);
+    setEditText('');
+  };
+
+  const EDITED_SUFFIX = ' (edited)';
+  const MAX_EDIT_CHARS = 300 - EDITED_SUFFIX.length; // 291 chars to leave room for suffix
+
+  const handleSaveEdit = async () => {
+    if (saving || !editText.trim() || editText === currentText || editText.length > MAX_EDIT_CHARS) return;
+
+    setSaving(true);
+    try {
+      const textWithSuffix = editText + EDITED_SUFFIX;
+      await editPost(post.uri, textWithSuffix);
+      setCurrentText(textWithSuffix);
+      setEditing(false);
+      setEditText('');
+    } catch (err) {
+      console.error('Failed to edit post:', err);
+      alert('Failed to edit post. Please try again.');
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -1870,7 +1921,11 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
     const target = e.target as HTMLElement;
     const isInteractive = target.closest('button, a, input, textarea, [role="button"]');
     if (isInteractive) return;
-    
+
+    // Don't trigger if user is selecting text
+    const selection = window.getSelection();
+    if (selection && selection.toString().length > 0) return;
+
     // Open the thread
     onOpenThread?.(post.uri);
   };
@@ -2055,9 +2110,43 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
           <ProfileLabels profile={author as unknown as BlueskyProfile} compact />
 
           {/* Post text */}
-          <p className="mt-1 text-base lg:text-[15px] text-gray-900 dark:text-gray-100 whitespace-pre-wrap break-words">
-            <RichText text={record.text} facets={record.facets} />
-          </p>
+          {editing ? (
+            <div className="mt-1" onClick={(e) => e.stopPropagation()}>
+              <textarea
+                ref={editTextareaRef}
+                value={editText}
+                onChange={(e) => setEditText(e.target.value)}
+                className="w-full min-h-[80px] p-2 bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-600 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 dark:text-gray-100"
+                maxLength={MAX_EDIT_CHARS}
+                disabled={saving}
+              />
+              <div className="flex items-center justify-between mt-2">
+                <span className={`text-xs ${editText.length > MAX_EDIT_CHARS ? 'text-red-500' : 'text-gray-400'}`}>
+                  {editText.length}/{MAX_EDIT_CHARS} <span className="text-gray-400">(+{EDITED_SUFFIX.length} for &quot;edited&quot; tag)</span>
+                </span>
+                <div className="flex gap-2">
+                  <button
+                    onClick={handleCancelEdit}
+                    disabled={saving}
+                    className="px-3 py-1 text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleSaveEdit}
+                    disabled={saving || !editText.trim() || editText === currentText || editText.length > MAX_EDIT_CHARS}
+                    className="px-3 py-1 text-sm bg-blue-500 text-white rounded hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {saving ? 'Saving...' : 'Save'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <p className="mt-1 text-base lg:text-[15px] text-gray-900 dark:text-gray-100 whitespace-pre-wrap break-words">
+              <RichText text={currentText} facets={record.facets} />
+            </p>
+          )}
 
           {/* Embedded content (images, links, etc.) */}
           <PostEmbed embed={post.embed} onOpenThread={onOpenThread} />
@@ -2289,6 +2378,19 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
                   viewBox="0 0 24 24"
                 >
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                </svg>
+              </button>
+            )}
+
+            {/* Edit button - only for own posts */}
+            {isOwnPost && !editing && (
+              <button
+                onClick={handleStartEdit}
+                className="flex items-center gap-1.5 lg:gap-1 transition-colors py-1 hover:text-blue-500"
+                title="Edit post"
+              >
+                <svg className="w-5 h-5 lg:w-4 lg:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                 </svg>
               </button>
             )}

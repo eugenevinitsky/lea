@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { createPost, searchActors, ReplyRef, uploadImage } from '@/lib/bluesky';
+import { createPost, searchActors, ReplyRef, uploadImage, fetchLinkCard, extractUrlFromText, ExternalEmbed } from '@/lib/bluesky';
 import { useSettings } from '@/lib/settings';
 import EmojiPicker from './EmojiPicker';
 
@@ -60,10 +60,17 @@ export default function Composer({ onPost }: ComposerProps) {
   const [threadImages, setThreadImages] = useState<ImageAttachment[][]>([[]]);
   const [editingAltIndex, setEditingAltIndex] = useState<{ postIndex: number; imageIndex: number } | null>(null);
 
+  // Link preview state - one per thread post
+  const [threadLinkPreviews, setThreadLinkPreviews] = useState<(ExternalEmbed | null)[]>([null]);
+  const [loadingLinkPreview, setLoadingLinkPreview] = useState<number | null>(null);
+  const [lastCheckedUrls, setLastCheckedUrls] = useState<string[]>(['']);
+
   // Thread management functions
   const addThreadPost = () => {
     setThreadPosts([...threadPosts, '']);
     setThreadImages([...threadImages, []]);
+    setThreadLinkPreviews([...threadLinkPreviews, null]);
+    setLastCheckedUrls([...lastCheckedUrls, '']);
     // Focus the new textarea after render
     setTimeout(() => {
       const newIndex = threadPosts.length;
@@ -77,6 +84,14 @@ export default function Composer({ onPost }: ComposerProps) {
     threadImages[index]?.forEach(img => URL.revokeObjectURL(img.preview));
     setThreadPosts(threadPosts.filter((_, i) => i !== index));
     setThreadImages(threadImages.filter((_, i) => i !== index));
+    setThreadLinkPreviews(threadLinkPreviews.filter((_, i) => i !== index));
+    setLastCheckedUrls(lastCheckedUrls.filter((_, i) => i !== index));
+  };
+
+  const removeLinkPreview = (index: number) => {
+    const updated = [...threadLinkPreviews];
+    updated[index] = null;
+    setThreadLinkPreviews(updated);
   };
 
   const updateThreadPost = (index: number, text: string) => {
@@ -197,6 +212,61 @@ export default function Composer({ onPost }: ComposerProps) {
     return () => clearTimeout(debounce);
   }, [mentionQuery]);
 
+  // Detect URLs and fetch link previews
+  useEffect(() => {
+    const checkForLinks = async () => {
+      for (let i = 0; i < threadPosts.length; i++) {
+        const text = threadPosts[i];
+        const url = extractUrlFromText(text);
+        const hasImages = (threadImages[i]?.length || 0) > 0;
+
+        // Skip if there are images (images take precedence over link cards)
+        if (hasImages) {
+          if (threadLinkPreviews[i]) {
+            const updated = [...threadLinkPreviews];
+            updated[i] = null;
+            setThreadLinkPreviews(updated);
+          }
+          continue;
+        }
+
+        // Skip if URL hasn't changed
+        if (url === lastCheckedUrls[i]) continue;
+
+        // Update last checked URL
+        const updatedLastUrls = [...lastCheckedUrls];
+        updatedLastUrls[i] = url || '';
+        setLastCheckedUrls(updatedLastUrls);
+
+        // If no URL, clear preview
+        if (!url) {
+          if (threadLinkPreviews[i]) {
+            const updated = [...threadLinkPreviews];
+            updated[i] = null;
+            setThreadLinkPreviews(updated);
+          }
+          continue;
+        }
+
+        // Fetch link preview
+        setLoadingLinkPreview(i);
+        try {
+          const preview = await fetchLinkCard(url);
+          const updated = [...threadLinkPreviews];
+          updated[i] = preview;
+          setThreadLinkPreviews(updated);
+        } catch (e) {
+          console.error('Failed to fetch link preview:', e);
+        } finally {
+          setLoadingLinkPreview(null);
+        }
+      }
+    };
+
+    const debounce = setTimeout(checkForLinks, 500);
+    return () => clearTimeout(debounce);
+  }, [threadPosts, threadImages, lastCheckedUrls, threadLinkPreviews]);
+
   // Detect @ mentions while typing
   const handleTextChange = (index: number, e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const newText = e.target.value;
@@ -291,10 +361,11 @@ export default function Composer({ onPost }: ComposerProps) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Check which posts have content (text or images)
+    // Check which posts have content (text, images, or link previews)
     const postsWithContent = threadPosts.map((text, i) => ({
       text,
       images: threadImages[i] || [],
+      linkPreview: threadLinkPreviews[i],
       hasContent: text.trim().length > 0 || (threadImages[i]?.length || 0) > 0,
     })).filter(p => p.hasContent);
 
@@ -314,14 +385,16 @@ export default function Composer({ onPost }: ComposerProps) {
         })
       );
 
-      // Post first item
+      // Post first item (only pass link preview if no images, since images take precedence)
+      const firstLinkPreview = firstUploadedImages.length === 0 ? postsWithContent[0].linkPreview : null;
       const firstResult = await createPost(
         postsWithContent[0].text,
         currentRestriction,
         undefined,
         undefined,
         disableQuotes,
-        firstUploadedImages.length > 0 ? firstUploadedImages : undefined
+        firstUploadedImages.length > 0 ? firstUploadedImages : undefined,
+        firstLinkPreview || undefined
       );
       setPostingProgress(1);
 
@@ -344,13 +417,16 @@ export default function Composer({ onPost }: ComposerProps) {
           parent: { uri: previousPost.uri, cid: previousPost.cid },
         };
 
+        // Only pass link preview if no images for this post
+        const postLinkPreview = uploadedImages.length === 0 ? postsWithContent[i].linkPreview : null;
         previousPost = await createPost(
           postsWithContent[i].text,
           currentRestriction,
           replyRef,
           undefined,
           false, // Only disable quotes on first post
-          uploadedImages.length > 0 ? uploadedImages : undefined
+          uploadedImages.length > 0 ? uploadedImages : undefined,
+          postLinkPreview || undefined
         );
         setPostingProgress(i + 1);
       }
@@ -360,6 +436,8 @@ export default function Composer({ onPost }: ComposerProps) {
 
       setThreadPosts(['']);
       setThreadImages([[]]);
+      setThreadLinkPreviews([null]);
+      setLastCheckedUrls(['']);
       setDisableQuotes(false);
       setPostingProgress(0);
       onPost?.();
@@ -502,6 +580,46 @@ export default function Composer({ onPost }: ComposerProps) {
                       Done
                     </button>
                   </div>
+                </div>
+              )}
+
+              {/* Link preview card */}
+              {loadingLinkPreview === index && (
+                <div className="mt-2 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
+                  <div className="flex items-center gap-2 text-sm text-gray-500">
+                    <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                    </svg>
+                    Loading link preview...
+                  </div>
+                </div>
+              )}
+              {threadLinkPreviews[index] && !loadingLinkPreview && (
+                <div className="mt-2 relative group">
+                  <div className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
+                    <div className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
+                      {threadLinkPreviews[index]?.title}
+                    </div>
+                    {threadLinkPreviews[index]?.description && (
+                      <div className="text-xs text-gray-500 dark:text-gray-400 mt-1 line-clamp-2">
+                        {threadLinkPreviews[index]?.description}
+                      </div>
+                    )}
+                    <div className="text-xs text-gray-400 dark:text-gray-500 mt-1 truncate">
+                      {threadLinkPreviews[index]?.uri}
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => removeLinkPreview(index)}
+                    className="absolute top-1 right-1 p-1 bg-black/60 hover:bg-black/80 rounded-full text-white opacity-0 group-hover:opacity-100 transition-opacity"
+                    title="Remove link preview"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
                 </div>
               )}
 

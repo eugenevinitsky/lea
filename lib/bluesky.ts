@@ -678,13 +678,74 @@ export async function uploadImage(file: File): Promise<{ blob: unknown; mimeType
   };
 }
 
+// Fetch metadata for a URL and prepare it for embedding
+export async function fetchLinkCard(url: string): Promise<ExternalEmbed | null> {
+  if (!agent) return null;
+
+  try {
+    // Fetch metadata from our API
+    const response = await fetch(`/api/link-meta?url=${encodeURIComponent(url)}`);
+    if (!response.ok) return null;
+
+    const meta = await response.json();
+
+    // If there's a thumbnail image, upload it
+    let thumb: unknown = undefined;
+    if (meta.image) {
+      try {
+        const imageResponse = await fetch(meta.image);
+        if (imageResponse.ok) {
+          const imageBlob = await imageResponse.blob();
+          // Only upload if it's an image and not too large (1MB limit)
+          if (imageBlob.type.startsWith('image/') && imageBlob.size < 1000000) {
+            const arrayBuffer = await imageBlob.arrayBuffer();
+            const uint8Array = new Uint8Array(arrayBuffer);
+            const uploadResult = await agent.uploadBlob(uint8Array, {
+              encoding: imageBlob.type,
+            });
+            thumb = uploadResult.data.blob;
+          }
+        }
+      } catch (e) {
+        console.warn('Failed to upload thumbnail:', e);
+        // Continue without thumbnail
+      }
+    }
+
+    return {
+      uri: meta.url || url,
+      title: meta.title || new URL(url).hostname,
+      description: meta.description || '',
+      thumb,
+    };
+  } catch (e) {
+    console.error('Failed to fetch link card:', e);
+    return null;
+  }
+}
+
+// Extract URL from text
+export function extractUrlFromText(text: string): string | null {
+  const urlPattern = /https?:\/\/[^\s<>\"\')\]]+/gi;
+  const matches = text.match(urlPattern);
+  return matches ? matches[0] : null;
+}
+
+export interface ExternalEmbed {
+  uri: string;
+  title: string;
+  description: string;
+  thumb?: unknown; // Blob reference
+}
+
 export async function createPost(
   text: string,
   threadgateType: ThreadgateType = 'following',
   reply?: ReplyRef,
   quote?: QuoteRef,
   disableQuotes: boolean = false,
-  images?: { blob: unknown; alt: string }[]
+  images?: { blob: unknown; alt: string }[],
+  external?: ExternalEmbed
 ) {
   if (!agent) throw new Error('Not logged in');
 
@@ -696,6 +757,7 @@ export async function createPost(
 
   const hasImages = images && images.length > 0;
   const hasQuote = !!quote;
+  const hasExternal = !!external;
 
   if (hasImages && hasQuote) {
     // Both images and quote: use recordWithMedia
@@ -717,6 +779,30 @@ export async function createPost(
         })),
       },
     };
+  } else if (hasExternal && hasQuote) {
+    // External link and quote: use recordWithMedia
+    const externalData: { uri: string; title: string; description: string; thumb?: unknown } = {
+      uri: external.uri,
+      title: external.title,
+      description: external.description,
+    };
+    if (external.thumb) {
+      externalData.thumb = external.thumb;
+    }
+    embed = {
+      $type: 'app.bsky.embed.recordWithMedia',
+      record: {
+        $type: 'app.bsky.embed.record',
+        record: {
+          uri: quote.uri,
+          cid: quote.cid,
+        },
+      },
+      media: {
+        $type: 'app.bsky.embed.external',
+        external: externalData,
+      },
+    };
   } else if (hasImages) {
     // Images only
     embed = {
@@ -726,6 +812,20 @@ export async function createPost(
         alt: img.alt || '',
         aspectRatio: undefined,
       })),
+    };
+  } else if (hasExternal) {
+    // External link only
+    const externalData: { uri: string; title: string; description: string; thumb?: unknown } = {
+      uri: external.uri,
+      title: external.title,
+      description: external.description,
+    };
+    if (external.thumb) {
+      externalData.thumb = external.thumb;
+    }
+    embed = {
+      $type: 'app.bsky.embed.external',
+      external: externalData,
     };
   } else if (hasQuote) {
     // Quote only
@@ -945,6 +1045,70 @@ export async function deleteRepost(repostUri: string): Promise<void> {
 export async function deletePost(postUri: string): Promise<void> {
   if (!agent) throw new Error('Not logged in');
   await agent.deletePost(postUri);
+}
+
+// Edit a post by deleting and recreating with the same rkey
+// This preserves the URI so likes, reposts, and replies stay attached
+export async function editPost(postUri: string, newText: string): Promise<{ uri: string; cid: string }> {
+  if (!agent) throw new Error('Not logged in');
+
+  // Parse the URI to get repo and rkey
+  // Format: at://did:plc:xxx/app.bsky.feed.post/rkey
+  const uriParts = postUri.split('/');
+  const rkey = uriParts[uriParts.length - 1];
+  const repo = uriParts[2]; // The DID
+
+  // Get the existing post record to preserve metadata
+  const existingRecord = await agent.api.app.bsky.feed.post.get({
+    repo,
+    rkey,
+  });
+
+  const oldRecord = existingRecord.value as {
+    text: string;
+    reply?: ReplyRef;
+    embed?: unknown;
+    langs?: string[];
+    createdAt: string;
+  };
+
+  // Create new RichText for the updated text
+  const rt = new RichText({ text: newText });
+  await rt.detectFacets(agent);
+
+  // Delete the old post
+  await agent.api.app.bsky.feed.post.delete({
+    repo: agent.session!.did,
+    rkey,
+  });
+
+  // Build the new post record
+  const newRecord: {
+    text: string;
+    facets?: typeof rt.facets;
+    reply?: ReplyRef;
+    embed?: unknown;
+    langs?: string[];
+    createdAt: string;
+  } = {
+    text: rt.text,
+    facets: rt.facets,
+    createdAt: oldRecord.createdAt, // Preserve original timestamp
+  };
+
+  // Only include optional fields if they exist
+  if (oldRecord.reply) newRecord.reply = oldRecord.reply;
+  if (oldRecord.embed) newRecord.embed = oldRecord.embed;
+  if (oldRecord.langs) newRecord.langs = oldRecord.langs;
+
+  // Create the new post with the same rkey
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const result = await agent.api.app.bsky.feed.post.create(
+    { repo: agent.session!.did, rkey },
+    newRecord as any
+  );
+
+  return result;
 }
 
 // Follow a user
