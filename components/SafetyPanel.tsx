@@ -485,7 +485,7 @@ export default function SafetyPanel({ onOpenProfile, onOpenThread, defaultExpand
           {/* Reply Limits Link */}
           <a
             href="/settings/reply-limits"
-            className="flex items-center gap-2 px-3 py-2.5 border-l-4 border-l-blue-400 bg-blue-50 dark:bg-blue-900/20 hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors"
+            className="flex items-center gap-2 px-3 py-2.5 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
           >
             <svg className="w-3.5 h-3.5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
@@ -499,7 +499,7 @@ export default function SafetyPanel({ onOpenProfile, onOpenThread, defaultExpand
           {/* Content Filtering Link */}
           <a
             href="/settings/content-filtering"
-            className="flex items-center gap-2 px-3 py-2.5 border-l-4 border-l-emerald-400 bg-emerald-50 dark:bg-emerald-900/20 hover:bg-emerald-100 dark:hover:bg-emerald-900/30 transition-colors"
+            className="flex items-center gap-2 px-3 py-2.5 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
           >
             <svg className="w-3.5 h-3.5 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
@@ -513,7 +513,7 @@ export default function SafetyPanel({ onOpenProfile, onOpenThread, defaultExpand
           {/* Blocked Accounts Link */}
           <a
             href="/settings/blocked"
-            className="flex items-center gap-2 px-3 py-2.5 border-l-4 border-l-red-400 bg-red-50 dark:bg-red-900/20 hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors"
+            className="flex items-center gap-2 px-3 py-2.5 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
           >
             <svg className="w-3.5 h-3.5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
@@ -527,7 +527,7 @@ export default function SafetyPanel({ onOpenProfile, onOpenThread, defaultExpand
           {/* Display Link */}
           <a
             href="/settings/display"
-            className="flex items-center gap-2 px-3 py-2.5 border-l-4 border-l-purple-400 bg-purple-50 dark:bg-purple-900/20 hover:bg-purple-100 dark:hover:bg-purple-900/30 transition-colors"
+            className="flex items-center gap-2 px-3 py-2.5 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
           >
             <svg className="w-3.5 h-3.5 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
@@ -542,7 +542,7 @@ export default function SafetyPanel({ onOpenProfile, onOpenThread, defaultExpand
           {/* Labelers Link */}
           <a
             href="/settings/labelers"
-            className="flex items-center gap-2 px-3 py-2.5 border-l-4 border-l-orange-400 bg-orange-50 dark:bg-orange-900/20 hover:bg-orange-100 dark:hover:bg-orange-900/30 transition-colors"
+            className="flex items-center gap-2 px-3 py-2.5 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
           >
             <svg className="w-3.5 h-3.5 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
