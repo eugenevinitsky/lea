@@ -1121,7 +1121,7 @@ function GroupedActivity({
   onOpenPost: (uri: string) => void;
   onOpenProfile: (did: string) => void;
 }) {
-  const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(['likes', 'replies', 'follows']));
+  const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set());
 
   const toggleSection = (key: string) => {
     setExpandedSections(prev => {
@@ -1140,12 +1140,12 @@ function GroupedActivity({
   const repostClusters = useMemo(() => clusterRepostsByPost(grouped.reposts), [grouped.reposts]);
 
   const sections = [
-    { key: 'likes', label: 'Likes', items: grouped.likes, clustered: true },
-    { key: 'reposts', label: 'Reposts', items: grouped.reposts, clustered: true },
     { key: 'quotes', label: 'Quotes', items: grouped.quotes, clustered: false },
-    { key: 'replies', label: 'Replies', items: grouped.replies, clustered: false },
-    { key: 'follows', label: 'Follows', items: grouped.follows, clustered: false },
     { key: 'mentions', label: 'Mentions', items: grouped.mentions, clustered: false },
+    { key: 'replies', label: 'Replies', items: grouped.replies, clustered: false },
+    { key: 'reposts', label: 'Reposts', items: grouped.reposts, clustered: true },
+    { key: 'likes', label: 'Likes', items: grouped.likes, clustered: true },
+    { key: 'follows', label: 'Follows', items: grouped.follows, clustered: false },
   ];
 
   return (
