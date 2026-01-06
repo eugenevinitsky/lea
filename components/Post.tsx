@@ -388,26 +388,79 @@ function EmbedImages({ images }: { images: AppBskyEmbedImages.ViewImage[] }) {
         ))}
       </div>
 
-      {/* Lightbox for expanded image */}
-      {expandedImage && typeof document !== 'undefined' && createPortal(
+      {/* Lightbox for expanded image with navigation */}
+      {expandedImage && expandedIndex !== null && typeof document !== 'undefined' && createPortal(
         <div
           className="fixed inset-0 z-[9999] bg-black/90 flex items-center justify-center p-4"
           onClick={(e) => {
             e.stopPropagation();
             closeLightbox();
           }}
+          onKeyDown={(e) => {
+            if (e.key === 'ArrowLeft' && expandedIndex > 0) {
+              e.stopPropagation();
+              setExpandedIndex(expandedIndex - 1);
+            } else if (e.key === 'ArrowRight' && expandedIndex < images.length - 1) {
+              e.stopPropagation();
+              setExpandedIndex(expandedIndex + 1);
+            } else if (e.key === 'Escape') {
+              closeLightbox();
+            }
+          }}
+          tabIndex={0}
+          ref={(el) => el?.focus()}
         >
+          {/* Close button */}
           <button
-            onClick={closeLightbox}
+            onClick={(e) => {
+              e.stopPropagation();
+              closeLightbox();
+            }}
             className="absolute top-4 right-4 p-2 text-white hover:bg-white/20 rounded-full z-10"
           >
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
+
+          {/* Image counter */}
+          <div className="absolute top-4 left-4 px-3 py-1 bg-black/50 text-white text-sm rounded-full">
+            {expandedIndex + 1} / {images.length}
+          </div>
+
+          {/* Previous button */}
+          {expandedIndex > 0 && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setExpandedIndex(expandedIndex - 1);
+              }}
+              className="absolute left-4 top-1/2 -translate-y-1/2 p-3 text-white hover:bg-white/20 rounded-full z-10"
+            >
+              <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+              </svg>
+            </button>
+          )}
+
+          {/* Next button */}
+          {expandedIndex < images.length - 1 && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setExpandedIndex(expandedIndex + 1);
+              }}
+              className="absolute right-4 top-1/2 -translate-y-1/2 p-3 text-white hover:bg-white/20 rounded-full z-10"
+            >
+              <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
+            </button>
+          )}
+
           <img
             src={expandedImage.fullsize || expandedImage.thumb}
-            alt="Expanded image"
+            alt={expandedImage.alt || "Expanded image"}
             className="max-w-full max-h-full object-contain"
             onClick={(e) => e.stopPropagation()}
             onError={(e) => {
@@ -418,6 +471,13 @@ function EmbedImages({ images }: { images: AppBskyEmbedImages.ViewImage[] }) {
               }
             }}
           />
+
+          {/* Alt text display */}
+          {expandedImage.alt && (
+            <div className="absolute bottom-4 left-4 right-4 px-4 py-2 bg-black/70 text-white text-sm rounded-lg max-h-24 overflow-y-auto">
+              {expandedImage.alt}
+            </div>
+          )}
         </div>,
         document.body
       )}
