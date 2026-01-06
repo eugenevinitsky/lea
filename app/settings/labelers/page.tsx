@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { createPortal } from 'react-dom';
 import { restoreSession, getSession, getBlueskyProfile, getPreferences, getLabelerInfo, LabelerInfo } from '@/lib/bluesky';
 import { SettingsProvider } from '@/lib/settings';
 import { BookmarksProvider, useBookmarks } from '@/lib/bookmarks';
@@ -52,12 +51,9 @@ function LabelersContent() {
   // Labelers state
   const [labelers, setLabelers] = useState<LabelerInfo[]>([]);
   const [loadingLabelers, setLoadingLabelers] = useState(false);
-  const [showSuggestedModal, setShowSuggestedModal] = useState(false);
-  const [mounted, setMounted] = useState(false);
 
   // Restore session on mount
   useEffect(() => {
-    setMounted(true);
     restoreSession().then((restored) => {
       if (restored) {
         setIsLoggedIn(true);
@@ -286,17 +282,6 @@ function LabelersContent() {
               )}
             </div>
 
-            {/* Discover more button */}
-            <button
-              onClick={() => setShowSuggestedModal(true)}
-              className="w-full py-3 px-4 text-sm font-medium text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30 hover:bg-blue-100 dark:hover:bg-blue-900/50 rounded-lg transition-colors flex items-center justify-center gap-2"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-              </svg>
-              Discover more labelers
-            </button>
-
             {/* Refresh button */}
             <button
               onClick={loadLabelers}
@@ -308,36 +293,12 @@ function LabelersContent() {
               </svg>
               {loadingLabelers ? 'Refreshing...' : 'Refresh list'}
             </button>
-          </div>
-        </main>
-      </div>
 
-      {/* Suggested Labelers Modal */}
-      {showSuggestedModal && mounted && createPortal(
-        <div
-          className="fixed inset-0 flex items-center justify-center p-4"
-          style={{ zIndex: 99999, isolation: 'isolate' }}
-          onClick={() => setShowSuggestedModal(false)}
-        >
-          <div className="absolute inset-0 bg-black/50" style={{ zIndex: -1 }} />
-          <div
-            className="relative bg-white dark:bg-gray-900 rounded-xl shadow-xl max-w-md w-full max-h-[80vh] overflow-hidden"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="p-4 border-b border-gray-200 dark:border-gray-800 flex items-center justify-between">
-              <h3 className="font-semibold text-gray-900 dark:text-gray-100">Suggested Labelers</h3>
-              <button
-                onClick={() => setShowSuggestedModal(false)}
-                className="p-1 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full"
-              >
-                <svg className="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-            <div className="p-4 overflow-y-auto">
+            {/* Discover more labelers section */}
+            <div className="pt-4 border-t border-gray-200 dark:border-gray-800">
+              <h3 className="font-medium text-gray-900 dark:text-gray-100 mb-3">Discover more labelers</h3>
               <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
-                Labelers help identify content and accounts. You can subscribe to labelers on Bluesky to see their labels in Lea.
+                Subscribe to these labelers on Bluesky to see their labels in Lea.
               </p>
               <div className="space-y-3">
                 {SUGGESTED_LABELERS.map((labeler) => (
@@ -369,9 +330,8 @@ function LabelersContent() {
               </div>
             </div>
           </div>
-        </div>,
-        document.body
-      )}
+        </main>
+      </div>
     </div>
   );
 }
