@@ -263,36 +263,15 @@ export default function Bookmarks({ onOpenPost, onOpenProfile, embedded = false 
               <path d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
             </svg>
             Bookmarks
-            {bookmarks.length > 0 && (
-              <span className="text-xs font-normal text-gray-400">({bookmarks.length})</span>
-            )}
           </h3>
-          <div className="flex items-center gap-1">
-            {/* Export button */}
-            {bookmarks.length > 0 && (
-              <span
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setShowExportMenu(!showExportMenu);
-                }}
-                className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
-                title="Export bookmarks"
-              >
-                <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
-                </svg>
-              </span>
-            )}
-            {/* Collapse chevron */}
-            <svg
-              className={`w-4 h-4 text-gray-400 transition-transform ${isCollapsed ? '' : 'rotate-180'}`}
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-            </svg>
-          </div>
+          <svg
+            className={`w-4 h-4 text-gray-400 transition-transform ${isCollapsed ? '' : 'rotate-180'}`}
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+          </svg>
         </div>
       </button>
 
@@ -626,15 +605,28 @@ export default function Bookmarks({ onOpenPost, onOpenProfile, embedded = false 
               </button>
             </div>
           ) : (
-            <button
-              onClick={() => setShowNewCollectionInput(true)}
-              className="w-full flex items-center justify-center gap-1 py-1 text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
-            >
-              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-              </svg>
-              New collection
-            </button>
+            <div className="flex items-center justify-center gap-3">
+              <button
+                onClick={() => setShowNewCollectionInput(true)}
+                className="flex items-center gap-1 py-1 text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+              >
+                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                </svg>
+                New collection
+              </button>
+              {bookmarks.length > 0 && (
+                <button
+                  onClick={() => setShowExportMenu(true)}
+                  className="flex items-center gap-1 py-1 text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+                >
+                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                  </svg>
+                  Export
+                </button>
+              )}
+            </div>
           )}
         </div>
         </div>
