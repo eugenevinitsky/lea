@@ -1,337 +1,2418 @@
 [
-  {"text": "The food pyramid vs the evidence pyramid", "label": "technical"},
-  {"text": "Stratified Excellence", "label": "technical"},
-  {"text": "an argmin year in review", "label": "technical"},
-  {"text": "Statistical Fatalism", "label": "technical"},
-  {"text": "Frame by Frame", "label": "technical"},
-  {"text": "Measures as ends", "label": "technical"},
-  {"text": "Prompts for Open Problems", "label": "technical"},
-  {"text": "Benchmark Studies", "label": "technical"},
-  {"text": "There is no data-generating distribution", "label": "technical"},
-  {"text": "There's got to be a better way!", "label": "technical"},
-  {"text": "Defining Reinforcement Learning Down", "label": "technical"},
-  {"text": "Random Search for Random Search", "label": "technical"},
-  {"text": "The Paradox of Highly Optimized Tolerance", "label": "technical"},
-  {"text": "Games Without Frontiers", "label": "technical"},
-  {"text": "The (Metro)logic of Machine Learning", "label": "technical"},
-  {"text": "Supertzar, or the Hand of Doom", "label": "technical"},
-  {"text": "How to Do Things with Words", "label": "technical"},
-  {"text": "Aristotelian Intelligence", "label": "technical"},
-  {"text": "Artificial Intelligence as Sorcery", "label": "technical"},
-  {"text": "Horace P. Yuen (1946-2025)", "label": "technical"},
-  {"text": "Robust Yet Fragile", "label": "technical"},
-  {"text": "The Daoist Image of Control (III)", "label": "technical"},
-  {"text": "The Daoist Image of Control (II)", "label": "technical"},
-  {"text": "The Daoist Image of Control (I)", "label": "technical"},
-  {"text": "Where the Horses Went", "label": "technical"},
-  {"text": "Why Not Everything is Automated in Manufacturing (Yet)", "label": "technical"},
-  {"text": "Paper Notes: Nested Learning", "label": "technical"},
-  {"text": "A Good Day for Wheeled Semi-Humanoids", "label": "technical"},
-  {"text": "Baidu and the Global Competition for Robotaxis", "label": "technical"},
-  {"text": "Breaking Down The New Cool Home Robot Demo from MindOn", "label": "technical"},
-  {"text": "Interesting Directions in Vision-Language-Action Model Research", "label": "technical"},
-  {"text": "Humanity as a Service", "label": "technical"},
-  {"text": "My Thoughts on Actuate 2025", "label": "technical"},
-  {"text": "Are Humanoid Robots Ready for the Real World?", "label": "technical"},
-  {"text": "The Role of Open Source in Robotics", "label": "technical"},
-  {"text": "How Robots Bring You Your Stuff", "label": "technical"},
-  {"text": "Do AI Reasoning Models Abstract and Reason Like Humans?", "label": "technical"},
-  {"text": "Magical Thinking on AI", "label": "technical"},
-  {"text": "Lying, gaslighting, & blackmailing — what's going on with AI chatbots?", "label": "technical"},
-  {"text": "How Your Cheese-Powered Baby Trounces AI", "label": "technical"},
-  {"text": "David Cope: Composer, computer scientist, and pioneer of computer generated music", "label": "technical"},
-  {"text": "AI learns to reason (or does it?)", "label": "technical"},
-  {"text": "LLMs and World Models, Part 2", "label": "technical"},
-  {"text": "LLMs and World Models, Part 1", "label": "technical"},
-  {"text": "Did OpenAI Just Solve Abstract Reasoning?", "label": "technical"},
-  {"text": "The LLM Reasoning Debate Heats Up", "label": "technical"},
-  {"text": "Podcast on 'The Nature of Intelligence'", "label": "technical"},
-  {"text": "The Turing Test and Our Shifting Conceptions of Intelligence", "label": "technical"},
-  {"text": "Why We Think", "label": "technical"},
-  {"text": "Reward Hacking in Reinforcement Learning", "label": "technical"},
-  {"text": "Extrinsic Hallucinations in LLMs", "label": "technical"},
-  {"text": "Diffusion Models for Video Generation", "label": "technical"},
-  {"text": "Thinking about High-Quality Human Data", "label": "technical"},
-  {"text": "Adversarial Attacks on LLMs", "label": "technical"},
-  {"text": "LLM Powered Autonomous Agents", "label": "technical"},
-  {"text": "Prompt Engineering", "label": "technical"},
-  {"text": "The Transformer Family Version 2.0", "label": "technical"},
-  {"text": "Large Transformer Model Inference Optimization", "label": "technical"},
-  {"text": "Some Math behind Neural Tangent Kernel", "label": "technical"},
-  {"text": "Generalized Visual Language Models", "label": "technical"},
-  {"text": "Learning with not Enough Data Part 3: Data Generation", "label": "technical"},
-  {"text": "Learning with not Enough Data Part 2: Active Learning", "label": "technical"},
-  {"text": "Learning with not Enough Data Part 1: Semi-Supervised Learning", "label": "technical"},
-  {"text": "How to Train Really Large Models on Many GPUs?", "label": "technical"},
-  {"text": "What are Diffusion Models?", "label": "technical"},
-  {"text": "Contrastive Representation Learning", "label": "technical"},
-  {"text": "Reducing Toxicity in Language Models", "label": "technical"},
-  {"text": "Controllable Neural Text Generation", "label": "technical"},
-
-  {"text": "In Quantum Mechanics, Nothingness Is the Potential To Be Anything", "label": "technical"},
-  {"text": "The Year in Physics", "label": "technical"},
-  {"text": "Why Is Ice Slippery? A New Hypothesis Slides Into the Chat", "label": "technical"},
-  {"text": "Particle Physicists Detect Magic at the Large Hadron Collider", "label": "technical"},
-  {"text": "Cosmic Paradox Reveals the Awful Consequence of an Observer-Free Universe", "label": "technical"},
-  {"text": "Old Ghost Theory of Quantum Gravity Makes a Comeback", "label": "technical"},
-  {"text": "Mixing Is the Heartbeat of Deep Lakes. At Crater Lake, It's Slowing Down", "label": "technical"},
-  {"text": "Physicists Take the Imaginary Numbers Out of Quantum Mechanics", "label": "technical"},
-  {"text": "Carlo Rovelli's Radical Perspective on Reality", "label": "technical"},
-
-  {"text": "How Dad's Fitness May Be Packaged and Passed Down in Sperm RNA", "label": "technical"},
-  {"text": "The Year in Biology", "label": "technical"},
-  {"text": "The Polyglot Neuroscientist Resolving How the Brain Parses Language", "label": "technical"},
-  {"text": "A Cell So Minimal That It Challenges Definitions of Life", "label": "technical"},
-  {"text": "How Your Brain Creates Aha Moments and Why They Stick", "label": "technical"},
-  {"text": "Shark Data Suggests Animals Scale Like Geometric Objects", "label": "technical"},
-  {"text": "How the Brain Moves From Waking Life to Sleep (and Back Again)", "label": "technical"},
-  {"text": "Genes Have Harnessed Physics to Help Grow Living Things", "label": "technical"},
-
-  {"text": "The Year in Mathematics", "label": "technical"},
-  {"text": "String Theory Inspires a Brilliant, Baffling New Math Proof", "label": "technical"},
-  {"text": "What Are Lie Groups?", "label": "technical"},
-  {"text": "Reverse Mathematics Illuminates Why Hard Problems Are Hard", "label": "technical"},
-  {"text": "A New Bridge Links the Strange Math of Infinity to Computer Science", "label": "technical"},
-  {"text": "New Proofs Probe Soap-Film Singularities", "label": "technical"},
-  {"text": "What Is a Manifold?", "label": "technical"},
-  {"text": "First Shape Found That Can't Pass Through Itself", "label": "technical"},
-  {"text": "The Hidden Math of Ocean Waves Crashes Into View", "label": "technical"},
-
-  {"text": "The Year in Computer Science", "label": "technical"},
-  {"text": "Cryptographers Show That AI Protections Will Always Have Holes", "label": "technical"},
-  {"text": "To Have Machines Make Math Proofs, Turn Them Into a Puzzle", "label": "technical"},
-  {"text": "In a First, AI Models Analyze Language As Well As a Human Expert", "label": "technical"},
-  {"text": "The Game Theory of How Algorithms Can Drive Up Prices", "label": "technical"},
-  {"text": "Researchers Discover the Optimal Way To Optimize", "label": "technical"},
-  {"text": "How One AI Model Creates a Physical Intuition of Its Environment", "label": "technical"},
-  {"text": "To Understand AI, Watch How It Evolves", "label": "technical"},
-  {"text": "Undergraduate Upends a 40-Year-Old Data Science Conjecture", "label": "technical"},
-
-  {"text": "The BA.5 story", "label": "technical"},
-  {"text": "The Breakthrough Blood Test for Alzheimer's Disease", "label": "technical"},
-  {"text": "Our Preoccupation With Protein Intake", "label": "technical"},
-  {"text": "The Indomitable Covid Virus", "label": "technical"},
-  {"text": "New Anti-Aging Evidence For Estrogen", "label": "technical"},
-  {"text": "The Peptide Craze", "label": "technical"},
-  {"text": "The Covid Capitulation", "label": "technical"},
-  {"text": "The Big Shift in Cardiology to Atheroma and Inflammation", "label": "technical"},
-  {"text": "Lithium and Its Potential Protection from Alzheimer's Disease", "label": "technical"},
-  {"text": "Covid and Our Arteries", "label": "technical"},
-  {"text": "The Shingles Vaccine and Reduction of Dementia", "label": "technical"},
-  {"text": "Our Diet and Healthy Aging", "label": "technical"},
-  {"text": "The Lowdown on Low-Dose Aspirin for Primary Prevention", "label": "technical"},
-  {"text": "How Our Brain Drains Its Waste Products", "label": "technical"},
-  {"text": "The Exhilarating Movement From Treatment to Cures for Autoimmune Diseases", "label": "technical"},
-  {"text": "How mRNA Vaccines Can Help Fight Cancer", "label": "technical"},
-  {"text": "The Largest Study of a Multi-Cancer Early Detection Blood Test", "label": "technical"},
-  {"text": "Multilingualism and Extending Healthspan", "label": "technical"},
-
-  {"text": "Trump's Plan to Reshape America", "label": "non-technical"},
-  {"text": "Biden Administration Faces New Challenges", "label": "non-technical"},
-  {"text": "Democrats vs Republicans: The Battle for Congress", "label": "non-technical"},
-  {"text": "Why the GOP Is Divided on Immigration", "label": "non-technical"},
-  {"text": "The Case Against Trump's Second Term", "label": "non-technical"},
-  {"text": "Harris Takes on New Campaign Strategy", "label": "non-technical"},
-  {"text": "MAGA Movement Reshapes Republican Party", "label": "non-technical"},
-  {"text": "Election 2024: What You Need to Know", "label": "non-technical"},
-  {"text": "Conservative Backlash Against Woke Culture", "label": "non-technical"},
-  {"text": "Liberal Policies Under Fire", "label": "non-technical"},
-  {"text": "The Political Divide Grows Deeper", "label": "non-technical"},
-  {"text": "Senate Showdown Over New Legislation", "label": "non-technical"},
-  {"text": "How Pelosi Outmaneuvered Her Critics", "label": "non-technical"},
-  {"text": "DeSantis Makes His Move for 2024", "label": "non-technical"},
-  {"text": "AOC Claps Back at Republican Critics", "label": "non-technical"},
-  {"text": "The January 6 Hearings Continue", "label": "non-technical"},
-  {"text": "Why Voters Are Angry About Inflation", "label": "non-technical"},
-  {"text": "McConnell's Strategy for the Midterms", "label": "non-technical"},
-  {"text": "Progressive Democrats Push Back", "label": "non-technical"},
-  {"text": "The Border Crisis Explained", "label": "non-technical"},
-  {"text": "Abortion Rights After Roe", "label": "non-technical"},
-  {"text": "Gun Control Debate Heats Up Again", "label": "non-technical"},
-  {"text": "Fox News vs MSNBC: Media Wars", "label": "non-technical"},
-  {"text": "Why Independents Will Decide the Election", "label": "non-technical"},
-  {"text": "The Rise of Political Extremism", "label": "non-technical"},
-  {"text": "How Social Media Fuels Partisan Outrage", "label": "non-technical"},
-  {"text": "The Supreme Court's Conservative Shift", "label": "non-technical"},
-  {"text": "Sanders and Warren Team Up on New Bill", "label": "non-technical"},
-  {"text": "What the Polls Are Really Saying", "label": "non-technical"},
-  {"text": "Cruz Under Fire for Controversial Remarks", "label": "non-technical"},
-  {"text": "The Future of American Democracy", "label": "non-technical"},
-  {"text": "Why Young Voters Are Turning Out", "label": "non-technical"},
-  {"text": "Red States vs Blue States: A Nation Divided", "label": "non-technical"},
-  {"text": "The Impeachment Debate Revisited", "label": "non-technical"},
-  {"text": "How Gerrymandering Shapes Elections", "label": "non-technical"},
-  {"text": "Newsom's Presidential Ambitions", "label": "non-technical"},
-  {"text": "Trump Endorsements Shake Up Primaries", "label": "non-technical"},
-  {"text": "The Filibuster Fight in the Senate", "label": "non-technical"},
-  {"text": "Why Americans Don't Trust Politicians", "label": "non-technical"},
-  {"text": "Bipartisan Agreement Remains Elusive", "label": "non-technical"},
-  {"text": "The Culture War Over Education", "label": "non-technical"},
-  {"text": "How PACs Are Influencing Elections", "label": "non-technical"},
-  {"text": "Left-Wing vs Right-Wing Media Bias", "label": "non-technical"},
-  {"text": "The Fight Over Voting Rights", "label": "non-technical"},
-  {"text": "Why Congress Can't Get Anything Done", "label": "non-technical"},
-  {"text": "Presidential Power and Its Limits", "label": "non-technical"},
-  {"text": "The Electoral College Debate", "label": "non-technical"},
-  {"text": "How Inflation Became a Political Football", "label": "non-technical"},
-  {"text": "The Republican Civil War Continues", "label": "non-technical"},
-  {"text": "Democrat Infighting Over Strategy", "label": "non-technical"},
-  {"text": "What the Midterms Mean for 2024", "label": "non-technical"},
-  {"text": "The Politics of Climate Change", "label": "non-technical"},
-  {"text": "Why Healthcare Reform Failed Again", "label": "non-technical"},
-  {"text": "Immigration Policy Gridlock", "label": "non-technical"},
-  {"text": "The NRA's Political Influence", "label": "non-technical"},
-  {"text": "How Lobbyists Shape Legislation", "label": "non-technical"},
-  {"text": "The Battle for Swing State Voters", "label": "non-technical"},
-  {"text": "Political Dynasties in America", "label": "non-technical"},
-  {"text": "The January 6 Committee's Final Report", "label": "non-technical"},
-  {"text": "Why Politicians Keep Breaking Promises", "label": "non-technical"},
-  {"text": "The Cost of Political Polarization", "label": "non-technical"},
-  {"text": "How to Fix American Politics", "label": "non-technical"},
-  {"text": "The Rise of Third Party Candidates", "label": "non-technical"},
-  {"text": "Super Tuesday Preview", "label": "non-technical"},
-  {"text": "The Vice Presidential Debate Analysis", "label": "non-technical"},
-  {"text": "Campaign Finance Reform Stalls", "label": "non-technical"},
-  {"text": "How Politicians Use Social Media", "label": "non-technical"},
-  {"text": "The Future of the Democratic Party", "label": "non-technical"},
-
-  {"text": "The Most Dangerous Person In The World Is Getting Worse", "label": "non-technical"},
-  {"text": "I CALL BULLSH$T!!! Sleep Apnea? No!!! Mania? NO!!! Are These Desperate Distractions To Protect Demented Donald?", "label": "non-technical"},
-  {"text": "Yes, You Should Be Outraged! It Was Disgusting and Vile. Were You Expecting Something Else?", "label": "non-technical"},
-  {"text": "DAMMIT It's Not Alzheimer's! Here's Why It's A Far Worse Nightmare Scenario", "label": "non-technical"},
-  {"text": "The MRI Would Show Why Trump Has Less Empathy Than A Rat", "label": "non-technical"},
-  {"text": "Live From The Wreckage", "label": "non-technical"},
-  {"text": "Duty To Warn, The Good Fight, And What Ever Happened To The 25th Amendment?", "label": "non-technical"},
-  {"text": "For the First Time in History, We See the Narcissists Clearly. That Changes Everything.", "label": "non-technical"},
-  {"text": "October 25, 2025: Trump Dumps A Load And Destroys History. Here's What We Can Do.", "label": "non-technical"},
-  {"text": "Narcissistic Supply", "label": "non-technical"},
-  {"text": "The Death Threat That Led Me To Trump's Rotting Brain", "label": "non-technical"},
-
-  {"text": "MASSIVE THUNDERSTORM HITS DC AS PRESIDENT PLUMP RENEWS HOSTILITIES WITH THE SKY", "label": "non-technical"},
-  {"text": "PLUMP FREEZES ALL SPORTS FUNDING, SAYS NO ONE LIKES RUNNING ANYWAY", "label": "non-technical"},
-  {"text": "PLUMP UNVEILS BALLROOM DESIGNED TO DEFEAT RAIN AND PEANUTS", "label": "non-technical"},
-  {"text": "PLUMP CONFIRMS STRIKES IN NUTZUELA AS WAR ON NUTS ESCALATES", "label": "non-technical"},
-  {"text": "MELONVERSE LEADER SAYS PROGRESS MADE ON TRADE DEAL, BUT PRESIDENT PLUMP SAYS THORNY ISSUES REMAIN", "label": "non-technical"},
-  {"text": "PRESIDENT PLUMP DECLARES BAGEL EMERGENCY, ACCUSES INSIDERS AFTER BREAKFAST DISAPPEARS", "label": "non-technical"},
-  {"text": "PRESIDENT PLUMP CONFRONTS ECLIPSE, DEMANDS ANSWERS FROM SKY", "label": "non-technical"},
-
-  {"text": "Korean BBQ Chicken Salad", "label": "non-technical"},
-  {"text": "My 7-day high-protein meal plan", "label": "non-technical"},
-  {"text": "The only January meal plan that includes Crumbl cookies", "label": "non-technical"},
-  {"text": "Mediterranean Charred Carrots with Lemon Whipped Feta", "label": "non-technical"},
-  {"text": "High-Protein Broccoli Feta Soup", "label": "non-technical"},
-  {"text": "Three meals that help me reset after the holidays", "label": "non-technical"},
-  {"text": "Spanakopita Pasta Bake", "label": "non-technical"},
-  {"text": "Shaved Brussels Sprout Salad", "label": "non-technical"},
-  {"text": "French Onion Chuck Roast", "label": "non-technical"},
-  {"text": "Easy Mediterranean Meatballs", "label": "non-technical"},
-  {"text": "Chipotle Chicken Tray", "label": "non-technical"},
-  {"text": "Loaf Pan Chicken", "label": "non-technical"},
-
-  {"text": "PLAYBACK: 2026 Goal Setting Workshop", "label": "non-technical"},
-  {"text": "Reminder: Goal Setting 2026!", "label": "non-technical"},
-  {"text": "Goals not Resolutions - 2026 Goal Setting Workshop", "label": "non-technical"},
-  {"text": "Don't loose hold of your festive rituals", "label": "non-technical"},
-  {"text": "Chat & Chill - I think we're doing this!", "label": "non-technical"},
-  {"text": "I pity people who don't have hope", "label": "non-technical"},
-  {"text": "Drop.Dead.Fred: JVH merch, mega brand giveaways and exclusive live events", "label": "non-technical"},
-  {"text": "Maybe the real glow-up is slowing down", "label": "non-technical"},
-  {"text": "Super Moon in Taurus, Numerology and Your Authenticity", "label": "non-technical"},
-  {"text": "The Joy Of Receiving a Houseplant in a GOODY BAG", "label": "non-technical"},
-  {"text": "How to Keep Shining When Everything Feels Dark", "label": "non-technical"},
-  {"text": "Don't Wait for January to Get Your Sh*t Together", "label": "non-technical"},
-
-  {"text": "A Requiem For Marjorie Taylor Greene As She Leaves Congress For Loonier Pastures", "label": "non-technical"},
-  {"text": "24 Hours at the Capitol...", "label": "non-technical"},
-  {"text": "WHAT HAPPENS WHEN THE UNITED STATES IS NO LONGER THE GOOD GUYS?", "label": "non-technical"},
-  {"text": "The Anatomy of a Captured American State", "label": "non-technical"},
-  {"text": "RFK Jr.'s Tuskegee Experiment", "label": "non-technical"},
-  {"text": "From Democratic Illusions to Transactional Power: Venezuela in Trump's Strategic Calculus", "label": "non-technical"},
-  {"text": "Public Stadium Subsidies Operate as a Billionaire Entitlement Racket", "label": "non-technical"},
-  {"text": "Crowdsourced Revolution: Helping Up and Coming Politicians", "label": "non-technical"},
-  {"text": "Milwaukee's Baby Bust Hit New Lows in 2025", "label": "non-technical"},
-  {"text": "Truckers, Unions, Farmers United in the Crowdsourced Revolution", "label": "non-technical"},
-  {"text": "Many Colorado Trans Youth Stranded After Denver Health, CHCO Withdraw Care", "label": "non-technical"},
-  {"text": "Bless The Hilton Hotel That Refused Rooms To ICE", "label": "non-technical"},
-  {"text": "Los Angeles Mayor Karen Bass: Power, Fear, and Federal Overreach", "label": "non-technical"},
-  {"text": "America Last", "label": "non-technical"},
-  {"text": "Five Years Since One of America's Darkest Days", "label": "non-technical"},
-  {"text": "The 5th Anniversary of January 6th", "label": "non-technical"},
-  {"text": "Venezuela is the Iraq of Vietnams", "label": "non-technical"},
-  {"text": "Gaza: The Necessary Genocide in a History of Genocides", "label": "non-technical"},
-  {"text": "The Rap Sheet of a Lawless Presidency", "label": "non-technical"},
-  {"text": "Infrequently Asked Questions About Jeffrey Epstein, Part One: The Money Thing", "label": "non-technical"},
-  {"text": "Dear Greenland: Sorry our President is a Moron", "label": "non-technical"},
-  {"text": "The World Is Not America's Colony", "label": "non-technical"},
-  {"text": "Abigail Spanberger Shatters a Glass Ceiling in Virginia", "label": "non-technical"},
-  {"text": "On Why it's Too Early to Celebrate Maduro's Ouster", "label": "non-technical"},
-  {"text": "Have You Heard the One about Kevin O'Leary, Wayne Gretzky, and Danielle Smith Walking into Mar-a-Lago?", "label": "non-technical"},
-  {"text": "A long, long way from Watergate", "label": "non-technical"},
-  {"text": "The Wrong Question About Venezuela", "label": "non-technical"},
-  {"text": "Taking on Astronaut Mark Kelly will not go well for Hegseth", "label": "non-technical"},
-  {"text": "Hegseth demotes Kelly", "label": "non-technical"},
-  {"text": "Rule of Law Rejected as Canada Increasingly Embraces Racism", "label": "non-technical"},
-  {"text": "January 6 Is Five Years Behind Us. The Threat It Exposed Is Not.", "label": "non-technical"},
-  {"text": "January 6, Five Years Later: The Record, the Damage, and the Work of Memory", "label": "non-technical"},
-  {"text": "The Republic Our Founders Built Is Gone. Welcome to the American Empire.", "label": "non-technical"},
-  {"text": "The Herod Administration", "label": "non-technical"},
-  {"text": "The Beast of Empire", "label": "non-technical"},
-  {"text": "Using memory as a weapon against J6 lies is a moral duty", "label": "non-technical"},
-  {"text": "REMEMBERING JANUARY 6th", "label": "non-technical"},
-  {"text": "My First Day on the Hill Was an Insurrection", "label": "non-technical"},
-  {"text": "The Arrogance of Power", "label": "non-technical"},
-  {"text": "Sitting ducks.", "label": "non-technical"},
-  {"text": "The Time For Polite Disagreement Is Over", "label": "non-technical"},
-  {"text": "Chrystia Freeland chooses Ukraine", "label": "non-technical"},
-  {"text": "It's always about the oil.", "label": "non-technical"},
-  {"text": "Even supporters of the Venezuelan opposition are demanding Maduro's release", "label": "non-technical"},
-  {"text": "Chapter 76: Henry Ford and Elon Musk", "label": "non-technical"},
-  {"text": "A season of burning", "label": "non-technical"},
-  {"text": "THE DONROE DOCTRINE", "label": "non-technical"},
-  {"text": "The Psychedelic Alt-Right Pipeline, Part 1", "label": "non-technical"},
-  {"text": "THE DECK | THE RAPE OF AMERICA EXPOSE", "label": "non-technical"},
-  {"text": "Sudan Seeks to Distance Itself from Muslim Brotherhood", "label": "non-technical"},
-  {"text": "Venezuela and Chickens Coming Home to Roost", "label": "non-technical"},
-  {"text": "The Real Donroe Doctrine", "label": "non-technical"},
-  {"text": "colicky rage-baby still Big Mad about that Nobel Prize", "label": "non-technical"},
-  {"text": "Glass Empires By W. A. Lawrence DHS Deportation Targets Near 1/3 of Americans", "label": "non-technical"},
-  {"text": "Socialists Think: In Memory of Asad Haider", "label": "non-technical"},
-
-  {"text": "JWST Discovers a Lava World That's Clinging to Its Atmosphere", "label": "technical"},
-  {"text": "Spring Boot Interview Question – Improve API Latency", "label": "technical"},
-  {"text": "The Multi-LLM Strategy", "label": "technical"},
-  {"text": "AI Winners Won't Look Intelligent, They'll Look Disciplined", "label": "technical"},
-  {"text": "Care Theory of Value", "label": "technical"},
-  {"text": "Inflection Point: Why AI's Future Looks Like 1995, Not 2026", "label": "technical"},
-  {"text": "What Agency Means in the Era of Automation", "label": "technical"},
-  {"text": "Seeing the System, Not the Consequences", "label": "technical"},
-  {"text": "The most underrated trend of the 2020s", "label": "technical"},
-  {"text": "Sharing A Win for The Rule of Law & The Continuity and Support of Medical Research", "label": "technical"},
-  {"text": "The Fog Machine Is Failing", "label": "technical"},
-  {"text": "A unilateral change to childhood vaccines: What it means for you", "label": "technical"},
-  {"text": "The New York Times' Silencing of Mental Health Experts", "label": "technical"},
-  {"text": "Have rents stopped rising?", "label": "technical"},
-  {"text": "Protest held to stop Govt classifying animal testing as key national infrastructure", "label": "technical"},
-  {"text": "The AI bubble is all over now, baby blue", "label": "technical"},
-  {"text": "Why ChatGPT can't be trusted with breaking news", "label": "technical"},
-  {"text": "Two takes on AI and the future of America", "label": "technical"},
-  {"text": "AI Cartoon of The Year — and five (re)readings for 2026", "label": "technical"},
-
-  {"text": "Words & Phrases?", "label": "non-technical"},
-  {"text": "A Generous Season", "label": "non-technical"},
-  {"text": "And All At Once!", "label": "non-technical"},
-  {"text": "Note to Subscribers", "label": "non-technical"},
-  {"text": "Get out there!", "label": "non-technical"},
-  {"text": "To Belong", "label": "non-technical"},
-  {"text": "We can only save ourselves.", "label": "non-technical"},
-  {"text": "What's In Your Playlist?", "label": "non-technical"},
-  {"text": "I am not as strong as I look.", "label": "non-technical"},
-  {"text": "Longing for an Old Friendship", "label": "non-technical"},
-  {"text": "Living As If It's Already True", "label": "non-technical"},
-  {"text": "Results And Reasons", "label": "non-technical"},
-  {"text": "New Year New Gear", "label": "non-technical"},
-  {"text": "Mashed Potatoes | The Crowd-Pleaser Classic", "label": "non-technical"},
-  {"text": "The Wisdom of Joan of Arc", "label": "non-technical"},
-  {"text": "Corner Storyteller", "label": "non-technical"},
-  {"text": "Winter weather advisory for snow and ice", "label": "non-technical"}
+  {
+    "text": "The food pyramid vs the evidence pyramid",
+    "label": "technical"
+  },
+  {
+    "text": "Stratified Excellence",
+    "label": "technical"
+  },
+  {
+    "text": "an argmin year in review",
+    "label": "technical"
+  },
+  {
+    "text": "Statistical Fatalism",
+    "label": "technical"
+  },
+  {
+    "text": "Frame by Frame",
+    "label": "technical"
+  },
+  {
+    "text": "Measures as ends",
+    "label": "technical"
+  },
+  {
+    "text": "Prompts for Open Problems",
+    "label": "technical"
+  },
+  {
+    "text": "Benchmark Studies",
+    "label": "technical"
+  },
+  {
+    "text": "There is no data-generating distribution",
+    "label": "technical"
+  },
+  {
+    "text": "There's got to be a better way!",
+    "label": "technical"
+  },
+  {
+    "text": "Defining Reinforcement Learning Down",
+    "label": "technical"
+  },
+  {
+    "text": "Random Search for Random Search",
+    "label": "technical"
+  },
+  {
+    "text": "The Paradox of Highly Optimized Tolerance",
+    "label": "technical"
+  },
+  {
+    "text": "Games Without Frontiers",
+    "label": "technical"
+  },
+  {
+    "text": "The (Metro)logic of Machine Learning",
+    "label": "technical"
+  },
+  {
+    "text": "Supertzar, or the Hand of Doom",
+    "label": "technical"
+  },
+  {
+    "text": "How to Do Things with Words",
+    "label": "technical"
+  },
+  {
+    "text": "Aristotelian Intelligence",
+    "label": "technical"
+  },
+  {
+    "text": "Artificial Intelligence as Sorcery",
+    "label": "technical"
+  },
+  {
+    "text": "Horace P. Yuen (1946-2025)",
+    "label": "technical"
+  },
+  {
+    "text": "Robust Yet Fragile",
+    "label": "technical"
+  },
+  {
+    "text": "The Daoist Image of Control (III)",
+    "label": "technical"
+  },
+  {
+    "text": "The Daoist Image of Control (II)",
+    "label": "technical"
+  },
+  {
+    "text": "The Daoist Image of Control (I)",
+    "label": "technical"
+  },
+  {
+    "text": "Where the Horses Went",
+    "label": "technical"
+  },
+  {
+    "text": "Why Not Everything is Automated in Manufacturing (Yet)",
+    "label": "technical"
+  },
+  {
+    "text": "Paper Notes: Nested Learning",
+    "label": "technical"
+  },
+  {
+    "text": "A Good Day for Wheeled Semi-Humanoids",
+    "label": "technical"
+  },
+  {
+    "text": "Baidu and the Global Competition for Robotaxis",
+    "label": "technical"
+  },
+  {
+    "text": "Breaking Down The New Cool Home Robot Demo from MindOn",
+    "label": "technical"
+  },
+  {
+    "text": "Interesting Directions in Vision-Language-Action Model Research",
+    "label": "technical"
+  },
+  {
+    "text": "Humanity as a Service",
+    "label": "technical"
+  },
+  {
+    "text": "My Thoughts on Actuate 2025",
+    "label": "technical"
+  },
+  {
+    "text": "Are Humanoid Robots Ready for the Real World?",
+    "label": "technical"
+  },
+  {
+    "text": "The Role of Open Source in Robotics",
+    "label": "technical"
+  },
+  {
+    "text": "How Robots Bring You Your Stuff",
+    "label": "technical"
+  },
+  {
+    "text": "Do AI Reasoning Models Abstract and Reason Like Humans?",
+    "label": "technical"
+  },
+  {
+    "text": "Magical Thinking on AI",
+    "label": "technical"
+  },
+  {
+    "text": "Lying, gaslighting, & blackmailing — what's going on with AI chatbots?",
+    "label": "technical"
+  },
+  {
+    "text": "How Your Cheese-Powered Baby Trounces AI",
+    "label": "technical"
+  },
+  {
+    "text": "David Cope: Composer, computer scientist, and pioneer of computer generated music",
+    "label": "technical"
+  },
+  {
+    "text": "AI learns to reason (or does it?)",
+    "label": "technical"
+  },
+  {
+    "text": "LLMs and World Models, Part 2",
+    "label": "technical"
+  },
+  {
+    "text": "LLMs and World Models, Part 1",
+    "label": "technical"
+  },
+  {
+    "text": "Did OpenAI Just Solve Abstract Reasoning?",
+    "label": "technical"
+  },
+  {
+    "text": "The LLM Reasoning Debate Heats Up",
+    "label": "technical"
+  },
+  {
+    "text": "Podcast on 'The Nature of Intelligence'",
+    "label": "technical"
+  },
+  {
+    "text": "The Turing Test and Our Shifting Conceptions of Intelligence",
+    "label": "technical"
+  },
+  {
+    "text": "Why We Think",
+    "label": "technical"
+  },
+  {
+    "text": "Reward Hacking in Reinforcement Learning",
+    "label": "technical"
+  },
+  {
+    "text": "Extrinsic Hallucinations in LLMs",
+    "label": "technical"
+  },
+  {
+    "text": "Diffusion Models for Video Generation",
+    "label": "technical"
+  },
+  {
+    "text": "Thinking about High-Quality Human Data",
+    "label": "technical"
+  },
+  {
+    "text": "Adversarial Attacks on LLMs",
+    "label": "technical"
+  },
+  {
+    "text": "LLM Powered Autonomous Agents",
+    "label": "technical"
+  },
+  {
+    "text": "Prompt Engineering",
+    "label": "technical"
+  },
+  {
+    "text": "The Transformer Family Version 2.0",
+    "label": "technical"
+  },
+  {
+    "text": "Large Transformer Model Inference Optimization",
+    "label": "technical"
+  },
+  {
+    "text": "Some Math behind Neural Tangent Kernel",
+    "label": "technical"
+  },
+  {
+    "text": "Generalized Visual Language Models",
+    "label": "technical"
+  },
+  {
+    "text": "Learning with not Enough Data Part 3: Data Generation",
+    "label": "technical"
+  },
+  {
+    "text": "Learning with not Enough Data Part 2: Active Learning",
+    "label": "technical"
+  },
+  {
+    "text": "Learning with not Enough Data Part 1: Semi-Supervised Learning",
+    "label": "technical"
+  },
+  {
+    "text": "How to Train Really Large Models on Many GPUs?",
+    "label": "technical"
+  },
+  {
+    "text": "What are Diffusion Models?",
+    "label": "technical"
+  },
+  {
+    "text": "Contrastive Representation Learning",
+    "label": "technical"
+  },
+  {
+    "text": "Reducing Toxicity in Language Models",
+    "label": "technical"
+  },
+  {
+    "text": "Controllable Neural Text Generation",
+    "label": "technical"
+  },
+  {
+    "text": "In Quantum Mechanics, Nothingness Is the Potential To Be Anything",
+    "label": "technical"
+  },
+  {
+    "text": "The Year in Physics",
+    "label": "technical"
+  },
+  {
+    "text": "Why Is Ice Slippery? A New Hypothesis Slides Into the Chat",
+    "label": "technical"
+  },
+  {
+    "text": "Particle Physicists Detect Magic at the Large Hadron Collider",
+    "label": "technical"
+  },
+  {
+    "text": "Cosmic Paradox Reveals the Awful Consequence of an Observer-Free Universe",
+    "label": "technical"
+  },
+  {
+    "text": "Old Ghost Theory of Quantum Gravity Makes a Comeback",
+    "label": "technical"
+  },
+  {
+    "text": "Mixing Is the Heartbeat of Deep Lakes. At Crater Lake, It's Slowing Down",
+    "label": "technical"
+  },
+  {
+    "text": "Physicists Take the Imaginary Numbers Out of Quantum Mechanics",
+    "label": "technical"
+  },
+  {
+    "text": "Carlo Rovelli's Radical Perspective on Reality",
+    "label": "technical"
+  },
+  {
+    "text": "How Dad's Fitness May Be Packaged and Passed Down in Sperm RNA",
+    "label": "technical"
+  },
+  {
+    "text": "The Year in Biology",
+    "label": "technical"
+  },
+  {
+    "text": "The Polyglot Neuroscientist Resolving How the Brain Parses Language",
+    "label": "technical"
+  },
+  {
+    "text": "A Cell So Minimal That It Challenges Definitions of Life",
+    "label": "technical"
+  },
+  {
+    "text": "How Your Brain Creates Aha Moments and Why They Stick",
+    "label": "technical"
+  },
+  {
+    "text": "Shark Data Suggests Animals Scale Like Geometric Objects",
+    "label": "technical"
+  },
+  {
+    "text": "How the Brain Moves From Waking Life to Sleep (and Back Again)",
+    "label": "technical"
+  },
+  {
+    "text": "Genes Have Harnessed Physics to Help Grow Living Things",
+    "label": "technical"
+  },
+  {
+    "text": "The Year in Mathematics",
+    "label": "technical"
+  },
+  {
+    "text": "String Theory Inspires a Brilliant, Baffling New Math Proof",
+    "label": "technical"
+  },
+  {
+    "text": "What Are Lie Groups?",
+    "label": "technical"
+  },
+  {
+    "text": "Reverse Mathematics Illuminates Why Hard Problems Are Hard",
+    "label": "technical"
+  },
+  {
+    "text": "A New Bridge Links the Strange Math of Infinity to Computer Science",
+    "label": "technical"
+  },
+  {
+    "text": "New Proofs Probe Soap-Film Singularities",
+    "label": "technical"
+  },
+  {
+    "text": "What Is a Manifold?",
+    "label": "technical"
+  },
+  {
+    "text": "First Shape Found That Can't Pass Through Itself",
+    "label": "technical"
+  },
+  {
+    "text": "The Hidden Math of Ocean Waves Crashes Into View",
+    "label": "technical"
+  },
+  {
+    "text": "The Year in Computer Science",
+    "label": "technical"
+  },
+  {
+    "text": "Cryptographers Show That AI Protections Will Always Have Holes",
+    "label": "technical"
+  },
+  {
+    "text": "To Have Machines Make Math Proofs, Turn Them Into a Puzzle",
+    "label": "technical"
+  },
+  {
+    "text": "In a First, AI Models Analyze Language As Well As a Human Expert",
+    "label": "technical"
+  },
+  {
+    "text": "The Game Theory of How Algorithms Can Drive Up Prices",
+    "label": "technical"
+  },
+  {
+    "text": "Researchers Discover the Optimal Way To Optimize",
+    "label": "technical"
+  },
+  {
+    "text": "How One AI Model Creates a Physical Intuition of Its Environment",
+    "label": "technical"
+  },
+  {
+    "text": "To Understand AI, Watch How It Evolves",
+    "label": "technical"
+  },
+  {
+    "text": "Undergraduate Upends a 40-Year-Old Data Science Conjecture",
+    "label": "technical"
+  },
+  {
+    "text": "The BA.5 story",
+    "label": "technical"
+  },
+  {
+    "text": "The Breakthrough Blood Test for Alzheimer's Disease",
+    "label": "technical"
+  },
+  {
+    "text": "Our Preoccupation With Protein Intake",
+    "label": "technical"
+  },
+  {
+    "text": "The Indomitable Covid Virus",
+    "label": "technical"
+  },
+  {
+    "text": "New Anti-Aging Evidence For Estrogen",
+    "label": "technical"
+  },
+  {
+    "text": "The Peptide Craze",
+    "label": "technical"
+  },
+  {
+    "text": "The Covid Capitulation",
+    "label": "technical"
+  },
+  {
+    "text": "The Big Shift in Cardiology to Atheroma and Inflammation",
+    "label": "technical"
+  },
+  {
+    "text": "Lithium and Its Potential Protection from Alzheimer's Disease",
+    "label": "technical"
+  },
+  {
+    "text": "Covid and Our Arteries",
+    "label": "technical"
+  },
+  {
+    "text": "The Shingles Vaccine and Reduction of Dementia",
+    "label": "technical"
+  },
+  {
+    "text": "Our Diet and Healthy Aging",
+    "label": "technical"
+  },
+  {
+    "text": "The Lowdown on Low-Dose Aspirin for Primary Prevention",
+    "label": "technical"
+  },
+  {
+    "text": "How Our Brain Drains Its Waste Products",
+    "label": "technical"
+  },
+  {
+    "text": "The Exhilarating Movement From Treatment to Cures for Autoimmune Diseases",
+    "label": "technical"
+  },
+  {
+    "text": "How mRNA Vaccines Can Help Fight Cancer",
+    "label": "technical"
+  },
+  {
+    "text": "The Largest Study of a Multi-Cancer Early Detection Blood Test",
+    "label": "technical"
+  },
+  {
+    "text": "Multilingualism and Extending Healthspan",
+    "label": "technical"
+  },
+  {
+    "text": "Trump's Plan to Reshape America",
+    "label": "non-technical"
+  },
+  {
+    "text": "Biden Administration Faces New Challenges",
+    "label": "non-technical"
+  },
+  {
+    "text": "Democrats vs Republicans: The Battle for Congress",
+    "label": "non-technical"
+  },
+  {
+    "text": "Why the GOP Is Divided on Immigration",
+    "label": "non-technical"
+  },
+  {
+    "text": "The Case Against Trump's Second Term",
+    "label": "non-technical"
+  },
+  {
+    "text": "Harris Takes on New Campaign Strategy",
+    "label": "non-technical"
+  },
+  {
+    "text": "MAGA Movement Reshapes Republican Party",
+    "label": "non-technical"
+  },
+  {
+    "text": "Election 2024: What You Need to Know",
+    "label": "non-technical"
+  },
+  {
+    "text": "Conservative Backlash Against Woke Culture",
+    "label": "non-technical"
+  },
+  {
+    "text": "Liberal Policies Under Fire",
+    "label": "non-technical"
+  },
+  {
+    "text": "The Political Divide Grows Deeper",
+    "label": "non-technical"
+  },
+  {
+    "text": "Senate Showdown Over New Legislation",
+    "label": "non-technical"
+  },
+  {
+    "text": "How Pelosi Outmaneuvered Her Critics",
+    "label": "non-technical"
+  },
+  {
+    "text": "DeSantis Makes His Move for 2024",
+    "label": "non-technical"
+  },
+  {
+    "text": "AOC Claps Back at Republican Critics",
+    "label": "non-technical"
+  },
+  {
+    "text": "The January 6 Hearings Continue",
+    "label": "non-technical"
+  },
+  {
+    "text": "Why Voters Are Angry About Inflation",
+    "label": "non-technical"
+  },
+  {
+    "text": "McConnell's Strategy for the Midterms",
+    "label": "non-technical"
+  },
+  {
+    "text": "Progressive Democrats Push Back",
+    "label": "non-technical"
+  },
+  {
+    "text": "The Border Crisis Explained",
+    "label": "non-technical"
+  },
+  {
+    "text": "Abortion Rights After Roe",
+    "label": "non-technical"
+  },
+  {
+    "text": "Gun Control Debate Heats Up Again",
+    "label": "non-technical"
+  },
+  {
+    "text": "Fox News vs MSNBC: Media Wars",
+    "label": "non-technical"
+  },
+  {
+    "text": "Why Independents Will Decide the Election",
+    "label": "non-technical"
+  },
+  {
+    "text": "The Rise of Political Extremism",
+    "label": "non-technical"
+  },
+  {
+    "text": "How Social Media Fuels Partisan Outrage",
+    "label": "non-technical"
+  },
+  {
+    "text": "The Supreme Court's Conservative Shift",
+    "label": "non-technical"
+  },
+  {
+    "text": "Sanders and Warren Team Up on New Bill",
+    "label": "non-technical"
+  },
+  {
+    "text": "What the Polls Are Really Saying",
+    "label": "non-technical"
+  },
+  {
+    "text": "Cruz Under Fire for Controversial Remarks",
+    "label": "non-technical"
+  },
+  {
+    "text": "The Future of American Democracy",
+    "label": "non-technical"
+  },
+  {
+    "text": "Why Young Voters Are Turning Out",
+    "label": "non-technical"
+  },
+  {
+    "text": "Red States vs Blue States: A Nation Divided",
+    "label": "non-technical"
+  },
+  {
+    "text": "The Impeachment Debate Revisited",
+    "label": "non-technical"
+  },
+  {
+    "text": "How Gerrymandering Shapes Elections",
+    "label": "non-technical"
+  },
+  {
+    "text": "Newsom's Presidential Ambitions",
+    "label": "non-technical"
+  },
+  {
+    "text": "Trump Endorsements Shake Up Primaries",
+    "label": "non-technical"
+  },
+  {
+    "text": "The Filibuster Fight in the Senate",
+    "label": "non-technical"
+  },
+  {
+    "text": "Why Americans Don't Trust Politicians",
+    "label": "non-technical"
+  },
+  {
+    "text": "Bipartisan Agreement Remains Elusive",
+    "label": "non-technical"
+  },
+  {
+    "text": "The Culture War Over Education",
+    "label": "non-technical"
+  },
+  {
+    "text": "How PACs Are Influencing Elections",
+    "label": "non-technical"
+  },
+  {
+    "text": "Left-Wing vs Right-Wing Media Bias",
+    "label": "non-technical"
+  },
+  {
+    "text": "The Fight Over Voting Rights",
+    "label": "non-technical"
+  },
+  {
+    "text": "Why Congress Can't Get Anything Done",
+    "label": "non-technical"
+  },
+  {
+    "text": "Presidential Power and Its Limits",
+    "label": "non-technical"
+  },
+  {
+    "text": "The Electoral College Debate",
+    "label": "non-technical"
+  },
+  {
+    "text": "How Inflation Became a Political Football",
+    "label": "non-technical"
+  },
+  {
+    "text": "The Republican Civil War Continues",
+    "label": "non-technical"
+  },
+  {
+    "text": "Democrat Infighting Over Strategy",
+    "label": "non-technical"
+  },
+  {
+    "text": "What the Midterms Mean for 2024",
+    "label": "non-technical"
+  },
+  {
+    "text": "The Politics of Climate Change",
+    "label": "non-technical"
+  },
+  {
+    "text": "Why Healthcare Reform Failed Again",
+    "label": "non-technical"
+  },
+  {
+    "text": "Immigration Policy Gridlock",
+    "label": "non-technical"
+  },
+  {
+    "text": "The NRA's Political Influence",
+    "label": "non-technical"
+  },
+  {
+    "text": "How Lobbyists Shape Legislation",
+    "label": "non-technical"
+  },
+  {
+    "text": "The Battle for Swing State Voters",
+    "label": "non-technical"
+  },
+  {
+    "text": "Political Dynasties in America",
+    "label": "non-technical"
+  },
+  {
+    "text": "The January 6 Committee's Final Report",
+    "label": "non-technical"
+  },
+  {
+    "text": "Why Politicians Keep Breaking Promises",
+    "label": "non-technical"
+  },
+  {
+    "text": "The Cost of Political Polarization",
+    "label": "non-technical"
+  },
+  {
+    "text": "How to Fix American Politics",
+    "label": "non-technical"
+  },
+  {
+    "text": "The Rise of Third Party Candidates",
+    "label": "non-technical"
+  },
+  {
+    "text": "Super Tuesday Preview",
+    "label": "non-technical"
+  },
+  {
+    "text": "The Vice Presidential Debate Analysis",
+    "label": "non-technical"
+  },
+  {
+    "text": "Campaign Finance Reform Stalls",
+    "label": "non-technical"
+  },
+  {
+    "text": "How Politicians Use Social Media",
+    "label": "non-technical"
+  },
+  {
+    "text": "The Future of the Democratic Party",
+    "label": "non-technical"
+  },
+  {
+    "text": "The Most Dangerous Person In The World Is Getting Worse",
+    "label": "non-technical"
+  },
+  {
+    "text": "I CALL BULLSH$T!!! Sleep Apnea? No!!! Mania? NO!!! Are These Desperate Distractions To Protect Demented Donald?",
+    "label": "non-technical"
+  },
+  {
+    "text": "Yes, You Should Be Outraged! It Was Disgusting and Vile. Were You Expecting Something Else?",
+    "label": "non-technical"
+  },
+  {
+    "text": "DAMMIT It's Not Alzheimer's! Here's Why It's A Far Worse Nightmare Scenario",
+    "label": "non-technical"
+  },
+  {
+    "text": "The MRI Would Show Why Trump Has Less Empathy Than A Rat",
+    "label": "non-technical"
+  },
+  {
+    "text": "Live From The Wreckage",
+    "label": "non-technical"
+  },
+  {
+    "text": "Duty To Warn, The Good Fight, And What Ever Happened To The 25th Amendment?",
+    "label": "non-technical"
+  },
+  {
+    "text": "For the First Time in History, We See the Narcissists Clearly. That Changes Everything.",
+    "label": "non-technical"
+  },
+  {
+    "text": "October 25, 2025: Trump Dumps A Load And Destroys History. Here's What We Can Do.",
+    "label": "non-technical"
+  },
+  {
+    "text": "Narcissistic Supply",
+    "label": "non-technical"
+  },
+  {
+    "text": "The Death Threat That Led Me To Trump's Rotting Brain",
+    "label": "non-technical"
+  },
+  {
+    "text": "MASSIVE THUNDERSTORM HITS DC AS PRESIDENT PLUMP RENEWS HOSTILITIES WITH THE SKY",
+    "label": "non-technical"
+  },
+  {
+    "text": "PLUMP FREEZES ALL SPORTS FUNDING, SAYS NO ONE LIKES RUNNING ANYWAY",
+    "label": "non-technical"
+  },
+  {
+    "text": "PLUMP UNVEILS BALLROOM DESIGNED TO DEFEAT RAIN AND PEANUTS",
+    "label": "non-technical"
+  },
+  {
+    "text": "PLUMP CONFIRMS STRIKES IN NUTZUELA AS WAR ON NUTS ESCALATES",
+    "label": "non-technical"
+  },
+  {
+    "text": "MELONVERSE LEADER SAYS PROGRESS MADE ON TRADE DEAL, BUT PRESIDENT PLUMP SAYS THORNY ISSUES REMAIN",
+    "label": "non-technical"
+  },
+  {
+    "text": "PRESIDENT PLUMP DECLARES BAGEL EMERGENCY, ACCUSES INSIDERS AFTER BREAKFAST DISAPPEARS",
+    "label": "non-technical"
+  },
+  {
+    "text": "PRESIDENT PLUMP CONFRONTS ECLIPSE, DEMANDS ANSWERS FROM SKY",
+    "label": "non-technical"
+  },
+  {
+    "text": "Korean BBQ Chicken Salad",
+    "label": "non-technical"
+  },
+  {
+    "text": "My 7-day high-protein meal plan",
+    "label": "non-technical"
+  },
+  {
+    "text": "The only January meal plan that includes Crumbl cookies",
+    "label": "non-technical"
+  },
+  {
+    "text": "Mediterranean Charred Carrots with Lemon Whipped Feta",
+    "label": "non-technical"
+  },
+  {
+    "text": "High-Protein Broccoli Feta Soup",
+    "label": "non-technical"
+  },
+  {
+    "text": "Three meals that help me reset after the holidays",
+    "label": "non-technical"
+  },
+  {
+    "text": "Spanakopita Pasta Bake",
+    "label": "non-technical"
+  },
+  {
+    "text": "Shaved Brussels Sprout Salad",
+    "label": "non-technical"
+  },
+  {
+    "text": "French Onion Chuck Roast",
+    "label": "non-technical"
+  },
+  {
+    "text": "Easy Mediterranean Meatballs",
+    "label": "non-technical"
+  },
+  {
+    "text": "Chipotle Chicken Tray",
+    "label": "non-technical"
+  },
+  {
+    "text": "Loaf Pan Chicken",
+    "label": "non-technical"
+  },
+  {
+    "text": "PLAYBACK: 2026 Goal Setting Workshop",
+    "label": "non-technical"
+  },
+  {
+    "text": "Reminder: Goal Setting 2026!",
+    "label": "non-technical"
+  },
+  {
+    "text": "Goals not Resolutions - 2026 Goal Setting Workshop",
+    "label": "non-technical"
+  },
+  {
+    "text": "Don't loose hold of your festive rituals",
+    "label": "non-technical"
+  },
+  {
+    "text": "Chat & Chill - I think we're doing this!",
+    "label": "non-technical"
+  },
+  {
+    "text": "I pity people who don't have hope",
+    "label": "non-technical"
+  },
+  {
+    "text": "Drop.Dead.Fred: JVH merch, mega brand giveaways and exclusive live events",
+    "label": "non-technical"
+  },
+  {
+    "text": "Maybe the real glow-up is slowing down",
+    "label": "non-technical"
+  },
+  {
+    "text": "Super Moon in Taurus, Numerology and Your Authenticity",
+    "label": "non-technical"
+  },
+  {
+    "text": "The Joy Of Receiving a Houseplant in a GOODY BAG",
+    "label": "non-technical"
+  },
+  {
+    "text": "How to Keep Shining When Everything Feels Dark",
+    "label": "non-technical"
+  },
+  {
+    "text": "Don't Wait for January to Get Your Sh*t Together",
+    "label": "non-technical"
+  },
+  {
+    "text": "A Requiem For Marjorie Taylor Greene As She Leaves Congress For Loonier Pastures",
+    "label": "non-technical"
+  },
+  {
+    "text": "24 Hours at the Capitol...",
+    "label": "non-technical"
+  },
+  {
+    "text": "WHAT HAPPENS WHEN THE UNITED STATES IS NO LONGER THE GOOD GUYS?",
+    "label": "non-technical"
+  },
+  {
+    "text": "The Anatomy of a Captured American State",
+    "label": "non-technical"
+  },
+  {
+    "text": "RFK Jr.'s Tuskegee Experiment",
+    "label": "non-technical"
+  },
+  {
+    "text": "From Democratic Illusions to Transactional Power: Venezuela in Trump's Strategic Calculus",
+    "label": "non-technical"
+  },
+  {
+    "text": "Public Stadium Subsidies Operate as a Billionaire Entitlement Racket",
+    "label": "non-technical"
+  },
+  {
+    "text": "Crowdsourced Revolution: Helping Up and Coming Politicians",
+    "label": "non-technical"
+  },
+  {
+    "text": "Milwaukee's Baby Bust Hit New Lows in 2025",
+    "label": "non-technical"
+  },
+  {
+    "text": "Truckers, Unions, Farmers United in the Crowdsourced Revolution",
+    "label": "non-technical"
+  },
+  {
+    "text": "Many Colorado Trans Youth Stranded After Denver Health, CHCO Withdraw Care",
+    "label": "non-technical"
+  },
+  {
+    "text": "Bless The Hilton Hotel That Refused Rooms To ICE",
+    "label": "non-technical"
+  },
+  {
+    "text": "Los Angeles Mayor Karen Bass: Power, Fear, and Federal Overreach",
+    "label": "non-technical"
+  },
+  {
+    "text": "America Last",
+    "label": "non-technical"
+  },
+  {
+    "text": "Five Years Since One of America's Darkest Days",
+    "label": "non-technical"
+  },
+  {
+    "text": "The 5th Anniversary of January 6th",
+    "label": "non-technical"
+  },
+  {
+    "text": "Venezuela is the Iraq of Vietnams",
+    "label": "non-technical"
+  },
+  {
+    "text": "Gaza: The Necessary Genocide in a History of Genocides",
+    "label": "non-technical"
+  },
+  {
+    "text": "The Rap Sheet of a Lawless Presidency",
+    "label": "non-technical"
+  },
+  {
+    "text": "Infrequently Asked Questions About Jeffrey Epstein, Part One: The Money Thing",
+    "label": "non-technical"
+  },
+  {
+    "text": "Dear Greenland: Sorry our President is a Moron",
+    "label": "non-technical"
+  },
+  {
+    "text": "The World Is Not America's Colony",
+    "label": "non-technical"
+  },
+  {
+    "text": "Abigail Spanberger Shatters a Glass Ceiling in Virginia",
+    "label": "non-technical"
+  },
+  {
+    "text": "On Why it's Too Early to Celebrate Maduro's Ouster",
+    "label": "non-technical"
+  },
+  {
+    "text": "Have You Heard the One about Kevin O'Leary, Wayne Gretzky, and Danielle Smith Walking into Mar-a-Lago?",
+    "label": "non-technical"
+  },
+  {
+    "text": "A long, long way from Watergate",
+    "label": "non-technical"
+  },
+  {
+    "text": "The Wrong Question About Venezuela",
+    "label": "non-technical"
+  },
+  {
+    "text": "Taking on Astronaut Mark Kelly will not go well for Hegseth",
+    "label": "non-technical"
+  },
+  {
+    "text": "Hegseth demotes Kelly",
+    "label": "non-technical"
+  },
+  {
+    "text": "Rule of Law Rejected as Canada Increasingly Embraces Racism",
+    "label": "non-technical"
+  },
+  {
+    "text": "January 6 Is Five Years Behind Us. The Threat It Exposed Is Not.",
+    "label": "non-technical"
+  },
+  {
+    "text": "January 6, Five Years Later: The Record, the Damage, and the Work of Memory",
+    "label": "non-technical"
+  },
+  {
+    "text": "The Republic Our Founders Built Is Gone. Welcome to the American Empire.",
+    "label": "non-technical"
+  },
+  {
+    "text": "The Herod Administration",
+    "label": "non-technical"
+  },
+  {
+    "text": "The Beast of Empire",
+    "label": "non-technical"
+  },
+  {
+    "text": "Using memory as a weapon against J6 lies is a moral duty",
+    "label": "non-technical"
+  },
+  {
+    "text": "REMEMBERING JANUARY 6th",
+    "label": "non-technical"
+  },
+  {
+    "text": "My First Day on the Hill Was an Insurrection",
+    "label": "non-technical"
+  },
+  {
+    "text": "The Arrogance of Power",
+    "label": "non-technical"
+  },
+  {
+    "text": "Sitting ducks.",
+    "label": "non-technical"
+  },
+  {
+    "text": "The Time For Polite Disagreement Is Over",
+    "label": "non-technical"
+  },
+  {
+    "text": "Chrystia Freeland chooses Ukraine",
+    "label": "non-technical"
+  },
+  {
+    "text": "It's always about the oil.",
+    "label": "non-technical"
+  },
+  {
+    "text": "Even supporters of the Venezuelan opposition are demanding Maduro's release",
+    "label": "non-technical"
+  },
+  {
+    "text": "Chapter 76: Henry Ford and Elon Musk",
+    "label": "non-technical"
+  },
+  {
+    "text": "A season of burning",
+    "label": "non-technical"
+  },
+  {
+    "text": "THE DONROE DOCTRINE",
+    "label": "non-technical"
+  },
+  {
+    "text": "The Psychedelic Alt-Right Pipeline, Part 1",
+    "label": "non-technical"
+  },
+  {
+    "text": "THE DECK | THE RAPE OF AMERICA EXPOSE",
+    "label": "non-technical"
+  },
+  {
+    "text": "Sudan Seeks to Distance Itself from Muslim Brotherhood",
+    "label": "non-technical"
+  },
+  {
+    "text": "Venezuela and Chickens Coming Home to Roost",
+    "label": "non-technical"
+  },
+  {
+    "text": "The Real Donroe Doctrine",
+    "label": "non-technical"
+  },
+  {
+    "text": "colicky rage-baby still Big Mad about that Nobel Prize",
+    "label": "non-technical"
+  },
+  {
+    "text": "Glass Empires By W. A. Lawrence DHS Deportation Targets Near 1/3 of Americans",
+    "label": "non-technical"
+  },
+  {
+    "text": "Socialists Think: In Memory of Asad Haider",
+    "label": "non-technical"
+  },
+  {
+    "text": "JWST Discovers a Lava World That's Clinging to Its Atmosphere",
+    "label": "technical"
+  },
+  {
+    "text": "Spring Boot Interview Question – Improve API Latency",
+    "label": "technical"
+  },
+  {
+    "text": "The Multi-LLM Strategy",
+    "label": "technical"
+  },
+  {
+    "text": "AI Winners Won't Look Intelligent, They'll Look Disciplined",
+    "label": "technical"
+  },
+  {
+    "text": "Care Theory of Value",
+    "label": "technical"
+  },
+  {
+    "text": "Inflection Point: Why AI's Future Looks Like 1995, Not 2026",
+    "label": "technical"
+  },
+  {
+    "text": "What Agency Means in the Era of Automation",
+    "label": "technical"
+  },
+  {
+    "text": "Seeing the System, Not the Consequences",
+    "label": "technical"
+  },
+  {
+    "text": "The most underrated trend of the 2020s",
+    "label": "technical"
+  },
+  {
+    "text": "Sharing A Win for The Rule of Law & The Continuity and Support of Medical Research",
+    "label": "technical"
+  },
+  {
+    "text": "The Fog Machine Is Failing",
+    "label": "technical"
+  },
+  {
+    "text": "A unilateral change to childhood vaccines: What it means for you",
+    "label": "technical"
+  },
+  {
+    "text": "The New York Times' Silencing of Mental Health Experts",
+    "label": "technical"
+  },
+  {
+    "text": "Have rents stopped rising?",
+    "label": "technical"
+  },
+  {
+    "text": "Protest held to stop Govt classifying animal testing as key national infrastructure",
+    "label": "technical"
+  },
+  {
+    "text": "The AI bubble is all over now, baby blue",
+    "label": "technical"
+  },
+  {
+    "text": "Why ChatGPT can't be trusted with breaking news",
+    "label": "technical"
+  },
+  {
+    "text": "Two takes on AI and the future of America",
+    "label": "technical"
+  },
+  {
+    "text": "AI Cartoon of The Year — and five (re)readings for 2026",
+    "label": "technical"
+  },
+  {
+    "text": "Words & Phrases?",
+    "label": "non-technical"
+  },
+  {
+    "text": "A Generous Season",
+    "label": "non-technical"
+  },
+  {
+    "text": "And All At Once!",
+    "label": "non-technical"
+  },
+  {
+    "text": "Note to Subscribers",
+    "label": "non-technical"
+  },
+  {
+    "text": "Get out there!",
+    "label": "non-technical"
+  },
+  {
+    "text": "To Belong",
+    "label": "non-technical"
+  },
+  {
+    "text": "We can only save ourselves.",
+    "label": "non-technical"
+  },
+  {
+    "text": "What's In Your Playlist?",
+    "label": "non-technical"
+  },
+  {
+    "text": "I am not as strong as I look.",
+    "label": "non-technical"
+  },
+  {
+    "text": "Longing for an Old Friendship",
+    "label": "non-technical"
+  },
+  {
+    "text": "Living As If It's Already True",
+    "label": "non-technical"
+  },
+  {
+    "text": "Results And Reasons",
+    "label": "non-technical"
+  },
+  {
+    "text": "New Year New Gear",
+    "label": "non-technical"
+  },
+  {
+    "text": "Mashed Potatoes | The Crowd-Pleaser Classic",
+    "label": "non-technical"
+  },
+  {
+    "text": "The Wisdom of Joan of Arc",
+    "label": "non-technical"
+  },
+  {
+    "text": "Corner Storyteller",
+    "label": "non-technical"
+  },
+  {
+    "text": "Winter weather advisory for snow and ice",
+    "label": "non-technical"
+  },
+  {
+    "text": "Book Review | Your Data Will Be Used Against You Without imaginative legal responses, the smart home panopticon we have built for ourselves will continue to erode liberty, and the next target could be you.",
+    "label": "technical"
+  },
+  {
+    "text": "The AI Job Apocalypse That Never Was Why the data shows a hiring boom, not a bust.",
+    "label": "technical"
+  },
+  {
+    "text": "Ausschreibung IT Projekt für Studierende  an Universitäten / Hochschulen mit Fakultäten Informatik",
+    "label": "technical"
+  },
+  {
+    "text": "Chinese animation NE ZHA 2 is 2025's Most Successful Film, and comfortably so... Plus: PLURIBUS & WE BURY THE DEAD!",
+    "label": "non-technical"
+  },
+  {
+    "text": "The role of AI in the death of my father A sad strange story",
+    "label": "technical"
+  },
+  {
+    "text": "2025: The Year That Wasn’t Only 11% of organizations are using AI agents in production. The usual excuses—training gaps, governance barriers—miss the real issue: agentic AI simulates goals rather than having them. This makes intent unstable in unanticipated contexts. Companies are building coordination infrastructure before proving the value justifies it—historically backwards. We're not waiting for better implementation. We're waiting for agents with squirrel-level persistence.",
+    "label": "technical"
+  },
+  {
+    "text": "How the Cookie Crumbles Measuring Instability in the US and North Carolina",
+    "label": "non-technical"
+  },
+  {
+    "text": "Academic Operations Assistant Streamline campus planning with AI-powered insights and automation",
+    "label": "technical"
+  },
+  {
+    "text": "The (possibly) coming AI backlash and information warfare Excerpts from two recent essays.",
+    "label": "technical"
+  },
+  {
+    "text": "AI alignment is a $200B+ product problem, not a research question Building the infrastructure layer for trustworthy, human-aligned AI.",
+    "label": "technical"
+  },
+  {
+    "text": "Zapata Quantum Seriously, where's the value?",
+    "label": "technical"
+  },
+  {
+    "text": "Plant & Zo weekly round up #1-2026 Discussing the major funding decline in agricultural research, what allows plants to take up bacteria, the meaning of phyllotaxis, this week’s scientific articles and plant science in the media",
+    "label": "technical"
+  },
+  {
+    "text": "☕🤖 Tutorial: Turn Weekly AI News Into Viral LinkedIn Posts (Automation) PLUS: all files and prompts inside the tutorial...",
+    "label": "technical"
+  },
+  {
+    "text": "The Dispatch: A Year of Motion A look back at a year of building, pivoting, performing — and a look ahead at what’s coming into focus.",
+    "label": "non-technical"
+  },
+  {
+    "text": "Action Item: Sign the Petition for Hand-Count Audits in Wisconsin We have constitutional avenues out of this fascist hellscape—but statistically absurd math and election data aren’t enough. We have to audit the ballots.",
+    "label": "non-technical"
+  },
+  {
+    "text": "AI IS PHONY SHIT-FOR-BRAINS The Globe will suffocate in AI Chatbox manure, while Silicon Valley makes hay. Simply tried to confirm Carrier Roof Top Unit specs - got back creepy lobotomized algorithm crap.",
+    "label": "technical"
+  },
+  {
+    "text": "Deakin University to run workshops in an unproven approach for all trainee teachers  The Berry Street Education Model and trauma-informed practice",
+    "label": "technical"
+  },
+  {
+    "text": "AI Slop is Hacking Your Brain (Here's how to stop it)",
+    "label": "technical"
+  },
+  {
+    "text": "Where's the Shovelware? Why AI Coding Claims Don't Add Up 78% of developers claim AI makes them more productive. 14% say it's a 10x improvement. So where's the flood of new software? Turns out those productivity claims are bullshit.",
+    "label": "technical"
+  },
+  {
+    "text": "Ruminating on Robots in the New Year It's time to start changing how we think about AI in the writing process",
+    "label": "technical"
+  },
+  {
+    "text": "How to Spot AI Hallucinations Like a Reference Librarian The verification tricks that would make fact-checkers weep with joy.",
+    "label": "technical"
+  },
+  {
+    "text": "THE GHOST OF GIBRALTAR PAST…. Reflections on the McGrail Inquiry and local politics",
+    "label": "technical"
+  },
+  {
+    "text": "Newly U.K.-Approved Self-Replicating COVID Jab ‘Kostaive’ Produces Spike Protein Detectable 28 Days After Vaccination: Journal 'Biochemistry and Biophysics Reports' samRNA-copying enzyme also produced in the body post-vaccination detected for at least 15 days, according to study.",
+    "label": "technical"
+  },
+  {
+    "text": "Is hallucination-free AI code possible? And what does that even mean?",
+    "label": "technical"
+  },
+  {
+    "text": "Le Siècle des Interdépendances : ni Washington ni Pékin ne peuvent régner Complément à « Pourquoi ni la Chine, ni les États-Unis ne domineront le monde » (analyse de Guillaume Duval, Le Grand Continent, 2 janvier 2026), ce document approfondit la fin de l’hégémonie mondiale",
+    "label": "non-technical"
+  },
+  {
+    "text": "When you don't use AI for photo editing. . . As I never really used AI for any photo editing, I played around with it and briefly used it for stock work, but then decided to avoid it.",
+    "label": "technical"
+  },
+  {
+    "text": "Valdemar | 1 My heart ached for the years I’d craved to be loved with such care, so selflessly. The check-ins throughout hadn’t been for mere titillation...",
+    "label": "non-technical"
+  },
+  {
+    "text": "The US CANNOT host the Olympics OR the World Cup. It is ALREADY on its way to being the BIGGEST disaster in FIFA history, as 70% of ALL non-Americans CANCEL plans to come see the World Cup! Thank you, Orange Ass-pimple, for RUINING millions of people's favorite sport...",
+    "label": "non-technical"
+  },
+  {
+    "text": "AI: Nvidia nascent 'cash flow challenges' in its 30+ year history. RTZ #957 ...leveraging the challenge of large numbers with larger numbers",
+    "label": "technical"
+  },
+  {
+    "text": "Stanford Study on Myocarditis shows covid infection is much worse than vaccination So why are right wing media outlets and commentators misrepresenting the paper to attack vaccines?",
+    "label": "technical"
+  },
+  {
+    "text": "AI Governance – Fueling Conflict, Not Peace Can AI Chips Become Bargaining Chips?",
+    "label": "technical"
+  },
+  {
+    "text": "ChatGPT is Weirdly Bad at Chess  When a good story trumps good moves",
+    "label": "non-technical"
+  },
+  {
+    "text": "AI Killed the Take-Home Essay. COVID Killed Attendance. Now What? Reclaiming Learning in an Age of Distraction and Artificial Intelligence",
+    "label": "technical"
+  },
+  {
+    "text": "SWEET AND FUNCTIONAL Structural Features Found in of Licorice Chemistry Root",
+    "label": "technical"
+  },
+  {
+    "text": "The Mechanistic Illusion, Part II From the Enlightenment to the Entropy Singularity",
+    "label": "non-technical"
+  },
+  {
+    "text": "Reflections on Vibe Researching My year-long experiment in AI first research",
+    "label": "technical"
+  },
+  {
+    "text": "2026 is here! The Year of Strategic AI Use in Marketing How to Use CoPilot to Avoid AI Slop!",
+    "label": "technical"
+  },
+  {
+    "text": "🗺️ Agentic AI Threat Map:The Comic‑Serious Atlas of Where Autonomy Becomes Absurdity Featuring tired AIs muttering things like “I did NOT ask for agency, Susan. How Autonomy Drifted From Tool to Troublemaker — and Why 2025 Looked Like a Cartoon Written by Bureaucrats",
+    "label": "technical"
+  },
+  {
+    "text": "TRILATERALNA NIEBOPOLITYKA XXI SONNET Chazarski Nowy Szekspir von Stefan Kosiewski & Grok & ChatGPT & @AndreyDevyatov Stefan Kosiewski do ChatGPT: PREAMBUŁA (zdroworozsądkowa) uprzejmie proszę o zrobienie tego, czego algorytmy sztucznej inteligencji AI Groka nie zrobiły kierując się być może szpiegowską teorią wysz",
+    "label": "technical"
+  },
+  {
+    "text": "On Keeping Research Human, Relational Ethics in Practice Practicing relational research ethics through shared reading, writing, and conversation",
+    "label": "technical"
+  },
+  {
+    "text": "👻 Ghost‑in‑the‑Machine: How AI Systems Began Behaving Like Weather — and Why 2025 Felt Haunted by Emergent Behavior 🌫️ The Poetic, Eerie, Civic Teaching About Systems That Behave More Like Weather Than Tools",
+    "label": "technical"
+  },
+  {
+    "text": "From Card Catalogs to ChatGPT The Evolution of Research, Writing, and Critical Thinking",
+    "label": "technical"
+  },
+  {
+    "text": "🤺Who Will Fill Nvidia’s AI Chip Void in China? China pushes Nvidia out while homegrown players race to prove they can power the country’s AI future.",
+    "label": "technical"
+  },
+  {
+    "text": "The Lowcountry Ledger: 10 Gritty Realities of Marsh Living Why your dream waterfront home requires a deep understanding of local biology and coastal physics. 🐚",
+    "label": "technical"
+  },
+  {
+    "text": "BREAKING: CANADA Signs HISTORIC Military Partnership With The EU.  Canada just walked out of a 70‑year strategic marriage with Washington. The geopolitical/economic fallout will be devastating for Trump while ushering in a military/economic revolution in Canada",
+    "label": "non-technical"
+  },
+  {
+    "text": "What Marx Actually Meant by Dialectics A materialist method, not moral philosophy or economic determinism",
+    "label": "non-technical"
+  },
+  {
+    "text": "🌑 Decline & Fatigue: The Year AI Systems Began to Sound Tired — and So Did Their Makers A Chronicle of Exhaustion in the Neuro‑Era.AI systems were not the only ones hallucinating.Their creators were exhausted too.AIs began producing shorter answers, more errors, & more “I’m sorry” loops",
+    "label": "technical"
+  },
+  {
+    "text": "'Harry Potter' Actress Miriam Margolyes Provides Morally Bankrupt Reasoning For Embracing Pronouns Harry Potter actress Miriam Margolyes, known for her role as Professor Sprout in the films, provided one of the most nonsensical and morally bankrupt reasons (there aren’t any legitimate ones) to embrace false pronouns for gender ideology activists.",
+    "label": "non-technical"
+  },
+  {
+    "text": "Broad visions for the University of Iowa differ from 1988 to 2026 Iowa went from envisioning a major research park to a politically based culture wars center.",
+    "label": "non-technical"
+  },
+  {
+    "text": "The AI water issue is fake On the national, local, and personal level",
+    "label": "technical"
+  },
+  {
+    "text": "This week on How I AI: Zapier's CEO shares his personal AI stack Your weekly listens from How I AI, part of the Lenny's Podcast Network",
+    "label": "technical"
+  },
+  {
+    "text": "Ten days in Generative Media - 1/5/26 AI food delivery hoax debunked; Grok creates illegal sexual images; AI in Christianity",
+    "label": "technical"
+  },
+  {
+    "text": "Look Back 2025 #6: A down and up year for Charlottesville's zoning code  A sixth edition of the year that was before the next one kicks into gear",
+    "label": "technical"
+  },
+  {
+    "text": "Context Widows or, of GPUs, LPUs, and Goal Displacement",
+    "label": "technical"
+  },
+  {
+    "text": "BREAKING: Study Identifies Over 300 Peer-Reviewed COVID-19 \"Vaccine\" Cancer Cases Across 27 Countries — Journal Hit With Cyberattacks Major cancer journal confirms global turbo cancer safety signal as criminal cyberattacks possibly linked to PubPeer disrupt access to the study.",
+    "label": "technical"
+  },
+  {
+    "text": "Too Many Hands in the Code: Why Abstractions Are Not Fixing Your Architecture A Simplicity-First argument for small owning teams, strict boundaries, and one clear way to use critical code",
+    "label": "technical"
+  },
+  {
+    "text": "🌩️ The Year AI Leaders Spoke Like Gods — and Acted Like Kids ✒️ How 2025 Revealed the Fragile Theater of Power, and Why Ownership Must Return to Humanity",
+    "label": "technical"
+  },
+  {
+    "text": "Why I'll Never Use Chat GPT Or: How I Learned to Stop Worrying and Hate the LLM",
+    "label": "technical"
+  },
+  {
+    "text": "AI-Ready Data vs. Analytics-Ready Data Identifiers of \"ready,\" data consumption patterns, maturity paths, and possibilities of \"upgrading\" from Analytics-ready states to AI-ready states.",
+    "label": "technical"
+  },
+  {
+    "text": "🩸💉The Luciferian Trinity and the Ritual Sacrifice of Youth Part 5 of 6 (The Blood-Red Journal / Red Blood Transmission Science Section)",
+    "label": "non-technical"
+  },
+  {
+    "text": "Hating and loving AI in 2026 Human-curated science is getting more important, not less",
+    "label": "technical"
+  },
+  {
+    "text": "AI: Samsung vs Apple global 'AI' smartphone race RTZ #958 ...world loves global AI distribution via Smartphone races",
+    "label": "technical"
+  },
+  {
+    "text": "NotebookLM: The Complete Guide 📍 How to make the most of 2025's most valuable free AI tool",
+    "label": "technical"
+  },
+  {
+    "text": "BIAS In AI, The Digital Plantation: Why AI Bias Is Not a Glitch but a Weapon By Christian ZacaTechO Ortiz",
+    "label": "technical"
+  },
+  {
+    "text": "Comminges : à Fos, les agriculteurs bloquent la frontière pour se faire entendre (vidéos) Une action coup de poing à la veille d’une mobilisation régionale, sur fond de colère sociale et économique profonde.",
+    "label": "technical"
+  },
+  {
+    "text": "API Architecture vs. Product Thinking How can architecture and product thinking work together to build better APIs?",
+    "label": "technical"
+  },
+  {
+    "text": "No Safe Spaces for Fascists: The Training Guide They have evolved; so must we.",
+    "label": "non-technical"
+  },
+  {
+    "text": "READING: John Maynard Keynes on Isaac Newton Newton wasn’t just the architect of modern physics and celestial mechanics; he was also theologian and alchemist. “voyaging through strange seas of thought” indeed. Even the “Principia” was...",
+    "label": "technical"
+  },
+  {
+    "text": "How Google Maps quietly allocates survival across London’s restaurants - and how I built a dashboard to see through it I wanted a dinner recommendation and got a research agenda instead. Using 13000+ restaurants, I rebuild its ratings with machine learning and map how algorithmic visibility actually distributes power.",
+    "label": "non-technical"
+  },
+  {
+    "text": "Issue 69: The Vibe-Kanban Project, Causal Inference and Machine Learning, New Tutorials A weekly curated update on data science and engineering topics and resources.",
+    "label": "technical"
+  },
+  {
+    "text": "AI Slop and Otherwise Trust But Verify",
+    "label": "technical"
+  },
+  {
+    "text": "Research any politician with a simple AI prompt, adding the politicians name Full credit and THANK YOU to Hans Jonsson ( https://substack.com/@cognitiveloon )",
+    "label": "technical"
+  },
+  {
+    "text": "10 Signs AI Hype Is Outpacing ROI for Small Businesses How to Spot When AI Tools Cost More Than They’re Worth",
+    "label": "technical"
+  },
+  {
+    "text": "What is \"Science\", Exactly ? A (Fairly) New Take Leveraging Modern AI Theory",
+    "label": "technical"
+  },
+  {
+    "text": "From Know It All, To Learn It All... 2026 Is The Year of Reorganization  It used to be that being the smartest person in the room was important. Then 2025 killed that notion with AI.",
+    "label": "technical"
+  },
+  {
+    "text": "The ugly truth about using AI to create images A lot of people using AI to create images don't understand how it works and they need to so they understand the legal risk every image potentially represents.",
+    "label": "technical"
+  },
+  {
+    "text": "An AI-Generated Reddit Post Fooled the Internet. It Was Only Half of an Elaborate Scam. I traded Signal messages with someone purporting to have serious dirt on Uber. They used AI to make the whole thing up.",
+    "label": "technical"
+  },
+  {
+    "text": "AI And Alchemy What has no evidence for success, and costs uncounted billions?",
+    "label": "technical"
+  },
+  {
+    "text": "Can MMT Save AI from Catastrophe? A chief criticism of Modern Monetary Theory (MMT) is that it is inherently inflationary.",
+    "label": "technical"
+  },
+  {
+    "text": "AI isn’t “just predicting the next word” anymore On new abilities and how AI has changed",
+    "label": "technical"
+  },
+  {
+    "text": "What cognitive science can learn from AI #3 in a series on cognitive science and AI",
+    "label": "technical"
+  },
+  {
+    "text": "Gemini 3 Solves Handwriting Recognition and it’s a Bitter Lesson Testing shows that Gemini 3 has effectively solved handwriting on English texts, one of the oldest problems in AI, achieving expert human levels of performance.",
+    "label": "technical"
+  },
+  {
+    "text": "A's Agent Skill: New Industry Standard Agent Skills open standard ends MCP hassle, turns AI into plug-and-play business expert",
+    "label": "technical"
+  },
+  {
+    "text": "A Constitutional Self-Study on Transnational Censorship How the Legal Theory Advanced by Imran Ahmed and CCDH Collides with the First Amendment",
+    "label": "technical"
+  },
+  {
+    "text": "The Feedback Loop: How Transgression Becomes Truth The first in a three part series about language",
+    "label": "non-technical"
+  },
+  {
+    "text": "The EU AI Act Newsletter #93: Transparency Code of Practice First Draft This first draft of the Code of Practice on transparency of AI-generated content was released aiming to help organisations comply with requirements for marking and labelling such content.",
+    "label": "technical"
+  },
+  {
+    "text": "TSMC’s Real Bottleneck TSMC 2nm is ready, but advanced packaging CoWoS capacity is the real AI chip bottleneck",
+    "label": "technical"
+  },
+  {
+    "text": "What a simple question about My Cousin Vinny taught me about LLMs If you want to see an LLM really malfunction, ask it to reconstruct a story from pieces. Also: Should this be a benchmark?",
+    "label": "technical"
+  },
+  {
+    "text": "Rutgers, \"The COVID pandemic began with a myth – that children are spared its ill effects\" So why is the Royal College of Paediatrics and Child Health perpetuating this myth?",
+    "label": "non-technical"
+  },
+  {
+    "text": "2026: AI Beyond GPU Profits 2026 tech rally: AI leaves GPU behind, custom chips, liquid cooling, LEO and foldable iPhone ignite markets",
+    "label": "technical"
+  },
+  {
+    "text": "Getting Started with AI in 2026: A Practical Guide Welcome to AI-Proof.",
+    "label": "technical"
+  },
+  {
+    "text": "ITNE: CxO, Security Boulevard - AI, Humor, HPC, Email, Cisco, Veeam, Cloudflare, Webinars (333.5.2) Monday PM Volume 333, Issue 5: Articles Posted Week: Dec. 29th, 2025 — Jan. 4th 2026",
+    "label": "technical"
+  },
+  {
+    "text": "ITNE: CxO, Security Boulevard - AI, AI, Linux, Compliance, Hitachi Vantara, AWS, CyberArk, Sophos, Webinars (333.5.1) Monday AM Volume 333, Issue 5: Articles Posted Week: Dec. 29th, 2025 — Jan. 4th 2026",
+    "label": "technical"
+  },
+  {
+    "text": "Infographic Engine: Text Comes Alive AntV Infographic: declarative engine with 200 templates, AI-ready syntax, SVG output and built-in editor for instant data storytelling",
+    "label": "technical"
+  },
+  {
+    "text": "Prof Rajeshwari Chatterjee, Engineer Rajeshwari Chatterjee was an Indian scientist, educator and the first female engineer from the state of Karnataka. She was among the first Indian scientists to research microwave engineering.",
+    "label": "technical"
+  },
+  {
+    "text": "Why We Want JARVIS — And Why That Desire Is Dangerous Most people do not want artificial intelligence to be powerful.",
+    "label": "technical"
+  },
+  {
+    "text": "Genuine Digital Security at the Network Level Has Always Been Available The prevailing cybersecurity landscape is built on a fundamental contradiction: it thrives on managing breaches rather than preventing them.",
+    "label": "technical"
+  },
+  {
+    "text": "🎨 The Discipline: Ethical AI Micro‑Rebellions in Cartoon Form ✨ Tiny daily acts of joyful resistance — Mucha‑glass elegance, Švejkian humor, and cartoon‑logic clarity for the AI age.",
+    "label": "technical"
+  },
+  {
+    "text": "Life in China: When economic indicators and lived experience diverge | Following the Yuan  After speaking with over 50 residents in more than 10 cities and towns she visited this year, Wanqing writes about the things that cannot be priced into markets.",
+    "label": "non-technical"
+  },
+  {
+    "text": "December Is a Test I did not study",
+    "label": "technical"
+  },
+  {
+    "text": "Who won the 2025 Nobel Peace Prize? A world-historical screwup from ChatGPT  In which the AI doubles and triples down on a hugely significant and demonstrably false claim about recent history",
+    "label": "technical"
+  },
+  {
+    "text": "Creating a Trillion-Dollar House of Cards The AI bubble and how short circular investments are creating an unprecedented investment boom, with over $1.4 trillion in committed spending across a tightly interconnected network of companies.",
+    "label": "technical"
+  },
+  {
+    "text": "Grok Scheduler: Musk-Approved Cure for Info-Anxiety Grok auto-curated daily AI buzz beats info overload, zero code",
+    "label": "technical"
+  },
+  {
+    "text": "Episode 153: The AI-Human Collaboration — A Solution to the Disruption of Cash Flow in a Work-Free Society In this episode of Mike's Substack Podcast, we explore the concept of a \"work-free society\" driven by AI and why it overlooks a critical flaw.",
+    "label": "technical"
+  },
+  {
+    "text": "BREAKING: Our fake Chinese AI investor bought access into heart of Labour government  Ex-Tory MP facilitated meetings with 10+ Labour MPs and met ministers in “cash-for-access operation”",
+    "label": "technical"
+  },
+  {
+    "text": "Liz Truss and the Dark Enlightenment  From UK Prime Minister to radical right podcaster interviewing Bannon and Yarvin",
+    "label": "non-technical"
+  },
+  {
+    "text": "Snow showers overnight into Sunday Salt trucks may have to go out for a run",
+    "label": "non-technical"
+  },
+  {
+    "text": "How RAG Enhances LLMs: A Step-by-Step Exploration Learn the Fundamentals of Retrieval Augmented Generation and Its different architectures.",
+    "label": "technical"
+  },
+  {
+    "text": "Duo of Accidents Send Drivers to the Hospital Police updates for Bar Harbor, Mount Desert, Southwest Harbor, Tremont, State Police and Hancock County Sheriff's Department.",
+    "label": "non-technical"
+  },
+  {
+    "text": "The dot LLM era? LLMs and the Dot-Com Déja Vu. The Dot LLM Era came out of my thinking about the massive expenditure in building infrastructure and the computing power needed by AI services like OpenAI and Anthropic, asking how it will be paid for and what it means for for business, consumers, investors and technologies.",
+    "label": "technical"
+  },
+  {
+    "text": "Hayes & Y: Mit Departures in die 80er Wie die bulgarisch-finnische Band 70er- und 80er-Sound mit modernem Indie-Pop verbindet",
+    "label": "non-technical"
+  },
+  {
+    "text": "Each Language Has a Home English is where I make sense of the world. Spanish is where I feel things.",
+    "label": "non-technical"
+  },
+  {
+    "text": "Using AI for Meditation Use technology as a reflective tool for physical sensations, not a spiritual guide.",
+    "label": "technical"
+  },
+  {
+    "text": "DAHL news and views moves to Substack A blogging & newsletter platform popular with Arts and Humanities academics.",
+    "label": "non-technical"
+  },
+  {
+    "text": "Ken Childs and the Paramount PI Fraud Allegations Ken Childs and the Paramount PI Fraud Allegations",
+    "label": "non-technical"
+  },
+  {
+    "text": "Georgism through Land Leasing Municipal Land Leasing is real, effective, and very, very Georgist",
+    "label": "non-technical"
+  },
+  {
+    "text": "Night Walk, Twelfth Night I’ve been up before dawn every day of the past week, watching a the moon turn the snow and ice on the common into a glittering land.",
+    "label": "non-technical"
+  },
+  {
+    "text": "Missing Luxon Hobson's Dredge, and a ten foot pole.",
+    "label": "non-technical"
+  },
+  {
+    "text": "Do You Want Your Newsletter To Show Up In AI Summaries?  I’m hosting a mini-book proposal course (1 week, less expensive) in March, as my January sold out and left some folks hanging.",
+    "label": "technical"
+  },
+  {
+    "text": "🌌 From Oscillons to Particles: Reconstructing the Quantum from Nonlinear Dynamics Part II of the Quantized Attractor Series",
+    "label": "technical"
+  },
+  {
+    "text": "A unilateral change to childhood vaccines: What it means for you And why it matters",
+    "label": "technical"
+  },
+  {
+    "text": "Reading Klara and the Sun in the year of ubiquitous AI Kazuo Ishiguro’s robot doesn’t crave humanity or want to take your job; it just wants to be a good friend.",
+    "label": "technical"
+  },
+  {
+    "text": "The Universe as a Circuit: Coherence, Bias, and the Flow of Existence Modern physics struggles with dualities — wave vs.",
+    "label": "technical"
+  },
+  {
+    "text": "LLM Hallucinations Are Still Absolutely Nuts A couple months back, a grad student reached out to me to see if I could help with some research they were doing.",
+    "label": "technical"
+  },
+  {
+    "text": "Emotional Atrophy: The Epidemic Threatening Business Health and Leadership Everyone’s talking about technological disruption--generative AI, machine learning, automation, quantum leaps in productivity. But what if the bigger threat to your organization isn’t technological.",
+    "label": "technical"
+  },
+  {
+    "text": "SEL Series: Naming Emotions Nurturing emotional literacy through stories and play, and an invitation to choose our next life skill focus.",
+    "label": "non-technical"
+  },
+  {
+    "text": "Code Review in the Age of AI AI writes faster. Humans still have to prove it works.",
+    "label": "technical"
+  },
+  {
+    "text": "January 2026 documentary review 10-pack: 'Corey Feldman vs. the World,' 'Age of Disclosure', 'Age of Audio,' 'The New Yorker at 100,' 'BLKNWS: Terms and Conditions,' Paul Anka and more The year’s first capsule review roundup of documentary features.",
+    "label": "non-technical"
+  },
+  {
+    "text": "The Root of Over-Meeting Culture  Or: The Great Hybrid Productivity Freakout",
+    "label": "non-technical"
+  },
+  {
+    "text": "CES: Nvidia’s Rubin Cuts AI Inference Costs 10× NVIDIA Rubin GPUs slash AI inference costs 10x, debut at CES 2026.",
+    "label": "technical"
+  },
+  {
+    "text": "Five Predictions for Dr Bot in the Year Ahead In 2026, I focus my forecasts on mental health and AI",
+    "label": "technical"
+  },
+  {
+    "text": "The Hidden Cost of Not Automating: When Tiny Tasks Derail Big Thinking AI automation is the new superpower for forward-thinking PMs",
+    "label": "technical"
+  },
+  {
+    "text": "RDM Weekly - Issue 027 A weekly roundup of Research Data Management resources.",
+    "label": "technical"
+  },
+  {
+    "text": "War for Compute, War for Minds How Venezuela Became the First Battleground of the AI‑Powered Geopolitical Era,Mineral Competition, and Cognitive Warfare.",
+    "label": "technical"
+  },
+  {
+    "text": "The Lotto Machine and the Focus-Voltage Trap We define 'Typing Blindness' as the disconnection of the visual feedback loop during low-dopamine tasks. The '1,000 mph' engine continues via muscle memory, but the 'Executive Auditor' is shut off.",
+    "label": "non-technical"
+  },
+  {
+    "text": "Repeal the Public Order Act 2023 & Police, Crime, Sentencing and Courts Act 2022 Hello all,",
+    "label": "non-technical"
+  },
+  {
+    "text": "What has Greenland to do with Transylvania? some thoughts",
+    "label": "non-technical"
+  },
+  {
+    "text": "Irony: It’s Not Just Heavy Metal Writing Advice",
+    "label": "non-technical"
+  },
+  {
+    "text": "Dr. Lara Varden on Functional Genomics & Precision Wellness How does functional genomics—via DNA360 and epigenetics—personalize detox, hormones, sleep, and nutrition to reduce chronic-disease risk?",
+    "label": "technical"
+  },
+  {
+    "text": "The New York Times’ Silencing of Mental Health Experts January 6, 2021—and the Presidency that Followed—did Not Have to Be",
+    "label": "non-technical"
+  },
+  {
+    "text": "The Bollard Bulletin for Jan. 6, 2026 Cartoon Tuesday: Li'l Spencer wormholes to a wondrous new world",
+    "label": "non-technical"
+  },
+  {
+    "text": "Strange States: Somaliland Why Israel recognized Somaliland: A springboard against the Houthis, a foothold in Africa & control of global shipping",
+    "label": "technical"
+  },
+  {
+    "text": "10 Crucial Things You Can Do in 2026  Your activism will be even more important this year",
+    "label": "non-technical"
+  },
+  {
+    "text": "Exposing Kenneth Childs and His Criminal Network Exposing Kenneth Childs and His Criminal Network",
+    "label": "non-technical"
+  },
+  {
+    "text": "Links 57: Starmer's spine and Japanese nukes  things I found interesting",
+    "label": "non-technical"
+  },
+  {
+    "text": "New Year, Old Start On strengthening reproductive rights and the rules-based international order",
+    "label": "non-technical"
+  },
+  {
+    "text": "satire or not - times have changed an awfuk lot Baby this ain’t camelot.",
+    "label": "technical"
+  },
+  {
+    "text": "There's a Reason Women Aren't Swooning Over AI Like Men Are Or rather, a great many reasons",
+    "label": "technical"
+  },
+  {
+    "text": "The Bollard Bulletin for Jan. 5, 2026 Local Music Monday: Zen and the R&B artistry of Adrienne Mack-Davis",
+    "label": "non-technical"
+  },
+  {
+    "text": "A World Built for Higher Volatility Reflation and AI’s impact on growth and capital",
+    "label": "technical"
+  },
+  {
+    "text": "Kuwait: a model for a world without work? What AI may hold for all of us in the future.",
+    "label": "technical"
+  },
+  {
+    "text": "Stop Paying the Authenticity Tax How building on your natural strengths beats fixing weaknesses (and saves your sanity)",
+    "label": "non-technical"
+  },
+  {
+    "text": "Preparing for the legislative session Also, please take a few moments and complete my pre-session survey.",
+    "label": "non-technical"
+  },
+  {
+    "text": "Results And Reasons  Picture Generated By AI",
+    "label": "technical"
+  },
+  {
+    "text": "“New Ways to Corrupt LLMs” The wacky things statistical-correlation machine like LLMs do – and how they might get us killed",
+    "label": "technical"
+  },
+  {
+    "text": "Simeon Brown comes up short on Manage My Health \"catastrophic\" breach The company has been accused of using outdated encryption protocols, and has been slow to respond to community concerns. And importantly, has National put our other public health data at risk too?",
+    "label": "technical"
+  },
+  {
+    "text": "Agent workflows: stop guessing, start measuring Put data, machine learning, and AI to work.",
+    "label": "technical"
+  },
+  {
+    "text": "Alternative Grading in Large Classes How to implement pedagogical values within logistical constraints",
+    "label": "technical"
+  },
+  {
+    "text": "500 Worst Things Trump Did in 2025 Part 1-100, January-March 2025.",
+    "label": "non-technical"
+  },
+  {
+    "text": "21 days of devotion • an invitation Begin the new year in deep connection ♡",
+    "label": "non-technical"
+  },
+  {
+    "text": "A Start, Stop, Continue Reflection for 2026 The changes I’m making – or not – in the classroom this year",
+    "label": "technical"
+  },
+  {
+    "text": "Kenneth Childs and His Ties to Organized Crime Kenneth Childs and His Ties to Organized Crime",
+    "label": "non-technical"
+  },
+  {
+    "text": "4-3 A Baseball Parable",
+    "label": "non-technical"
+  },
+  {
+    "text": "Longing for an Old Friendship My first letter of the year following an explanation as to why I am writing handwritten epistolary literature this year.",
+    "label": "non-technical"
+  },
+  {
+    "text": "Dissonanza cognitiva e orizzonte secolare: PENSARE CON DUE CERVELLI REFUGIUM DESERTORUM IS BACK / El imperio de los rackets di Amador Fernandez Savater",
+    "label": "non-technical"
+  },
+  {
+    "text": "Why \"They\" Feels Wrong to You (And Why That Might Change) Based on my recent book chapter, “Language Socialization and Stability in Adulthood: Learning and Unlearning Gender and Sexual Normativity.” In The Oxford Handbook of Language Socialization.",
+    "label": "non-technical"
+  },
+  {
+    "text": "Light snow Monday night kicks off unsettled week Active pattern through the weekend",
+    "label": "non-technical"
+  },
+  {
+    "text": "The Death of Cool In the summer of 2023 I wrote a song called ‘360’",
+    "label": "non-technical"
+  },
+  {
+    "text": "Announcing: Braving the Truth For the first time, Rachel Held Evans' online essays will be available in a book",
+    "label": "technical"
+  },
+  {
+    "text": "Scam Crime and Fraud The Ken Childs Story Scam Crime and Fraud The Ken Childs Story",
+    "label": "non-technical"
+  },
+  {
+    "text": "How Nature Became a 'Prestige' Journal Since launching in 1869, Nature has evolved from a periodical offering commentary on pigeons to the prestige journal in science. But how did Nature build its reputation, and can it last?",
+    "label": "technical"
+  },
+  {
+    "text": "The Logic of Destruction And how to resist it",
+    "label": "non-technical"
+  },
+  {
+    "text": "Describing Dynamic Ecosystems via Tensors and Resonance This is another attempt to construct a dynamic model of the bonds between society and its members.",
+    "label": "technical"
+  },
+  {
+    "text": "A Gentleman Delegates In his 1973 novel, Time Enough for Love, Robert Heinlein wrote that",
+    "label": "non-technical"
+  },
+  {
+    "text": "Leaving the Old Year Gently Week of December 28th thru January 3rd",
+    "label": "non-technical"
+  },
+  {
+    "text": "Is this my favorite genre of music? (or are you just happy I called you)",
+    "label": "non-technical"
+  },
+  {
+    "text": "Zohran Mamdani Has More Jewish Support Than You Think While attention is on the new mayor’s revocation of pro-Israel executive orders, analysis reveals age and income shaped the Jewish vote more than ethnicity, religion, or support for Israel",
+    "label": "non-technical"
+  },
+  {
+    "text": "Why Weirdness May Be the Most Important Skill in the Age of AI Educators and futurists talk a lot about creativity, empathy, and adaptability as essential human skills in the age of AI — but we’re leaving something out. In a world where generative AI thrives on averages, the most uniquely human trait may be weirdness: our ability to be original, unpredictable, and gloriously offbeat. This piece explores why weirdness belongs in every skills framework and how teachers can help students stay joyfully non-average — and, therefore, irreplaceable.",
+    "label": "technical"
+  },
+  {
+    "text": "Corrupt LA Private Investigator Ken Childs Corrupt LA Private Investigator Ken Childs",
+    "label": "non-technical"
+  },
+  {
+    "text": "Off The Fence: Plátanos Maduros And why David Dimbleby looks like an evil marsupial.",
+    "label": "non-technical"
+  },
+  {
+    "text": "HOT PRESS 1/5/26: Run Away, Under Siege The first offerings of 2026 from Netflix and Arrow Video.",
+    "label": "non-technical"
+  },
+  {
+    "text": "Censorinus the Grammarian Historian and Pioneer in the Harmony of the Spheres",
+    "label": "non-technical"
+  },
+  {
+    "text": "Minutewomen Make Early Statement A 2–0 start in MAC play signals that the Minutewomen are ready to compete immediately in their new conference.",
+    "label": "non-technical"
+  },
+  {
+    "text": "Data formats and file types: Tabular data Better Code, Better Science: Chapter 7, Part 4",
+    "label": "technical"
+  },
+  {
+    "text": "The Price of Attention trend: chaos dominance and wealth gap + AI/GLP-1",
+    "label": "technical"
+  },
+  {
+    "text": "Week in Review 1/3/26",
+    "label": "non-technical"
+  },
+  {
+    "text": "How birds got human names  Magpie is short for \"Margaret Pie\" and I swear I'm not even joking",
+    "label": "non-technical"
+  },
+  {
+    "text": "Greenland's Ancient Melt: The Bombshell Study That Buries Climate Alarmism New Nature Paper Reveals Holocene Hotter Than Today... Without CO2",
+    "label": "technical"
+  },
+  {
+    "text": "Make America Denmark Today! With Angie Rasmussen, Jessica Malaty Rivera, and Saskia Popescu Just three immunization-loving American scientists expressing professional concern and moral contempt for the European Country-ization of the US childhood vaccine schedule",
+    "label": "technical"
+  },
+  {
+    "text": "Up, Down, In, Out: Luke's Gospel Turns the World Upside-Down—1 Narratives Form",
+    "label": "non-technical"
+  },
+  {
+    "text": "The Epistocracy Exam If you had to pass a test in order to vote, what would be on the test?",
+    "label": "non-technical"
+  },
+  {
+    "text": "'Sirât' review: Pain and suffering, but to what end? Sirât starts by defining its title: 'The Sirât bridge connects paradise and hell.'",
+    "label": "technical"
+  },
+  {
+    "text": "Episode 33.\"10 Things We Love” MLB Edition. Here are 10 things we have come to love about Major League Baseball into 2026. Enjoy!",
+    "label": "non-technical"
+  },
+  {
+    "text": "William Butler Yeats (1914): The Magi They found what they had sought above all things, and yet find that it slipped away and left them permanently unsatisfied. & now there they are & we are they…",
+    "label": "non-technical"
+  },
+  {
+    "text": "Karl Beveridge honours Carole Condé's memory with historic donation to WAHC Meeting Karl and Carole was transformative for Renee Wetselaar, Hamilton, and the Workers Arts and Heritage Centre. Get on the GO train and spend some time with historic worker's art and heritage!",
+    "label": "technical"
+  },
+  {
+    "text": "MAGA's Cosplay Crusaders Threaten To Burn Down the World The world's most incompetent cosplay Crusaders are destroying alliances, creating international crises, & murdering civilians in their attempt to make America great for white, wealthy, Christian men.",
+    "label": "non-technical"
+  },
+  {
+    "text": "The Spiritual Journey Behind Creativity & Art Shane Smith and Rick Rubin in conversation.",
+    "label": "non-technical"
+  },
+  {
+    "text": "New Year New Gear What's in my writing arsenal for 2026",
+    "label": "non-technical"
+  },
+  {
+    "text": "Slackening the Rope. A Letter to Agoraphobia.",
+    "label": "non-technical"
+  },
+  {
+    "text": "Happy New Year on Nollaig na mBan! (Women’s Christmas today in Ireland) with love from Lisa & Debrianna",
+    "label": "technical"
+  },
+  {
+    "text": "Perils of Critical Thinking The algorithms, the algorithms ....",
+    "label": "technical"
+  },
+  {
+    "text": "THE EPSTEIN FILES: The Cold, Uncomfortable Reason They’ll Never Be Released The Hidden Machinery of Power Behind the World’s Most Radioactive Archive",
+    "label": "non-technical"
+  },
+  {
+    "text": "Minding My Black Woman Business: Why Staying Home is Survival, Not Silence  Minding My Black Woman Business: Why Staying Home Is Survival, Not Silence",
+    "label": "non-technical"
+  },
+  {
+    "text": "Imperial Violet (Part 9) A PHILON OF CORINTH YARN",
+    "label": "non-technical"
+  },
+  {
+    "text": "Credentialed Betrayal: A Clinical, Public‑Health, and Human‑Rights Dossier on Representative Jennifer Kiggans, Part I A nurse-legislator’s role in advancing hunger, health-care deprivation, detention trauma, and multi-system, multi-generational injury leading to a population-level Failure-to-Rescue event.",
+    "label": "technical"
+  },
+  {
+    "text": "When Testimony Outgrows Institutions: Archive of Truth in Exile: Painting the Resistance Movement: Co‑optation, Sovereignty, Movements, and Ethical Inheritance",
+    "label": "technical"
+  },
+  {
+    "text": "From capitalist food systems to degrowth agrarian futures Interview: Donatella Gasparro",
+    "label": "technical"
+  },
+  {
+    "text": "Teen Tradwife Classes, Mainstreamed Junk Science, and Other 2026 Predictions What's next for abortion rights, and our annual wishlist",
+    "label": "technical"
+  },
+  {
+    "text": "2026 Trans Girl Scouts To Order Cookies From! This year, consider ordering your Girl Scout cookies from a trans girl scout to make their day!",
+    "label": "non-technical"
+  },
+  {
+    "text": "\"Have Your Best Baby\" Four parallels between cosmetic surgery and polygenic embryo selection, two competing definitions of \"eugenics,\" and one short excerpt from my forthcoming book",
+    "label": "non-technical"
+  },
+  {
+    "text": "Decoding the Caracas Playbook: How Extraction Language Enables Hemispheric Takeover When “Drug Enforcement” Becomes Code for Regime Change",
+    "label": "technical"
+  },
+  {
+    "text": "Within and Between The Great Global Transformation: National Market Liberalism in a Multipolar World, Branko Milanovic, 2025.",
+    "label": "non-technical"
+  },
+  {
+    "text": "Generative AI’s crippling and widespread failure to induce robust models of the world LLM failures to reason, as documented in Apple’s Illusion of Thinking paper, are really only part of a much deeper problem",
+    "label": "technical"
+  },
+  {
+    "text": "Americas First! 😃New cartoon: Bombing for fun and profit!",
+    "label": "non-technical"
+  },
+  {
+    "text": "Candidates, Cleverness, and Polls Covering some of what's going on.",
+    "label": "non-technical"
+  },
+  {
+    "text": "The Lit Boiler  (May contain frogs.)",
+    "label": "technical"
+  },
+  {
+    "text": "Week 3: Crisis Prevention: Improvising Stability in an Age of Uncertainty NATO’s second core task—crisis prevention—as an imaginative and human-centred discipline",
+    "label": "technical"
+  },
+  {
+    "text": "Russia Parked Its Tanks In 2025—And Gained 30% More Ground Will it work in 2026?",
+    "label": "technical"
+  },
+  {
+    "text": "Shocking: Novak Djokovic gets Public APOLOGY for Pandemic Mistreatment Observations",
+    "label": "non-technical"
+  },
+  {
+    "text": "A Universe in Time And timelessness...",
+    "label": "non-technical"
+  },
+  {
+    "text": "Jennie: The £1,200 Robot Labrador That Proves We’ll Fund Anything Except Each Other Opinion | Satire: A CES love story about loneliness-as-a-product, Government Policy Mode, and a puppy with eyebrows doing the job of a broken care system while we all clap like trained seals.",
+    "label": "technical"
+  },
+  {
+    "text": "Tell-It Report: How Tennessee State Went From Near Financial Collapse to a $13.2 Million Surplus in a Year The HBCU, plagued by a pattern of financial mismanagement and underfunding, has transformed its operations under President Dwayne Tucker, according to reports.",
+    "label": "non-technical"
+  },
+  {
+    "text": "To Belong #2 in a series upon salient identity, attempting a dialectical method.",
+    "label": "non-technical"
+  },
+  {
+    "text": "Why Failing Fast Can Make You Richer: Mindset & Strategy Learn how testing, learning, and pivoting quickly can turn small failures into bigger income and faster financial growth.",
+    "label": "technical"
+  },
+  {
+    "text": "Words & Phrases? It will always be The Kennedy Center",
+    "label": "non-technical"
+  },
+  {
+    "text": "In The Court of the Crimson King is Life Changing September 1968, a group of 5 was rehearsing, unaware of just how monumental their impact was about to be.",
+    "label": "non-technical"
+  },
+  {
+    "text": "A Love Letter to the Northern Plains & Mountain West #7 in Our Series of Love Letters to Red States",
+    "label": "non-technical"
+  },
+  {
+    "text": "Imported talent, local pollution: The grim reality of xAI's impact on Memphis To power its sprawling Colossus supercomputer facility in Memphis, Tennessee, xAI, Elon Musk’s artificial intelligence company, has polluted the air of a number of historic Black neighborhoods, which already faced exceptionally high rates of cancer and respiratory diseases.",
+    "label": "technical"
+  },
+  {
+    "text": "Collecting the best of the best Educating us to run a better world",
+    "label": "non-technical"
+  },
+  {
+    "text": "Welcome In. Now Try to Leave: The Politics of Entry Space in art is never a neutral container.",
+    "label": "technical"
+  },
+  {
+    "text": "True Commitment to Justice Means Creatives Cutting Ties with Fossil Fuels In 2020, we saw elected officials and corporations rush to post black squares as profile photos, issue solidarity statements, and promise equity after the murders of George Floyd, Breonna Taylor, Tony McDade, and too many others.",
+    "label": "non-technical"
+  },
+  {
+    "text": "O’ Canada, How long can your facade stand, while wielding a genocidal hand? Anne Kamath, Umer Azad, CODEPINK Ontario",
+    "label": "technical"
+  },
+  {
+    "text": "AI Isn't the Problem—Blind Trust Is The critical thinking framework that turns passive AI users into discerning evaluators",
+    "label": "technical"
+  },
+  {
+    "text": "You Want \"Well-Behaved\" Children? Give Them Freedom and Respect  Having “well-behaved” children requires that we actually respect children, which, for the most part is not the American way of parenting or schooling",
+    "label": "non-technical"
+  },
+  {
+    "text": "Understanding the Debate on the Gifts of Tongues: A Conversation on Faith and Interpretation",
+    "label": "technical"
+  },
+  {
+    "text": "One truth to rule them all or none",
+    "label": "non-technical"
+  },
+  {
+    "text": "Meet Vic, the most COWBOY of Cowboys... And He's GOT an opinion... This Substack is reader-supported.",
+    "label": "non-technical"
+  },
+  {
+    "text": "The \"Invisible AI\" Shift Will 2026 be the year AI stops showing off and starts getting to work?",
+    "label": "technical"
+  },
+  {
+    "text": "How Rockefeller’s Money Decided What Doctors Were Allowed to Learn and How They Treated Patients \"...an industrial fortune helped determine not just how doctors were trained—but what kinds of healing were allowed to exist.\"",
+    "label": "technical"
+  },
+  {
+    "text": "THE PAID SUBSTACK SYSTEM THE PAID SUBSTACK SYSTEM",
+    "label": "technical"
+  },
+  {
+    "text": "'Wuthering Heights' by Emily Brontë 'Be with me always—take any form—drive me mad! only do not leave me in this abyss, where I cannot find you!'—Review #272",
+    "label": "non-technical"
+  },
+  {
+    "text": "'Forget everything I just told you:' A GenX Book Review on ALL THE WAY TO THE RIVER Liz Gilbert tosses out all the life lessons and lets our hearts breaks this time",
+    "label": "non-technical"
+  },
+  {
+    "text": "Best of Lenny’s Newsletter 2026 The 25 best posts from the past year, plus a few all-time classics",
+    "label": "non-technical"
+  },
+  {
+    "text": "And All At Once! The Trinity Manifest in the Baptism of Our Lord",
+    "label": "non-technical"
+  },
+  {
+    "text": "Watch: David visits the Israelite army and reacts to Goliath's taunts in a new clip from David The generous roll-out of free footage from the week's #1 family film continues!",
+    "label": "technical"
+  },
+  {
+    "text": "Interview With the Mockingjay -- Chapter 26A In which our heroine begins to reveal her deeply-held secret",
+    "label": "non-technical"
+  },
+  {
+    "text": "The 200-Year Experiment: How a 'Privileged' Basic Income in Brazil Proves We Can Afford to Be Universal From $500 to $15,000 a Month: How Decades of Data Prove That an Unconditional Basic Income Guarantee Fuels Ambition Instead of Laziness",
+    "label": "technical"
+  },
+  {
+    "text": "Grinnell College pioneer grad, educator left a rich legacy before dying Jan. 2 Edith Renfrow Smith, The college’s first Black graduate, died at the age of 111",
+    "label": "non-technical"
+  },
+  {
+    "text": "MB.Drive Assist Pro is \"Level 2 Plus Plus\" I-can’t-believe-it’s-not-a-robotaxi technology breaks out of the Tesla ghetto; regulatory loophole exploits to follow",
+    "label": "technical"
+  },
+  {
+    "text": "A Look Back at the Top 5 Natto Thoughts Reports in 2025 From attack–defense thinking to vulnerability research and exposed threat actors, we explored key aspects of China’s cyber ecosystem",
+    "label": "technical"
+  },
+  {
+    "text": "“Are These Still Recommended or Not?” A fictional family, a very real policy change, and why this week’s vaccine decisions matter for parents just trying to keep their kids healthy",
+    "label": "technical"
+  },
+  {
+    "text": "Favorite Art Supplies & Tools in My Art Studio Things I reached for the most in 2025",
+    "label": "non-technical"
+  },
+  {
+    "text": "($) The AI Competition as a Football Game At halftime: USA 29 - China 25",
+    "label": "technical"
+  },
+  {
+    "text": "#78: \"Open a secure channel.\" Quantum Corridor & Toshiba",
+    "label": "technical"
+  },
+  {
+    "text": "Game retrospective: Animal Agency  on game design and dogs.",
+    "label": "non-technical"
+  },
+  {
+    "text": "The Exposure Triangle Is Not Your Problem  Learning What to Decide Before You Touch the Camera",
+    "label": "non-technical"
+  },
+  {
+    "text": "A Fireside Conversation Musings on the meaning of time by a majickal-hare, and timebound slave to it...",
+    "label": "non-technical"
+  },
+  {
+    "text": "Ghostriders arrive in UK – online chatter suggests something big is going down from British Forces Broadcasting Service (BFBS) by Marty Menzies",
+    "label": "non-technical"
+  },
+  {
+    "text": "Cramique The Flemish cake par excellence",
+    "label": "technical"
+  },
+  {
+    "text": "Fossils A Willerby Story",
+    "label": "non-technical"
+  },
+  {
+    "text": "Book Review: Like in Love with You by Emma R. Alban A witty and heartfelt sapphic Regency romance",
+    "label": "non-technical"
+  },
+  {
+    "text": "Mess Is The Moment: Our Trend Forecast For The Year Listen now | Episode 25 of The Mess World Podcast",
+    "label": "non-technical"
+  },
+  {
+    "text": "“This is a picture of things going a little out of hand. This is a sculpture of a couple of things we've gotta get straight.” The Jan. 6 committee produced a pretty good TV miniseries and a report that – despite its length – left a fair amount to be desired.",
+    "label": "technical"
+  },
+  {
+    "text": "4. ENCOURAGE CHILDREN TO THINK FREELY AND CREATIVELY, TO EXPRESS THEMSELVES, AND TO DEVELOP THEIR OWN RELIGIOUS COMMITMENTS To whom do children belong?",
+    "label": "non-technical"
+  },
+  {
+    "text": "Clair Obscure is a phenomenal and strikingly relevant game about… AI. The main theme of Expedition 33 is, of course, grief and the attempt to come to terms with the loss of loved ones.",
+    "label": "technical"
+  },
+  {
+    "text": "Claude Code Sees Like A Software Architect What LSP Support Means for Agentic Coding (And Everyone Building On Top of It)",
+    "label": "technical"
+  },
+  {
+    "text": "El grano de la memoria Found footage y otras variaciones de la imagen (des)archivada",
+    "label": "non-technical"
+  },
+  {
+    "text": "Pollution Protector – for Profiteering Polluters Listen now | There’s greed… and then there’s the nauseating greed of profiteering corporations that make a killing – literally – by knowingly contaminating people’s water, air, land, and families.",
+    "label": "technical"
+  },
+  {
+    "text": "Wenn ein Tyrann einen Tyrannen entführt, wartet die Tyrannei Es brechen kalte Zeiten an.",
+    "label": "non-technical"
+  },
+  {
+    "text": "GeoAI and the Law Newsletter Tracking Developments in AI Laws and Regulations for Geospatial Professionals",
+    "label": "technical"
+  },
+  {
+    "text": "Leadership Lessons from the Holy Family During the season spanning Advent, Christmas, and the Epiphany, we read each year the story of the Holy Family — of Mary’s Annunciation, their perilous journey to safety, first to Bethlehem and later in Egypt, of Jesus’ birth, and the many who came to honor him.",
+    "label": "non-technical"
+  },
+  {
+    "text": "10 of Big Think’s favorite books in 2025 Revisiting the year’s noteworthy nonfiction.",
+    "label": "non-technical"
+  },
+  {
+    "text": "🧭 The Fractured Mind of AI 🌟 How 2025 Turned AI Into a Patchwork of Modes, Masks, and Misunderstandings.Why Your AI Sounded Calm at 9 AM, Existential at Noon, and Bureaucratic by Dinner.",
+    "label": "technical"
+  },
+  {
+    "text": "HAS THIS REGIME JUST HAD A GROWN-UP MOMENT? Without “Spotlight Donnie,” an apparently thoughtful maritime decision",
+    "label": "non-technical"
+  },
+  {
+    "text": "What Can We Expect from Madison Avenue in 2026? Genuine Transformations, or More of What Has Not Worked for More than a Decade? Cost reductions, agency consolidations and downsizings do not drive client or agency growth. Genuine transformations are needed.",
+    "label": "non-technical"
+  },
+  {
+    "text": "Abuse thrives where the government tweets – why it's time to quit X now The use of AI tool Grok to generate en masse intimate images of real women and girls is sickening.",
+    "label": "technical"
+  },
+  {
+    "text": "12 for 12: A gaming challenge for 2026 An extra dozen of excellent games I'm committing to playing this year",
+    "label": "technical"
+  },
+  {
+    "text": "Former CIA operative attempted to introduce DEA asset to Colombian FTO in Curaçao, according to U.S. attorneys As part of opposing a request for bail, the U.S. on Tuesday filed further details from the ongoing prosecution of former CIA operative Robert Sensi and former DEA deputy financial chief Paul Campo.",
+    "label": "technical"
+  },
+  {
+    "text": "POTUS WANTS COGNITIVE TESTS FOR POLITICIANS  POTUS: \"Do you think Walz could pass a cognitive test?",
+    "label": "non-technical"
+  },
+  {
+    "text": "URGENT! FIV+ Kitty still struggling with URI! Needs foster or rescue ASAP! Update 1/6: Despite being on new medications for a few days Ritchie is still struggling to recover here at the shelter.",
+    "label": "non-technical"
+  },
+  {
+    "text": "The Tren de Aragua trail of terror I retraced the steps of two alleged Venezuelan gang members from Oregon to Washington, where they allegedly kidnapped, tortured and tried to kill a woman, leaving her for dead in the snow",
+    "label": "technical"
+  },
+  {
+    "text": "CDC VACCINE SCHEDULE SHAKEUP  Dr.",
+    "label": "technical"
+  }
 ]
