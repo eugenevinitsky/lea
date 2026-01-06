@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { restoreSession, getSession, getBlueskyProfile, checkSafetyAlerts, dismissSafetyAlert, SafetyAlert, AlertThresholds } from '@/lib/bluesky';
+import { restoreSession, getSession, getBlueskyProfile, checkSafetyAlerts, dismissSafetyAlert, SafetyAlert, AlertThresholds, followUser, unfollowUser, isVerifiedResearcher, Label } from '@/lib/bluesky';
+import { useFollowing } from '@/lib/following-context';
 import { SettingsProvider } from '@/lib/settings';
 import { BookmarksProvider, useBookmarks } from '@/lib/bookmarks';
 import { FeedsProvider } from '@/lib/feeds';
@@ -728,6 +729,190 @@ function NotificationRow({
   );
 }
 
+// Rich follow notification row with profile info
+interface FollowProfile {
+  did: string;
+  avatar?: string;
+  displayName?: string;
+  handle: string;
+  description?: string;
+  followersCount?: number;
+  followsCount?: number;
+  viewer?: {
+    following?: string;
+    followedBy?: string;
+  };
+  labels?: Label[];
+}
+
+function FollowRow({
+  notification,
+  onOpenProfile,
+}: {
+  notification: NotificationItem;
+  onOpenProfile: (did: string) => void;
+}) {
+  const [profile, setProfile] = useState<FollowProfile | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [isFollowing, setIsFollowing] = useState(false);
+  const [followUri, setFollowUri] = useState<string | undefined>();
+  const [followLoading, setFollowLoading] = useState(false);
+  const { refresh: refreshFollowing } = useFollowing();
+
+  useEffect(() => {
+    const fetchProfile = async () => {
+      try {
+        const data = await getBlueskyProfile(notification.author.did);
+        if (data) {
+          setProfile(data as FollowProfile);
+          if (data.viewer?.following) {
+            setIsFollowing(true);
+            setFollowUri(data.viewer.following);
+          }
+        }
+      } catch (err) {
+        console.error('Failed to fetch profile:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchProfile();
+  }, [notification.author.did]);
+
+  const handleFollow = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (followLoading) return;
+    setFollowLoading(true);
+    try {
+      const result = await followUser(notification.author.did);
+      setIsFollowing(true);
+      setFollowUri(result.uri);
+      refreshFollowing();
+    } catch (err) {
+      console.error('Failed to follow:', err);
+    } finally {
+      setFollowLoading(false);
+    }
+  };
+
+  const handleUnfollow = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (followLoading || !followUri) return;
+    setFollowLoading(true);
+    try {
+      await unfollowUser(followUri);
+      setIsFollowing(false);
+      setFollowUri(undefined);
+      refreshFollowing();
+    } catch (err) {
+      console.error('Failed to unfollow:', err);
+    } finally {
+      setFollowLoading(false);
+    }
+  };
+
+  const isVerified = profile?.labels ? isVerifiedResearcher(profile.labels) : false;
+
+  return (
+    <div
+      className="p-4 hover:bg-gray-50 dark:hover:bg-gray-800/50 cursor-pointer"
+      onClick={() => onOpenProfile(notification.author.did)}
+    >
+      <div className="flex items-start gap-3">
+        {/* Avatar */}
+        <div className="flex-shrink-0">
+          {(profile?.avatar || notification.author.avatar) ? (
+            <img
+              src={profile?.avatar || notification.author.avatar}
+              alt=""
+              className="w-12 h-12 rounded-full"
+            />
+          ) : (
+            <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center text-white text-lg font-bold">
+              {(profile?.displayName || notification.author.displayName || notification.author.handle)[0].toUpperCase()}
+            </div>
+          )}
+        </div>
+
+        {/* Profile info */}
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-1.5">
+            <span className="font-semibold text-gray-900 dark:text-gray-100 truncate">
+              {profile?.displayName || notification.author.displayName || notification.author.handle}
+            </span>
+            {isVerified && (
+              <span
+                className="inline-flex items-center justify-center w-4 h-4 bg-emerald-500 rounded-full flex-shrink-0"
+                title="Verified Researcher"
+              >
+                <svg className="w-2.5 h-2.5 text-white" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                </svg>
+              </span>
+            )}
+            <span className="text-xs text-gray-400">{formatTime(notification.indexedAt)}</span>
+          </div>
+          <p className="text-sm text-gray-500 dark:text-gray-400">@{profile?.handle || notification.author.handle}</p>
+          
+          {/* Bio */}
+          {loading ? (
+            <div className="mt-2 h-4 w-3/4 bg-gray-100 dark:bg-gray-800 rounded animate-pulse" />
+          ) : profile?.description ? (
+            <p className="mt-1.5 text-sm text-gray-600 dark:text-gray-300 line-clamp-2">
+              {profile.description}
+            </p>
+          ) : null}
+          
+          {/* Stats row */}
+          {!loading && profile && (
+            <div className="mt-2 flex items-center gap-4 text-xs">
+              <span>
+                <span className="font-semibold text-gray-700 dark:text-gray-200">
+                  {profile.followersCount?.toLocaleString() || 0}
+                </span>
+                <span className="text-gray-500"> followers</span>
+              </span>
+              <span>
+                <span className="font-semibold text-gray-700 dark:text-gray-200">
+                  {profile.followsCount?.toLocaleString() || 0}
+                </span>
+                <span className="text-gray-500"> following</span>
+              </span>
+              {profile.viewer?.followedBy && (
+                <span className="px-1.5 py-0.5 bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 rounded text-xs">
+                  Follows you
+                </span>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Follow button */}
+        <button
+          onClick={isFollowing ? handleUnfollow : handleFollow}
+          disabled={followLoading || loading}
+          className={`flex-shrink-0 px-4 py-1.5 rounded-full text-sm font-medium transition-colors ${
+            isFollowing
+              ? 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-red-100 hover:text-red-600 dark:hover:bg-red-900/30 dark:hover:text-red-400'
+              : 'bg-blue-500 text-white hover:bg-blue-600'
+          } disabled:opacity-50`}
+        >
+          {followLoading ? (
+            <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+            </svg>
+          ) : isFollowing ? (
+            'Following'
+          ) : (
+            'Follow back'
+          )}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 // Clustered like group - groups likes on the same post
 interface LikeCluster {
   postUri: string;
@@ -1208,6 +1393,15 @@ function GroupedActivity({
                         key={cluster.postUri}
                         cluster={cluster}
                         onOpenPost={onOpenPost}
+                        onOpenProfile={onOpenProfile}
+                      />
+                    ))
+                  ) : key === 'follows' ? (
+                    // Rich follow rows with profile info
+                    items.slice(0, 10).map((n) => (
+                      <FollowRow
+                        key={n.uri}
+                        notification={n}
                         onOpenProfile={onOpenProfile}
                       />
                     ))
