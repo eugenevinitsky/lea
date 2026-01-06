@@ -85,7 +85,8 @@ function ReplyLimitsContent() {
     setProgress({ current: 0, total: 0 });
     
     try {
-      const posts = await getUserPostsForThreadgate();
+      const result = await getUserPostsForThreadgate();
+      const posts = result.posts;
       setProgress({ current: 0, total: posts.length });
       
       let completed = 0;
@@ -114,7 +115,8 @@ function ReplyLimitsContent() {
       localStorage.setItem('lea-default-threadgate', replyLimit);
       
       setProgress({ current: 0, total: 0 });
-      const posts = await getUserPostsForThreadgate();
+      const result = await getUserPostsForThreadgate();
+      const posts = result.posts;
       setProgress({ current: 0, total: posts.length });
       
       let completed = 0;
