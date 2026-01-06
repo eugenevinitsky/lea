@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { createPost, searchActors, ReplyRef } from '@/lib/bluesky';
+import { createPost, searchActors, ReplyRef, uploadImage } from '@/lib/bluesky';
 import { useSettings } from '@/lib/settings';
 import EmojiPicker from './EmojiPicker';
 
@@ -15,6 +15,15 @@ interface MentionSuggestion {
   displayName?: string;
   avatar?: string;
 }
+
+interface ImageAttachment {
+  file: File;
+  preview: string;
+  alt: string;
+}
+
+const MAX_IMAGES = 4;
+const MAX_IMAGE_SIZE = 1000000; // 1MB limit per image
 
 type ReplyRestriction = 'open' | 'following' | 'researchers';
 
@@ -45,10 +54,16 @@ export default function Composer({ onPost }: ComposerProps) {
   const [loadingSuggestions, setLoadingSuggestions] = useState(false);
   const textareaRefs = useRef<(HTMLTextAreaElement | null)[]>([]);
   const suggestionsRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Image attachments state - one array per thread post
+  const [threadImages, setThreadImages] = useState<ImageAttachment[][]>([[]]);
+  const [editingAltIndex, setEditingAltIndex] = useState<{ postIndex: number; imageIndex: number } | null>(null);
 
   // Thread management functions
   const addThreadPost = () => {
     setThreadPosts([...threadPosts, '']);
+    setThreadImages([...threadImages, []]);
     // Focus the new textarea after render
     setTimeout(() => {
       const newIndex = threadPosts.length;
@@ -58,7 +73,10 @@ export default function Composer({ onPost }: ComposerProps) {
 
   const removeThreadPost = (index: number) => {
     if (index === 0 || threadPosts.length <= 1) return;
+    // Revoke object URLs for removed images
+    threadImages[index]?.forEach(img => URL.revokeObjectURL(img.preview));
     setThreadPosts(threadPosts.filter((_, i) => i !== index));
+    setThreadImages(threadImages.filter((_, i) => i !== index));
   };
 
   const updateThreadPost = (index: number, text: string) => {
@@ -66,6 +84,94 @@ export default function Composer({ onPost }: ComposerProps) {
     newPosts[index] = text;
     setThreadPosts(newPosts);
   };
+
+  // Image management functions
+  const addImages = useCallback((postIndex: number, files: File[]) => {
+    const currentImages = threadImages[postIndex] || [];
+    const availableSlots = MAX_IMAGES - currentImages.length;
+
+    if (availableSlots <= 0) {
+      setError(`Maximum ${MAX_IMAGES} images allowed per post`);
+      return;
+    }
+
+    const filesToAdd = files.slice(0, availableSlots);
+    const newImages: ImageAttachment[] = [];
+
+    for (const file of filesToAdd) {
+      // Validate file type
+      if (!file.type.startsWith('image/')) {
+        setError('Only image files are allowed');
+        continue;
+      }
+
+      // Validate file size
+      if (file.size > MAX_IMAGE_SIZE) {
+        setError(`Image too large. Maximum size is ${MAX_IMAGE_SIZE / 1000000}MB`);
+        continue;
+      }
+
+      newImages.push({
+        file,
+        preview: URL.createObjectURL(file),
+        alt: '',
+      });
+    }
+
+    if (newImages.length > 0) {
+      const updated = [...threadImages];
+      updated[postIndex] = [...currentImages, ...newImages];
+      setThreadImages(updated);
+      setError(null);
+    }
+  }, [threadImages]);
+
+  const removeImage = useCallback((postIndex: number, imageIndex: number) => {
+    const updated = [...threadImages];
+    const removed = updated[postIndex][imageIndex];
+    URL.revokeObjectURL(removed.preview);
+    updated[postIndex] = updated[postIndex].filter((_, i) => i !== imageIndex);
+    setThreadImages(updated);
+    setEditingAltIndex(null);
+  }, [threadImages]);
+
+  const updateImageAlt = useCallback((postIndex: number, imageIndex: number, alt: string) => {
+    const updated = [...threadImages];
+    updated[postIndex] = updated[postIndex].map((img, i) =>
+      i === imageIndex ? { ...img, alt } : img
+    );
+    setThreadImages(updated);
+  }, [threadImages]);
+
+  // Handle paste for images
+  const handlePaste = useCallback((e: React.ClipboardEvent<HTMLTextAreaElement>, postIndex: number) => {
+    const items = e.clipboardData.items;
+    const imageFiles: File[] = [];
+
+    for (const item of items) {
+      if (item.type.startsWith('image/')) {
+        const file = item.getAsFile();
+        if (file) {
+          imageFiles.push(file);
+        }
+      }
+    }
+
+    if (imageFiles.length > 0) {
+      e.preventDefault();
+      addImages(postIndex, imageFiles);
+    }
+  }, [addImages]);
+
+  // Handle file input change
+  const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    if (files.length > 0) {
+      addImages(focusedIndex, files);
+    }
+    // Reset input so same file can be selected again
+    e.target.value = '';
+  }, [addImages, focusedIndex]);
 
   // Search for mentions when query changes
   useEffect(() => {
@@ -185,21 +291,37 @@ export default function Composer({ onPost }: ComposerProps) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const validPosts = threadPosts.filter(p => p.trim());
-    if (validPosts.length === 0 || posting) return;
+    // Check which posts have content (text or images)
+    const postsWithContent = threadPosts.map((text, i) => ({
+      text,
+      images: threadImages[i] || [],
+      hasContent: text.trim().length > 0 || (threadImages[i]?.length || 0) > 0,
+    })).filter(p => p.hasContent);
+
+    if (postsWithContent.length === 0 || posting) return;
 
     try {
       setPosting(true);
       setPostingProgress(0);
       setError(null);
 
+      // Upload images for first post
+      const firstPostImages = postsWithContent[0].images;
+      const firstUploadedImages = await Promise.all(
+        firstPostImages.map(async (img) => {
+          const uploaded = await uploadImage(img.file);
+          return { blob: uploaded.blob, alt: img.alt };
+        })
+      );
+
       // Post first item
       const firstResult = await createPost(
-        validPosts[0],
+        postsWithContent[0].text,
         currentRestriction,
         undefined,
         undefined,
-        disableQuotes
+        disableQuotes,
+        firstUploadedImages.length > 0 ? firstUploadedImages : undefined
       );
       setPostingProgress(1);
 
@@ -207,23 +329,37 @@ export default function Composer({ onPost }: ComposerProps) {
       const rootPost = firstResult;
 
       // Post remaining items as replies in thread
-      for (let i = 1; i < validPosts.length; i++) {
+      for (let i = 1; i < postsWithContent.length; i++) {
+        // Upload images for this post
+        const postImages = postsWithContent[i].images;
+        const uploadedImages = await Promise.all(
+          postImages.map(async (img) => {
+            const uploaded = await uploadImage(img.file);
+            return { blob: uploaded.blob, alt: img.alt };
+          })
+        );
+
         const replyRef: ReplyRef = {
           root: { uri: rootPost.uri, cid: rootPost.cid },
           parent: { uri: previousPost.uri, cid: previousPost.cid },
         };
 
         previousPost = await createPost(
-          validPosts[i],
+          postsWithContent[i].text,
           currentRestriction,
           replyRef,
           undefined,
-          false // Only disable quotes on first post
+          false, // Only disable quotes on first post
+          uploadedImages.length > 0 ? uploadedImages : undefined
         );
         setPostingProgress(i + 1);
       }
 
+      // Clean up image previews
+      threadImages.forEach(imgs => imgs.forEach(img => URL.revokeObjectURL(img.preview)));
+
       setThreadPosts(['']);
+      setThreadImages([[]]);
       setDisableQuotes(false);
       setPostingProgress(0);
       onPost?.();
@@ -237,8 +373,8 @@ export default function Composer({ onPost }: ComposerProps) {
   const maxChars = 300;
   // Check if any post is over limit
   const isAnyOverLimit = threadPosts.some(post => post.length > maxChars);
-  // Check if all posts are empty
-  const hasContent = threadPosts.some(post => post.trim().length > 0);
+  // Check if all posts are empty (no text and no images)
+  const hasContent = threadPosts.some((post, i) => post.trim().length > 0 || (threadImages[i]?.length || 0) > 0);
   const isThread = threadPosts.length > 1;
 
   const currentOption = REPLY_OPTIONS.find(o => o.value === currentRestriction) || REPLY_OPTIONS[0];
@@ -271,6 +407,7 @@ export default function Composer({ onPost }: ComposerProps) {
                 onChange={(e) => handleTextChange(index, e)}
                 onKeyDown={handleKeyDown}
                 onFocus={() => setFocusedIndex(index)}
+                onPaste={(e) => handlePaste(e, index)}
                 placeholder={index === 0 ? "What's happening?" : "Continue thread..."}
                 className="w-full min-h-[80px] p-3 bg-transparent border border-gray-200 dark:border-gray-700 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 dark:text-gray-100"
                 disabled={posting}
@@ -294,6 +431,79 @@ export default function Composer({ onPost }: ComposerProps) {
                   </button>
                 )}
               </div>
+
+              {/* Image previews */}
+              {threadImages[index]?.length > 0 && (
+                <div className="mt-2 grid grid-cols-2 gap-2">
+                  {threadImages[index].map((img, imgIndex) => (
+                    <div key={imgIndex} className="relative group">
+                      <img
+                        src={img.preview}
+                        alt={img.alt || 'Attached image'}
+                        className="w-full h-32 object-cover rounded-lg border border-gray-200 dark:border-gray-700"
+                      />
+                      {/* Remove button */}
+                      <button
+                        type="button"
+                        onClick={() => removeImage(index, imgIndex)}
+                        className="absolute top-1 right-1 p-1 bg-black/60 hover:bg-black/80 rounded-full text-white opacity-0 group-hover:opacity-100 transition-opacity"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                      {/* Alt text button/indicator */}
+                      <button
+                        type="button"
+                        onClick={() => setEditingAltIndex({ postIndex: index, imageIndex: imgIndex })}
+                        className={`absolute bottom-1 left-1 px-2 py-0.5 text-xs rounded ${
+                          img.alt
+                            ? 'bg-blue-500 text-white'
+                            : 'bg-black/60 text-white hover:bg-black/80'
+                        }`}
+                      >
+                        {img.alt ? 'ALT' : '+ ALT'}
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Alt text editor modal */}
+              {editingAltIndex?.postIndex === index && (
+                <div className="mt-2 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                      Alt text (image description)
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => setEditingAltIndex(null)}
+                      className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  </div>
+                  <textarea
+                    value={threadImages[index][editingAltIndex.imageIndex]?.alt || ''}
+                    onChange={(e) => updateImageAlt(index, editingAltIndex.imageIndex, e.target.value)}
+                    placeholder="Describe this image for people who use screen readers..."
+                    className="w-full p-2 text-sm bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 dark:text-gray-100"
+                    rows={3}
+                  />
+                  <div className="mt-2 flex justify-end">
+                    <button
+                      type="button"
+                      onClick={() => setEditingAltIndex(null)}
+                      className="px-3 py-1 text-sm bg-blue-500 text-white rounded hover:bg-blue-600"
+                    >
+                      Done
+                    </button>
+                  </div>
+                </div>
+              )}
 
               {/* Mention suggestions dropdown - only show for focused textarea */}
               {suggestions.length > 0 && focusedIndex === index && (
@@ -354,8 +564,31 @@ export default function Composer({ onPost }: ComposerProps) {
         <p className="mt-2 text-sm text-red-500">{error}</p>
       )}
 
+      {/* Hidden file input for image upload */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        multiple
+        onChange={handleFileSelect}
+        className="hidden"
+      />
+
       <div className="flex items-center justify-between mt-3">
         <div className="flex items-center gap-3">
+          {/* Image upload button */}
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={posting || (threadImages[focusedIndex]?.length || 0) >= MAX_IMAGES}
+            className="p-2 text-gray-500 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-full transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            title="Add image"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+            </svg>
+          </button>
+
           {/* Emoji picker */}
           <EmojiPicker onSelect={insertEmoji} />
 
