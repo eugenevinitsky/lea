@@ -653,37 +653,100 @@ export interface QuoteRef {
   cid: string;
 }
 
+export interface ImageEmbed {
+  data: Uint8Array;
+  mimeType: string;
+  alt: string;
+}
+
+// Upload an image to Bluesky and return the blob reference
+export async function uploadImage(file: File): Promise<{ blob: unknown; mimeType: string }> {
+  if (!agent) throw new Error('Not logged in');
+
+  // Read file as array buffer
+  const arrayBuffer = await file.arrayBuffer();
+  const uint8Array = new Uint8Array(arrayBuffer);
+
+  // Upload to Bluesky
+  const response = await agent.uploadBlob(uint8Array, {
+    encoding: file.type,
+  });
+
+  return {
+    blob: response.data.blob,
+    mimeType: file.type,
+  };
+}
+
 export async function createPost(
   text: string,
   threadgateType: ThreadgateType = 'following',
   reply?: ReplyRef,
   quote?: QuoteRef,
-  disableQuotes: boolean = false
+  disableQuotes: boolean = false,
+  images?: { blob: unknown; alt: string }[]
 ) {
   if (!agent) throw new Error('Not logged in');
 
   const rt = new RichText({ text });
   await rt.detectFacets(agent);
 
-  // Build embed for quote post
-  const embed = quote
-    ? {
+  // Build embed based on what we have
+  let embed: Record<string, unknown> | undefined;
+
+  const hasImages = images && images.length > 0;
+  const hasQuote = !!quote;
+
+  if (hasImages && hasQuote) {
+    // Both images and quote: use recordWithMedia
+    embed = {
+      $type: 'app.bsky.embed.recordWithMedia',
+      record: {
         $type: 'app.bsky.embed.record',
         record: {
           uri: quote.uri,
           cid: quote.cid,
         },
-      }
-    : undefined;
+      },
+      media: {
+        $type: 'app.bsky.embed.images',
+        images: images.map(img => ({
+          image: img.blob,
+          alt: img.alt || '',
+          aspectRatio: undefined, // Could add aspect ratio detection later
+        })),
+      },
+    };
+  } else if (hasImages) {
+    // Images only
+    embed = {
+      $type: 'app.bsky.embed.images',
+      images: images.map(img => ({
+        image: img.blob,
+        alt: img.alt || '',
+        aspectRatio: undefined,
+      })),
+    };
+  } else if (hasQuote) {
+    // Quote only
+    embed = {
+      $type: 'app.bsky.embed.record',
+      record: {
+        uri: quote.uri,
+        cid: quote.cid,
+      },
+    };
+  }
 
   // Create the post
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const postResult = await agent.post({
     text: rt.text,
     facets: rt.facets,
     createdAt: new Date().toISOString(),
     ...(reply && { reply }),
     ...(embed && { embed }),
-  });
+  } as any);
 
   // Apply postgate to disable quotes if requested
   if (disableQuotes && postResult.uri) {
