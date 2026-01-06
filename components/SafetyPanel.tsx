@@ -56,7 +56,22 @@ interface SafetyPanelProps {
 
 export default function SafetyPanel({ onOpenProfile, onOpenThread, defaultExpanded = false, embedded = false }: SafetyPanelProps) {
   const { settings, updateSettings } = useSettings();
-  const [isExpanded, setIsExpanded] = useState(defaultExpanded || embedded);
+  const [isExpanded, setIsExpanded] = useState(defaultExpanded || embedded || settings.safetyPanelExpanded);
+
+  // Sync expansion state with settings (for persistence across navigation)
+  useEffect(() => {
+    if (!embedded && !defaultExpanded) {
+      setIsExpanded(settings.safetyPanelExpanded);
+    }
+  }, [settings.safetyPanelExpanded, embedded, defaultExpanded]);
+
+  const handleToggleExpanded = () => {
+    const newExpanded = !isExpanded;
+    setIsExpanded(newExpanded);
+    if (!embedded) {
+      updateSettings({ safetyPanelExpanded: newExpanded });
+    }
+  };
   const [labelers, setLabelers] = useState<LabelerInfo[]>([]);
   const [loadingLabelers, setLoadingLabelers] = useState(false);
   const [showSuggestedModal, setShowSuggestedModal] = useState(false);
@@ -318,7 +333,7 @@ export default function SafetyPanel({ onOpenProfile, onOpenThread, defaultExpand
     <div className={`bg-white dark:bg-gray-900 overflow-hidden ${embedded ? '' : 'rounded-xl border border-gray-200 dark:border-gray-800'}`}>
       {/* Header - always visible, hidden when embedded */}
       {!embedded && <button
-        onClick={() => setIsExpanded(!isExpanded)}
+        onClick={handleToggleExpanded}
         className="w-full p-3 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors"
       >
         <div className="flex items-center gap-2">
