@@ -659,6 +659,24 @@ function QuotePost({
   formatDate: (dateString: string) => string;
   onOpenThread?: (uri: string) => void;
 }) {
+  // Lightbox state for images in quoted posts
+  const [expandedImage, setExpandedImage] = useState<{ fullsize: string; alt: string } | null>(null);
+  const [expandedIndex, setExpandedIndex] = useState<number | null>(null);
+  const [lightboxImages, setLightboxImages] = useState<{ fullsize: string; alt: string }[]>([]);
+
+  const openLightbox = (images: { fullsize: string; alt: string }[], index: number, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setLightboxImages(images);
+    setExpandedImage(images[index]);
+    setExpandedIndex(index);
+  };
+
+  const closeLightbox = () => {
+    setExpandedImage(null);
+    setExpandedIndex(null);
+    setLightboxImages([]);
+  };
+
   return (
     <div
       className={`mt-2 border border-gray-200 dark:border-gray-700 rounded-xl p-3 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors ${onOpenThread ? 'cursor-pointer' : ''}`}
@@ -712,10 +730,15 @@ function QuotePost({
           {viewRecord.embeds.map((embed, i) => {
             if ('images' in embed && Array.isArray((embed as AppBskyEmbedImages.View).images)) {
               const images = (embed as AppBskyEmbedImages.View).images;
+              const imageList = images.map(img => ({ fullsize: img.fullsize, alt: img.alt || '' }));
               // Single image in quote: show larger with aspect ratio preserved
               if (images.length === 1) {
                 return (
-                  <div key={i} className="rounded-lg overflow-hidden">
+                  <div
+                    key={i}
+                    className="rounded-lg overflow-hidden cursor-pointer"
+                    onClick={(e) => openLightbox(imageList, 0, e)}
+                  >
                     <img
                       src={images[0].thumb}
                       alt={images[0].alt || ''}
@@ -733,7 +756,8 @@ function QuotePost({
                       key={j}
                       src={img.thumb}
                       alt={img.alt || ''}
-                      className="object-cover w-full h-32"
+                      className="object-cover w-full h-32 cursor-pointer"
+                      onClick={(e) => openLightbox(imageList, j, e)}
                     />
                   ))}
                 </div>
@@ -785,11 +809,15 @@ function QuotePost({
               const rwm = embed as AppBskyEmbedRecordWithMedia.View;
               const media = rwm.media;
               const mediaImages = 'images' in media ? (media as AppBskyEmbedImages.View).images : [];
+              const mediaImageList = mediaImages.map(img => ({ fullsize: img.fullsize, alt: img.alt || '' }));
               return (
                 <div key={i}>
                   {mediaImages.length > 0 && (
                     mediaImages.length === 1 ? (
-                      <div className="rounded-lg overflow-hidden mb-2">
+                      <div
+                        className="rounded-lg overflow-hidden mb-2 cursor-pointer"
+                        onClick={(e) => openLightbox(mediaImageList, 0, e)}
+                      >
                         <img
                           src={mediaImages[0].thumb}
                           alt={mediaImages[0].alt || ''}
@@ -804,7 +832,8 @@ function QuotePost({
                             key={j}
                             src={img.thumb}
                             alt={img.alt || ''}
-                            className="object-cover w-full h-32"
+                            className="object-cover w-full h-32 cursor-pointer"
+                            onClick={(e) => openLightbox(mediaImageList, j, e)}
                           />
                         ))}
                       </div>
@@ -822,6 +851,99 @@ function QuotePost({
             return null;
           })}
         </div>
+      )}
+
+      {/* Lightbox for quoted post images */}
+      {expandedImage && expandedIndex !== null && typeof document !== 'undefined' && createPortal(
+        <div
+          className="fixed inset-0 z-[9999] bg-black/90 flex items-center justify-center p-4"
+          onClick={(e) => {
+            e.stopPropagation();
+            closeLightbox();
+          }}
+          onKeyDown={(e) => {
+            if (e.key === 'ArrowLeft' && expandedIndex > 0) {
+              e.stopPropagation();
+              setExpandedIndex(expandedIndex - 1);
+              setExpandedImage(lightboxImages[expandedIndex - 1]);
+            } else if (e.key === 'ArrowRight' && expandedIndex < lightboxImages.length - 1) {
+              e.stopPropagation();
+              setExpandedIndex(expandedIndex + 1);
+              setExpandedImage(lightboxImages[expandedIndex + 1]);
+            } else if (e.key === 'Escape') {
+              closeLightbox();
+            }
+          }}
+          tabIndex={0}
+          ref={(el) => el?.focus()}
+        >
+          {/* Image counter */}
+          {lightboxImages.length > 1 && (
+            <div className="absolute top-4 left-4 px-3 py-1 bg-black/50 text-white text-sm rounded-full">
+              {expandedIndex + 1} / {lightboxImages.length}
+            </div>
+          )}
+
+          {/* Close button */}
+          <button
+            className="absolute top-4 right-4 text-white/80 hover:text-white p-2"
+            onClick={(e) => {
+              e.stopPropagation();
+              closeLightbox();
+            }}
+          >
+            <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+
+          {/* Previous button */}
+          {expandedIndex > 0 && (
+            <button
+              className="absolute left-4 top-1/2 -translate-y-1/2 text-white/80 hover:text-white p-2 bg-black/30 rounded-full"
+              onClick={(e) => {
+                e.stopPropagation();
+                setExpandedIndex(expandedIndex - 1);
+                setExpandedImage(lightboxImages[expandedIndex - 1]);
+              }}
+            >
+              <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+              </svg>
+            </button>
+          )}
+
+          {/* Next button */}
+          {expandedIndex < lightboxImages.length - 1 && (
+            <button
+              className="absolute right-4 top-1/2 -translate-y-1/2 text-white/80 hover:text-white p-2 bg-black/30 rounded-full"
+              onClick={(e) => {
+                e.stopPropagation();
+                setExpandedIndex(expandedIndex + 1);
+                setExpandedImage(lightboxImages[expandedIndex + 1]);
+              }}
+            >
+              <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
+            </button>
+          )}
+
+          <img
+            src={lightboxImages[expandedIndex]?.fullsize || expandedImage.fullsize}
+            alt={lightboxImages[expandedIndex]?.alt || expandedImage.alt}
+            className="max-w-full max-h-full object-contain"
+            onClick={(e) => e.stopPropagation()}
+          />
+
+          {/* Alt text display */}
+          {(lightboxImages[expandedIndex]?.alt || expandedImage.alt) && (
+            <div className="absolute bottom-4 left-4 right-4 px-4 py-2 bg-black/70 text-white text-sm rounded-lg text-center">
+              {lightboxImages[expandedIndex]?.alt || expandedImage.alt}
+            </div>
+          )}
+        </div>,
+        document.body
       )}
     </div>
   );
