@@ -51,11 +51,15 @@ function NotificationItemView({
       onOpenProfile?.(notification.author.did);
       return;
     }
+    // For replies/quotes/mentions, open the reply/quote itself (not the parent)
+    if (notification.reason === 'reply' || notification.reason === 'quote' || notification.reason === 'mention') {
+      onOpenPost?.(notification.uri);
+      return;
+    }
     // For likes/reposts, open the post that was liked/reposted
     if (notification.reasonSubject) {
       onOpenPost?.(notification.reasonSubject);
     } else {
-      // For replies/quotes, open the notification itself (which is the reply/quote post)
       onOpenPost?.(notification.uri);
     }
   };

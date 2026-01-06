@@ -670,7 +670,11 @@ function NotificationRow({
       onClick={() => {
         if (n.reason === 'follow') {
           onOpenProfile(n.author.did);
+        } else if (n.reason === 'reply' || n.reason === 'quote' || n.reason === 'mention') {
+          // For replies/quotes/mentions, go to the reply/quote itself
+          onOpenPost(n.uri);
         } else if (n.reasonSubject) {
+          // For likes/reposts, go to the parent post
           onOpenPost(n.reasonSubject);
         } else {
           onOpenPost(n.uri);
