@@ -455,17 +455,115 @@ function ActivityTimeline({ notifications }: { notifications: NotificationItem[]
   );
 }
 
-// Recent activity feed
-function RecentActivity({
-  notifications,
+// Notification item for grouped view
+function NotificationRow({
+  notification,
   onOpenPost,
   onOpenProfile,
 }: {
-  notifications: NotificationItem[];
+  notification: NotificationItem;
   onOpenPost: (uri: string) => void;
   onOpenProfile: (did: string) => void;
 }) {
-  const recent = notifications.slice(0, 20);
+  const n = notification;
+  
+  return (
+    <div
+      className="p-3 hover:bg-gray-50 dark:hover:bg-gray-800/50 cursor-pointer"
+      onClick={() => {
+        if (n.reason === 'follow') {
+          onOpenProfile(n.author.did);
+        } else if (n.reasonSubject) {
+          onOpenPost(n.reasonSubject);
+        } else {
+          onOpenPost(n.uri);
+        }
+      }}
+    >
+      <div className="flex items-start gap-3">
+        <ProfileHoverCard
+          did={n.author.did}
+          handle={n.author.handle}
+          onOpenProfile={() => onOpenProfile(n.author.did)}
+        >
+          {n.author.avatar ? (
+            <img
+              src={n.author.avatar}
+              alt=""
+              className="w-8 h-8 rounded-full cursor-pointer hover:ring-2 hover:ring-blue-400"
+              onClick={(e) => {
+                e.stopPropagation();
+                onOpenProfile(n.author.did);
+              }}
+            />
+          ) : (
+            <div
+              className="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center text-white text-xs font-bold cursor-pointer hover:ring-2 hover:ring-blue-400"
+              onClick={(e) => {
+                e.stopPropagation();
+                onOpenProfile(n.author.did);
+              }}
+            >
+              {(n.author.displayName || n.author.handle)[0].toUpperCase()}
+            </div>
+          )}
+        </ProfileHoverCard>
+        <div className="flex-1 min-w-0">
+          <p
+            className="text-sm font-medium text-gray-900 dark:text-gray-100 hover:text-blue-500 cursor-pointer truncate"
+            onClick={(e) => {
+              e.stopPropagation();
+              onOpenProfile(n.author.did);
+            }}
+          >
+            {n.author.displayName || n.author.handle}
+          </p>
+          {(n.record?.text || n.subjectText) && (
+            <p className="text-xs text-gray-500 dark:text-gray-500 line-clamp-2 mt-0.5">
+              {n.record?.text || n.subjectText}
+            </p>
+          )}
+        </div>
+        <span className="text-xs text-gray-400 flex-shrink-0">
+          {formatTime(n.indexedAt)}
+        </span>
+      </div>
+    </div>
+  );
+}
+
+// Grouped activity by type
+function GroupedActivity({
+  grouped,
+  onOpenPost,
+  onOpenProfile,
+}: {
+  grouped: GroupedNotifications;
+  onOpenPost: (uri: string) => void;
+  onOpenProfile: (did: string) => void;
+}) {
+  const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(['likes', 'replies', 'follows']));
+
+  const toggleSection = (key: string) => {
+    setExpandedSections(prev => {
+      const next = new Set(prev);
+      if (next.has(key)) {
+        next.delete(key);
+      } else {
+        next.add(key);
+      }
+      return next;
+    });
+  };
+
+  const sections = [
+    { key: 'likes', label: 'Likes', items: grouped.likes },
+    { key: 'reposts', label: 'Reposts', items: grouped.reposts },
+    { key: 'quotes', label: 'Quotes', items: grouped.quotes },
+    { key: 'replies', label: 'Replies', items: grouped.replies },
+    { key: 'follows', label: 'Follows', items: grouped.follows },
+    { key: 'mentions', label: 'Mentions', items: grouped.mentions },
+  ];
 
   return (
     <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden">
@@ -474,89 +572,64 @@ function RecentActivity({
           <svg className="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
           </svg>
-          Recent Activity
+          Activity by Type
         </h3>
       </div>
       
-      <div className="divide-y divide-gray-100 dark:divide-gray-800 max-h-[500px] overflow-y-auto">
-        {recent.map((n) => {
-          const colors = CATEGORY_COLORS[n.reason as keyof typeof CATEGORY_COLORS] || CATEGORY_COLORS.likes;
+      <div className="divide-y divide-gray-200 dark:divide-gray-800">
+        {sections.map(({ key, label, items }) => {
+          const colors = CATEGORY_COLORS[key as keyof typeof CATEGORY_COLORS];
+          const isExpanded = expandedSections.has(key);
+          const displayItems = items.slice(0, 10);
           
           return (
-            <div
-              key={n.uri}
-              className={`p-3 hover:bg-gray-50 dark:hover:bg-gray-800/50 cursor-pointer border-l-4 ${colors.border}`}
-              onClick={() => {
-                if (n.reason === 'follow') {
-                  onOpenProfile(n.author.did);
-                } else if (n.reasonSubject) {
-                  onOpenPost(n.reasonSubject);
-                } else {
-                  onOpenPost(n.uri);
-                }
-              }}
-            >
-              <div className="flex items-start gap-3">
-                <span className={colors.icon}>
-                  {CATEGORY_ICONS[n.reason as keyof typeof CATEGORY_ICONS]}
-                </span>
-                <ProfileHoverCard
-                  did={n.author.did}
-                  handle={n.author.handle}
-                  onOpenProfile={() => onOpenProfile(n.author.did)}
+            <div key={key} className={`border-l-4 ${colors.border}`}>
+              {/* Section header */}
+              <button
+                onClick={() => toggleSection(key)}
+                className={`w-full px-4 py-3 flex items-center justify-between ${colors.bg} hover:opacity-90 transition-opacity`}
+              >
+                <div className="flex items-center gap-2">
+                  <span className={colors.icon}>
+                    {CATEGORY_ICONS[key as keyof typeof CATEGORY_ICONS]}
+                  </span>
+                  <span className={`text-sm font-medium ${colors.text}`}>{label}</span>
+                  <span className="text-xs text-gray-400">({items.length})</span>
+                </div>
+                <svg
+                  className={`w-4 h-4 text-gray-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
                 >
-                  {n.author.avatar ? (
-                    <img
-                      src={n.author.avatar}
-                      alt=""
-                      className="w-8 h-8 rounded-full cursor-pointer hover:ring-2 hover:ring-blue-400"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onOpenProfile(n.author.did);
-                      }}
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+              
+              {/* Section content */}
+              {isExpanded && items.length > 0 && (
+                <div className="divide-y divide-gray-100 dark:divide-gray-800 max-h-[300px] overflow-y-auto">
+                  {displayItems.map((n) => (
+                    <NotificationRow
+                      key={n.uri}
+                      notification={n}
+                      onOpenPost={onOpenPost}
+                      onOpenProfile={onOpenProfile}
                     />
-                  ) : (
-                    <div
-                      className="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center text-white text-xs font-bold cursor-pointer hover:ring-2 hover:ring-blue-400"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onOpenProfile(n.author.did);
-                      }}
-                    >
-                      {(n.author.displayName || n.author.handle)[0].toUpperCase()}
+                  ))}
+                  {items.length > 10 && (
+                    <div className="p-2 text-center text-xs text-gray-400">
+                      +{items.length - 10} more
                     </div>
                   )}
-                </ProfileHoverCard>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm">
-                    <span
-                      className="font-medium text-gray-900 dark:text-gray-100 hover:text-blue-500 cursor-pointer"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onOpenProfile(n.author.did);
-                      }}
-                    >
-                      {n.author.displayName || n.author.handle}
-                    </span>
-                    <span className="text-gray-500 dark:text-gray-400">
-                      {n.reason === 'like' && ' liked your post'}
-                      {n.reason === 'repost' && ' reposted your post'}
-                      {n.reason === 'quote' && ' quoted your post'}
-                      {n.reason === 'reply' && ' replied to your post'}
-                      {n.reason === 'follow' && ' followed you'}
-                      {n.reason === 'mention' && ' mentioned you'}
-                    </span>
-                  </p>
-                  {(n.record?.text || n.subjectText) && (
-                    <p className="text-xs text-gray-500 dark:text-gray-500 line-clamp-1 mt-0.5">
-                      {n.record?.text || n.subjectText}
-                    </p>
-                  )}
                 </div>
-                <span className="text-xs text-gray-400 flex-shrink-0">
-                  {formatTime(n.indexedAt)}
-                </span>
-              </div>
+              )}
+              
+              {isExpanded && items.length === 0 && (
+                <div className="p-4 text-center text-xs text-gray-400">
+                  No {label.toLowerCase()} yet
+                </div>
+              )}
             </div>
           );
         })}
@@ -774,8 +847,8 @@ function NotificationsExplorerContent() {
             {/* Left column - Activity feed */}
             <div className="lg:col-span-2 space-y-6">
               <ActivityTimeline notifications={allNotifications} />
-              <RecentActivity
-                notifications={allNotifications}
+              <GroupedActivity
+                grouped={grouped}
                 onOpenPost={openThread}
                 onOpenProfile={handleOpenProfile}
               />
