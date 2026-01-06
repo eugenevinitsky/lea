@@ -1284,35 +1284,49 @@ function NotificationsExplorerContent() {
     });
   }, [setUserDid]);
 
-  // Fetch notifications
-  const fetchData = useCallback(async (loadMore = false) => {
+  // Fetch all notifications from the last 24 hours
+  const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const result = await fetchNotifications(loadMore ? cursor : undefined);
-      const newGrouped = groupNotifications(result.notifications);
+      const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+      let allNotifs: NotificationItem[] = [];
+      let nextCursor: string | undefined = undefined;
+      let hasMore = true;
 
-      if (loadMore) {
-        setAllNotifications(prev => [...prev, ...result.notifications]);
-        setGrouped((prev) => ({
-          likes: [...prev.likes, ...newGrouped.likes],
-          reposts: [...prev.reposts, ...newGrouped.reposts],
-          quotes: [...prev.quotes, ...newGrouped.quotes],
-          replies: [...prev.replies, ...newGrouped.replies],
-          follows: [...prev.follows, ...newGrouped.follows],
-          mentions: [...prev.mentions, ...newGrouped.mentions],
-        }));
-      } else {
-        setAllNotifications(result.notifications);
-        setGrouped(newGrouped);
+      // Keep fetching until we have all notifications from the last 24 hours
+      while (hasMore) {
+        const result = await fetchNotifications(nextCursor);
+        
+        // Filter to only include notifications from last 24 hours
+        const recentNotifs = result.notifications.filter(
+          n => new Date(n.indexedAt) >= twentyFourHoursAgo
+        );
+        
+        allNotifs = [...allNotifs, ...recentNotifs];
+        
+        // Stop if we got fewer notifications than requested (end of data)
+        // or if the oldest notification in this batch is older than 24 hours
+        const oldestInBatch = result.notifications[result.notifications.length - 1];
+        if (
+          !result.cursor ||
+          result.notifications.length < 50 ||
+          (oldestInBatch && new Date(oldestInBatch.indexedAt) < twentyFourHoursAgo)
+        ) {
+          hasMore = false;
+        } else {
+          nextCursor = result.cursor;
+        }
       }
 
-      setCursor(result.cursor);
+      setAllNotifications(allNotifs);
+      setGrouped(groupNotifications(allNotifs));
+      setCursor(undefined); // Reset cursor since we loaded everything
     } catch (err) {
       console.error('Failed to fetch notifications:', err);
     } finally {
       setLoading(false);
     }
-  }, [cursor]);
+  }, []);
 
   // Initial fetch
   useEffect(() => {
