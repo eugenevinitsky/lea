@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { createPost, searchActors, ReplyRef, uploadImage, fetchLinkCard, extractUrlFromText, ExternalEmbed } from '@/lib/bluesky';
+import { createPost, searchActors, ReplyRef, uploadImage, fetchLinkCard, extractUrlFromText, ExternalEmbed, ReplyRule, ReplyRestriction } from '@/lib/bluesky';
 import { useSettings } from '@/lib/settings';
 import EmojiPicker from './EmojiPicker';
 
@@ -25,10 +25,17 @@ interface ImageAttachment {
 const MAX_IMAGES = 4;
 const MAX_IMAGE_SIZE = 1000000; // 1MB limit per image
 
-type ReplyRestriction = 'open' | 'following' | 'researchers';
+interface ReplyOption {
+  value: 'open' | 'nobody' | ReplyRule;
+  label: string;
+  icon: string;
+  exclusive?: boolean; // If true, selecting this deselects all others
+}
 
-const REPLY_OPTIONS: { value: ReplyRestriction; label: string; icon: string }[] = [
-  { value: 'open', label: 'Anyone', icon: '🌐' },
+const REPLY_OPTIONS: ReplyOption[] = [
+  { value: 'open', label: 'Anyone', icon: '🌐', exclusive: true },
+  { value: 'nobody', label: 'No One', icon: '🚫', exclusive: true },
+  { value: 'followers', label: 'Followers', icon: '👤' },
   { value: 'following', label: 'Following', icon: '👥' },
   { value: 'researchers', label: 'Researchers', icon: '🔬' },
 ];
@@ -345,18 +352,57 @@ export default function Composer({ onPost }: ComposerProps) {
     }
   };
 
-  // Get current restriction - if autoThreadgate is off, treat as 'open'
-  const currentRestriction: ReplyRestriction = settings.autoThreadgate
-    ? (settings.threadgateType as ReplyRestriction)
-    : 'open';
+  // Local state for reply restriction (supports multi-select)
+  const [replyRestriction, setReplyRestriction] = useState<ReplyRestriction>(() => {
+    // Initialize from settings
+    if (!settings.autoThreadgate) return 'open';
+    const type = settings.threadgateType;
+    if (type === 'following') return ['following'];
+    if (type === 'researchers') return ['researchers'];
+    return 'open';
+  });
 
-  const handleRestrictionChange = (value: ReplyRestriction) => {
-    if (value === 'open') {
-      updateSettings({ autoThreadgate: false, threadgateType: 'following' });
+  const handleRestrictionToggle = (value: 'open' | 'nobody' | ReplyRule) => {
+    if (value === 'open' || value === 'nobody') {
+      // Exclusive options - set directly
+      setReplyRestriction(value);
     } else {
-      updateSettings({ autoThreadgate: true, threadgateType: value });
+      // Combinable options - toggle in array
+      if (replyRestriction === 'open' || replyRestriction === 'nobody') {
+        // Switch from exclusive to multi-select
+        setReplyRestriction([value]);
+      } else {
+        // Toggle in existing array
+        const current = replyRestriction as ReplyRule[];
+        if (current.includes(value)) {
+          // Remove - if last one, switch to 'open'
+          const newRules = current.filter(r => r !== value);
+          setReplyRestriction(newRules.length === 0 ? 'open' : newRules);
+        } else {
+          // Add
+          setReplyRestriction([...current, value]);
+        }
+      }
     }
-    setShowReplyMenu(false);
+  };
+
+  // Check if an option is selected
+  const isOptionSelected = (value: 'open' | 'nobody' | ReplyRule): boolean => {
+    if (value === 'open') return replyRestriction === 'open';
+    if (value === 'nobody') return replyRestriction === 'nobody';
+    if (replyRestriction === 'open' || replyRestriction === 'nobody') return false;
+    return (replyRestriction as ReplyRule[]).includes(value);
+  };
+
+  // Get display label for current restriction
+  const getRestrictionLabel = (): string => {
+    if (replyRestriction === 'open') return 'Anyone';
+    if (replyRestriction === 'nobody') return 'No One';
+    const rules = replyRestriction as ReplyRule[];
+    if (rules.length === 1) {
+      return REPLY_OPTIONS.find(o => o.value === rules[0])?.label || 'Custom';
+    }
+    return rules.map(r => REPLY_OPTIONS.find(o => o.value === r)?.label).join(', ');
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -389,7 +435,7 @@ export default function Composer({ onPost }: ComposerProps) {
       const firstLinkPreview = firstUploadedImages.length === 0 ? postsWithContent[0].linkPreview : null;
       const firstResult = await createPost(
         postsWithContent[0].text,
-        currentRestriction,
+        replyRestriction,
         undefined,
         undefined,
         disableQuotes,
@@ -421,7 +467,7 @@ export default function Composer({ onPost }: ComposerProps) {
         const postLinkPreview = uploadedImages.length === 0 ? postsWithContent[i].linkPreview : null;
         previousPost = await createPost(
           postsWithContent[i].text,
-          currentRestriction,
+          replyRestriction,
           replyRef,
           undefined,
           false, // Only disable quotes on first post
@@ -454,8 +500,6 @@ export default function Composer({ onPost }: ComposerProps) {
   // Check if all posts are empty (no text and no images)
   const hasContent = threadPosts.some((post, i) => post.trim().length > 0 || (threadImages[i]?.length || 0) > 0);
   const isThread = threadPosts.length > 1;
-
-  const currentOption = REPLY_OPTIONS.find(o => o.value === currentRestriction) || REPLY_OPTIONS[0];
 
   return (
     <form onSubmit={handleSubmit} className="border-b border-gray-200 dark:border-gray-800 p-4">
@@ -716,13 +760,13 @@ export default function Composer({ onPost }: ComposerProps) {
               type="button"
               onClick={() => setShowReplyMenu(!showReplyMenu)}
               className={`flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-full border transition-colors ${
-                currentRestriction === 'open'
+                replyRestriction === 'open'
                   ? 'border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'
                   : 'border-blue-300 dark:border-blue-700 text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 hover:bg-blue-100 dark:hover:bg-blue-900/30'
               }`}
             >
-              <span>{currentOption.icon}</span>
-              <span>{currentOption.label} can reply</span>
+              <span>{replyRestriction === 'open' ? '🌐' : replyRestriction === 'nobody' ? '🚫' : '🔒'}</span>
+              <span>{getRestrictionLabel()} can reply</span>
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
               </svg>
@@ -734,27 +778,46 @@ export default function Composer({ onPost }: ComposerProps) {
                   className="fixed inset-0 z-10"
                   onClick={() => setShowReplyMenu(false)}
                 />
-                <div className="absolute left-0 top-full mt-1 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-1 z-20 min-w-[180px]">
-                  {REPLY_OPTIONS.map((option) => (
-                    <button
-                      key={option.value}
-                      type="button"
-                      onClick={() => handleRestrictionChange(option.value)}
-                      className={`w-full flex items-center gap-2 px-3 py-2 text-sm text-left hover:bg-gray-100 dark:hover:bg-gray-700 ${
-                        currentRestriction === option.value
-                          ? 'text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20'
-                          : 'text-gray-700 dark:text-gray-300'
-                      }`}
-                    >
-                      <span>{option.icon}</span>
-                      <span>{option.label}</span>
-                      {currentRestriction === option.value && (
-                        <svg className="w-4 h-4 ml-auto" fill="currentColor" viewBox="0 0 20 20">
-                          <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                        </svg>
-                      )}
-                    </button>
-                  ))}
+                <div className="absolute left-0 top-full mt-1 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-1 z-20 min-w-[200px]">
+                  {REPLY_OPTIONS.map((option) => {
+                    const isSelected = isOptionSelected(option.value);
+                    const isExclusive = option.exclusive;
+                    return (
+                      <button
+                        key={option.value}
+                        type="button"
+                        onClick={() => handleRestrictionToggle(option.value)}
+                        className={`w-full flex items-center gap-2 px-3 py-2 text-sm text-left hover:bg-gray-100 dark:hover:bg-gray-700 ${
+                          isSelected
+                            ? 'text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20'
+                            : 'text-gray-700 dark:text-gray-300'
+                        }`}
+                      >
+                        {/* Checkbox or radio indicator */}
+                        <span className={`flex-shrink-0 w-4 h-4 rounded ${
+                          isExclusive ? 'rounded-full' : 'rounded'
+                        } border-2 flex items-center justify-center ${
+                          isSelected
+                            ? 'border-blue-500 bg-blue-500'
+                            : 'border-gray-300 dark:border-gray-600'
+                        }`}>
+                          {isSelected && (
+                            <svg className="w-2.5 h-2.5 text-white" fill="currentColor" viewBox="0 0 20 20">
+                              <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                            </svg>
+                          )}
+                        </span>
+                        <span>{option.icon}</span>
+                        <span className="flex-1">{option.label}</span>
+                      </button>
+                    );
+                  })}
+                  {/* Divider and hint */}
+                  <div className="border-t border-gray-200 dark:border-gray-700 mt-1 pt-1 px-3 py-1.5">
+                    <p className="text-xs text-gray-400">
+                      Select multiple for Followers, Following, Researchers
+                    </p>
+                  </div>
                 </div>
               </>
             )}

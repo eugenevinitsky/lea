@@ -1763,9 +1763,16 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
         cid: post.cid,
       };
 
+      // Convert legacy threadgate setting to new format
+      const restriction = settings.autoThreadgate
+        ? settings.threadgateType === 'following' ? ['following' as const]
+          : settings.threadgateType === 'researchers' ? ['researchers' as const]
+          : 'open' as const
+        : 'open' as const;
+
       await createPost(
         quoteText,
-        settings.autoThreadgate ? settings.threadgateType : 'open',
+        restriction,
         undefined,
         quoteRef
       );
@@ -1955,9 +1962,16 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
         parent: { uri: post.uri, cid: post.cid },
       };
 
+      // Convert legacy threadgate setting to new format
+      const replyRestriction = settings.autoThreadgate
+        ? settings.threadgateType === 'following' ? ['following' as const]
+          : settings.threadgateType === 'researchers' ? ['researchers' as const]
+          : 'open' as const
+        : 'open' as const;
+
       await createPost(
         replyText,
-        settings.autoThreadgate ? settings.threadgateType : 'open',
+        replyRestriction,
         replyRef,
         undefined, // quote
         false, // disableQuotes

@@ -591,7 +591,12 @@ export async function getSelfThread(uri: string, authorDid: string): Promise<Sel
   }
 }
 
+// Legacy single-select type (kept for backwards compatibility)
 export type ThreadgateType = 'following' | 'verified' | 'researchers' | 'open';
+
+// New multi-select type
+export type ReplyRule = 'followers' | 'following' | 'researchers';
+export type ReplyRestriction = 'open' | 'nobody' | ReplyRule[];
 
 // Fetch labeler's verified researchers list URI
 async function getVerifiedOnlyListUri(): Promise<string | null> {
@@ -740,7 +745,7 @@ export interface ExternalEmbed {
 
 export async function createPost(
   text: string,
-  threadgateType: ThreadgateType = 'following',
+  replyRestriction: ReplyRestriction = 'open',
   reply?: ReplyRef,
   quote?: QuoteRef,
   disableQuotes: boolean = false,
@@ -861,50 +866,44 @@ export async function createPost(
     );
   }
 
-  // Apply threadgate based on type
-  if (threadgateType !== 'open' && postResult.uri) {
+  // Apply threadgate based on restriction
+  if (replyRestriction !== 'open' && postResult.uri) {
     const allow: Array<{ $type: string; list?: string }> = [];
 
-    if (threadgateType === 'following') {
-      allow.push({ $type: 'app.bsky.feed.threadgate#followingRule' });
-    } else if (threadgateType === 'verified') {
-      // Use the personal list (your connections + verified researchers)
-      const listUri = await getPersonalListUri();
-      if (listUri) {
-        allow.push({
-          $type: 'app.bsky.feed.threadgate#listRule',
-          list: listUri,
-        });
-      } else {
-        // Fallback to following if personal list not available
-        console.warn('Personal list not available, falling back to following');
-        allow.push({ $type: 'app.bsky.feed.threadgate#followingRule' });
-      }
-    } else if (threadgateType === 'researchers') {
-      // Use the verified-only list (only verified researchers)
-      const listUri = await getVerifiedOnlyListUri();
-      if (listUri) {
-        allow.push({
-          $type: 'app.bsky.feed.threadgate#listRule',
-          list: listUri,
-        });
-      } else {
-        // Fallback to following if list not available
-        console.warn('Verified-only list not available, falling back to following');
-        allow.push({ $type: 'app.bsky.feed.threadgate#followingRule' });
+    if (replyRestriction === 'nobody') {
+      // Empty allow array = nobody can reply
+      // We still create the threadgate, just with empty allow
+    } else if (Array.isArray(replyRestriction)) {
+      // Multi-select rules
+      for (const rule of replyRestriction) {
+        if (rule === 'followers') {
+          allow.push({ $type: 'app.bsky.feed.threadgate#followerRule' });
+        } else if (rule === 'following') {
+          allow.push({ $type: 'app.bsky.feed.threadgate#followingRule' });
+        } else if (rule === 'researchers') {
+          // Use the verified-only list (only verified researchers)
+          const listUri = await getVerifiedOnlyListUri();
+          if (listUri) {
+            allow.push({
+              $type: 'app.bsky.feed.threadgate#listRule',
+              list: listUri,
+            });
+          } else {
+            console.warn('Verified-only list not available, skipping researchers rule');
+          }
+        }
       }
     }
 
-    if (allow.length > 0) {
-      await agent.api.app.bsky.feed.threadgate.create(
-        { repo: agent.session!.did, rkey: postResult.uri.split('/').pop()! },
-        {
-          post: postResult.uri,
-          createdAt: new Date().toISOString(),
-          allow,
-        }
-      );
-    }
+    // Create threadgate (even with empty allow for 'nobody')
+    await agent.api.app.bsky.feed.threadgate.create(
+      { repo: agent.session!.did, rkey: postResult.uri.split('/').pop()! },
+      {
+        post: postResult.uri,
+        createdAt: new Date().toISOString(),
+        allow,
+      }
+    );
   }
 
   return postResult;
