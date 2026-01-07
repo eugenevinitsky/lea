@@ -1171,7 +1171,14 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
                     <>
                       {replies.map((item) => (
                         <div key={item.post.uri} className="border-b border-gray-200 dark:border-gray-800 last:border-b-0">
-                          <Post post={item.post} reason={item.reason} onOpenThread={navigateToPost} />
+                          {/* Show parent post if available */}
+                          {item.reply?.parent && 'author' in item.reply.parent && (
+                            <div className="relative opacity-60">
+                              <div className="absolute left-[34px] top-0 bottom-0 w-0.5 bg-gray-300 dark:bg-gray-600" />
+                              <Post post={item.reply.parent as AppBskyFeedDefs.PostView} onOpenThread={navigateToPost} isInThread />
+                            </div>
+                          )}
+                          <Post post={item.post} reason={item.reason} onOpenThread={navigateToPost} isInThread={!!item.reply?.parent} />
                         </div>
                       ))}
                       {/* Infinite scroll sentinel */}
@@ -1590,7 +1597,15 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
               ) : (
                 <>
                   {replies.map((item) => (
-                    <div key={item.post.uri} className="border-b border-gray-200 dark:border-gray-800 last:border-b-0"><Post post={item.post} reason={item.reason} onOpenThread={navigateToPost} /></div>
+                    <div key={item.post.uri} className="border-b border-gray-200 dark:border-gray-800 last:border-b-0">
+                      {item.reply?.parent && 'author' in item.reply.parent && (
+                        <div className="relative opacity-60">
+                          <div className="absolute left-[34px] top-0 bottom-0 w-0.5 bg-gray-300 dark:bg-gray-600" />
+                          <Post post={item.reply.parent as AppBskyFeedDefs.PostView} onOpenThread={navigateToPost} isInThread />
+                        </div>
+                      )}
+                      <Post post={item.post} reason={item.reason} onOpenThread={navigateToPost} isInThread={!!item.reply?.parent} />
+                    </div>
                   ))}
                   <div ref={repliesSentinelRef} className="h-20 flex items-center justify-center">
                     {repliesLoading && <div className="animate-spin w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full" />}
@@ -1805,7 +1820,13 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
                     <>
                       {replies.map((item) => (
                         <div key={item.post.uri} className="border-b border-gray-200 dark:border-gray-800 last:border-b-0">
-                          <Post post={item.post} reason={item.reason} onOpenThread={navigateToPost} />
+                          {item.reply?.parent && 'author' in item.reply.parent && (
+                            <div className="relative opacity-60">
+                              <div className="absolute left-[34px] top-0 bottom-0 w-0.5 bg-gray-300 dark:bg-gray-600" />
+                              <Post post={item.reply.parent as AppBskyFeedDefs.PostView} onOpenThread={navigateToPost} isInThread />
+                            </div>
+                          )}
+                          <Post post={item.post} reason={item.reason} onOpenThread={navigateToPost} isInThread={!!item.reply?.parent} />
                         </div>
                       ))}
                       <div ref={repliesSentinelRef} className="h-20 flex items-center justify-center">
@@ -2217,7 +2238,13 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
                 <>
                   {replies.map((item) => (
                     <div key={item.post.uri} className="border-b border-gray-200 dark:border-gray-800 last:border-b-0">
-                      <Post post={item.post} reason={item.reason} onOpenThread={navigateToPost} />
+                      {item.reply?.parent && 'author' in item.reply.parent && (
+                        <div className="relative opacity-60">
+                          <div className="absolute left-[34px] top-0 bottom-0 w-0.5 bg-gray-300 dark:bg-gray-600" />
+                          <Post post={item.reply.parent as AppBskyFeedDefs.PostView} onOpenThread={navigateToPost} isInThread />
+                        </div>
+                      )}
+                      <Post post={item.post} reason={item.reason} onOpenThread={navigateToPost} isInThread={!!item.reply?.parent} />
                     </div>
                   ))}
                   {/* Infinite scroll sentinel */}
