@@ -6,15 +6,83 @@ import { isTechnicalContent } from '@/lib/substack-classifier';
 // Secret for authenticating requests from the Cloudflare Worker
 const API_SECRET = process.env.PAPER_FIREHOSE_SECRET;
 
-// Fetch metadata from Substack post via Open Graph tags
-async function fetchSubstackMetadata(url: string): Promise<{
+// Strip HTML tags and decode entities to get plain text
+function stripHtml(html: string): string {
+  return html
+    // Remove HTML tags
+    .replace(/<[^>]+>/g, ' ')
+    // Decode common HTML entities
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&#x27;/g, "'")
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&#8217;/g, "'")
+    .replace(/&#8220;/g, '"')
+    .replace(/&#8221;/g, '"')
+    .replace(/&#8212;/g, '-')
+    // Collapse whitespace
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+// Try to fetch article body from RSS feed
+async function fetchBodyFromRss(subdomain: string, slug: string): Promise<string | null> {
+  try {
+    // Construct RSS feed URL - handle custom domains
+    const feedUrl = `https://${subdomain}.substack.com/feed`;
+
+    const response = await fetch(feedUrl, {
+      headers: {
+        'User-Agent': 'Lea/1.0 (mailto:support@lea.community)',
+        'Accept': 'application/rss+xml, application/xml, text/xml',
+      },
+    });
+
+    if (!response.ok) return null;
+
+    const xml = await response.text();
+
+    // Find the item with matching slug in link
+    const items = xml.split('<item>');
+    for (const item of items.slice(1)) { // Skip first split (before first <item>)
+      const linkMatch = item.match(/<link>([^<]+)<\/link>/);
+      if (linkMatch && linkMatch[1].includes(`/p/${slug}`)) {
+        // Found matching item - extract content:encoded
+        const contentMatch = item.match(/<content:encoded><!\[CDATA\[([\s\S]*?)\]\]><\/content:encoded>/);
+        if (contentMatch) {
+          const bodyText = stripHtml(contentMatch[1]);
+          // Return first 2000 chars of body text for classification
+          return bodyText.slice(0, 2000);
+        }
+      }
+    }
+
+    return null;
+  } catch (error) {
+    console.error(`Failed to fetch RSS for ${subdomain}:`, error);
+    return null;
+  }
+}
+
+// Fetch metadata from Substack post via Open Graph tags and RSS feed
+async function fetchSubstackMetadata(url: string, subdomain?: string, slug?: string): Promise<{
   title?: string;
   description?: string;
   author?: string;
   newsletterName?: string;
   imageUrl?: string;
+  bodyText?: string;
 } | null> {
   try {
+    // Try to fetch body text from RSS feed (more text for better classification)
+    let bodyText: string | null = null;
+    if (subdomain && slug) {
+      bodyText = await fetchBodyFromRss(subdomain, slug);
+    }
+
     const response = await fetch(url, {
       headers: {
         'User-Agent': 'Lea/1.0 (mailto:support@lea.community)',
@@ -78,6 +146,7 @@ async function fetchSubstackMetadata(url: string): Promise<{
       newsletterName: decodeHtml(ogSiteName),
       author: decodeHtml(author),
       imageUrl: ogImage,
+      bodyText: bodyText || undefined,
     };
   } catch (error) {
     console.error(`Failed to fetch Substack metadata for ${url}:`, error);
@@ -212,11 +281,18 @@ export async function POST(request: NextRequest) {
           .where(eq(discoveredSubstackPosts.normalizedId, post.normalizedId));
         substackPostId = existingPost.id;
       } else {
-        // Fetch metadata for new post
-        const metadata = await fetchSubstackMetadata(post.url);
+        // Fetch metadata for new post (including body text from RSS for better classification)
+        const metadata = await fetchSubstackMetadata(post.url, post.subdomain, post.slug);
 
         // Filter for technical/intellectual content using BOW classifier
-        if (!isTechnicalContent(metadata?.title || '', metadata?.description || '')) {
+        // Combine title, description, and body text for better classification accuracy
+        const classificationText = [
+          metadata?.title || '',
+          metadata?.description || '',
+          metadata?.bodyText || '',
+        ].filter(Boolean).join(' ');
+
+        if (!isTechnicalContent(metadata?.title || '', classificationText)) {
           console.log(`Skipping non-technical Substack post: ${post.url} (title: ${metadata?.title})`);
           continue;
         }
