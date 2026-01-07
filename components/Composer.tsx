@@ -398,11 +398,7 @@ export default function Composer({ onPost }: ComposerProps) {
   const getRestrictionLabel = (): string => {
     if (replyRestriction === 'open') return 'Anyone';
     if (replyRestriction === 'nobody') return 'No One';
-    const rules = replyRestriction as ReplyRule[];
-    if (rules.length === 1) {
-      return REPLY_OPTIONS.find(o => o.value === rules[0])?.label || 'Custom';
-    }
-    return rules.map(r => REPLY_OPTIONS.find(o => o.value === r)?.label).join(', ');
+    return 'Limited';
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -766,7 +762,11 @@ export default function Composer({ onPost }: ComposerProps) {
               }`}
             >
               <span>{replyRestriction === 'open' ? '🌐' : replyRestriction === 'nobody' ? '🚫' : '🔒'}</span>
-              <span>{getRestrictionLabel()} can reply</span>
+              <span>
+                {replyRestriction === 'open' ? 'Anyone Can Reply' 
+                  : replyRestriction === 'nobody' ? 'No One Can Reply' 
+                  : 'Limited Replies'}
+              </span>
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
               </svg>
