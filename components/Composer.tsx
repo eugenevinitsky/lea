@@ -28,16 +28,15 @@ const MAX_IMAGE_SIZE = 1000000; // 1MB limit per image
 interface ReplyOption {
   value: 'open' | 'nobody' | ReplyRule;
   label: string;
-  icon: string;
   exclusive?: boolean; // If true, selecting this deselects all others
 }
 
 const REPLY_OPTIONS: ReplyOption[] = [
-  { value: 'open', label: 'Anyone', icon: '🌐', exclusive: true },
-  { value: 'nobody', label: 'No One', icon: '🚫', exclusive: true },
-  { value: 'followers', label: 'Followers', icon: '👤' },
-  { value: 'following', label: 'Following', icon: '👥' },
-  { value: 'researchers', label: 'Researchers', icon: '🔬' },
+  { value: 'open', label: 'Anyone', exclusive: true },
+  { value: 'nobody', label: 'No one', exclusive: true },
+  { value: 'followers', label: 'Followers' },
+  { value: 'following', label: 'Following' },
+  { value: 'researchers', label: 'Researchers' },
 ];
 
 export default function Composer({ onPost }: ComposerProps) {
@@ -761,11 +760,10 @@ export default function Composer({ onPost }: ComposerProps) {
                   : 'border-blue-300 dark:border-blue-700 text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 hover:bg-blue-100 dark:hover:bg-blue-900/30'
               }`}
             >
-              <span>{replyRestriction === 'open' ? '🌐' : replyRestriction === 'nobody' ? '🚫' : '🔒'}</span>
               <span>
-                {replyRestriction === 'open' ? 'Anyone Can Reply' 
-                  : replyRestriction === 'nobody' ? 'No One Can Reply' 
-                  : 'Limited Replies'}
+                {replyRestriction === 'open' ? 'Anyone can reply' 
+                  : replyRestriction === 'nobody' ? 'No one can reply' 
+                  : 'Limited replies'}
               </span>
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
@@ -807,17 +805,10 @@ export default function Composer({ onPost }: ComposerProps) {
                             </svg>
                           )}
                         </span>
-                        <span>{option.icon}</span>
                         <span className="flex-1">{option.label}</span>
                       </button>
                     );
                   })}
-                  {/* Divider and hint */}
-                  <div className="border-t border-gray-200 dark:border-gray-700 mt-1 pt-1 px-3 py-1.5">
-                    <p className="text-xs text-gray-400">
-                      Select multiple for Followers, Following, Researchers
-                    </p>
-                  </div>
                 </div>
               </>
             )}
