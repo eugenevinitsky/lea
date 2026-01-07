@@ -114,15 +114,15 @@ function PostPageContent() {
       try {
         const profile = await getBlueskyProfile(did);
         if (profile?.handle) {
-          window.location.href = `/post/${profile.handle}/${postRkey}`;
+          router.push(`/post/${profile.handle}/${postRkey}`);
           return;
         }
       } catch {
         // Fall through to use DID
       }
-      window.location.href = `/post/${did}/${postRkey}`;
+      router.push(`/post/${did}/${postRkey}`);
     }
-  }, []);
+  }, [router]);
 
   const session = getSession();
 
@@ -145,7 +145,7 @@ function PostPageContent() {
         <div className="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-4">
             <button
-              onClick={() => window.location.href = '/'}
+              onClick={() => router.back()}
               className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full"
               title="Go back"
             >
