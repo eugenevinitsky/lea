@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { AppBskyFeedDefs, AppBskyFeedPost, AppBskyEmbedExternal, AppBskyEmbedImages, AppBskyEmbedRecord, AppBskyEmbedRecordWithMedia, AppBskyEmbedVideo } from '@atproto/api';
 import Hls from 'hls.js';
-import { isVerifiedResearcher, Label, createPost, ReplyRef, QuoteRef, likePost, unlikePost, repost, deleteRepost, deletePost, editPost, sendFeedInteraction, InteractionEvent, getSession, updateThreadgate, getThreadgateType, ThreadgateType, FEEDS, searchActors, detachQuote } from '@/lib/bluesky';
+import { isVerifiedResearcher, Label, createPost, ReplyRef, QuoteRef, likePost, unlikePost, repost, deleteRepost, deletePost, editPost, uploadImage, sendFeedInteraction, InteractionEvent, getSession, updateThreadgate, getThreadgateType, ThreadgateType, FEEDS, searchActors, detachQuote } from '@/lib/bluesky';
 import { useSettings } from '@/lib/settings';
 import { useBookmarks, BookmarkedPost, COLLECTION_COLORS } from '@/lib/bookmarks';
 import ProfileView from './ProfileView';
@@ -1290,6 +1290,12 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
   const [replying, setReplying] = useState(false);
   const [replyError, setReplyError] = useState<string | null>(null);
 
+  // Reply image state
+  const [replyImages, setReplyImages] = useState<Array<{ file: File; preview: string; alt: string }>>([]);
+  const replyFileInputRef = useRef<HTMLInputElement>(null);
+  const MAX_REPLY_IMAGES = 4;
+  const MAX_IMAGE_SIZE = 1000000; // 1MB
+
   // Reply mention autocomplete state
   const [replyMentionQuery, setReplyMentionQuery] = useState<string | null>(null);
   const [replyMentionStart, setReplyMentionStart] = useState<number>(0);
@@ -1298,17 +1304,39 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
   const [replyLoadingSuggestions, setReplyLoadingSuggestions] = useState(false);
   const replyTextareaRef = useRef<HTMLTextAreaElement>(null);
 
-  // Like state
+  // Helper to get stored counts for edited posts
+  const getStoredEditCounts = (uri: string) => {
+    if (typeof window === 'undefined') return null;
+    try {
+      const stored = localStorage.getItem(`edited-post-counts:${uri}`);
+      if (stored) {
+        const data = JSON.parse(stored);
+        // Expire after 30 days
+        if (Date.now() - data.timestamp < 30 * 24 * 60 * 60 * 1000) {
+          return data;
+        }
+        localStorage.removeItem(`edited-post-counts:${uri}`);
+      }
+    } catch {}
+    return null;
+  };
+
+  const storedCounts = getStoredEditCounts(post.uri);
+
+  // Like state - use stored counts if available (for edited posts)
   const [isLiked, setIsLiked] = useState(!!post.viewer?.like);
   const [likeUri, setLikeUri] = useState<string | undefined>(post.viewer?.like);
-  const [likeCount, setLikeCount] = useState(post.likeCount || 0);
+  const [likeCount, setLikeCount] = useState(storedCounts?.likeCount ?? post.likeCount ?? 0);
   const [liking, setLiking] = useState(false);
 
-  // Repost state
+  // Repost state - use stored counts if available (for edited posts)
   const [isReposted, setIsReposted] = useState(!!post.viewer?.repost);
   const [repostUri, setRepostUri] = useState<string | undefined>(post.viewer?.repost);
-  const [repostCount, setRepostCount] = useState(post.repostCount || 0);
+  const [repostCount, setRepostCount] = useState(storedCounts?.repostCount ?? post.repostCount ?? 0);
   const [reposting, setReposting] = useState(false);
+
+  // Reply count state - use stored counts if available (for edited posts)
+  const [replyCount] = useState(storedCounts?.replyCount ?? post.replyCount ?? 0);
 
   // Quote state
   const [showQuoteComposer, setShowQuoteComposer] = useState(false);
@@ -1405,6 +1433,10 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
   // Check if this is the current user's post
   const session = getSession();
   const isOwnPost = session?.did === author.did;
+
+  // Check if post is less than 10 minutes old (for edit eligibility)
+  const postAgeMs = Date.now() - new Date(record.createdAt).getTime();
+  const isEditableAge = postAgeMs < 10 * 60 * 1000; // 10 minutes in ms
   
   // Check if this post quotes the current user's content (for detach feature)
   // We need to check if the embed contains a quote of one of our posts
@@ -1601,7 +1633,7 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
 
   const handleStartEdit = () => {
     // Warn user about losing engagement
-    const hasEngagement = (post.likeCount || 0) > 0 || (post.repostCount || 0) > 0 || (post.replyCount || 0) > 0;
+    const hasEngagement = likeCount > 0 || repostCount > 0 || replyCount > 0;
     if (hasEngagement) {
       const confirmed = window.confirm(
         'Warning: Editing will remove all likes and reposts. Reply counts will reset to 0 (though replies may still appear in thread view).\n\nThis cannot be undone. Continue?'
@@ -1628,6 +1660,14 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
 
     setSaving(true);
     try {
+      // Store current counts before editing (they'll be lost on Bluesky but preserved in Lea)
+      localStorage.setItem(`edited-post-counts:${post.uri}`, JSON.stringify({
+        likeCount,
+        repostCount,
+        replyCount: post.replyCount || 0,
+        timestamp: Date.now(),
+      }));
+
       const textWithSuffix = editText + EDITED_SUFFIX;
       await editPost(post.uri, textWithSuffix);
       setCurrentText(textWithSuffix);
@@ -1635,6 +1675,8 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
       setEditText('');
     } catch (err) {
       console.error('Failed to edit post:', err);
+      // Remove stored counts on failure
+      localStorage.removeItem(`edited-post-counts:${post.uri}`);
       alert('Failed to edit post. Please try again.');
     } finally {
       setSaving(false);
@@ -1673,12 +1715,12 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
         await unlikePost(likeUri);
         setIsLiked(false);
         setLikeUri(undefined);
-        setLikeCount((c) => Math.max(0, c - 1));
+        setLikeCount((c: number) => Math.max(0, c - 1));
       } else {
         const result = await likePost(post.uri, post.cid);
         setIsLiked(true);
         setLikeUri(result.uri);
-        setLikeCount((c) => c + 1);
+        setLikeCount((c: number) => c + 1);
       }
     } catch (err) {
       console.error('Failed to like/unlike:', err);
@@ -1695,12 +1737,12 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
         await deleteRepost(repostUri);
         setIsReposted(false);
         setRepostUri(undefined);
-        setRepostCount((c) => Math.max(0, c - 1));
+        setRepostCount((c: number) => Math.max(0, c - 1));
       } else {
         const result = await repost(post.uri, post.cid);
         setIsReposted(true);
         setRepostUri(result.uri);
-        setRepostCount((c) => c + 1);
+        setRepostCount((c: number) => c + 1);
       }
     } catch (err) {
       console.error('Failed to repost/unrepost:', err);
@@ -1841,12 +1883,69 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
     }
   };
 
+  // Reply image handlers
+  const handleReplyImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    const remainingSlots = MAX_REPLY_IMAGES - replyImages.length;
+    const filesToAdd = files.slice(0, remainingSlots);
+
+    const newImages = filesToAdd.map(file => ({
+      file,
+      preview: URL.createObjectURL(file),
+      alt: '',
+    }));
+
+    setReplyImages(prev => [...prev, ...newImages]);
+    if (replyFileInputRef.current) {
+      replyFileInputRef.current.value = '';
+    }
+  };
+
+  const handleReplyImageRemove = (index: number) => {
+    setReplyImages(prev => {
+      URL.revokeObjectURL(prev[index].preview);
+      return prev.filter((_, i) => i !== index);
+    });
+  };
+
+  const handleReplyPaste = (e: React.ClipboardEvent) => {
+    const items = Array.from(e.clipboardData.items);
+    const imageItems = items.filter(item => item.type.startsWith('image/'));
+
+    if (imageItems.length > 0 && replyImages.length < MAX_REPLY_IMAGES) {
+      e.preventDefault();
+      const remainingSlots = MAX_REPLY_IMAGES - replyImages.length;
+      const itemsToAdd = imageItems.slice(0, remainingSlots);
+
+      itemsToAdd.forEach(item => {
+        const file = item.getAsFile();
+        if (file) {
+          setReplyImages(prev => [...prev, {
+            file,
+            preview: URL.createObjectURL(file),
+            alt: '',
+          }]);
+        }
+      });
+    }
+  };
+
   const handleReply = async () => {
-    if (!replyText.trim() || replying) return;
+    if ((!replyText.trim() && replyImages.length === 0) || replying) return;
 
     try {
       setReplying(true);
       setReplyError(null);
+
+      // Upload images if any
+      let uploadedImages: { blob: unknown; alt: string }[] | undefined;
+      if (replyImages.length > 0) {
+        uploadedImages = [];
+        for (const img of replyImages) {
+          const uploaded = await uploadImage(img.file);
+          uploadedImages.push({ blob: uploaded.blob, alt: img.alt });
+        }
+      }
 
       // For replies, we need root and parent
       // If this post is already a reply, use its root; otherwise this post is the root
@@ -1859,9 +1958,15 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
       await createPost(
         replyText,
         settings.autoThreadgate ? settings.threadgateType : 'open',
-        replyRef
+        replyRef,
+        undefined, // quote
+        false, // disableQuotes
+        uploadedImages
       );
 
+      // Clean up image previews
+      replyImages.forEach(img => URL.revokeObjectURL(img.preview));
+      setReplyImages([]);
       setReplyText('');
       setShowReplyComposer(false);
       onReply?.();
@@ -2161,7 +2266,7 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
               <svg className="w-5 h-5 lg:w-4 lg:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
               </svg>
-              {formatCount(post.replyCount || 0)}
+              {formatCount(replyCount)}
             </button>
 
             {/* Repost/Quote button with dropdown */}
@@ -2382,12 +2487,12 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
               </button>
             )}
 
-            {/* Edit button - only for own posts */}
-            {isOwnPost && !editing && (
+            {/* Edit button - only for own posts less than 10 minutes old */}
+            {isOwnPost && !editing && isEditableAge && (
               <button
                 onClick={handleStartEdit}
                 className="flex items-center gap-1.5 lg:gap-1 transition-colors py-1 hover:text-blue-500"
-                title="Edit post"
+                title="Edit post (available for 10 minutes after posting)"
               >
                 <svg className="w-5 h-5 lg:w-4 lg:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
@@ -2494,6 +2599,7 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
                   value={replyText}
                   onChange={handleReplyTextChange}
                   onKeyDown={handleReplyKeyDown}
+                  onPaste={handleReplyPaste}
                   placeholder={`Reply to @${author.handle}...`}
                   className="w-full p-2 text-sm bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 dark:text-gray-100"
                   rows={3}
@@ -2532,11 +2638,52 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
                   </div>
                 )}
               </div>
+              {/* Image previews */}
+              {replyImages.length > 0 && (
+                <div className="flex gap-2 mt-2 flex-wrap">
+                  {replyImages.map((img, index) => (
+                    <div key={index} className="relative w-16 h-16">
+                      <img
+                        src={img.preview}
+                        alt={img.alt || `Image ${index + 1}`}
+                        className="w-full h-full object-cover rounded-lg"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => handleReplyImageRemove(index)}
+                        className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center text-xs hover:bg-red-600"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
               {replyError && (
                 <p className="mt-1 text-xs text-red-500">{replyError}</p>
               )}
               <div className="flex justify-between items-center mt-2">
                 <div className="flex items-center gap-2">
+                  {/* Image upload button */}
+                  <input
+                    ref={replyFileInputRef}
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    onChange={handleReplyImageSelect}
+                    className="hidden"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => replyFileInputRef.current?.click()}
+                    disabled={replyImages.length >= MAX_REPLY_IMAGES || replying}
+                    className="p-1 text-gray-500 hover:text-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                    title={replyImages.length >= MAX_REPLY_IMAGES ? 'Max 4 images' : 'Add image'}
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                  </button>
                   <EmojiPicker onSelect={insertReplyEmoji} />
                   <span className={`text-xs ${replyText.length > 300 ? 'text-red-500' : 'text-gray-400'}`}>
                     {replyText.length}/300
@@ -2547,6 +2694,7 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
                     onClick={() => {
                       setShowReplyComposer(false);
                       setReplyText('');
+                      setReplyImages([]);
                       setReplyError(null);
                     }}
                     className="px-3 py-1 text-sm text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
@@ -2555,7 +2703,7 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
                   </button>
                   <button
                     onClick={handleReply}
-                    disabled={!replyText.trim() || replying || replyText.length > 300}
+                    disabled={(!replyText.trim() && replyImages.length === 0) || replying || replyText.length > 300}
                     className="px-3 py-1 text-sm bg-blue-500 text-white rounded-full hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {replying ? 'Posting...' : 'Reply'}
