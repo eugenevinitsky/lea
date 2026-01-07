@@ -1,9 +1,59 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db, discoveredSubstackPosts, substackMentions } from '@/lib/db';
-import { eq, inArray } from 'drizzle-orm';
+import { inArray } from 'drizzle-orm';
 import { isTechnicalContent, classifyContent } from '@/lib/substack-classifier';
 
-// One-time cleanup endpoint to apply BOW classifier to existing posts
+// Strip HTML tags and decode entities to get plain text
+function stripHtml(html: string): string {
+  return html
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&#x27;/g, "'")
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&#8217;/g, "'")
+    .replace(/&#8220;/g, '"')
+    .replace(/&#8221;/g, '"')
+    .replace(/&#8212;/g, '-')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+// Try to fetch article body from RSS feed
+async function fetchBodyFromRss(subdomain: string, slug: string): Promise<string | null> {
+  try {
+    const feedUrl = `https://${subdomain}.substack.com/feed`;
+    const response = await fetch(feedUrl, {
+      headers: {
+        'User-Agent': 'Lea/1.0 (mailto:support@lea.community)',
+        'Accept': 'application/rss+xml, application/xml, text/xml',
+      },
+    });
+
+    if (!response.ok) return null;
+
+    const xml = await response.text();
+    const items = xml.split('<item>');
+    for (const item of items.slice(1)) {
+      const linkMatch = item.match(/<link>([^<]+)<\/link>/);
+      if (linkMatch && linkMatch[1].includes(`/p/${slug}`)) {
+        const contentMatch = item.match(/<content:encoded><!\[CDATA\[([\s\S]*?)\]\]><\/content:encoded>/);
+        if (contentMatch) {
+          const bodyText = stripHtml(contentMatch[1]);
+          return bodyText.slice(0, 2000);
+        }
+      }
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+// Cleanup endpoint to reclassify existing posts using body text from RSS
 export async function POST(request: NextRequest) {
   // Basic auth check - require a secret
   const authHeader = request.headers.get('Authorization');
@@ -21,17 +71,30 @@ export async function POST(request: NextRequest) {
     const removed: { id: number; title: string | null; reason: string }[] = [];
 
     for (const post of allPosts) {
-      const isTechnical = isTechnicalContent(post.title || '', post.description || '');
+      // Try to fetch body text from RSS for better classification
+      let bodyText: string | null = null;
+      if (post.subdomain && post.slug) {
+        bodyText = await fetchBodyFromRss(post.subdomain, post.slug);
+      }
+
+      // Combine title, description, and body text for classification
+      const classificationText = [
+        post.title || '',
+        post.description || '',
+        bodyText || '',
+      ].filter(Boolean).join(' ');
+
+      const isTechnical = isTechnicalContent(post.title || '', classificationText);
 
       if (isTechnical) {
         kept.push({ id: post.id, title: post.title });
       } else {
         // Get classification details for logging
-        const details = classifyContent(post.title || '', post.description || '');
+        const details = classifyContent(post.title || '', classificationText);
         removed.push({
           id: post.id,
           title: post.title,
-          reason: `prediction=${details.prediction} tech_score=${details.scores['technical']?.toFixed(2) || 'N/A'} non_tech_score=${details.scores['non-technical']?.toFixed(2) || 'N/A'}`,
+          reason: `prediction=${details.prediction} tech=${details.scores['technical']?.toFixed(1)} non_tech=${details.scores['non-technical']?.toFixed(1)} body=${bodyText ? 'yes' : 'no'}`,
         });
       }
     }
