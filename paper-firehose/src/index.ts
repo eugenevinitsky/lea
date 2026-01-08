@@ -21,6 +21,31 @@ interface SubstackMatch {
   slug: string;
 }
 
+// Science/tech journalism article patterns (Quanta, MIT Tech Review, etc.)
+const ARTICLE_PATTERNS = [
+  // Quanta Magazine: quantamagazine.org/article-slug-12345
+  {
+    pattern: /quantamagazine\.org\/([a-z0-9-]+)-(\d+)\/?/i,
+    source: 'quanta',
+    normalize: (slug: string, id: string) => `quanta:${id}`,
+    getSlug: (slug: string, id: string) => `${slug}-${id}`,
+  },
+  // MIT Technology Review: technologyreview.com/2024/01/15/article-slug/
+  {
+    pattern: /technologyreview\.com\/(\d{4}\/\d{2}\/\d{2})\/([a-z0-9-]+)\/?/i,
+    source: 'mittechreview',
+    normalize: (date: string, slug: string) => `mittechreview:${slug}`,
+    getSlug: (date: string, slug: string) => `${date}/${slug}`,
+  },
+];
+
+interface ArticleMatch {
+  url: string;
+  normalizedId: string;
+  source: string;
+  slug: string;
+}
+
 // Paper URL patterns
 const PAPER_PATTERNS = [
   // arXiv
@@ -144,6 +169,38 @@ function extractSubstackLinks(text: string): SubstackMatch[] {
   return substackPosts;
 }
 
+function extractArticleLinks(text: string): ArticleMatch[] {
+  const articles: ArticleMatch[] = [];
+  const seen = new Set<string>();
+
+  for (const { pattern, source, normalize, getSlug } of ARTICLE_PATTERNS) {
+    const globalPattern = new RegExp(pattern.source, 'gi');
+    let match;
+    while ((match = globalPattern.exec(text)) !== null) {
+      if (match[1] && match[2]) {
+        // Skip truncated URLs
+        const matchEnd = match.index + match[0].length;
+        if (isTruncated(match[0]) || isFollowedByTruncation(text, matchEnd)) {
+          console.log(`Skipping truncated article URL: ${match[0]}`);
+          continue;
+        }
+
+        const normalizedId = normalize(match[1], match[2]);
+        const slug = getSlug(match[1], match[2]);
+
+        if (!seen.has(normalizedId)) {
+          seen.add(normalizedId);
+          // Reconstruct URL with https:// if missing
+          const url = match[0].startsWith('http') ? match[0] : `https://${match[0]}`;
+          articles.push({ url, normalizedId, source, slug });
+        }
+      }
+    }
+  }
+
+  return articles;
+}
+
 // Jetstream event types
 interface JetstreamCommit {
   did: string;
@@ -183,6 +240,7 @@ export class JetstreamConnection implements DurableObject {
   private processedCount = 0;
   private papersFound = 0;
   private substackFound = 0;
+  private articlesFound = 0;
   private lastError: string | null = null;
 
   constructor(state: DurableObjectState, env: Env) {
@@ -235,6 +293,7 @@ export class JetstreamConnection implements DurableObject {
         processedCount: this.processedCount,
         papersFound: this.papersFound,
         substackFound: this.substackFound,
+        articlesFound: this.articlesFound,
         lastError: this.lastError,
       }), {
         headers: { 'Content-Type': 'application/json' }
@@ -323,18 +382,20 @@ export class JetstreamConnection implements DurableObject {
       fullText += ' ' + record.embed.external.uri;
     }
 
-    // Extract paper links and Substack links
+    // Extract paper links, Substack links, and article links
     const papers = extractPaperLinks(fullText);
     const substackPosts = extractSubstackLinks(fullText);
+    const articles = extractArticleLinks(fullText);
 
     // Check for quoted post URI
     const quotedPostUri = record.embed?.record?.uri || null;
 
-    // Skip if no paper links, no Substack links, and no quoted post
-    if (papers.length === 0 && substackPosts.length === 0 && !quotedPostUri) return;
+    // Skip if no links and no quoted post
+    if (papers.length === 0 && substackPosts.length === 0 && articles.length === 0 && !quotedPostUri) return;
 
     this.papersFound += papers.length;
     this.substackFound += substackPosts.length;
+    this.articlesFound += articles.length;
 
     // Build common request data
     const postUri = `at://${event.did}/app.bsky.feed.post/${event.commit.rkey}`;
@@ -407,6 +468,37 @@ export class JetstreamConnection implements DurableObject {
       } catch (e) {
         console.error('Failed to send Substack to API:', e);
         this.lastError = `Substack fetch error: ${e}`;
+      }
+    }
+
+    // Send articles to articles API (if any article links)
+    if (articles.length > 0) {
+      try {
+        const response = await fetch(`${this.env.LEA_API_URL}/api/articles/ingest`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${this.env.LEA_API_SECRET}`,
+          },
+          body: JSON.stringify({
+            articles,
+            postUri,
+            authorDid: event.did,
+            postText: record.text || '',
+            createdAt,
+          }),
+        });
+
+        const responseText = await response.text();
+        if (!response.ok) {
+          console.error('Articles API error:', response.status, responseText);
+          this.lastError = `Articles API error: ${response.status}`;
+        } else {
+          console.log(`Ingested ${articles.length} article(s) from ${event.did}`);
+        }
+      } catch (e) {
+        console.error('Failed to send articles to API:', e);
+        this.lastError = `Articles fetch error: ${e}`;
       }
     }
 

@@ -259,6 +259,52 @@ export const substackMentions = pgTable(
   ]
 );
 
+// Science/tech journalism articles (Quanta, MIT Tech Review, etc.)
+export const discoveredArticles = pgTable(
+  'discovered_articles',
+  {
+    id: integer('id').primaryKey().generatedAlwaysAsIdentity(),
+    url: text('url').notNull(),
+    normalizedId: varchar('normalized_id', { length: 255 }).notNull().unique(), // e.g., quanta:12345, mittechreview:12345
+    source: varchar('source', { length: 50 }).notNull(), // quanta, mittechreview
+    slug: varchar('slug', { length: 500 }), // URL slug/path
+    title: text('title'),
+    description: text('description'),
+    author: varchar('author', { length: 255 }),
+    imageUrl: text('image_url'),
+    category: varchar('category', { length: 100 }), // e.g., "Computer Science", "AI"
+    publishedAt: timestamp('published_at'), // Original publication date
+    firstSeenAt: timestamp('first_seen_at').defaultNow().notNull(),
+    lastSeenAt: timestamp('last_seen_at').defaultNow().notNull(),
+    mentionCount: integer('mention_count').default(1).notNull(),
+  },
+  (table) => [
+    index('discovered_articles_source_idx').on(table.source),
+    index('discovered_articles_last_seen_idx').on(table.lastSeenAt),
+    index('discovered_articles_mention_count_idx').on(table.mentionCount),
+  ]
+);
+
+// Posts that mention science/tech journalism articles
+export const articleMentions = pgTable(
+  'article_mentions',
+  {
+    id: integer('id').primaryKey().generatedAlwaysAsIdentity(),
+    articleId: integer('article_id').notNull(),
+    postUri: varchar('post_uri', { length: 500 }).notNull(),
+    authorDid: varchar('author_did', { length: 255 }).notNull(),
+    postText: text('post_text'),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+    isVerifiedResearcher: boolean('is_verified_researcher').default(false),
+  },
+  (table) => [
+    index('article_mentions_article_idx').on(table.articleId),
+    index('article_mentions_author_idx').on(table.authorDid),
+    index('article_mentions_created_idx').on(table.createdAt),
+    index('article_mentions_verified_idx').on(table.isVerifiedResearcher),
+  ]
+);
+
 // Type exports
 export type VerifiedResearcher = typeof verifiedResearchers.$inferSelect;
 export type NewVerifiedResearcher = typeof verifiedResearchers.$inferInsert;
@@ -278,6 +324,10 @@ export type DiscoveredSubstackPost = typeof discoveredSubstackPosts.$inferSelect
 export type NewDiscoveredSubstackPost = typeof discoveredSubstackPosts.$inferInsert;
 export type SubstackMention = typeof substackMentions.$inferSelect;
 export type NewSubstackMention = typeof substackMentions.$inferInsert;
+export type DiscoveredArticle = typeof discoveredArticles.$inferSelect;
+export type NewDiscoveredArticle = typeof discoveredArticles.$inferInsert;
+export type ArticleMention = typeof articleMentions.$inferSelect;
+export type NewArticleMention = typeof articleMentions.$inferInsert;
 
 // Profile field types
 export interface ProfileLink {
