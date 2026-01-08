@@ -73,12 +73,8 @@ function BlogPageContent() {
       const currentOffset = loadMore ? offset : 0;
       const limit = 50;
 
-      // Determine which API to use based on the ID prefix
-      const isArticle = blogId.startsWith('quanta:') || blogId.startsWith('mittechreview:');
-      const apiEndpoint = isArticle ? '/api/articles/mentions' : '/api/substack/mentions';
-
-      // Fetch mentions from database
-      const response = await fetch(`${apiEndpoint}?id=${encodeURIComponent(blogId)}&limit=${limit}&offset=${currentOffset}`);
+      // Fetch mentions from database (endpoint handles both Substack and articles)
+      const response = await fetch(`/api/substack/mentions?id=${encodeURIComponent(blogId)}&limit=${limit}&offset=${currentOffset}`);
       if (!response.ok) {
         throw new Error('Failed to fetch mentions');
       }
