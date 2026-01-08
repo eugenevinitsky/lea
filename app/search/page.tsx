@@ -2,7 +2,7 @@
 
 import { useSearchParams } from 'next/navigation';
 import { useState, useEffect, useCallback, Suspense } from 'react';
-import { restoreSession, getSession, getBlueskyProfile, searchActors, searchPosts, isVerifiedResearcher, Label } from '@/lib/bluesky';
+import { restoreSession, getSession, getBlueskyProfile, searchActors, searchPosts, isVerifiedResearcher, Label, buildProfileUrl } from '@/lib/bluesky';
 import { SettingsProvider } from '@/lib/settings';
 import { BookmarksProvider, useBookmarks } from '@/lib/bookmarks';
 import { FeedsProvider } from '@/lib/feeds';
@@ -170,12 +170,12 @@ function SearchPageContent() {
     try {
       const profile = await getBlueskyProfile(did);
       if (profile?.handle) {
-        window.location.href = `/u/${profile.handle}`;
+        window.location.href = buildProfileUrl(profile.handle, profile.did);
       } else {
-        window.location.href = `/u/${did}`;
+        window.location.href = buildProfileUrl(did);
       }
     } catch {
-      window.location.href = `/u/${did}`;
+      window.location.href = buildProfileUrl(did);
     }
   }, []);
 

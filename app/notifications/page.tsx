@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { restoreSession, getSession, getBlueskyProfile, checkSafetyAlerts, dismissSafetyAlert, SafetyAlert, AlertThresholds, followUser, unfollowUser, isVerifiedResearcher, Label } from '@/lib/bluesky';
+import { restoreSession, getSession, getBlueskyProfile, checkSafetyAlerts, dismissSafetyAlert, SafetyAlert, AlertThresholds, followUser, unfollowUser, isVerifiedResearcher, Label, buildProfileUrl } from '@/lib/bluesky';
 import { useFollowing } from '@/lib/following-context';
 import { SettingsProvider } from '@/lib/settings';
 import { BookmarksProvider, useBookmarks } from '@/lib/bookmarks';
@@ -1543,12 +1543,12 @@ function NotificationsExplorerContent() {
     try {
       const profile = await getBlueskyProfile(did);
       if (profile?.handle) {
-        window.location.href = `/u/${profile.handle}`;
+        window.location.href = buildProfileUrl(profile.handle, profile.did);
       } else {
-        window.location.href = `/u/${did}`;
+        window.location.href = buildProfileUrl(did);
       }
     } catch {
-      window.location.href = `/u/${did}`;
+      window.location.href = buildProfileUrl(did);
     }
   }, []);
 

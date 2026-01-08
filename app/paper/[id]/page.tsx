@@ -3,7 +3,7 @@
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useState, useEffect, useCallback, Suspense } from 'react';
 import { AppBskyFeedDefs, AppBskyEmbedExternal } from '@atproto/api';
-import { restoreSession, getSession, getBlueskyProfile, getPostsByUris, searchPosts } from '@/lib/bluesky';
+import { restoreSession, getSession, getBlueskyProfile, getPostsByUris, searchPosts, buildProfileUrl } from '@/lib/bluesky';
 import { getUrlFromPaperId, getPaperTypeFromId, getSearchQueryForPaper, extractPaperUrl, extractAnyUrl, getPaperIdFromUrl, LinkFacet } from '@/lib/papers';
 import { SettingsProvider } from '@/lib/settings';
 import { BookmarksProvider } from '@/lib/bookmarks';
@@ -288,9 +288,9 @@ function PaperPageContent() {
   const navigateToProfile = async (did: string) => {
     const profile = await getBlueskyProfile(did);
     if (profile?.handle) {
-      window.location.href = `/u/${profile.handle}`;
+      window.location.href = buildProfileUrl(profile.handle, profile.did);
     } else {
-      window.location.href = `/u/${did}`;
+      window.location.href = buildProfileUrl(did);
     }
   };
 
@@ -342,7 +342,7 @@ function PaperPageContent() {
           >Lea</h1>
           <div className="flex items-center gap-3">
             <button
-              onClick={() => window.location.href = `/u/${session?.handle}`}
+              onClick={() => window.location.href = buildProfileUrl(session?.handle || '', session?.did)}
               className="px-3 py-1.5 text-sm font-medium text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30 hover:bg-blue-100 dark:hover:bg-blue-900/50 rounded-full transition-colors"
             >
               @{session?.handle}

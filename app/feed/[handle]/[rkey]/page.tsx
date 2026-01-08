@@ -2,7 +2,7 @@
 
 import { useParams } from 'next/navigation';
 import { useState, useEffect, useCallback } from 'react';
-import { restoreSession, getSession, getBlueskyProfile, logout, getFeedGenerator, likeFeed, unlikeFeed, FeedGeneratorInfo } from '@/lib/bluesky';
+import { restoreSession, getSession, getBlueskyProfile, logout, getFeedGenerator, likeFeed, unlikeFeed, FeedGeneratorInfo, buildProfileUrl } from '@/lib/bluesky';
 import { SettingsProvider } from '@/lib/settings';
 import { BookmarksProvider, useBookmarks } from '@/lib/bookmarks';
 import { FeedsProvider, useFeeds } from '@/lib/feeds';
@@ -108,12 +108,12 @@ function FeedPageContent() {
   const handleOpenProfile = (did: string) => {
     getBlueskyProfile(did).then(profile => {
       if (profile?.handle) {
-        window.location.href = `/u/${profile.handle}`;
+        window.location.href = buildProfileUrl(profile.handle, profile.did);
       } else {
-        window.location.href = `/u/${did}`;
+        window.location.href = buildProfileUrl(did);
       }
     }).catch(() => {
-      window.location.href = `/u/${did}`;
+      window.location.href = buildProfileUrl(did);
     });
   };
 
@@ -213,7 +213,7 @@ function FeedPageContent() {
           <div className="flex items-center gap-3">
             <ResearcherSearch onSelectResearcher={handleOpenProfile} onOpenThread={openThread} onSearch={(q) => window.location.href = `/search?q=${encodeURIComponent(q)}`} />
             <button
-              onClick={() => window.location.href = `/u/${session?.handle}`}
+              onClick={() => window.location.href = buildProfileUrl(session?.handle || '', session?.did)}
               className="px-3 py-1.5 text-sm font-medium text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30 hover:bg-blue-100 dark:hover:bg-blue-900/50 rounded-full transition-colors"
             >
               @{session?.handle}
