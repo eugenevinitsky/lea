@@ -1,11 +1,14 @@
+import * as dotenv from 'dotenv';
+dotenv.config({ path: '.env.local' });
 import pg from 'pg';
 import { drizzle } from 'drizzle-orm/node-postgres';
 import { discoveredSubstackPosts, substackMentions } from '../lib/db/schema';
 import { inArray } from 'drizzle-orm';
 import model from '../lib/classifier-model.json';
 
+const connectionString = process.env.POSTGRES_URL_NON_POOLING || process.env.POSTGRES_URL || process.env.DATABASE_URL;
 const pool = new pg.Pool({
-  connectionString: process.env.DATABASE_URL,
+  connectionString,
   ssl: { rejectUnauthorized: false },
 });
 const db = drizzle(pool);
