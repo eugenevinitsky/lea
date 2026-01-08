@@ -73,8 +73,12 @@ function BlogPageContent() {
       const currentOffset = loadMore ? offset : 0;
       const limit = 50;
 
+      // Determine which API to use based on the ID prefix
+      const isArticle = blogId.startsWith('quanta:') || blogId.startsWith('mittechreview:');
+      const apiEndpoint = isArticle ? '/api/articles/mentions' : '/api/substack/mentions';
+
       // Fetch mentions from database
-      const response = await fetch(`/api/substack/mentions?id=${encodeURIComponent(blogId)}&limit=${limit}&offset=${currentOffset}`);
+      const response = await fetch(`${apiEndpoint}?id=${encodeURIComponent(blogId)}&limit=${limit}&offset=${currentOffset}`);
       if (!response.ok) {
         throw new Error('Failed to fetch mentions');
       }
@@ -387,7 +391,9 @@ function BlogPageContent() {
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
                     </svg>
-                    Read on Substack
+                    {blogId.startsWith('quanta:') ? 'Read on Quanta' :
+                     blogId.startsWith('mittechreview:') ? 'Read on MIT Tech Review' :
+                     'Read on Substack'}
                   </a>
                 </div>
               </div>
