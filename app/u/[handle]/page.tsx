@@ -2,7 +2,7 @@
 
 import { useParams, useRouter } from 'next/navigation';
 import { useState, useEffect, useCallback } from 'react';
-import { restoreSession, getSession, getBlueskyProfile, logout } from '@/lib/bluesky';
+import { restoreSession, getSession, getBlueskyProfile, logout, buildProfileUrl, buildPostUrl } from '@/lib/bluesky';
 import { SettingsProvider } from '@/lib/settings';
 import { BookmarksProvider, useBookmarks } from '@/lib/bookmarks';
 import { FeedsProvider } from '@/lib/feeds';
@@ -101,12 +101,12 @@ function ProfilePageContent() {
   const handleOpenProfile = (did: string) => {
     getBlueskyProfile(did).then(profile => {
       if (profile?.handle) {
-        window.location.href = `/u/${profile.handle}`;
+        window.location.href = buildProfileUrl(profile.handle, profile.did);
       } else {
-        window.location.href = `/u/${did}`;
+        window.location.href = buildProfileUrl(did);
       }
     }).catch(() => {
-      window.location.href = `/u/${did}`;
+      window.location.href = buildProfileUrl(did);
     });
   };
 
@@ -124,13 +124,13 @@ function ProfilePageContent() {
       try {
         const profile = await getBlueskyProfile(did);
         if (profile?.handle) {
-          window.location.href = `/post/${profile.handle}/${rkey}`;
+          window.location.href = buildPostUrl(profile.handle, rkey, profile.did);
           return;
         }
       } catch {
         // Fall through to use DID
       }
-      window.location.href = `/post/${did}/${rkey}`;
+      window.location.href = buildPostUrl(did, rkey);
     } else {
       setThreadUri(uri);
     }

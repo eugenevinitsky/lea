@@ -2,7 +2,7 @@
 
 import { useParams, useRouter } from 'next/navigation';
 import { useState, useEffect, useCallback } from 'react';
-import { restoreSession, getSession, getBlueskyProfile, resolveHandle } from '@/lib/bluesky';
+import { restoreSession, getSession, getBlueskyProfile, resolveHandle, buildProfileUrl, buildPostUrl } from '@/lib/bluesky';
 import { SettingsProvider } from '@/lib/settings';
 import { BookmarksProvider, useBookmarks } from '@/lib/bookmarks';
 import { FeedsProvider } from '@/lib/feeds';
@@ -94,12 +94,12 @@ function PostPageContent() {
     try {
       const profile = await getBlueskyProfile(did);
       if (profile?.handle) {
-        window.location.href = `/u/${profile.handle}`;
+        window.location.href = buildProfileUrl(profile.handle, profile.did);
       } else {
-        window.location.href = `/u/${did}`;
+        window.location.href = buildProfileUrl(did);
       }
     } catch {
-      window.location.href = `/u/${did}`;
+      window.location.href = buildProfileUrl(did);
     }
   }, []);
 
@@ -114,13 +114,13 @@ function PostPageContent() {
       try {
         const profile = await getBlueskyProfile(did);
         if (profile?.handle) {
-          router.push(`/post/${profile.handle}/${postRkey}`);
+          router.push(buildPostUrl(profile.handle, postRkey, profile.did));
           return;
         }
       } catch {
         // Fall through to use DID
       }
-      router.push(`/post/${did}/${postRkey}`);
+      router.push(buildPostUrl(did, postRkey));
     }
   }, [router]);
 

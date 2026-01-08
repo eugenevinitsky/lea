@@ -2,7 +2,7 @@
 
 import React, { useState, useCallback, useEffect, Suspense, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { getSession, logout, restoreSession, getBlueskyProfile } from '@/lib/bluesky';
+import { getSession, logout, restoreSession, getBlueskyProfile, buildProfileUrl } from '@/lib/bluesky';
 import { SettingsProvider } from '@/lib/settings';
 import { BookmarksProvider, useBookmarks } from '@/lib/bookmarks';
 import { FeedsProvider, useFeeds } from '@/lib/feeds';
@@ -289,15 +289,15 @@ function AppContent() {
     try {
       const profile = await getBlueskyProfile(did);
       if (profile?.handle) {
-        // Use window.location for reliable navigation (Next.js router.push was unreliable)
-        window.location.href = `/u/${profile.handle}`;
+        // Use buildProfileUrl with DID to handle handles with dots (e.g., victorsvector.com)
+        window.location.href = buildProfileUrl(profile.handle, profile.did);
       } else {
         // Fallback: use DID directly if profile fetch failed
-        window.location.href = `/u/${did}`;
+        window.location.href = buildProfileUrl(did);
       }
     } catch {
       // Fallback on error: navigate using DID
-      window.location.href = `/u/${did}`;
+      window.location.href = buildProfileUrl(did);
     }
   }, []);
 

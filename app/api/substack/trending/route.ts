@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db, discoveredSubstackPosts, substackMentions } from '@/lib/db';
+import { db, discoveredSubstackPosts, substackMentions, discoveredArticles, articleMentions } from '@/lib/db';
 import { desc, sql } from 'drizzle-orm';
 
-// GET /api/substack/trending?hours=24&limit=50 - Get trending Substack posts
+// GET /api/substack/trending?hours=24&limit=50 - Get trending blog posts (Substack + Quanta + MIT Tech Review)
 export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
@@ -12,7 +12,7 @@ export async function GET(request: NextRequest) {
     const cutoffTime = new Date(Date.now() - hours * 60 * 60 * 1000);
 
     // Get Substack posts with recent mention counts (verified researchers count 3x)
-    const posts = await db
+    const substackPosts = await db
       .select({
         id: discoveredSubstackPosts.id,
         url: discoveredSubstackPosts.url,
@@ -54,7 +54,6 @@ export async function GET(request: NextRequest) {
         sql`${discoveredSubstackPosts.title} IS NOT NULL`
       )
       .orderBy(
-        // Order by weighted unique authors in time window
         desc(sql`(
           SELECT COUNT(DISTINCT substack_mentions.author_did) +
                  2 * COUNT(DISTINCT CASE WHEN substack_mentions.is_verified_researcher THEN substack_mentions.author_did END)
@@ -62,7 +61,6 @@ export async function GET(request: NextRequest) {
           WHERE substack_mentions.substack_post_id = discovered_substack_posts.id
           AND substack_mentions.created_at > ${cutoffTime}
         )`),
-        // Then by total unique authors
         desc(sql`(
           SELECT COUNT(DISTINCT substack_mentions.author_did)
           FROM substack_mentions
@@ -71,9 +69,99 @@ export async function GET(request: NextRequest) {
       )
       .limit(limit);
 
-    return NextResponse.json({ posts });
+    // Get articles (Quanta, MIT Tech Review, etc.)
+    const articles = await db
+      .select({
+        id: discoveredArticles.id,
+        url: discoveredArticles.url,
+        normalizedId: discoveredArticles.normalizedId,
+        source: discoveredArticles.source,
+        slug: discoveredArticles.slug,
+        title: discoveredArticles.title,
+        description: discoveredArticles.description,
+        author: discoveredArticles.author,
+        imageUrl: discoveredArticles.imageUrl,
+        category: discoveredArticles.category,
+        firstSeenAt: discoveredArticles.firstSeenAt,
+        lastSeenAt: discoveredArticles.lastSeenAt,
+        mentionCount: discoveredArticles.mentionCount,
+        postCount: sql<number>`(
+          SELECT COUNT(DISTINCT article_mentions.author_did)
+          FROM article_mentions
+          WHERE article_mentions.article_id = discovered_articles.id
+        )`.as('post_count'),
+        recentMentions: sql<number>`(
+          SELECT COUNT(DISTINCT article_mentions.author_did) +
+                 2 * COUNT(DISTINCT CASE WHEN article_mentions.is_verified_researcher THEN article_mentions.author_did END)
+          FROM article_mentions
+          WHERE article_mentions.article_id = discovered_articles.id
+          AND article_mentions.created_at > ${cutoffTime}
+        )`.as('recent_mentions'),
+        recentPostCount: sql<number>`(
+          SELECT COUNT(DISTINCT article_mentions.author_did)
+          FROM article_mentions
+          WHERE article_mentions.article_id = discovered_articles.id
+          AND article_mentions.created_at > ${cutoffTime}
+        )`.as('recent_post_count'),
+      })
+      .from(discoveredArticles)
+      .where(
+        sql`${discoveredArticles.title} IS NOT NULL`
+      )
+      .orderBy(
+        desc(sql`(
+          SELECT COUNT(DISTINCT article_mentions.author_did) +
+                 2 * COUNT(DISTINCT CASE WHEN article_mentions.is_verified_researcher THEN article_mentions.author_did END)
+          FROM article_mentions
+          WHERE article_mentions.article_id = discovered_articles.id
+          AND article_mentions.created_at > ${cutoffTime}
+        )`),
+        desc(sql`(
+          SELECT COUNT(DISTINCT article_mentions.author_did)
+          FROM article_mentions
+          WHERE article_mentions.article_id = discovered_articles.id
+        )`)
+      )
+      .limit(limit);
+
+    // Normalize articles to match Substack post structure
+    const normalizedArticles = articles.map(article => ({
+      id: article.id,
+      url: article.url,
+      normalizedId: article.normalizedId,
+      subdomain: article.source, // Use source as subdomain for display
+      slug: article.slug,
+      title: article.title,
+      description: article.description,
+      author: article.author,
+      newsletterName: article.source === 'quanta' ? 'Quanta Magazine' :
+                      article.source === 'mittechreview' ? 'MIT Technology Review' :
+                      article.source,
+      imageUrl: article.imageUrl,
+      firstSeenAt: article.firstSeenAt,
+      lastSeenAt: article.lastSeenAt,
+      mentionCount: article.mentionCount,
+      postCount: article.postCount,
+      recentMentions: article.recentMentions,
+      recentPostCount: article.recentPostCount,
+    }));
+
+    // Combine and sort by recentMentions
+    const allPosts = [...substackPosts, ...normalizedArticles]
+      .sort((a, b) => {
+        // Sort by recent mentions first, then by total post count
+        const aRecent = Number(a.recentMentions) || 0;
+        const bRecent = Number(b.recentMentions) || 0;
+        if (bRecent !== aRecent) return bRecent - aRecent;
+        const aCount = Number(a.postCount) || 0;
+        const bCount = Number(b.postCount) || 0;
+        return bCount - aCount;
+      })
+      .slice(0, limit);
+
+    return NextResponse.json({ posts: allPosts });
   } catch (error) {
-    console.error('Failed to fetch trending Substack posts:', error);
-    return NextResponse.json({ error: 'Failed to fetch trending Substack posts' }, { status: 500 });
+    console.error('Failed to fetch trending blog posts:', error);
+    return NextResponse.json({ error: 'Failed to fetch trending blog posts' }, { status: 500 });
   }
 }

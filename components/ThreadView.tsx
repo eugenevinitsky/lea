@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { AppBskyFeedDefs } from '@atproto/api';
-import { getThread, getBlueskyProfile, getSession } from '@/lib/bluesky';
+import { getThread, getBlueskyProfile, getSession, buildProfileUrl } from '@/lib/bluesky';
 import { useFollowing } from '@/lib/following-context';
 import Post from './Post';
 import EngagementTabs from './EngagementTabs';
@@ -281,12 +281,12 @@ export default function ThreadView({ uri, onClose, onOpenThread, onOpenProfile, 
     try {
       const profile = await getBlueskyProfile(did);
       if (profile?.handle) {
-        window.location.href = `/u/${profile.handle}`;
+        window.location.href = buildProfileUrl(profile.handle, profile.did);
       } else {
-        window.location.href = `/u/${did}`;
+        window.location.href = buildProfileUrl(did);
       }
     } catch {
-      window.location.href = `/u/${did}`;
+      window.location.href = buildProfileUrl(did);
     }
   }, [onOpenProfile]);
 

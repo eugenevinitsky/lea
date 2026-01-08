@@ -266,7 +266,7 @@ export default function ModerationBox({ onOpenProfile, defaultExpanded = false, 
                   : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
               }`}
             >
-              Blogs
+              Articles
             </button>
             <button
               onClick={() => setActiveTab('verified')}
@@ -502,8 +502,8 @@ export default function ModerationBox({ onOpenProfile, defaultExpanded = false, 
                   <svg className="w-8 h-8 mx-auto text-gray-300 dark:text-gray-600 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z" />
                   </svg>
-                  <p className="text-xs text-gray-400">No blog posts trending yet</p>
-                  <p className="text-[10px] text-gray-400 mt-1">Blog articles shared on Bluesky will appear here</p>
+                  <p className="text-xs text-gray-400">No articles trending yet</p>
+                  <p className="text-[10px] text-gray-400 mt-1">Articles shared on Bluesky will appear here</p>
                 </div>
               ) : (
                 <div className={`overflow-y-auto divide-y divide-gray-100 dark:divide-gray-800 ${embedded ? 'flex-1' : 'max-h-[280px]'}`}>
