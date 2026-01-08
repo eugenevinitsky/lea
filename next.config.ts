@@ -1,7 +1,8 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  // Force trailing slashes to prevent dots being interpreted as file extensions
+  trailingSlash: true,
 };
 
 export default nextConfig;

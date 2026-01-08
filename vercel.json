@@ -4,5 +4,6 @@
       "path": "/api/cron/sync-all",
       "schedule": "0 0 * * *"
     }
-  ]
+  ],
+  "trailingSlash": true
 }

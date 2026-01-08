@@ -22,7 +22,9 @@ import ThreadView from '@/components/ThreadView';
 function ProfilePageContent() {
   const params = useParams();
   const router = useRouter();
-  const handle = params.handle as string;
+  // With catch-all route [...handle], params.handle is an array
+  const handleSegments = params.handle as string[];
+  const handle = handleSegments?.join('/') || '';
   
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isLoading, setIsLoading] = useState(true);

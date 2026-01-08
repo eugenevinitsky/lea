@@ -8,23 +8,23 @@ let personalListUri: string | null = null;
 
 const SESSION_KEY = 'lea-bsky-session';
 
-// Helper to build profile URLs that handles special characters in handles/DIDs
-// Next.js interprets dots (.com) as file extensions and colons cause routing issues
-// We URL-encode the identifier to avoid these problems
+// Helper to build profile URLs that handles dots in custom domain handles
+// Next.js interprets .com, .net etc. as file extensions, so we use DIDs for those
 export function buildProfileUrl(handleOrDid: string, did?: string): string {
-  // If handle contains a dot and we have a DID, prefer using the DID
-  // (cleaner for custom domain handles like victorsvector.com)
-  const identifier = (handleOrDid.includes('.') && did) ? did : handleOrDid;
-  // Always encode to handle dots, colons, and other special chars
-  return `/u/${encodeURIComponent(identifier)}`;
+  // If handle contains a dot and we have a DID, use the DID to avoid Next.js extension parsing
+  if (handleOrDid.includes('.') && did) {
+    return `/u/${did}`;
+  }
+  return `/u/${handleOrDid}`;
 }
 
 // Helper to build post URLs
 export function buildPostUrl(handleOrDid: string, rkey: string, did?: string): string {
-  // If handle contains a dot and we have a DID, prefer using the DID
-  const identifier = (handleOrDid.includes('.') && did) ? did : handleOrDid;
-  // Always encode to handle dots, colons, and other special chars
-  return `/post/${encodeURIComponent(identifier)}/${rkey}`;
+  // If handle contains a dot and we have a DID, use the DID
+  if (handleOrDid.includes('.') && did) {
+    return `/post/${did}/${rkey}`;
+  }
+  return `/post/${handleOrDid}/${rkey}`;
 }
 
 // LEA Labeler DID - needed for receiving verified researcher labels
