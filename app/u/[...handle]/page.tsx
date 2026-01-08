@@ -23,8 +23,9 @@ function ProfilePageContent() {
   const params = useParams();
   const router = useRouter();
   // With catch-all route [...handle], params.handle is an array
+  // Next.js URL-encodes the params, so we need to decode them
   const handleSegments = params.handle as string[];
-  const handle = handleSegments?.join('/') || '';
+  const handle = decodeURIComponent(handleSegments?.join('/') || '');
   
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
