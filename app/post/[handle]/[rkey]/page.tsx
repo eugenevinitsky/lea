@@ -19,8 +19,9 @@ import ResearcherSearch from '@/components/ResearcherSearch';
 function PostPageContent() {
   const params = useParams();
   const router = useRouter();
-  const handle = params.handle as string;
-  const rkey = params.rkey as string;
+  // Next.js URL-encodes route params, so colons in DIDs become %3A
+  const handle = decodeURIComponent(params.handle as string);
+  const rkey = decodeURIComponent(params.rkey as string);
 
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
