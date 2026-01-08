@@ -3,7 +3,7 @@
 import { useParams, useRouter } from 'next/navigation';
 import { useState, useEffect, useCallback, Suspense } from 'react';
 import { AppBskyFeedDefs } from '@atproto/api';
-import { restoreSession, getSession, getBlueskyProfile, getPostsByUris, searchPosts } from '@/lib/bluesky';
+import { restoreSession, getSession, getBlueskyProfile, getPostsByUris, searchPosts, buildProfileUrl } from '@/lib/bluesky';
 import { SettingsProvider } from '@/lib/settings';
 import { BookmarksProvider } from '@/lib/bookmarks';
 import { FeedsProvider } from '@/lib/feeds';
@@ -265,9 +265,9 @@ function BlogPageContent() {
   const navigateToProfile = async (did: string) => {
     const profile = await getBlueskyProfile(did);
     if (profile?.handle) {
-      window.location.href = `/u/${profile.handle}`;
+      window.location.href = buildProfileUrl(profile.handle, profile.did);
     } else {
-      window.location.href = `/u/${did}`;
+      window.location.href = buildProfileUrl(did);
     }
   };
 
