@@ -2,8 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db, discoveredSubstackPosts, substackMentions, discoveredArticles, articleMentions } from '@/lib/db';
 import { eq, desc, count } from 'drizzle-orm';
 
-// GET /api/substack/mentions?id=substack:eugenewei/status-as-a-service
-// Also handles articles: ?id=quanta:12345 or ?id=mittechreview:slug
+// GET /api/articles/mentions?id=substack:eugenewei/status-as-a-service
+// Handles all article types: Substack, Quanta, MIT Tech Review
 // Fetches all post URIs that mention a blog post or article
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;

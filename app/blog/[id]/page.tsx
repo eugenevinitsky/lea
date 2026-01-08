@@ -73,8 +73,8 @@ function BlogPageContent() {
       const currentOffset = loadMore ? offset : 0;
       const limit = 50;
 
-      // Fetch mentions from database (endpoint handles both Substack and articles)
-      const response = await fetch(`/api/substack/mentions?id=${encodeURIComponent(blogId)}&limit=${limit}&offset=${currentOffset}`);
+      // Fetch mentions from database (endpoint handles Substack, Quanta, MIT Tech Review)
+      const response = await fetch(`/api/articles/mentions?id=${encodeURIComponent(blogId)}&limit=${limit}&offset=${currentOffset}`);
       if (!response.ok) {
         throw new Error('Failed to fetch mentions');
       }
