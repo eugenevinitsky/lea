@@ -489,9 +489,12 @@ export default function Composer({ onPost }: ComposerProps) {
     }
   };
 
-  const maxChars = 300;
-  // Check if any post is over limit
-  const isAnyOverLimit = threadPosts.some(post => post.length > maxChars);
+  const blueskyLimit = 300;
+  const leaExtendedLimit = 10000; // Allow much longer posts on Lea
+  // Check if any post is over the extended limit
+  const isAnyOverLimit = threadPosts.some(post => post.length > leaExtendedLimit);
+  // Check which posts will use extended mode
+  const willUseExtended = threadPosts.map(post => post.length > blueskyLimit);
   // Check if all posts are empty (no text and no images)
   const hasContent = threadPosts.some((post, i) => post.trim().length > 0 || (threadImages[i]?.length || 0) > 0);
   const isThread = threadPosts.length > 1;
@@ -532,8 +535,19 @@ export default function Composer({ onPost }: ComposerProps) {
 
               {/* Character count and delete button for this post */}
               <div className="absolute bottom-2 right-2 flex items-center gap-2">
-                <span className={`text-xs ${postText.length > maxChars ? 'text-red-500' : 'text-gray-400'}`}>
-                  {postText.length}/{maxChars}
+                {willUseExtended[index] && postText.length <= leaExtendedLimit && (
+                  <span className="text-xs text-amber-500 font-medium" title="This post will use Lea extended format (only visible on Lea)">
+                    Extended
+                  </span>
+                )}
+                <span className={`text-xs ${
+                  postText.length > leaExtendedLimit
+                    ? 'text-red-500'
+                    : willUseExtended[index]
+                      ? 'text-amber-500'
+                      : 'text-gray-400'
+                }`}>
+                  {postText.length}/{willUseExtended[index] ? leaExtendedLimit : blueskyLimit}
                 </span>
                 {index > 0 && (
                   <button

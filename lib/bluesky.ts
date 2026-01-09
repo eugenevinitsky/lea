@@ -762,6 +762,33 @@ export interface ExternalEmbed {
   thumb?: unknown; // Blob reference
 }
 
+// Bluesky's character limit
+const BLUESKY_CHAR_LIMIT = 300;
+const TRUNCATION_SUFFIX = '… [full post on Lea]';
+
+// Count graphemes (what Bluesky uses for character counting)
+function countGraphemes(str: string): number {
+  // Use Intl.Segmenter for accurate grapheme counting
+  if (typeof Intl !== 'undefined' && Intl.Segmenter) {
+    const segmenter = new Intl.Segmenter('en', { granularity: 'grapheme' });
+    return [...segmenter.segment(str)].length;
+  }
+  // Fallback to string length (less accurate for emoji, etc.)
+  return str.length;
+}
+
+// Truncate string to N graphemes
+function truncateToGraphemes(str: string, maxGraphemes: number): string {
+  if (typeof Intl !== 'undefined' && Intl.Segmenter) {
+    const segmenter = new Intl.Segmenter('en', { granularity: 'grapheme' });
+    const segments = [...segmenter.segment(str)];
+    if (segments.length <= maxGraphemes) return str;
+    return segments.slice(0, maxGraphemes).map(s => s.segment).join('');
+  }
+  // Fallback
+  return str.slice(0, maxGraphemes);
+}
+
 export async function createPost(
   text: string,
   replyRestriction: ReplyRestriction = 'open',
@@ -773,8 +800,31 @@ export async function createPost(
 ) {
   if (!agent) throw new Error('Not logged in');
 
-  const rt = new RichText({ text });
+  // Check if we need to use extended text
+  const graphemeCount = countGraphemes(text);
+  const needsExtension = graphemeCount > BLUESKY_CHAR_LIMIT;
+
+  let displayText = text;
+  let extendedText: string | undefined;
+
+  if (needsExtension) {
+    // Store full text in custom field
+    extendedText = text;
+    // Truncate for standard display, leaving room for suffix
+    const truncateLength = BLUESKY_CHAR_LIMIT - countGraphemes(TRUNCATION_SUFFIX);
+    displayText = truncateToGraphemes(text, truncateLength) + TRUNCATION_SUFFIX;
+  }
+
+  const rt = new RichText({ text: displayText });
   await rt.detectFacets(agent);
+
+  // Also detect facets for the extended text if needed
+  let extendedFacets: typeof rt.facets | undefined;
+  if (extendedText) {
+    const extendedRt = new RichText({ text: extendedText });
+    await extendedRt.detectFacets(agent);
+    extendedFacets = extendedRt.facets;
+  }
 
   // Build embed based on what we have
   let embed: Record<string, unknown> | undefined;
@@ -862,15 +912,23 @@ export async function createPost(
     };
   }
 
-  // Create the post
+  // Create the post with optional extended text fields
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const postResult = await agent.post({
+  const postRecord: any = {
     text: rt.text,
     facets: rt.facets,
     createdAt: new Date().toISOString(),
     ...(reply && { reply }),
     ...(embed && { embed }),
-  } as any);
+  };
+
+  // Add Lea extended text fields if needed (custom fields ignored by other clients)
+  if (extendedText) {
+    postRecord.leaExtendedText = extendedText;
+    postRecord.leaExtendedFacets = extendedFacets;
+  }
+
+  const postResult = await agent.post(postRecord);
 
   // Apply postgate to disable quotes if requested
   if (disableQuotes && postResult.uri) {

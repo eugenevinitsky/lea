@@ -1648,8 +1648,16 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
   const author = post.author;
   const isVerified = isVerifiedResearcher(author.labels as Label[] | undefined);
 
-  // Track current text for editing (initialized from record, updated on save)
-  const [currentText, setCurrentText] = useState(record.text);
+  // Check for Lea extended text (custom fields for long posts)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const extendedRecord = post.record as any;
+  const hasExtendedText = !!extendedRecord.leaExtendedText;
+  const fullText = extendedRecord.leaExtendedText || record.text;
+  const fullFacets = extendedRecord.leaExtendedFacets || record.facets;
+
+  // Track current text for editing (initialized from full text, updated on save)
+  const [currentText, setCurrentText] = useState(fullText);
+  const [currentFacets, setCurrentFacets] = useState(fullFacets);
   
   // Check if this is the current user's post
   const session = getSession();
@@ -2484,7 +2492,15 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
             </div>
           ) : (
             <p className="mt-1 text-base lg:text-[15px] text-gray-900 dark:text-gray-100 whitespace-pre-wrap break-words">
-              <RichText text={currentText} facets={record.facets} />
+              <RichText text={currentText} facets={currentFacets} />
+              {hasExtendedText && (
+                <span className="inline-flex items-center ml-1 text-xs text-blue-500 dark:text-blue-400" title="Extended post - full content visible on Lea">
+                  <svg className="w-3 h-3 mr-0.5" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M6 2a2 2 0 00-2 2v12a2 2 0 002 2h8a2 2 0 002-2V7.414A2 2 0 0015.414 6L12 2.586A2 2 0 0010.586 2H6zm5 6a1 1 0 10-2 0v2H7a1 1 0 100 2h2v2a1 1 0 102 0v-2h2a1 1 0 100-2h-2V8z" clipRule="evenodd" />
+                  </svg>
+                  Extended
+                </span>
+              )}
             </p>
           )}
 
