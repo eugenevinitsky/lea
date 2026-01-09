@@ -4,6 +4,26 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { AppBskyFeedDefs, AppBskyFeedPost, AppBskyEmbedExternal, AppBskyEmbedImages, AppBskyEmbedRecord, AppBskyEmbedRecordWithMedia, AppBskyEmbedVideo } from '@atproto/api';
 import Hls from 'hls.js';
+import Prism from 'prismjs';
+// Import Prism languages
+import 'prismjs/components/prism-python';
+import 'prismjs/components/prism-javascript';
+import 'prismjs/components/prism-typescript';
+import 'prismjs/components/prism-jsx';
+import 'prismjs/components/prism-tsx';
+import 'prismjs/components/prism-bash';
+import 'prismjs/components/prism-json';
+import 'prismjs/components/prism-css';
+import 'prismjs/components/prism-sql';
+import 'prismjs/components/prism-rust';
+import 'prismjs/components/prism-go';
+import 'prismjs/components/prism-java';
+import 'prismjs/components/prism-c';
+import 'prismjs/components/prism-cpp';
+import 'prismjs/components/prism-r';
+import 'prismjs/components/prism-latex';
+import 'prismjs/components/prism-markdown';
+import 'prismjs/components/prism-yaml';
 import { isVerifiedResearcher, Label, createPost, ReplyRef, QuoteRef, likePost, unlikePost, repost, deleteRepost, deletePost, editPost, uploadImage, sendFeedInteraction, InteractionEvent, getSession, updateThreadgate, getThreadgateType, ThreadgateType, FEEDS, searchActors, detachQuote } from '@/lib/bluesky';
 import { useSettings } from '@/lib/settings';
 import { useBookmarks, BookmarkedPost, COLLECTION_COLORS } from '@/lib/bookmarks';
@@ -202,10 +222,134 @@ function VerifiedBadge() {
   );
 }
 
+// Render inline code (text wrapped in single backticks)
+function renderInlineCode(text: string, keyPrefix: string = ''): React.ReactNode[] {
+  const parts: React.ReactNode[] = [];
+  // Match single backtick-wrapped text, but not empty backticks or triple backticks
+  const codeRegex = /(?<!`)`([^`]+)`(?!`)/g;
+  let lastIndex = 0;
+  let match;
+  let matchIndex = 0;
+
+  while ((match = codeRegex.exec(text)) !== null) {
+    // Add text before the code
+    if (match.index > lastIndex) {
+      parts.push(text.slice(lastIndex, match.index));
+    }
+    // Add the code element (without the backticks)
+    parts.push(
+      <code
+        key={`${keyPrefix}code-${matchIndex}`}
+        className="px-1.5 py-0.5 bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200 rounded text-[0.9em] font-mono"
+      >
+        {match[1]}
+      </code>
+    );
+    lastIndex = match.index + match[0].length;
+    matchIndex++;
+  }
+
+  // Add remaining text
+  if (lastIndex < text.length) {
+    parts.push(text.slice(lastIndex));
+  }
+
+  return parts.length > 0 ? parts : [text];
+}
+
+// Map common language aliases to Prism language names
+const languageAliases: Record<string, string> = {
+  'js': 'javascript',
+  'ts': 'typescript',
+  'py': 'python',
+  'rb': 'ruby',
+  'sh': 'bash',
+  'shell': 'bash',
+  'yml': 'yaml',
+  'tex': 'latex',
+};
+
+// Get Prism grammar for a language
+function getPrismGrammar(lang: string): Prism.Grammar | null {
+  const normalizedLang = languageAliases[lang.toLowerCase()] || lang.toLowerCase();
+  return Prism.languages[normalizedLang] || null;
+}
+
+// Render fenced code blocks and inline code
+function renderCodeBlocks(text: string, keyPrefix: string = ''): React.ReactNode[] {
+  const parts: React.ReactNode[] = [];
+  // Match fenced code blocks: ```language\ncode\n``` or ```code```
+  const fencedRegex = /```(\w*)\n?([\s\S]*?)```/g;
+  let lastIndex = 0;
+  let match;
+  let blockIndex = 0;
+
+  while ((match = fencedRegex.exec(text)) !== null) {
+    // Add text before the code block (with inline code support)
+    if (match.index > lastIndex) {
+      const beforeText = text.slice(lastIndex, match.index);
+      parts.push(...renderInlineCode(beforeText, `${keyPrefix}before-${blockIndex}-`));
+    }
+
+    const language = match[1] || '';
+    const code = match[2].trim();
+    const grammar = getPrismGrammar(language);
+    const normalizedLang = languageAliases[language.toLowerCase()] || language.toLowerCase();
+
+    // Highlight code if grammar is available
+    let highlightedCode: string | null = null;
+    if (grammar) {
+      try {
+        highlightedCode = Prism.highlight(code, grammar, normalizedLang);
+      } catch {
+        // Fall back to plain text
+      }
+    }
+
+    // Render the fenced code block
+    parts.push(
+      <pre
+        key={`${keyPrefix}block-${blockIndex}`}
+        className="my-2 p-3 bg-gray-900 dark:bg-gray-950 rounded-lg overflow-x-auto"
+      >
+        {language && (
+          <div className="text-xs text-gray-500 mb-2 font-mono">{language}</div>
+        )}
+        {highlightedCode ? (
+          <code
+            className="text-sm font-mono whitespace-pre prism-code"
+            dangerouslySetInnerHTML={{ __html: highlightedCode }}
+          />
+        ) : (
+          <code className="text-sm text-gray-100 font-mono whitespace-pre">
+            {code}
+          </code>
+        )}
+      </pre>
+    );
+
+    lastIndex = match.index + match[0].length;
+    blockIndex++;
+  }
+
+  // Add remaining text (with inline code support)
+  if (lastIndex < text.length) {
+    const afterText = text.slice(lastIndex);
+    parts.push(...renderInlineCode(afterText, `${keyPrefix}after-`));
+  }
+
+  // If no fenced blocks found, just process inline code
+  if (parts.length === 0) {
+    return renderInlineCode(text, keyPrefix);
+  }
+
+  return parts;
+}
+
 // Render post text with clickable links, mentions, and hashtags
 function RichText({ text, facets }: { text: string; facets?: AppBskyFeedPost.Record['facets'] }) {
   if (!facets || facets.length === 0) {
-    return <>{text}</>;
+    return <>{renderCodeBlocks(text)}</>;
   }
 
   // Sort facets by start index
@@ -221,11 +365,11 @@ function RichText({ text, facets }: { text: string; facets?: AppBskyFeedPost.Rec
   for (const facet of sortedFacets) {
     const { byteStart, byteEnd } = facet.index;
 
-    // Add text before this facet
+    // Add text before this facet (with code block support)
     if (byteStart > lastIndex) {
       const beforeBytes = bytes.slice(lastIndex, byteStart);
       const beforeText = new TextDecoder().decode(beforeBytes);
-      elements.push(beforeText);
+      elements.push(...renderCodeBlocks(beforeText, `before-${byteStart}-`));
     }
 
     // Get the facet text
@@ -279,11 +423,11 @@ function RichText({ text, facets }: { text: string; facets?: AppBskyFeedPost.Rec
     lastIndex = byteEnd;
   }
 
-  // Add remaining text after last facet
+  // Add remaining text after last facet (with code block support)
   if (lastIndex < bytes.length) {
     const afterBytes = bytes.slice(lastIndex);
     const afterText = new TextDecoder().decode(afterBytes);
-    elements.push(afterText);
+    elements.push(...renderCodeBlocks(afterText, `after-${lastIndex}-`));
   }
 
   return <>{elements}</>;
