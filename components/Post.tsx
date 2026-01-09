@@ -24,6 +24,8 @@ import 'prismjs/components/prism-r';
 import 'prismjs/components/prism-latex';
 import 'prismjs/components/prism-markdown';
 import 'prismjs/components/prism-yaml';
+import katex from 'katex';
+import 'katex/dist/katex.min.css';
 import { isVerifiedResearcher, Label, createPost, ReplyRef, QuoteRef, likePost, unlikePost, repost, deleteRepost, deletePost, editPost, uploadImage, sendFeedInteraction, InteractionEvent, getSession, updateThreadgate, getThreadgateType, ThreadgateType, FEEDS, searchActors, detachQuote } from '@/lib/bluesky';
 import { useSettings } from '@/lib/settings';
 import { useBookmarks, BookmarkedPost, COLLECTION_COLORS } from '@/lib/bookmarks';
@@ -222,6 +224,74 @@ function VerifiedBadge() {
   );
 }
 
+// Render LaTeX math (display $$ and inline $)
+function renderLatex(text: string, keyPrefix: string = ''): React.ReactNode[] {
+  const parts: React.ReactNode[] = [];
+  // First handle display math ($$...$$), then inline math ($...$)
+  // Display math: $$...$$ (can span multiple lines)
+  // Inline math: $...$ (single line, must contain non-space content that looks like math)
+  // Avoid matching money like "$50" - require at least one letter, backslash, or math symbol
+  const combinedRegex = /\$\$([\s\S]+?)\$\$|\$([^$\n]+?)\$/g;
+  let lastIndex = 0;
+  let match;
+  let matchIndex = 0;
+
+  while ((match = combinedRegex.exec(text)) !== null) {
+    const displayMath = match[1]; // $$...$$ content
+    const inlineMath = match[2];  // $...$ content
+    const mathContent = displayMath || inlineMath;
+    const isDisplay = !!displayMath;
+
+    // For inline math, verify it looks like actual math (not just "$50")
+    // Must contain: letters (variables), backslash (commands), ^, _, {, }, or common math symbols
+    if (!isDisplay && mathContent) {
+      const looksLikeMath = /[a-zA-Z\\^_{}=<>+\-*/]/.test(mathContent);
+      if (!looksLikeMath) {
+        // Not math - include the text before this match and the match itself as plain text
+        if (match.index > lastIndex) {
+          parts.push(text.slice(lastIndex, match.index));
+        }
+        parts.push(match[0]); // Include "$50" as plain text
+        lastIndex = match.index + match[0].length;
+        continue;
+      }
+    }
+
+    // Add text before the math
+    if (match.index > lastIndex) {
+      parts.push(text.slice(lastIndex, match.index));
+    }
+
+    // Render the math
+    try {
+      const html = katex.renderToString(mathContent, {
+        throwOnError: false,
+        displayMode: isDisplay,
+      });
+      parts.push(
+        <span
+          key={`${keyPrefix}math-${matchIndex}`}
+          className={isDisplay ? 'block my-2 text-center overflow-x-auto' : 'inline-block align-middle'}
+          dangerouslySetInnerHTML={{ __html: html }}
+        />
+      );
+    } catch {
+      // If KaTeX fails, show the original text
+      parts.push(isDisplay ? `$$${mathContent}$$` : `$${mathContent}$`);
+    }
+
+    lastIndex = match.index + match[0].length;
+    matchIndex++;
+  }
+
+  // Add remaining text
+  if (lastIndex < text.length) {
+    parts.push(text.slice(lastIndex));
+  }
+
+  return parts.length > 0 ? parts : [text];
+}
+
 // Render inline code (text wrapped in single backticks)
 function renderInlineCode(text: string, keyPrefix: string = ''): React.ReactNode[] {
   const parts: React.ReactNode[] = [];
@@ -232,11 +302,12 @@ function renderInlineCode(text: string, keyPrefix: string = ''): React.ReactNode
   let matchIndex = 0;
 
   while ((match = codeRegex.exec(text)) !== null) {
-    // Add text before the code
+    // Add text before the code (with LaTeX support)
     if (match.index > lastIndex) {
-      parts.push(text.slice(lastIndex, match.index));
+      const beforeText = text.slice(lastIndex, match.index);
+      parts.push(...renderLatex(beforeText, `${keyPrefix}before-${matchIndex}-`));
     }
-    // Add the code element (without the backticks)
+    // Add the code element (without the backticks) - NO LaTeX inside code
     parts.push(
       <code
         key={`${keyPrefix}code-${matchIndex}`}
@@ -249,12 +320,18 @@ function renderInlineCode(text: string, keyPrefix: string = ''): React.ReactNode
     matchIndex++;
   }
 
-  // Add remaining text
+  // Add remaining text (with LaTeX support)
   if (lastIndex < text.length) {
-    parts.push(text.slice(lastIndex));
+    const afterText = text.slice(lastIndex);
+    parts.push(...renderLatex(afterText, `${keyPrefix}after-`));
   }
 
-  return parts.length > 0 ? parts : [text];
+  // If no inline code found, just process LaTeX
+  if (parts.length === 0) {
+    return renderLatex(text, keyPrefix);
+  }
+
+  return parts;
 }
 
 // Map common language aliases to Prism language names
