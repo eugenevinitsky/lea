@@ -1673,6 +1673,65 @@ export async function getKnownFollowers(actor: string, limit: number = 50): Prom
   }
 }
 
+// Get people this profile follows that the current user doesn't follow
+export interface UnknownFollowsResult {
+  follows: {
+    did: string;
+    handle: string;
+    displayName?: string;
+    avatar?: string;
+  }[];
+}
+
+export async function getUnknownFollows(actor: string, myFollowsDids?: Set<string>, limit: number = 50): Promise<UnknownFollowsResult> {
+  if (!agent || !agent.session) return { follows: [] };
+
+  try {
+    // Get who this profile follows (first page is enough for display)
+    const followsResponse = await agent.getFollows({ actor, limit: 100 });
+    const profileFollows = followsResponse.data.follows || [];
+
+    // Use provided follows set, or fetch if not provided
+    let followsToCheck = myFollowsDids;
+    if (!followsToCheck) {
+      // Fallback: fetch all follows (slower)
+      followsToCheck = new Set<string>();
+      let cursor: string | undefined;
+      do {
+        const response = await agent.getFollows({
+          actor: agent.session.did,
+          limit: 100,
+          cursor,
+        });
+        for (const follow of response.data.follows || []) {
+          followsToCheck.add(follow.did);
+        }
+        cursor = response.data.cursor;
+      } while (cursor);
+    }
+
+    // Also exclude the current user themselves
+    const excludeSet = new Set(followsToCheck);
+    excludeSet.add(agent.session.did);
+
+    // Filter to people the current user doesn't follow
+    const unknownFollows = profileFollows
+      .filter(f => !excludeSet.has(f.did))
+      .slice(0, limit)
+      .map(f => ({
+        did: f.did,
+        handle: f.handle,
+        displayName: f.displayName,
+        avatar: f.avatar,
+      }));
+
+    return { follows: unknownFollows };
+  } catch (error) {
+    console.error('Failed to fetch unknown follows:', error);
+    return { follows: [] };
+  }
+}
+
 // Search for actors (all Bluesky users)
 export interface ActorSearchResult {
   did: string;

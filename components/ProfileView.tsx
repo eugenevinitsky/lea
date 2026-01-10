@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { AppBskyFeedDefs, AppBskyFeedPost, AppBskyEmbedExternal } from '@atproto/api';
 import type { ProfileLink, ProfilePaper } from '@/lib/db/schema';
-import { getAuthorFeed, getBlueskyProfile, getKnownFollowers, BlueskyProfile, KnownFollowersResult, followUser, unfollowUser, blockUser, unblockUser, getSession, searchPosts, Label, getSelfThread, hasReplies, isReplyPost, SelfThreadResult } from '@/lib/bluesky';
+import { getAuthorFeed, getBlueskyProfile, getKnownFollowers, getUnknownFollows, BlueskyProfile, KnownFollowersResult, UnknownFollowsResult, followUser, unfollowUser, blockUser, unblockUser, getSession, searchPosts, Label, getSelfThread, hasReplies, isReplyPost, SelfThreadResult } from '@/lib/bluesky';
 import { detectPaperLink, getPaperIdFromUrl } from '@/lib/papers';
 import { useFollowing } from '@/lib/following-context';
 import Post from './Post';
@@ -125,11 +125,14 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
   // Known followers (people you follow who also follow this account)
   const [knownFollowers, setKnownFollowers] = useState<KnownFollowersResult>({ followers: [] });
 
+  // Unknown follows (people this profile follows that you don't follow)
+  const [unknownFollows, setUnknownFollows] = useState<UnknownFollowsResult>({ follows: [] });
+
   // Follow state
   const [isFollowing, setIsFollowing] = useState(false);
   const [followUri, setFollowUri] = useState<string | undefined>();
   const [followLoading, setFollowLoading] = useState(false);
-  const { refresh: refreshFollowing } = useFollowing();
+  const { refresh: refreshFollowing, followingDids } = useFollowing();
 
   // Block state
   const [isBlocking, setIsBlocking] = useState(false);
@@ -292,7 +295,12 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
         // Fetch known followers (people you follow who follow this account)
         const known = await getKnownFollowers(did, 50);
         setKnownFollowers(known);
-        
+
+        // Fetch unknown follows (people this profile follows that you don't follow)
+        // Pass cached followingDids for fast filtering (avoids re-fetching all follows)
+        const unknown = await getUnknownFollows(did, followingDids || undefined, 50);
+        setUnknownFollows(unknown);
+
         const res = await fetch(`/api/profile?did=${encodeURIComponent(did)}`);
         if (res.status === 404) {
           setError('not_verified');
@@ -1403,7 +1411,44 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
                       </div>
                     </div>
                   )}
-                  
+
+                  {/* Unknown Follows - people this profile follows that you don't follow */}
+                  {unknownFollows.follows.length > 0 && (
+                    <div className="bg-white dark:bg-gray-900 rounded-xl p-4 shadow-sm">
+                      <h4 className="text-sm font-semibold text-green-600 dark:text-green-400 uppercase tracking-wide mb-3 flex items-center gap-2">
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" /></svg>
+                        Follows people you don&apos;t know
+                      </h4>
+                      <div className="flex flex-wrap gap-2">
+                        {unknownFollows.follows.slice(0, 8).map((follow) => (
+                          <ProfileHoverCard
+                            key={follow.did}
+                            did={follow.did}
+                            handle={follow.handle}
+                            onOpenProfile={() => onOpenProfile?.(follow.did)}
+                          >
+                            <button
+                              onClick={() => onOpenProfile?.(follow.did)}
+                              className="flex items-center gap-2 px-2 py-1 bg-green-50 dark:bg-green-900/20 rounded-full hover:bg-green-100 dark:hover:bg-green-900/30 transition-colors"
+                            >
+                              {follow.avatar ? (
+                                <img src={follow.avatar} alt="" className="w-5 h-5 rounded-full" />
+                              ) : (
+                                <div className="w-5 h-5 rounded-full bg-gray-300 dark:bg-gray-600" />
+                              )}
+                              <span className="text-xs text-green-600 dark:text-green-400 font-medium truncate max-w-[100px]">
+                                {follow.displayName || follow.handle}
+                              </span>
+                            </button>
+                          </ProfileHoverCard>
+                        ))}
+                        {unknownFollows.follows.length > 8 && (
+                          <span className="text-xs text-gray-500 px-2 py-1">+more</span>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
                   {/* Research Topics */}
                   {(() => {
                     const topics = (profile?.disciplines && profile.disciplines.length > 0)
