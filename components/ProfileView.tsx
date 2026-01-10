@@ -9,6 +9,7 @@ import { useFollowing } from '@/lib/following-context';
 import Post from './Post';
 import SelfThread from './SelfThread';
 import ProfileLabels from './ProfileLabels';
+import ProfileHoverCard from './ProfileHoverCard';
 
 // Helper to convert URLs in text to clickable links
 function linkifyText(text: string): React.ReactNode {
@@ -1375,20 +1376,26 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
                       </h4>
                       <div className="flex flex-wrap gap-2">
                         {knownFollowers.followers.slice(0, 8).map((follower) => (
-                          <button
+                          <ProfileHoverCard
                             key={follower.did}
-                            onClick={() => onOpenProfile?.(follower.did)}
-                            className="flex items-center gap-2 px-2 py-1 bg-blue-50 dark:bg-blue-900/20 rounded-full hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors"
+                            did={follower.did}
+                            handle={follower.handle}
+                            onOpenProfile={() => onOpenProfile?.(follower.did)}
                           >
-                            {follower.avatar ? (
-                              <img src={follower.avatar} alt="" className="w-5 h-5 rounded-full" />
-                            ) : (
-                              <div className="w-5 h-5 rounded-full bg-gray-300 dark:bg-gray-600" />
-                            )}
-                            <span className="text-xs text-blue-600 dark:text-blue-400 font-medium truncate max-w-[100px]">
-                              {follower.displayName || follower.handle}
-                            </span>
-                          </button>
+                            <button
+                              onClick={() => onOpenProfile?.(follower.did)}
+                              className="flex items-center gap-2 px-2 py-1 bg-blue-50 dark:bg-blue-900/20 rounded-full hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors"
+                            >
+                              {follower.avatar ? (
+                                <img src={follower.avatar} alt="" className="w-5 h-5 rounded-full" />
+                              ) : (
+                                <div className="w-5 h-5 rounded-full bg-gray-300 dark:bg-gray-600" />
+                              )}
+                              <span className="text-xs text-blue-600 dark:text-blue-400 font-medium truncate max-w-[100px]">
+                                {follower.displayName || follower.handle}
+                              </span>
+                            </button>
+                          </ProfileHoverCard>
                         ))}
                         {knownFollowers.followers.length > 8 && (
                           <span className="text-xs text-gray-500 px-2 py-1">+more</span>
