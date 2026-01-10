@@ -419,12 +419,16 @@ export default function Composer({ onPost }: ComposerProps) {
 
       // Upload images for first post
       const firstPostImages = postsWithContent[0].images;
-      const firstUploadedImages = await Promise.all(
-        firstPostImages.map(async (img) => {
+      const firstUploadedImages: { blob: unknown; alt: string }[] = [];
+      for (const img of firstPostImages) {
+        try {
           const uploaded = await uploadImage(img.file);
-          return { blob: uploaded.blob, alt: img.alt };
-        })
-      );
+          firstUploadedImages.push({ blob: uploaded.blob, alt: img.alt });
+        } catch (uploadErr) {
+          console.error('Image upload failed:', uploadErr);
+          throw new Error(`Failed to upload image: ${uploadErr instanceof Error ? uploadErr.message : 'Unknown error'}`);
+        }
+      }
 
       // Post first item (only pass link preview if no images, since images take precedence)
       const firstLinkPreview = firstUploadedImages.length === 0 ? postsWithContent[0].linkPreview : null;
@@ -446,12 +450,16 @@ export default function Composer({ onPost }: ComposerProps) {
       for (let i = 1; i < postsWithContent.length; i++) {
         // Upload images for this post
         const postImages = postsWithContent[i].images;
-        const uploadedImages = await Promise.all(
-          postImages.map(async (img) => {
+        const uploadedImages: { blob: unknown; alt: string }[] = [];
+        for (const img of postImages) {
+          try {
             const uploaded = await uploadImage(img.file);
-            return { blob: uploaded.blob, alt: img.alt };
-          })
-        );
+            uploadedImages.push({ blob: uploaded.blob, alt: img.alt });
+          } catch (uploadErr) {
+            console.error('Image upload failed:', uploadErr);
+            throw new Error(`Failed to upload image in thread post ${i + 1}: ${uploadErr instanceof Error ? uploadErr.message : 'Unknown error'}`);
+          }
+        }
 
         const replyRef: ReplyRef = {
           root: { uri: rootPost.uri, cid: rootPost.cid },
@@ -483,7 +491,10 @@ export default function Composer({ onPost }: ComposerProps) {
       setPostingProgress(0);
       onPost?.();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to post thread');
+      console.error('Post failed:', err);
+      const errorMessage = err instanceof Error ? err.message : 'Failed to post thread';
+      setError(errorMessage);
+      // Content is preserved - user can retry
     } finally {
       setPosting(false);
     }
