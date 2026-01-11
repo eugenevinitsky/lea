@@ -89,6 +89,13 @@ export default function SafetyPanel({ onOpenProfile, onOpenThread, defaultExpand
   const [loadingAlerts, setLoadingAlerts] = useState(false);
   const [lastAlertCheck, setLastAlertCheck] = useState<Date | null>(null);
   const [showAlertSettings, setShowAlertSettings] = useState(false);
+  const [seenAlertIds, setSeenAlertIds] = useState<Set<string>>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('lea-seen-alert-ids');
+      return saved ? new Set(JSON.parse(saved)) : new Set();
+    }
+    return new Set();
+  });
   
   // Alert thresholds (stored in localStorage)
   const [alertThresholds, setAlertThresholds] = useState({
@@ -146,6 +153,19 @@ export default function SafetyPanel({ onOpenProfile, onOpenThread, defaultExpand
       }
     }
   }, [isExpanded]);
+
+  // Mark all current alerts as seen when panel is expanded
+  useEffect(() => {
+    if (isExpanded && alerts.length > 0) {
+      const newSeenIds = new Set(seenAlertIds);
+      alerts.forEach(alert => newSeenIds.add(alert.id));
+      setSeenAlertIds(newSeenIds);
+      localStorage.setItem('lea-seen-alert-ids', JSON.stringify([...newSeenIds]));
+    }
+  }, [isExpanded, alerts]);
+
+  // Count unseen alerts for badge
+  const unseenAlertCount = alerts.filter(alert => !seenAlertIds.has(alert.id)).length;
 
   const loadAlerts = async () => {
     setLoadingAlerts(true);
@@ -342,17 +362,17 @@ export default function SafetyPanel({ onOpenProfile, onOpenThread, defaultExpand
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
             </svg>
             {/* Alert badge on icon when collapsed */}
-            {!isExpanded && alerts.length > 0 && (
+            {!isExpanded && unseenAlertCount > 0 && (
               <span className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-amber-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center">
-                {alerts.length > 9 ? '9+' : alerts.length}
+                {unseenAlertCount > 9 ? '9+' : unseenAlertCount}
               </span>
             )}
           </div>
           <span className="font-semibold text-gray-900 dark:text-gray-100">Moderation</span>
           {/* Alert count badge next to title when collapsed */}
-          {!isExpanded && alerts.length > 0 && (
+          {!isExpanded && unseenAlertCount > 0 && (
             <span className="px-1.5 py-0.5 text-xs font-medium bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 rounded-full">
-              {alerts.length} alert{alerts.length !== 1 ? 's' : ''}
+              {unseenAlertCount} alert{unseenAlertCount !== 1 ? 's' : ''}
             </span>
           )}
         </div>

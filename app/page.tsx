@@ -520,12 +520,23 @@ function AppContent() {
       {/* Main layout with sidebar */}
       <div className="max-w-5xl mx-auto flex gap-4 px-0 lg:px-4">
         {/* Left Sidebar - Bookmarks & Messages */}
-        <aside className="hidden lg:block w-72 flex-shrink-0 sticky top-16 max-h-[calc(100vh-5rem)] overflow-y-auto pt-4 pb-4 space-y-4 scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-gray-700">
+        <aside className="hidden lg:block w-64 flex-shrink-0 sticky top-16 max-h-[calc(100vh-5rem)] overflow-y-auto pt-4 pb-4 space-y-4 scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-gray-700">
           <Bookmarks onOpenPost={openThread} onOpenProfile={navigateToProfile} />
           <DMSidebar />
           <Notifications onOpenPost={openThread} onOpenProfile={navigateToProfile} />
           <ModerationBox onOpenProfile={navigateToProfile} />
           <SafetyPanel onOpenProfile={navigateToProfile} onOpenThread={openThread} />
+
+          {/* Compose Button */}
+          <button
+            onClick={() => setShowMobileComposer(true)}
+            className="w-full py-3 bg-blue-500 hover:bg-blue-600 text-white font-semibold rounded-xl flex items-center justify-center gap-2 transition-colors shadow-sm"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            </svg>
+            New Post
+          </button>
         </aside>
 
         {/* Main content - full width on mobile, constrained on desktop */}
@@ -773,10 +784,10 @@ function AppContent() {
         </div>
       </nav>
 
-      {/* Floating Action Button (FAB) for composing - bottom left on desktop, bottom right on mobile */}
+      {/* Mobile Floating Action Button (FAB) for composing */}
       <button
         onClick={() => setShowMobileComposer(true)}
-        className="fixed w-14 h-14 bg-blue-500 hover:bg-blue-600 text-white rounded-full shadow-lg flex items-center justify-center z-30 transition-transform hover:scale-105 active:scale-95 bottom-20 right-4 lg:bottom-6 lg:left-6 lg:right-auto"
+        className="lg:hidden fixed w-14 h-14 bg-blue-500 hover:bg-blue-600 text-white rounded-full shadow-lg flex items-center justify-center z-30 transition-transform hover:scale-105 active:scale-95 bottom-20 right-4"
         aria-label="Compose post"
       >
         <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
