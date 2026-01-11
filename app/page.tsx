@@ -21,6 +21,7 @@ import FeedDiscovery from '@/components/FeedDiscovery';
 import Onboarding from '@/components/Onboarding';
 import ProfileEditor from '@/components/ProfileEditor';
 import ResearcherSearch from '@/components/ResearcherSearch';
+import ErrorBoundary from '@/components/ErrorBoundary';
 
 function AppContent() {
   const router = useRouter();
@@ -962,20 +963,22 @@ function AppContent() {
 
 export default function Home() {
   return (
-    <SettingsProvider>
-      <BookmarksProvider>
-        <FeedsProvider>
-          <FollowingProvider>
-            <Suspense fallback={
-              <div className="min-h-screen bg-gray-50 dark:bg-black flex items-center justify-center">
-                <div className="animate-spin w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full"></div>
-              </div>
-            }>
-              <AppContent />
-            </Suspense>
-          </FollowingProvider>
-        </FeedsProvider>
-      </BookmarksProvider>
-    </SettingsProvider>
+    <ErrorBoundary>
+      <SettingsProvider>
+        <BookmarksProvider>
+          <FeedsProvider>
+            <FollowingProvider>
+              <Suspense fallback={
+                <div className="min-h-screen bg-gray-50 dark:bg-black flex items-center justify-center">
+                  <div className="animate-spin w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full"></div>
+                </div>
+              }>
+                <AppContent />
+              </Suspense>
+            </FollowingProvider>
+          </FeedsProvider>
+        </BookmarksProvider>
+      </SettingsProvider>
+    </ErrorBoundary>
   );
 }

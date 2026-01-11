@@ -326,41 +326,58 @@ export default function Onboarding({ onComplete, startAtStep = 1 }: OnboardingPr
   };
 
   const handleFinish = () => {
-    // Clear existing feeds and add selected ones
-    const feedsToAdd: PinnedFeed[] = [];
-
-    for (const uri of selectedFeeds) {
-      const feedInfo = FEED_OPTIONS.find(f => f.uri === uri);
-      if (feedInfo) {
-        feedsToAdd.push({
-          uri: feedInfo.uri,
-          displayName: feedInfo.displayName,
-          acceptsInteractions: feedInfo.acceptsInteractions || false,
-        });
-      }
-    }
-
-    // Add feeds
-    feedsToAdd.forEach(feed => {
-      if (!pinnedFeeds.some(f => f.uri === feed.uri)) {
-        addFeed(feed);
-      }
-    });
-
-    // Update settings
-    updateSettings({
-      autoThreadgate: threadgateChoice !== 'open',
-      threadgateType: threadgateChoice === 'open' ? 'following' : threadgateChoice,
-      dimNonVerified,
-    });
-
-    // Mark onboarding as complete
     try {
-      localStorage.setItem('lea-onboarding-complete', 'true');
-    } catch {
-      // localStorage may fail in private browsing
+      console.log('[Onboarding] handleFinish started');
+
+      // Clear existing feeds and add selected ones
+      const feedsToAdd: PinnedFeed[] = [];
+
+      for (const uri of selectedFeeds) {
+        const feedInfo = FEED_OPTIONS.find(f => f.uri === uri);
+        if (feedInfo) {
+          feedsToAdd.push({
+            uri: feedInfo.uri,
+            displayName: feedInfo.displayName,
+            acceptsInteractions: feedInfo.acceptsInteractions || false,
+          });
+        }
+      }
+      console.log('[Onboarding] Feeds to add:', feedsToAdd.length);
+
+      // Add feeds
+      feedsToAdd.forEach(feed => {
+        if (!pinnedFeeds.some(f => f.uri === feed.uri)) {
+          addFeed(feed);
+        }
+      });
+      console.log('[Onboarding] Feeds added');
+
+      // Update settings
+      console.log('[Onboarding] Updating settings');
+      updateSettings({
+        autoThreadgate: threadgateChoice !== 'open',
+        threadgateType: threadgateChoice === 'open' ? 'following' : threadgateChoice,
+        dimNonVerified,
+      });
+      console.log('[Onboarding] Settings updated');
+
+      // Mark onboarding as complete
+      try {
+        localStorage.setItem('lea-onboarding-complete', 'true');
+        console.log('[Onboarding] localStorage set');
+      } catch (e) {
+        console.warn('[Onboarding] localStorage failed:', e);
+        // localStorage may fail in private browsing
+      }
+
+      console.log('[Onboarding] Calling onComplete');
+      onComplete();
+      console.log('[Onboarding] onComplete returned');
+    } catch (error) {
+      console.error('[Onboarding] handleFinish error:', error);
+      // Re-throw to see the error
+      throw error;
     }
-    onComplete();
   };
 
   return (
