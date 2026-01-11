@@ -295,13 +295,21 @@ function renderLatex(text: string, keyPrefix: string = ''): React.ReactNode[] {
 // Render inline code (text wrapped in single backticks)
 function renderInlineCode(text: string, keyPrefix: string = ''): React.ReactNode[] {
   const parts: React.ReactNode[] = [];
-  // Match single backtick-wrapped text, but not empty backticks or triple backticks
-  const codeRegex = /(?<!`)`([^`]+)`(?!`)/g;
+  // Match single backtick-wrapped text, but not empty backticks
+  // Note: Using simple regex without lookbehind for Safari 15 compatibility
+  const codeRegex = /`([^`]+)`/g;
   let lastIndex = 0;
   let match;
   let matchIndex = 0;
 
   while ((match = codeRegex.exec(text)) !== null) {
+    // Skip if this is part of triple backticks (check surrounding chars)
+    const charBefore = match.index > 0 ? text[match.index - 1] : '';
+    const charAfter = match.index + match[0].length < text.length ? text[match.index + match[0].length] : '';
+    if (charBefore === '`' || charAfter === '`') {
+      continue;
+    }
+
     // Add text before the code (with LaTeX support)
     if (match.index > lastIndex) {
       const beforeText = text.slice(lastIndex, match.index);
