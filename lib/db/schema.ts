@@ -210,6 +210,7 @@ export const paperMentions = pgTable(
     index('paper_mentions_author_idx').on(table.authorDid),
     index('paper_mentions_created_idx').on(table.createdAt),
     index('paper_mentions_verified_idx').on(table.isVerifiedResearcher),
+    index('paper_mentions_post_uri_idx').on(table.postUri),
   ]
 );
 
@@ -256,6 +257,7 @@ export const substackMentions = pgTable(
     index('substack_mentions_author_idx').on(table.authorDid),
     index('substack_mentions_created_idx').on(table.createdAt),
     index('substack_mentions_verified_idx').on(table.isVerifiedResearcher),
+    index('substack_mentions_post_uri_idx').on(table.postUri),
   ]
 );
 
@@ -302,6 +304,7 @@ export const articleMentions = pgTable(
     index('article_mentions_author_idx').on(table.authorDid),
     index('article_mentions_created_idx').on(table.createdAt),
     index('article_mentions_verified_idx').on(table.isVerifiedResearcher),
+    index('article_mentions_post_uri_idx').on(table.postUri),
   ]
 );
 
