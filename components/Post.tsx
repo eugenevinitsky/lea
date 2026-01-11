@@ -1565,6 +1565,14 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
   const [quoting, setQuoting] = useState(false);
   const [quoteError, setQuoteError] = useState<string | null>(null);
 
+  // Quote mention autocomplete state
+  const [quoteMentionQuery, setQuoteMentionQuery] = useState<string | null>(null);
+  const [quoteMentionStart, setQuoteMentionStart] = useState<number>(0);
+  const [quoteSuggestions, setQuoteSuggestions] = useState<Array<{ did: string; handle: string; displayName?: string; avatar?: string }>>([]);
+  const [quoteSelectedIndex, setQuoteSelectedIndex] = useState(0);
+  const [quoteLoadingSuggestions, setQuoteLoadingSuggestions] = useState(false);
+  const quoteTextareaRef = useRef<HTMLTextAreaElement>(null);
+
   // Feed interaction state
   const [interactionSent, setInteractionSent] = useState<InteractionEvent | null>(null);
   const [sendingInteraction, setSendingInteraction] = useState(false);
@@ -2116,6 +2124,86 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
     } else if (e.key === 'Escape') {
       setReplyMentionQuery(null);
       setReplySuggestions([]);
+    }
+  };
+
+  // Search for quote mentions when query changes
+  useEffect(() => {
+    if (!quoteMentionQuery || quoteMentionQuery.length < 1) {
+      setQuoteSuggestions([]);
+      return;
+    }
+
+    const searchQuoteMentions = async () => {
+      setQuoteLoadingSuggestions(true);
+      try {
+        const results = await searchActors(quoteMentionQuery, 6);
+        setQuoteSuggestions(results);
+      } catch (err) {
+        console.error('Failed to search quote mentions:', err);
+      } finally {
+        setQuoteLoadingSuggestions(false);
+      }
+    };
+
+    const debounce = setTimeout(searchQuoteMentions, 150);
+    return () => clearTimeout(debounce);
+  }, [quoteMentionQuery]);
+
+  // Handle quote text change with mention detection
+  const handleQuoteTextChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const newText = e.target.value;
+    const cursorPos = e.target.selectionStart;
+    setQuoteText(newText);
+
+    // Find @ mention at cursor
+    const textBeforeCursor = newText.slice(0, cursorPos);
+    const mentionMatch = textBeforeCursor.match(/@(\w*)$/);
+
+    if (mentionMatch) {
+      setQuoteMentionQuery(mentionMatch[1]);
+      setQuoteMentionStart(cursorPos - mentionMatch[0].length);
+    } else {
+      setQuoteMentionQuery(null);
+      setQuoteSuggestions([]);
+    }
+  };
+
+  // Insert selected quote mention
+  const insertQuoteMention = useCallback((handle: string) => {
+    const beforeMention = quoteText.slice(0, quoteMentionStart);
+    const afterMention = quoteText.slice(quoteMentionStart + (quoteMentionQuery?.length || 0) + 1);
+    const newText = `${beforeMention}@${handle} ${afterMention}`;
+    setQuoteText(newText);
+    setQuoteMentionQuery(null);
+    setQuoteSuggestions([]);
+
+    // Set cursor position after the mention
+    setTimeout(() => {
+      if (quoteTextareaRef.current) {
+        const newCursorPos = quoteMentionStart + handle.length + 2;
+        quoteTextareaRef.current.focus();
+        quoteTextareaRef.current.setSelectionRange(newCursorPos, newCursorPos);
+      }
+    }, 0);
+  }, [quoteText, quoteMentionStart, quoteMentionQuery]);
+
+  // Handle keyboard navigation in quote suggestions
+  const handleQuoteKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (quoteSuggestions.length === 0) return;
+
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setQuoteSelectedIndex(i => (i + 1) % quoteSuggestions.length);
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setQuoteSelectedIndex(i => (i - 1 + quoteSuggestions.length) % quoteSuggestions.length);
+    } else if (e.key === 'Enter' && quoteSuggestions.length > 0) {
+      e.preventDefault();
+      insertQuoteMention(quoteSuggestions[quoteSelectedIndex].handle);
+    } else if (e.key === 'Escape') {
+      setQuoteMentionQuery(null);
+      setQuoteSuggestions([]);
     }
   };
 
@@ -2967,14 +3055,48 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
           {/* Quote composer */}
           {showQuoteComposer && (
             <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-800">
-              <textarea
-                value={quoteText}
-                onChange={(e) => setQuoteText(e.target.value)}
-                placeholder="Add your thoughts..."
-                className="w-full p-2 text-sm bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 dark:text-gray-100"
-                rows={3}
-                disabled={quoting}
-              />
+              <div className="relative">
+                <textarea
+                  ref={quoteTextareaRef}
+                  value={quoteText}
+                  onChange={handleQuoteTextChange}
+                  onKeyDown={handleQuoteKeyDown}
+                  placeholder="Add your thoughts..."
+                  className="w-full p-2 text-sm bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 dark:text-gray-100"
+                  rows={3}
+                  disabled={quoting}
+                />
+                {/* Quote mention suggestions dropdown */}
+                {quoteSuggestions.length > 0 && (
+                  <div className="absolute z-50 w-full mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                    {quoteSuggestions.map((user, index) => (
+                      <button
+                        key={user.did}
+                        type="button"
+                        onClick={() => insertQuoteMention(user.handle)}
+                        className={`w-full px-3 py-2 text-left flex items-center gap-2 hover:bg-gray-100 dark:hover:bg-gray-700 ${
+                          index === quoteSelectedIndex ? 'bg-gray-100 dark:bg-gray-700' : ''
+                        }`}
+                      >
+                        {user.avatar ? (
+                          <img src={user.avatar} alt="" className="w-6 h-6 rounded-full" />
+                        ) : (
+                          <div className="w-6 h-6 rounded-full bg-gray-300 dark:bg-gray-600" />
+                        )}
+                        <div className="flex-1 min-w-0">
+                          <div className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
+                            {user.displayName || user.handle}
+                          </div>
+                          <div className="text-xs text-gray-500 truncate">@{user.handle}</div>
+                        </div>
+                      </button>
+                    ))}
+                    {quoteLoadingSuggestions && (
+                      <div className="px-3 py-2 text-xs text-gray-500">Loading...</div>
+                    )}
+                  </div>
+                )}
+              </div>
               {/* Preview of quoted post */}
               <div className="mt-2 p-2 bg-gray-100 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 text-xs">
                 <div className="flex items-center gap-1 text-gray-500">
