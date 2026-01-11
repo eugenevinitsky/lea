@@ -355,7 +355,11 @@ export default function Onboarding({ onComplete, startAtStep = 1 }: OnboardingPr
     });
 
     // Mark onboarding as complete
-    localStorage.setItem('lea-onboarding-complete', 'true');
+    try {
+      localStorage.setItem('lea-onboarding-complete', 'true');
+    } catch {
+      // localStorage may fail in private browsing
+    }
     onComplete();
   };
 
@@ -442,7 +446,11 @@ export default function Onboarding({ onComplete, startAtStep = 1 }: OnboardingPr
 
               <button
                 onClick={() => {
-                  localStorage.setItem('lea-onboarding-complete', 'true');
+                  try {
+                    localStorage.setItem('lea-onboarding-complete', 'true');
+                  } catch {
+                    // localStorage may fail in private browsing
+                  }
                   onComplete();
                 }}
                 className="w-full mt-3 py-2 text-gray-500 dark:text-gray-400 text-sm hover:text-gray-700 dark:hover:text-gray-300 transition-colors"

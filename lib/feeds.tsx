@@ -143,7 +143,11 @@ export function FeedsProvider({ children }: { children: ReactNode }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ did, feeds }),
       });
-      localStorage.setItem(FEEDS_SYNCED_KEY, 'true');
+      try {
+        localStorage.setItem(FEEDS_SYNCED_KEY, 'true');
+      } catch {
+        // localStorage may fail in private browsing
+      }
     } catch (e) {
       console.error('Failed to sync feeds to server:', e);
     } finally {
@@ -163,7 +167,12 @@ export function FeedsProvider({ children }: { children: ReactNode }) {
       userModifiedFeeds.current = false;
 
       // First, load from localStorage as fallback
-      const stored = localStorage.getItem(FEEDS_STORAGE_KEY);
+      let stored: string | null = null;
+      try {
+        stored = localStorage.getItem(FEEDS_STORAGE_KEY);
+      } catch {
+        // localStorage may fail in private browsing
+      }
       let localFeeds: PinnedFeed[] = DEFAULT_FEEDS;
 
       if (stored) {
@@ -187,7 +196,11 @@ export function FeedsProvider({ children }: { children: ReactNode }) {
             if (data.feeds && data.feeds.length > 0) {
               // Server has feeds, use them
               setPinnedFeeds(data.feeds);
-              localStorage.setItem(FEEDS_STORAGE_KEY, JSON.stringify(data.feeds));
+              try {
+                localStorage.setItem(FEEDS_STORAGE_KEY, JSON.stringify(data.feeds));
+              } catch {
+                // localStorage may fail in private browsing
+              }
               setIsLoaded(true);
               return;
             }
@@ -197,7 +210,13 @@ export function FeedsProvider({ children }: { children: ReactNode }) {
         }
 
         // No server feeds - if local has feeds, sync them to server
-        if (localFeeds.length > 0 && !localStorage.getItem(FEEDS_SYNCED_KEY)) {
+        let feedsSynced = false;
+        try {
+          feedsSynced = !!localStorage.getItem(FEEDS_SYNCED_KEY);
+        } catch {
+          // localStorage may fail in private browsing
+        }
+        if (localFeeds.length > 0 && !feedsSynced) {
           hasFetchedFromServer.current = true; // We've checked server, it's empty
           syncToServer(localFeeds, userDid);
         }
@@ -213,7 +232,11 @@ export function FeedsProvider({ children }: { children: ReactNode }) {
   // Save to localStorage and sync to server when feeds change
   useEffect(() => {
     if (isLoaded) {
-      localStorage.setItem(FEEDS_STORAGE_KEY, JSON.stringify(pinnedFeeds));
+      try {
+        localStorage.setItem(FEEDS_STORAGE_KEY, JSON.stringify(pinnedFeeds));
+      } catch {
+        // localStorage may fail in private browsing
+      }
       // Only sync to server if user explicitly modified feeds AND we've already fetched from server
       // This prevents overwriting server data on initial load
       if (userDid && userModifiedFeeds.current && hasFetchedFromServer.current) {

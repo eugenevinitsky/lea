@@ -59,18 +59,22 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
 
   // Load settings from localStorage on mount
   useEffect(() => {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored) {
-      try {
-        const parsed = JSON.parse(stored);
-        // Migrate old 'verified' threadgateType to 'researchers'
-        if (parsed.threadgateType === 'verified') {
-          parsed.threadgateType = 'researchers';
+    try {
+      const stored = localStorage.getItem(STORAGE_KEY);
+      if (stored) {
+        try {
+          const parsed = JSON.parse(stored);
+          // Migrate old 'verified' threadgateType to 'researchers'
+          if (parsed.threadgateType === 'verified') {
+            parsed.threadgateType = 'researchers';
+          }
+          setSettings({ ...DEFAULT_SETTINGS, ...parsed });
+        } catch {
+          // Invalid JSON, use defaults
         }
-        setSettings({ ...DEFAULT_SETTINGS, ...parsed });
-      } catch {
-        // Invalid JSON, use defaults
       }
+    } catch {
+      // localStorage may fail in private browsing
     }
     setLoaded(true);
   }, []);
@@ -78,7 +82,11 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
   // Save settings to localStorage on change
   useEffect(() => {
     if (loaded) {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
+      } catch {
+        // localStorage may fail in private browsing
+      }
     }
   }, [settings, loaded]);
 

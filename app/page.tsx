@@ -98,9 +98,16 @@ function AppContent() {
     // Only set if we haven't set one yet
     if (activeFeedUri === null) {
       // First check sessionStorage (for thread navigation back)
-      const sessionFeed = sessionStorage.getItem('lea-scroll-feed');
+      let sessionFeed: string | null = null;
+      let savedLocalFeed: string | null = null;
+      try {
+        sessionFeed = sessionStorage.getItem('lea-scroll-feed');
+        savedLocalFeed = localStorage.getItem('lea-active-feed');
+      } catch {
+        // localStorage may fail in private browsing
+      }
       // Then check localStorage (for page refresh persistence)
-      const savedFeed = sessionFeed || localStorage.getItem('lea-active-feed');
+      const savedFeed = sessionFeed || savedLocalFeed;
       
       if (savedFeed && pinnedFeeds.some(f => f.uri === savedFeed)) {
         // Saved feed exists and is in pinned feeds
@@ -120,7 +127,11 @@ function AppContent() {
   // Save active feed to localStorage whenever it changes
   useEffect(() => {
     if (activeFeedUri) {
-      localStorage.setItem('lea-active-feed', activeFeedUri);
+      try {
+        localStorage.setItem('lea-active-feed', activeFeedUri);
+      } catch {
+        // localStorage may fail in private browsing
+      }
     }
   }, [activeFeedUri]);
 
@@ -188,7 +199,12 @@ function AppContent() {
         // Refresh moderation options now that we have a session
         refreshModerationOpts();
         // Check if onboarding was completed
-        const onboardingComplete = localStorage.getItem('lea-onboarding-complete');
+        let onboardingComplete: string | null = null;
+        try {
+          onboardingComplete = localStorage.getItem('lea-onboarding-complete');
+        } catch {
+          // localStorage may fail in private browsing
+        }
         if (!onboardingComplete) {
           setShowOnboarding(true);
         }
@@ -219,7 +235,12 @@ function AppContent() {
     // Refresh moderation options now that we have a session
     refreshModerationOpts();
     // Check if this is a first-time user or if onboarding is forced
-    const onboardingComplete = localStorage.getItem('lea-onboarding-complete');
+    let onboardingComplete: string | null = null;
+    try {
+      onboardingComplete = localStorage.getItem('lea-onboarding-complete');
+    } catch {
+      // localStorage may fail in private browsing
+    }
     if (forceOnboarding || !onboardingComplete) {
       setShowOnboarding(true);
     }
