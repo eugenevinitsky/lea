@@ -91,8 +91,13 @@ export default function SafetyPanel({ onOpenProfile, onOpenThread, defaultExpand
   const [showAlertSettings, setShowAlertSettings] = useState(false);
   const [seenAlertIds, setSeenAlertIds] = useState<Set<string>>(() => {
     if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('lea-seen-alert-ids');
-      return saved ? new Set(JSON.parse(saved)) : new Set();
+      try {
+        const saved = localStorage.getItem('lea-seen-alert-ids');
+        return saved ? new Set(JSON.parse(saved)) : new Set();
+      } catch (e) {
+        // localStorage may fail in private browsing or with corrupted data
+        return new Set();
+      }
     }
     return new Set();
   });
@@ -160,7 +165,11 @@ export default function SafetyPanel({ onOpenProfile, onOpenThread, defaultExpand
       const newSeenIds = new Set(seenAlertIds);
       alerts.forEach(alert => newSeenIds.add(alert.id));
       setSeenAlertIds(newSeenIds);
-      localStorage.setItem('lea-seen-alert-ids', JSON.stringify([...newSeenIds]));
+      try {
+        localStorage.setItem('lea-seen-alert-ids', JSON.stringify([...newSeenIds]));
+      } catch (e) {
+        // localStorage may fail in private browsing
+      }
     }
   }, [isExpanded, alerts]);
 
