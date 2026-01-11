@@ -45,3 +45,13 @@ next-env.d.ts
 /ios/
 /android/
 /out/
+
+# Data files (one-time imports, not used by app)
+candidates.json
+excluded-accounts.json
+researchers-full.json
+researchers-with-orcid.json
+researchers.csv
+researchers-updated.csv
+researchers-review.csv
+researcher-dids.txt
