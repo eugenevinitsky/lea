@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { followUser, unfollowUser, isVerifiedResearcher, Label, getSession } from '@/lib/bluesky';
 import { useFollowing } from '@/lib/following-context';
+import { useSettings } from '@/lib/settings';
 import ProfileHoverCard from './ProfileHoverCard';
 
 interface UserListItemProps {
@@ -35,6 +36,23 @@ export default function UserListItem({
   const session = getSession();
   const isOwnProfile = session?.did === did;
   const isVerified = isVerifiedResearcher(labels);
+  const { settings } = useSettings();
+  const isMutual = isFollowing && !!viewer?.followedBy;
+
+  // Get avatar ring class based on relationship and settings
+  const getAvatarRingClass = () => {
+    if (isOwnProfile) return '';
+    if (isMutual && settings.showMutualRing) {
+      return 'ring-[3px] ring-purple-400 dark:ring-purple-400/60 shadow-[0_0_8px_rgba(192,132,252,0.5)] dark:shadow-[0_0_8px_rgba(167,139,250,0.4)]';
+    }
+    if (isFollowing && settings.showFollowingRing) {
+      return 'ring-[3px] ring-blue-300 dark:ring-blue-400/60 shadow-[0_0_8px_rgba(147,197,253,0.5)] dark:shadow-[0_0_8px_rgba(96,165,250,0.4)]';
+    }
+    if (viewer?.followedBy && settings.showFollowerRing) {
+      return 'ring-[3px] ring-yellow-400 dark:ring-yellow-400/60 shadow-[0_0_8px_rgba(250,204,21,0.5)] dark:shadow-[0_0_8px_rgba(250,204,21,0.4)]';
+    }
+    return '';
+  };
 
   const handleFollow = async (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -83,10 +101,10 @@ export default function UserListItem({
             <img
               src={avatar}
               alt=""
-              className="w-8 h-8 rounded-full hover:opacity-80 transition-opacity"
+              className={`w-8 h-8 rounded-full hover:opacity-80 transition-opacity ${getAvatarRingClass()}`}
             />
           ) : (
-            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center text-white text-xs font-bold">
+            <div className={`w-8 h-8 rounded-full bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center text-white text-xs font-bold ${getAvatarRingClass()}`}>
               {(displayName || handle)[0].toUpperCase()}
             </div>
           )}
@@ -121,13 +139,6 @@ export default function UserListItem({
         </ProfileHoverCard>
       </div>
 
-      {/* Follows you badge */}
-      {viewer?.followedBy && (
-        <span className="px-2 py-1 bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 text-xs font-medium rounded-full flex-shrink-0">
-          Follows you
-        </span>
-      )}
-
       {/* Follow button (not shown for own profile) */}
       {!isOwnProfile && (
         <button
@@ -135,7 +146,9 @@ export default function UserListItem({
           disabled={followLoading}
           className={`px-3 py-1 rounded-full text-xs font-medium transition-colors flex-shrink-0 ${
             isFollowing
-              ? 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-red-100 hover:text-red-600 dark:hover:bg-red-900/30 dark:hover:text-red-400'
+              ? isMutual
+                ? 'bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 hover:bg-red-100 hover:text-red-600 dark:hover:bg-red-900/30 dark:hover:text-red-400'
+                : 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 hover:bg-red-100 hover:text-red-600 dark:hover:bg-red-900/30 dark:hover:text-red-400'
               : 'bg-blue-500 text-white hover:bg-blue-600'
           } disabled:opacity-50`}
         >
@@ -148,12 +161,21 @@ export default function UserListItem({
                 d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
               />
             </svg>
+          ) : isMutual ? (
+            'Mutuals'
           ) : isFollowing ? (
             'Following'
           ) : (
             'Follow'
           )}
         </button>
+      )}
+
+      {/* Follows you badge - only show if they follow you but you don't follow back */}
+      {viewer?.followedBy && !isFollowing && (
+        <span className="px-2 py-1 bg-yellow-100 dark:bg-yellow-900/30 text-yellow-600 dark:text-yellow-400 text-xs font-medium rounded-full flex-shrink-0">
+          Follows you
+        </span>
       )}
     </div>
   );
