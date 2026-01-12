@@ -375,49 +375,8 @@ export default function Notifications({ onOpenPost, onOpenProfile, embedded = fa
   };
 
   // Category configurations
+  // Order: Quotes, Mentions, Replies, Reposts, Likes, Follows
   const categories = [
-    {
-      key: 'likes' as const,
-      settingKey: 'notifyLikes' as const,
-      title: 'Likes',
-      items: grouped.likes,
-      unread: unreadCounts.likes,
-      enabled: settings.notifyLikes,
-      colors: {
-        bg: 'bg-rose-50 dark:bg-rose-900/20',
-        border: 'border-l-rose-400',
-        text: 'text-rose-700 dark:text-rose-300',
-        icon: 'text-rose-500',
-        hover: 'hover:bg-rose-100 dark:hover:bg-rose-900/30',
-        badge: 'bg-rose-100 dark:bg-rose-900/30 text-rose-600 dark:text-rose-400',
-      },
-      icon: (
-        <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24">
-          <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />
-        </svg>
-      ),
-    },
-    {
-      key: 'reposts' as const,
-      settingKey: 'notifyReposts' as const,
-      title: 'Reposts',
-      items: grouped.reposts,
-      unread: unreadCounts.reposts,
-      enabled: settings.notifyReposts,
-      colors: {
-        bg: 'bg-emerald-50 dark:bg-emerald-900/20',
-        border: 'border-l-emerald-400',
-        text: 'text-emerald-700 dark:text-emerald-300',
-        icon: 'text-emerald-500',
-        hover: 'hover:bg-emerald-100 dark:hover:bg-emerald-900/30',
-        badge: 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400',
-      },
-      icon: (
-        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-        </svg>
-      ),
-    },
     {
       key: 'quotes' as const,
       settingKey: 'notifyQuotes' as const,
@@ -436,6 +395,27 @@ export default function Notifications({ onOpenPost, onOpenProfile, embedded = fa
       icon: (
         <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+        </svg>
+      ),
+    },
+    {
+      key: 'mentions' as const,
+      settingKey: 'notifyMentions' as const,
+      title: 'Mentions',
+      items: grouped.mentions,
+      unread: unreadCounts.mentions,
+      enabled: settings.notifyMentions,
+      colors: {
+        bg: 'bg-cyan-50 dark:bg-cyan-900/20',
+        border: 'border-l-cyan-400',
+        text: 'text-cyan-700 dark:text-cyan-300',
+        icon: 'text-cyan-500',
+        hover: 'hover:bg-cyan-100 dark:hover:bg-cyan-900/30',
+        badge: 'bg-cyan-100 dark:bg-cyan-900/30 text-cyan-600 dark:text-cyan-400',
+      },
+      icon: (
+        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 12a4 4 0 10-8 0 4 4 0 008 0zm0 0v1.5a2.5 2.5 0 005 0V12a9 9 0 10-9 9m4.5-1.206a8.959 8.959 0 01-4.5 1.207" />
         </svg>
       ),
     },
@@ -461,6 +441,48 @@ export default function Notifications({ onOpenPost, onOpenProfile, embedded = fa
       ),
     },
     {
+      key: 'reposts' as const,
+      settingKey: 'notifyReposts' as const,
+      title: 'Reposts',
+      items: grouped.reposts,
+      unread: unreadCounts.reposts,
+      enabled: settings.notifyReposts,
+      colors: {
+        bg: 'bg-emerald-50 dark:bg-emerald-900/20',
+        border: 'border-l-emerald-400',
+        text: 'text-emerald-700 dark:text-emerald-300',
+        icon: 'text-emerald-500',
+        hover: 'hover:bg-emerald-100 dark:hover:bg-emerald-900/30',
+        badge: 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400',
+      },
+      icon: (
+        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+        </svg>
+      ),
+    },
+    {
+      key: 'likes' as const,
+      settingKey: 'notifyLikes' as const,
+      title: 'Likes',
+      items: grouped.likes,
+      unread: unreadCounts.likes,
+      enabled: settings.notifyLikes,
+      colors: {
+        bg: 'bg-pink-50 dark:bg-pink-900/20',
+        border: 'border-l-pink-300',
+        text: 'text-pink-600 dark:text-pink-300',
+        icon: 'text-pink-400',
+        hover: 'hover:bg-pink-100 dark:hover:bg-pink-900/30',
+        badge: 'bg-pink-100 dark:bg-pink-900/30 text-pink-500 dark:text-pink-400',
+      },
+      icon: (
+        <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24">
+          <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />
+        </svg>
+      ),
+    },
+    {
       key: 'follows' as const,
       settingKey: 'notifyFollows' as const,
       title: 'Follows',
@@ -478,27 +500,6 @@ export default function Notifications({ onOpenPost, onOpenProfile, embedded = fa
       icon: (
         <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
-        </svg>
-      ),
-    },
-    {
-      key: 'mentions' as const,
-      settingKey: 'notifyMentions' as const,
-      title: 'Mentions',
-      items: grouped.mentions,
-      unread: unreadCounts.mentions,
-      enabled: settings.notifyMentions,
-      colors: {
-        bg: 'bg-cyan-50 dark:bg-cyan-900/20',
-        border: 'border-l-cyan-400',
-        text: 'text-cyan-700 dark:text-cyan-300',
-        icon: 'text-cyan-500',
-        hover: 'hover:bg-cyan-100 dark:hover:bg-cyan-900/30',
-        badge: 'bg-cyan-100 dark:bg-cyan-900/30 text-cyan-600 dark:text-cyan-400',
-      },
-      icon: (
-        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 12a4 4 0 10-8 0 4 4 0 008 0zm0 0v1.5a2.5 2.5 0 005 0V12a9 9 0 10-9 9m4.5-1.206a8.959 8.959 0 01-4.5 1.207" />
         </svg>
       ),
     },
