@@ -44,10 +44,10 @@ function FeedPageContent() {
         if (session?.did) {
           setUserDid(session.did);
           // Check verification status
-          fetch(`/api/researchers?did=${session.did}`)
+          fetch(`/api/researchers/check?did=${session.did}`)
             .then(res => res.json())
             .then(data => {
-              if (data.researchers?.some((r: { did: string }) => r.did === session.did)) {
+              if (data.isVerified) {
                 setIsVerified(true);
               }
             })
