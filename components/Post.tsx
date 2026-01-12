@@ -2359,6 +2359,13 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
   } : null);
   const hasReplyInfo = replyTarget && replyTarget.author.handle;
 
+  // Build post URL for linking
+  // Parse the AT URI: at://did:plc:xxx/app.bsky.feed.post/rkey
+  const postUrlMatch = post.uri.match(/^at:\/\/([^/]+)\/app\.bsky\.feed\.post\/([^/]+)$/);
+  const postUrl = postUrlMatch
+    ? buildPostUrl(author.handle, postUrlMatch[2], author.did)
+    : null;
+
   // Handle click on the article to open the thread
   const handleArticleClick = (e: React.MouseEvent) => {
     // Don't trigger if clicking on interactive elements (buttons, links, inputs)
@@ -2370,12 +2377,24 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
     const selection = window.getSelection();
     if (selection && selection.toString().length > 0) return;
 
+    // If cmd/ctrl/middle click, let the native link behavior handle it
+    if (e.metaKey || e.ctrlKey || e.button === 1) return;
+
+    // Prevent default link navigation and use callback instead
+    e.preventDefault();
+
     // Open the thread
     onOpenThread?.(post.uri);
   };
 
+  // If we have a URL and thread handler, wrap in an anchor for right-click support
+  const ArticleWrapper = postUrl && onOpenThread ? 'a' : 'article';
+  const articleProps = postUrl && onOpenThread
+    ? { href: postUrl, onClick: handleArticleClick, className: `${articleClass} cursor-pointer block` }
+    : { className: articleClass, onClick: onOpenThread ? handleArticleClick : undefined };
+
   return (
-    <article className={`${articleClass} ${onOpenThread ? 'cursor-pointer' : ''}`} onClick={handleArticleClick}>
+    <ArticleWrapper {...articleProps as React.HTMLAttributes<HTMLElement>}>
       {/* Repost header */}
       {repostedBy && (
         <div className="flex items-center gap-2 px-4 pt-3 pb-1 text-sm text-gray-500">
@@ -3241,6 +3260,6 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
           onOpenThread={onOpenThread}
         />
       )}
-    </article>
+    </ArticleWrapper>
   );
 }
