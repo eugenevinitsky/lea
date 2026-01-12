@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { followUser, unfollowUser, isVerifiedResearcher, Label, getSession } from '@/lib/bluesky';
+import { followUser, unfollowUser, isVerifiedResearcher, Label, getSession, buildProfileUrl } from '@/lib/bluesky';
 import { useFollowing } from '@/lib/following-context';
 import { useSettings } from '@/lib/settings';
 import ProfileHoverCard from './ProfileHoverCard';
@@ -89,7 +89,8 @@ export default function UserListItem({
   };
 
   const handleProfileClick = () => {
-    onOpenProfile?.(did);
+    // Navigate to profile page
+    window.location.href = buildProfileUrl(handle, did);
   };
 
   return (
