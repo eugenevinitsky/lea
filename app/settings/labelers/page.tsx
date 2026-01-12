@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { restoreSession, getSession, getBlueskyProfile, getPreferences, getLabelerInfo, LabelerInfo, buildProfileUrl } from '@/lib/bluesky';
+import { restoreSession, getSession, getBlueskyProfile, getPreferences, getLabelerInfo, LabelerInfo, buildProfileUrl, checkVerificationStatus } from '@/lib/bluesky';
 import { SettingsProvider } from '@/lib/settings';
 import { BookmarksProvider, useBookmarks } from '@/lib/bookmarks';
 import { FeedsProvider } from '@/lib/feeds';
@@ -61,14 +61,7 @@ function LabelersContent() {
         const session = getSession();
         if (session?.did) {
           setUserDid(session.did);
-          fetch(`/api/researchers?did=${session.did}`)
-            .then(res => res.json())
-            .then(data => {
-              if (data.researchers?.some((r: { did: string }) => r.did === session.did)) {
-                setIsVerified(true);
-              }
-            })
-            .catch(() => {});
+          checkVerificationStatus(session.did).then(setIsVerified);
         }
       }
       setIsLoading(false);

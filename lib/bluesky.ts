@@ -113,6 +113,7 @@ export function logout() {
   clearModerationCache(); // Clear moderation cache on logout
   if (typeof window !== 'undefined') {
     localStorage.removeItem(SESSION_KEY);
+    sessionStorage.removeItem('lea-verified-status'); // Clear verification cache
   }
 }
 
@@ -988,6 +989,48 @@ export async function createPost(
 
 export function getSession() {
   return agent?.session;
+}
+
+const VERIFIED_CACHE_KEY = 'lea-verified-status';
+
+// Check if current user is verified, with session storage caching
+export async function checkVerificationStatus(did: string): Promise<boolean> {
+  if (typeof window === 'undefined') return false;
+
+  // Check session storage first
+  const cached = sessionStorage.getItem(VERIFIED_CACHE_KEY);
+  if (cached !== null) {
+    try {
+      const { did: cachedDid, isVerified } = JSON.parse(cached);
+      // Only use cache if it's for the same user
+      if (cachedDid === did) {
+        return isVerified;
+      }
+    } catch {
+      // Invalid cache, will refetch
+    }
+  }
+
+  // Fetch from API
+  try {
+    const res = await fetch(`/api/researchers/check?did=${did}`);
+    const data = await res.json();
+    const isVerified = !!data.isVerified;
+
+    // Cache the result
+    sessionStorage.setItem(VERIFIED_CACHE_KEY, JSON.stringify({ did, isVerified }));
+
+    return isVerified;
+  } catch {
+    return false;
+  }
+}
+
+// Clear verification cache (call on logout)
+export function clearVerificationCache() {
+  if (typeof window !== 'undefined') {
+    sessionStorage.removeItem(VERIFIED_CACHE_KEY);
+  }
 }
 
 // Update threadgate for an existing post

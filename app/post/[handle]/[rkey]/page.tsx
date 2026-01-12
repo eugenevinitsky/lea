@@ -2,7 +2,7 @@
 
 import { useParams, useRouter } from 'next/navigation';
 import { useState, useEffect, useCallback } from 'react';
-import { restoreSession, getSession, getBlueskyProfile, resolveHandle, buildProfileUrl, buildPostUrl } from '@/lib/bluesky';
+import { restoreSession, getSession, getBlueskyProfile, resolveHandle, buildProfileUrl, buildPostUrl, checkVerificationStatus } from '@/lib/bluesky';
 import { SettingsProvider } from '@/lib/settings';
 import { BookmarksProvider, useBookmarks } from '@/lib/bookmarks';
 import { FeedsProvider } from '@/lib/feeds';
@@ -43,14 +43,7 @@ function PostPageContent() {
         if (session?.did) {
           setUserDid(session.did);
           // Check verification status
-          fetch(`/api/researchers?did=${session.did}`)
-            .then(res => res.json())
-            .then(data => {
-              if (data.researchers?.some((r: { did: string }) => r.did === session.did)) {
-                setIsVerified(true);
-              }
-            })
-            .catch(() => {});
+          checkVerificationStatus(session.did).then(setIsVerified);
         }
       }
       setIsLoading(false);

@@ -23,7 +23,12 @@ export async function GET() {
       openAlexId: m.openAlexId,
     }));
 
-    return NextResponse.json({ researchers });
+    return NextResponse.json({ researchers }, {
+      headers: {
+        // Cache at CDN for 5 minutes, serve stale while revalidating for 10 minutes
+        'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=600',
+      },
+    });
   } catch (error) {
     console.error('Failed to fetch researchers:', error);
     return NextResponse.json(

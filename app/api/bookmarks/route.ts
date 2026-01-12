@@ -40,6 +40,11 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       bookmarks: parsedBookmarks,
       collections: parsedCollections,
+    }, {
+      headers: {
+        // Cache at CDN for 1 minute (per user via query param), stale-while-revalidate for 5 min
+        'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=300',
+      },
     });
   } catch (error) {
     console.error('Failed to fetch bookmarks:', error);

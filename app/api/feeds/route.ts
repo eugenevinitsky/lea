@@ -25,7 +25,12 @@ export async function GET(request: NextRequest) {
       keyword: f.keyword,
     }));
 
-    return NextResponse.json({ feeds: parsedFeeds });
+    return NextResponse.json({ feeds: parsedFeeds }, {
+      headers: {
+        // Cache at CDN for 1 minute (per user via query param), stale-while-revalidate for 5 min
+        'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=300',
+      },
+    });
   } catch (error) {
     console.error('Failed to fetch feeds:', error);
     return NextResponse.json({ error: 'Failed to fetch feeds' }, { status: 500 });
