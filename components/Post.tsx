@@ -26,7 +26,7 @@ import 'prismjs/components/prism-markdown';
 import 'prismjs/components/prism-yaml';
 import katex from 'katex';
 import 'katex/dist/katex.min.css';
-import { isVerifiedResearcher, Label, createPost, ReplyRef, QuoteRef, likePost, unlikePost, repost, deleteRepost, deletePost, editPost, uploadImage, sendFeedInteraction, InteractionEvent, getSession, updateThreadgate, getThreadgateType, ThreadgateType, FEEDS, searchActors, detachQuote } from '@/lib/bluesky';
+import { isVerifiedResearcher, Label, createPost, ReplyRef, QuoteRef, likePost, unlikePost, repost, deleteRepost, deletePost, editPost, uploadImage, sendFeedInteraction, InteractionEvent, getSession, updateThreadgate, getThreadgateType, ThreadgateType, FEEDS, searchActors, detachQuote, buildProfileUrl } from '@/lib/bluesky';
 import { useSettings } from '@/lib/settings';
 import { useBookmarks, BookmarkedPost, COLLECTION_COLORS } from '@/lib/bookmarks';
 import ProfileView from './ProfileView';
@@ -2432,7 +2432,7 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
             } else if (onOpenProfile) {
               onOpenProfile(author.did);
             } else {
-              setShowProfile(true);
+              window.location.href = buildProfileUrl(author.handle, author.did);
             }
           }}
         >
@@ -2445,7 +2445,7 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
               } else if (onOpenProfile) {
                 onOpenProfile(author.did);
               } else {
-                setShowProfile(true);
+                window.location.href = buildProfileUrl(author.handle, author.did);
               }
             }}
           >
@@ -2526,7 +2526,7 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
                 } else if (onOpenProfile) {
                   onOpenProfile(author.did);
                 } else {
-                  setShowProfile(true);
+                  window.location.href = buildProfileUrl(author.handle, author.did);
                 }
               }}
             >
@@ -2539,7 +2539,7 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
                   } else if (onOpenProfile) {
                     onOpenProfile(author.did);
                   } else {
-                    setShowProfile(true);
+                    window.location.href = buildProfileUrl(author.handle, author.did);
                   }
                 }}
               >
