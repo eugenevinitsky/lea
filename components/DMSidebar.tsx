@@ -824,9 +824,18 @@ export default function DMSidebar({ defaultExpanded = false, embedded = false }:
                             </div>
                           </div>
                         </button>
-                        {/* Block/Delete buttons for requests */}
+                        {/* Accept/Delete/Block buttons for requests */}
                         {showRequests && (
                           <div className="flex gap-2 mt-2 ml-10">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleSelectConvo(convo.id);
+                              }}
+                              className="px-2 py-1 text-[10px] font-medium text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/20 hover:bg-emerald-100 dark:hover:bg-emerald-900/40 rounded"
+                            >
+                              Accept
+                            </button>
                             <button
                               onClick={(e) => handleDeleteConvo(convo.id, e)}
                               className="px-2 py-1 text-[10px] font-medium text-gray-600 dark:text-gray-400 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded"
