@@ -16,6 +16,7 @@ import ModerationBox from '@/components/ModerationBox';
 import SafetyPanel from '@/components/SafetyPanel';
 import SettingsPanel from '@/components/SettingsPanel';
 import ResearcherSearch from '@/components/ResearcherSearch';
+import Onboarding from '@/components/Onboarding';
 
 function PostPageContent() {
   const params = useParams();
@@ -29,6 +30,8 @@ function PostPageContent() {
   const [postUri, setPostUri] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isVerified, setIsVerified] = useState(false);
+  const [showOnboarding, setShowOnboarding] = useState(false);
+  const [onboardingStartStep, setOnboardingStartStep] = useState(1);
   const { setUserDid } = useBookmarks();
 
   // Restore session on mount
@@ -140,6 +143,10 @@ function PostPageContent() {
     return <Login onLogin={handleLogin} />;
   }
 
+  if (showOnboarding) {
+    return <Onboarding onComplete={() => { setShowOnboarding(false); setOnboardingStartStep(1); }} startAtStep={onboardingStartStep} />;
+  }
+
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-black">
       {/* Header */}
@@ -162,6 +169,18 @@ function PostPageContent() {
           </div>
           <div className="flex items-center gap-3">
             <ResearcherSearch onSelectResearcher={navigateToProfile} onOpenThread={navigateToThread} onSearch={(q) => window.location.href = `/search?q=${encodeURIComponent(q)}`} />
+            <button
+              onClick={() => {
+                setOnboardingStartStep(3);
+                setShowOnboarding(true);
+              }}
+              className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full"
+              title="Discover Researchers"
+            >
+              <svg className="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+              </svg>
+            </button>
             <button
               onClick={() => window.location.href = `/u/${session?.handle}`}
               className={`px-3 py-1.5 text-sm font-medium rounded-full transition-colors flex items-center gap-1.5 ${
