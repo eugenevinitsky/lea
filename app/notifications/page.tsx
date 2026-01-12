@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { restoreSession, getSession, getBlueskyProfile, checkSafetyAlerts, dismissSafetyAlert, SafetyAlert, AlertThresholds, followUser, unfollowUser, isVerifiedResearcher, Label, buildProfileUrl } from '@/lib/bluesky';
+import { restoreSession, getSession, getBlueskyProfile, checkSafetyAlerts, dismissSafetyAlert, SafetyAlert, AlertThresholds, followUser, unfollowUser, isVerifiedResearcher, Label, buildProfileUrl, checkVerificationStatus } from '@/lib/bluesky';
 import { useFollowing } from '@/lib/following-context';
 import { SettingsProvider } from '@/lib/settings';
 import { BookmarksProvider, useBookmarks } from '@/lib/bookmarks';
@@ -1467,14 +1467,7 @@ function NotificationsExplorerContent() {
         const session = getSession();
         if (session?.did) {
           setUserDid(session.did);
-          fetch(`/api/researchers/check?did=${session.did}`)
-            .then(res => res.json())
-            .then(data => {
-              if (data.isVerified) {
-                setIsVerified(true);
-              }
-            })
-            .catch(() => {});
+          checkVerificationStatus(session.did).then(setIsVerified);
         }
       }
       setIsLoading(false);

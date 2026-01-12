@@ -2,7 +2,7 @@
 
 import { useParams } from 'next/navigation';
 import { useState, useEffect, useCallback } from 'react';
-import { restoreSession, getSession, getBlueskyProfile, logout, getFeedGenerator, likeFeed, unlikeFeed, FeedGeneratorInfo, buildProfileUrl } from '@/lib/bluesky';
+import { restoreSession, getSession, getBlueskyProfile, logout, getFeedGenerator, likeFeed, unlikeFeed, FeedGeneratorInfo, buildProfileUrl, checkVerificationStatus } from '@/lib/bluesky';
 import { SettingsProvider } from '@/lib/settings';
 import { BookmarksProvider, useBookmarks } from '@/lib/bookmarks';
 import { FeedsProvider, useFeeds } from '@/lib/feeds';
@@ -44,14 +44,7 @@ function FeedPageContent() {
         if (session?.did) {
           setUserDid(session.did);
           // Check verification status
-          fetch(`/api/researchers/check?did=${session.did}`)
-            .then(res => res.json())
-            .then(data => {
-              if (data.isVerified) {
-                setIsVerified(true);
-              }
-            })
-            .catch(() => {});
+          checkVerificationStatus(session.did).then(setIsVerified);
         }
       }
       setIsLoading(false);

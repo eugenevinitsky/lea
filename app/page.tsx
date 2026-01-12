@@ -2,7 +2,7 @@
 
 import React, { useState, useCallback, useEffect, Suspense, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { getSession, logout, restoreSession, getBlueskyProfile, buildProfileUrl } from '@/lib/bluesky';
+import { getSession, logout, restoreSession, getBlueskyProfile, buildProfileUrl, checkVerificationStatus } from '@/lib/bluesky';
 import { SettingsProvider } from '@/lib/settings';
 import { BookmarksProvider, useBookmarks } from '@/lib/bookmarks';
 import { FeedsProvider, useFeeds } from '@/lib/feeds';
@@ -232,16 +232,9 @@ function AppContent() {
         if (!onboardingComplete) {
           setShowOnboarding(true);
         }
-        // Check verification status
+        // Check verification status (cached in sessionStorage)
         if (session?.did) {
-          fetch(`/api/researchers/check?did=${session.did}`)
-            .then(res => res.json())
-            .then(data => {
-              if (data.isVerified) {
-                setIsVerified(true);
-              }
-            })
-            .catch(() => {});
+          checkVerificationStatus(session.did).then(setIsVerified);
         }
       }
       setIsLoading(false);

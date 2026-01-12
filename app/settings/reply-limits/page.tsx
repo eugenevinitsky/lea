@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { restoreSession, getSession, getBlueskyProfile, getUserPostsForThreadgate, updateThreadgate, ThreadgateType, buildProfileUrl } from '@/lib/bluesky';
+import { restoreSession, getSession, getBlueskyProfile, getUserPostsForThreadgate, updateThreadgate, ThreadgateType, buildProfileUrl, checkVerificationStatus } from '@/lib/bluesky';
 import { SettingsProvider, useSettings } from '@/lib/settings';
 import { BookmarksProvider, useBookmarks } from '@/lib/bookmarks';
 import { FeedsProvider } from '@/lib/feeds';
@@ -37,14 +37,7 @@ function ReplyLimitsContent() {
         const session = getSession();
         if (session?.did) {
           setUserDid(session.did);
-          fetch(`/api/researchers/check?did=${session.did}`)
-            .then(res => res.json())
-            .then(data => {
-              if (data.isVerified) {
-                setIsVerified(true);
-              }
-            })
-            .catch(() => {});
+          checkVerificationStatus(session.did).then(setIsVerified);
         }
       }
       setIsLoading(false);

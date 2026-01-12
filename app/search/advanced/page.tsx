@@ -2,7 +2,7 @@
 
 import { useSearchParams } from 'next/navigation';
 import { useState, useEffect, useCallback, Suspense } from 'react';
-import { restoreSession, getSession, getBlueskyProfile, searchPosts, isVerifiedResearcher, Label, SearchPostsFilters, buildProfileUrl } from '@/lib/bluesky';
+import { restoreSession, getSession, getBlueskyProfile, searchPosts, isVerifiedResearcher, Label, SearchPostsFilters, buildProfileUrl, checkVerificationStatus } from '@/lib/bluesky';
 import { SettingsProvider } from '@/lib/settings';
 import { BookmarksProvider, useBookmarks } from '@/lib/bookmarks';
 import { FeedsProvider } from '@/lib/feeds';
@@ -55,14 +55,7 @@ function AdvancedSearchPageContent() {
         const session = getSession();
         if (session?.did) {
           setUserDid(session.did);
-          fetch(`/api/researchers/check?did=${session.did}`)
-            .then(res => res.json())
-            .then(data => {
-              if (data.isVerified) {
-                setIsVerifiedUser(true);
-              }
-            })
-            .catch(() => {});
+          checkVerificationStatus(session.did).then(setIsVerifiedUser);
         }
       }
       setIsLoading(false);
