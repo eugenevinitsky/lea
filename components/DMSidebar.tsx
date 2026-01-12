@@ -490,7 +490,7 @@ export default function DMSidebar({ defaultExpanded = false, embedded = false }:
 
           {selectedConvoId ? (
             // Message view
-            <div className="flex flex-col h-[350px] overscroll-contain">
+            <div className="flex flex-col h-[350px] overscroll-contain overflow-x-hidden">
               {/* Convo header */}
               <div className="flex items-center gap-2 p-2 border-b border-gray-100 dark:border-gray-800">
                 <button
@@ -518,7 +518,7 @@ export default function DMSidebar({ defaultExpanded = false, embedded = false }:
               </div>
 
               {/* Messages */}
-              <div ref={messagesContainerRef} className="flex-1 overflow-y-auto overscroll-contain p-2 space-y-2">
+              <div ref={messagesContainerRef} className="flex-1 overflow-y-auto overflow-x-hidden overscroll-contain p-2 space-y-2">
                 {loading ? (
                   <div className="flex items-center justify-center h-full">
                     <div className="animate-spin w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full" />
@@ -547,18 +547,18 @@ export default function DMSidebar({ defaultExpanded = false, embedded = false }:
                       return (
                         <div
                           key={msg.id}
-                          className={`flex ${isOwn ? 'justify-end' : 'justify-start'} group relative`}
+                          className={`flex ${isOwn ? 'justify-end' : 'justify-start'} group relative px-2`}
                           onMouseEnter={() => setHoveredMessageId(msg.id)}
                           onMouseLeave={() => {
                             setHoveredMessageId(null);
                             if (!showPicker) setShowReactionPicker(null);
                           }}
                         >
-                          {/* Reaction button - shows on hover, positioned outside message */}
+                          {/* Reaction button - shows on hover, positioned inside with margin */}
                           {isHovered && !showPicker && (
                             <button
                               onClick={() => setShowReactionPicker(msg.id)}
-                              className={`absolute ${isOwn ? 'left-0 -translate-x-full mr-1' : 'right-0 translate-x-full ml-1'} top-1/2 -translate-y-1/2 p-1 rounded-full bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-500 dark:text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity`}
+                              className={`absolute ${isOwn ? 'left-2' : 'right-2'} top-1/2 -translate-y-1/2 p-1 rounded-full bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-500 dark:text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity`}
                             >
                               <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -569,7 +569,7 @@ export default function DMSidebar({ defaultExpanded = false, embedded = false }:
                           {/* Reaction picker */}
                           {showPicker && (
                             <div
-                              className={`absolute ${isOwn ? 'right-0' : 'left-0'} -top-8 bg-white dark:bg-gray-800 rounded-full shadow-lg border border-gray-200 dark:border-gray-700 px-1 py-0.5 flex gap-0.5 z-10`}
+                              className={`absolute ${isOwn ? 'right-2' : 'left-2'} -top-8 bg-white dark:bg-gray-800 rounded-full shadow-lg border border-gray-200 dark:border-gray-700 px-1 py-0.5 flex gap-0.5 z-10`}
                               onMouseLeave={() => setShowReactionPicker(null)}
                             >
                               {QUICK_REACTIONS.map(emoji => (
@@ -584,9 +584,9 @@ export default function DMSidebar({ defaultExpanded = false, embedded = false }:
                             </div>
                           )}
 
-                          <div className="flex flex-col">
+                          <div className={`flex flex-col max-w-[80%] ${isOwn ? 'items-end' : 'items-start'}`}>
                             <div
-                              className={`max-w-[80%] px-2.5 py-1.5 rounded-xl text-xs ${
+                              className={`px-2.5 py-1.5 rounded-xl text-xs ${
                                 isOwn
                                   ? 'bg-blue-500 text-white rounded-br-sm'
                                   : 'bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100 rounded-bl-sm'
