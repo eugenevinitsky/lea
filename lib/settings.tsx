@@ -15,6 +15,7 @@ export interface LeaSettings {
   expandSelfThreads: boolean;
   showFollowingRing: boolean; // Blue ring around people you follow
   showMutualRing: boolean; // Purple ring around mutuals
+  showFollowerRing: boolean; // Yellow ring around people who follow you (but you don't follow back)
 
   // Notifications
   notifyLikes: boolean;
@@ -39,6 +40,7 @@ const DEFAULT_SETTINGS: LeaSettings = {
   expandSelfThreads: true,
   showFollowingRing: true,
   showMutualRing: true,
+  showFollowerRing: true,
   notifyLikes: true,
   notifyReposts: true,
   notifyQuotes: true,

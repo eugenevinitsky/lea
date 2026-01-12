@@ -234,7 +234,7 @@ function DisplayContent() {
               </div>
 
               {/* Mutual ring (purple) */}
-              <div className="p-4 bg-gray-50 dark:bg-gray-900 rounded-lg">
+              <div className="p-4 bg-gray-50 dark:bg-gray-900 rounded-lg mb-3">
                 <label className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <div className="w-8 h-8 rounded-full bg-gray-300 dark:bg-gray-600 ring-[3px] ring-purple-400 dark:ring-purple-400/60 shadow-[0_0_8px_rgba(192,132,252,0.5)] dark:shadow-[0_0_8px_rgba(167,139,250,0.4)]" />
@@ -249,6 +249,27 @@ function DisplayContent() {
                     type="checkbox"
                     checked={settings.showMutualRing}
                     onChange={(e) => updateSettings({ showMutualRing: e.target.checked })}
+                    className="w-5 h-5 rounded border-gray-300 text-blue-500 focus:ring-blue-500"
+                  />
+                </label>
+              </div>
+
+              {/* Follower ring (yellow) */}
+              <div className="p-4 bg-gray-50 dark:bg-gray-900 rounded-lg">
+                <label className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-full bg-gray-300 dark:bg-gray-600 ring-[3px] ring-yellow-400 dark:ring-yellow-400/60 shadow-[0_0_8px_rgba(250,204,21,0.5)] dark:shadow-[0_0_8px_rgba(250,204,21,0.4)]" />
+                    <div>
+                      <p className="font-medium text-gray-900 dark:text-gray-100">Followers</p>
+                      <p className="text-sm text-gray-500 dark:text-gray-400">
+                        Yellow ring around people who follow you (but you don&apos;t follow back)
+                      </p>
+                    </div>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={settings.showFollowerRing}
+                    onChange={(e) => updateSettings({ showFollowerRing: e.target.checked })}
                     className="w-5 h-5 rounded border-gray-300 text-blue-500 focus:ring-blue-500"
                   />
                 </label>
