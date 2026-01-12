@@ -162,6 +162,28 @@ function AppContent() {
     }
   }, [checkScrollState, pinnedFeeds]);
 
+  // Scroll active feed tab into view when it changes
+  useEffect(() => {
+    if (!activeFeedUri || !feedsContainerRef.current) return;
+    const container = feedsContainerRef.current;
+    const activeIndex = pinnedFeeds.findIndex(f => f.uri === activeFeedUri);
+    if (activeIndex === -1) return;
+    
+    // Find the active button element
+    const buttons = container.querySelectorAll('button[draggable="true"]');
+    const activeButton = buttons[activeIndex] as HTMLElement | undefined;
+    if (activeButton) {
+      // Scroll the button into view within the container
+      const containerRect = container.getBoundingClientRect();
+      const buttonRect = activeButton.getBoundingClientRect();
+      
+      // Check if button is outside visible area
+      if (buttonRect.left < containerRect.left || buttonRect.right > containerRect.right) {
+        activeButton.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+      }
+    }
+  }, [activeFeedUri, pinnedFeeds]);
+
   // Restore scroll position after navigating back from a thread
   useEffect(() => {
     const savedPosition = sessionStorage.getItem('lea-scroll-position');
@@ -593,26 +615,6 @@ function AppContent() {
 
           {/* Feed Tabs - sticky below header when scrolling */}
           <div className="relative border-b border-gray-200 dark:border-gray-800 sticky top-14 z-10 bg-white dark:bg-gray-950">
-            {/* Scroll to top button - desktop only, far left */}
-            <button
-              onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
-              className="hidden lg:flex absolute left-0 top-0 bottom-0 w-8 bg-white dark:bg-gray-950 z-10 items-center justify-center border-r border-gray-200 dark:border-gray-800 text-gray-500 hover:text-blue-500 hover:bg-gray-50 dark:hover:bg-gray-900 transition-colors"
-              title="Scroll to top"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 10l7-7m0 0l7 7m-7-7v18" />
-              </svg>
-            </button>
-            {/* Refresh button - desktop only, second from left */}
-            <button
-              onClick={() => setRefreshKey(k => k + 1)}
-              className="hidden lg:flex absolute left-8 top-0 bottom-0 w-8 bg-white dark:bg-gray-950 z-10 items-center justify-center border-r border-gray-200 dark:border-gray-800 text-gray-500 hover:text-blue-500 hover:bg-gray-50 dark:hover:bg-gray-900 transition-colors"
-              title="Refresh feed"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-              </svg>
-            </button>
             {/* Left scroll arrow - desktop only */}
             <button
               onClick={() => {
@@ -620,7 +622,7 @@ function AppContent() {
                 if (container) container.scrollBy({ left: -150, behavior: 'smooth' });
               }}
               disabled={!canScrollLeft}
-              className={`hidden lg:flex absolute left-16 top-0 bottom-0 w-8 bg-white dark:bg-gray-950 z-10 items-center justify-center border-r border-gray-200 dark:border-gray-800 transition-colors ${
+              className={`hidden lg:flex absolute left-0 top-0 bottom-0 w-8 bg-white dark:bg-gray-950 z-10 items-center justify-center border-r border-gray-200 dark:border-gray-800 transition-colors ${
                 canScrollLeft
                   ? 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 cursor-pointer'
                   : 'text-gray-300 dark:text-gray-700 cursor-default'
@@ -637,7 +639,7 @@ function AppContent() {
                 if (container) container.scrollBy({ left: 150, behavior: 'smooth' });
               }}
               disabled={!canScrollRight}
-              className={`hidden lg:flex absolute right-0 top-0 bottom-0 w-8 bg-white dark:bg-gray-950 z-10 items-center justify-center border-l border-gray-200 dark:border-gray-800 transition-colors ${
+              className={`hidden lg:flex absolute right-16 top-0 bottom-0 w-8 bg-white dark:bg-gray-950 z-10 items-center justify-center border-l border-gray-200 dark:border-gray-800 transition-colors ${
                 canScrollRight
                   ? 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 cursor-pointer'
                   : 'text-gray-300 dark:text-gray-700 cursor-default'
@@ -647,9 +649,29 @@ function AppContent() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
               </svg>
             </button>
+            {/* Refresh button - desktop only, second from right */}
+            <button
+              onClick={() => setRefreshKey(k => k + 1)}
+              className="hidden lg:flex absolute right-8 top-0 bottom-0 w-8 bg-white dark:bg-gray-950 z-10 items-center justify-center border-l border-gray-200 dark:border-gray-800 text-gray-500 hover:text-blue-500 hover:bg-gray-50 dark:hover:bg-gray-900 transition-colors"
+              title="Refresh feed"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+            </button>
+            {/* Scroll to top button - desktop only, far right */}
+            <button
+              onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+              className="hidden lg:flex absolute right-0 top-0 bottom-0 w-8 bg-white dark:bg-gray-950 z-10 items-center justify-center border-l border-gray-200 dark:border-gray-800 text-gray-500 hover:text-blue-500 hover:bg-gray-50 dark:hover:bg-gray-900 transition-colors"
+              title="Scroll to top"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 10l7-7m0 0l7 7m-7-7v18" />
+              </svg>
+            </button>
             <div
               ref={feedsContainerRef}
-              className="flex overflow-x-auto scrollbar-hide lg:ml-24 lg:mr-8"
+              className="flex overflow-x-auto scrollbar-hide lg:ml-8 lg:mr-24"
             >
               {pinnedFeeds.map((feed, index) => {
                 const isActive = activeFeedUri === feed.uri || (activeFeedUri === null && index === 0);
