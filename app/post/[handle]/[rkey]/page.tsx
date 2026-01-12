@@ -14,6 +14,7 @@ import DMSidebar from '@/components/DMSidebar';
 import Notifications from '@/components/Notifications';
 import ModerationBox from '@/components/ModerationBox';
 import SafetyPanel from '@/components/SafetyPanel';
+import SettingsPanel from '@/components/SettingsPanel';
 import ResearcherSearch from '@/components/ResearcherSearch';
 
 function PostPageContent() {
@@ -204,6 +205,7 @@ function PostPageContent() {
           <Notifications onOpenPost={navigateToThread} onOpenProfile={navigateToProfile} />
           <ModerationBox onOpenProfile={navigateToProfile} />
           <SafetyPanel onOpenProfile={navigateToProfile} onOpenThread={navigateToThread} />
+          <SettingsPanel />
         </aside>
 
         {/* Main content */}

@@ -12,6 +12,7 @@ import DMSidebar from '@/components/DMSidebar';
 import Notifications from '@/components/Notifications';
 import ModerationBox from '@/components/ModerationBox';
 import SafetyPanel from '@/components/SafetyPanel';
+import SettingsPanel from '@/components/SettingsPanel';
 import ResearcherSearch from '@/components/ResearcherSearch';
 
 // Suggested labelers
@@ -203,6 +204,7 @@ function LabelersContent() {
           <Notifications onOpenPost={openThread} onOpenProfile={handleOpenProfile} />
           <ModerationBox onOpenProfile={handleOpenProfile} />
           <SafetyPanel onOpenProfile={handleOpenProfile} onOpenThread={openThread} />
+          <SettingsPanel />
         </aside>
 
         {/* Main content */}

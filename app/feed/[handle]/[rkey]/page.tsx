@@ -13,6 +13,7 @@ import DMSidebar from '@/components/DMSidebar';
 import Notifications from '@/components/Notifications';
 import ModerationBox from '@/components/ModerationBox';
 import SafetyPanel from '@/components/SafetyPanel';
+import SettingsPanel from '@/components/SettingsPanel';
 import ResearcherSearch from '@/components/ResearcherSearch';
 import ThreadView from '@/components/ThreadView';
 
@@ -242,12 +243,6 @@ function FeedPageContent() {
                 Get verified
               </a>
             )}
-            <button
-              onClick={handleLogout}
-              className="text-sm text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
-            >
-              Sign out
-            </button>
           </div>
         </div>
       </header>
@@ -261,6 +256,7 @@ function FeedPageContent() {
           <Notifications onOpenPost={openThread} onOpenProfile={handleOpenProfile} />
           <ModerationBox onOpenProfile={handleOpenProfile} />
           <SafetyPanel onOpenProfile={handleOpenProfile} onOpenThread={openThread} />
+          <SettingsPanel />
         </aside>
 
         {/* Main content */}
