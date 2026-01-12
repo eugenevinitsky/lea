@@ -19,6 +19,7 @@ import {
   ChatMessage,
   LogEntry,
   getSession,
+  buildProfileUrl,
 } from '@/lib/bluesky';
 
 const QUICK_REACTIONS = ['❤️', '👍', '😂', '😮', '😢'];
@@ -502,7 +503,10 @@ export default function DMSidebar({ defaultExpanded = false, embedded = false }:
                   </svg>
                 </button>
                 {otherMember && (
-                  <div className="flex items-center gap-2 flex-1 min-w-0">
+                  <a
+                    href={buildProfileUrl(otherMember.handle, otherMember.did)}
+                    className="flex items-center gap-2 flex-1 min-w-0 hover:opacity-80 transition-opacity"
+                  >
                     {otherMember.avatar ? (
                       <img src={otherMember.avatar} alt="" className="w-6 h-6 rounded-full" />
                     ) : (
@@ -510,10 +514,10 @@ export default function DMSidebar({ defaultExpanded = false, embedded = false }:
                         {(otherMember.displayName || otherMember.handle)[0].toUpperCase()}
                       </div>
                     )}
-                    <span className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
+                    <span className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate hover:underline">
                       {otherMember.displayName || otherMember.handle}
                     </span>
-                  </div>
+                  </a>
                 )}
               </div>
 
