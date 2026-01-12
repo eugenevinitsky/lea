@@ -24,6 +24,7 @@ export interface LeaSettings {
 
   // UI state
   safetyPanelExpanded: boolean;
+  settingsPanelExpanded: boolean;
 }
 
 const DEFAULT_SETTINGS: LeaSettings = {
@@ -41,6 +42,7 @@ const DEFAULT_SETTINGS: LeaSettings = {
   notifyFollows: true,
   notifyMentions: true,
   safetyPanelExpanded: false,
+  settingsPanelExpanded: false,
 };
 
 interface SettingsContextType {
