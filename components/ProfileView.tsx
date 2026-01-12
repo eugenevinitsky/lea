@@ -6,6 +6,7 @@ import type { ProfileLink, ProfilePaper } from '@/lib/db/schema';
 import { getAuthorFeed, getBlueskyProfile, getKnownFollowers, getUnknownFollows, BlueskyProfile, KnownFollowersResult, UnknownFollowsResult, followUser, unfollowUser, blockUser, unblockUser, getSession, searchPosts, Label, getSelfThread, hasReplies, isReplyPost, SelfThreadResult } from '@/lib/bluesky';
 import { detectPaperLink, getPaperIdFromUrl } from '@/lib/papers';
 import { useFollowing } from '@/lib/following-context';
+import { useSettings } from '@/lib/settings';
 import Post from './Post';
 import SelfThread from './SelfThread';
 import ProfileLabels from './ProfileLabels';
@@ -133,6 +134,7 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
   const [followUri, setFollowUri] = useState<string | undefined>();
   const [followLoading, setFollowLoading] = useState(false);
   const { refresh: refreshFollowing, followingDids } = useFollowing();
+  const { settings } = useSettings();
 
   // Block state
   const [isBlocking, setIsBlocking] = useState(false);
@@ -676,7 +678,9 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
   const session = getSession();
   const isOwnProfile = session?.did === did;
 
-  // Render follow/unfollow button (smaller style to match "Follows you" badge)
+  // Render follow/unfollow button with colored styling based on relationship
+  // Blue for following, purple for mutuals
+  const isMutual = isFollowing && bskyProfile?.viewer?.followedBy;
   const renderFollowButton = () => {
     return (
       <button
@@ -684,7 +688,9 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
         disabled={followLoading}
         className={`px-2 py-0.5 rounded text-xs font-medium transition-colors ${
           isFollowing
-            ? 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-red-100 hover:text-red-600 dark:hover:bg-red-900/30 dark:hover:text-red-400'
+            ? isMutual
+              ? 'bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 hover:bg-red-100 hover:text-red-600 dark:hover:bg-red-900/30 dark:hover:text-red-400'
+              : 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 hover:bg-red-100 hover:text-red-600 dark:hover:bg-red-900/30 dark:hover:text-red-400'
             : 'bg-blue-500 text-white hover:bg-blue-600'
         } disabled:opacity-50`}
       >
@@ -702,6 +708,31 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
         )}
       </button>
     );
+  };
+
+  // Render "Follows you" badge with yellow color (matching follower ring)
+  const renderFollowsYouBadge = () => {
+    if (!bskyProfile?.viewer?.followedBy || isFollowing) return null;
+    return (
+      <span className="px-2 py-0.5 bg-yellow-100 dark:bg-yellow-900/30 text-yellow-600 dark:text-yellow-400 text-xs rounded font-medium">
+        Follows you
+      </span>
+    );
+  };
+
+  // Get avatar ring class based on relationship and settings
+  const getAvatarRingClass = () => {
+    if (isOwnProfile) return '';
+    if (isMutual && settings.showMutualRing) {
+      return 'ring-[3px] ring-purple-400 dark:ring-purple-400/60 shadow-[0_0_8px_rgba(192,132,252,0.5)] dark:shadow-[0_0_8px_rgba(167,139,250,0.4)]';
+    }
+    if (isFollowing && settings.showFollowingRing) {
+      return 'ring-[3px] ring-blue-300 dark:ring-blue-400/60 shadow-[0_0_8px_rgba(147,197,253,0.5)] dark:shadow-[0_0_8px_rgba(96,165,250,0.4)]';
+    }
+    if (bskyProfile?.viewer?.followedBy && settings.showFollowerRing) {
+      return 'ring-[3px] ring-yellow-400 dark:ring-yellow-400/60 shadow-[0_0_8px_rgba(250,204,21,0.5)] dark:shadow-[0_0_8px_rgba(250,204,21,0.4)]';
+    }
+    return '';
   };
 
   // Render DM button - opens DM sidebar and starts chat with this user
@@ -1094,9 +1125,9 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
               <div className="mx-4 mt-4 mb-4 bg-white dark:bg-gray-900 rounded-2xl shadow-lg p-4">
                 <div className="flex items-start gap-4">
                   {avatar ? (
-                    <img src={avatar} alt="" className="w-20 h-20 rounded-2xl flex-shrink-0 ring-4 ring-white dark:ring-gray-900 shadow-md" />
+                    <img src={avatar} alt="" className={`w-20 h-20 rounded-2xl flex-shrink-0 shadow-md ${getAvatarRingClass() || 'ring-4 ring-white dark:ring-gray-900'}`} />
                   ) : (
-                    <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-blue-400 to-purple-500 flex-shrink-0 ring-4 ring-white dark:ring-gray-900 shadow-md flex items-center justify-center text-white text-2xl font-bold">
+                    <div className={`w-20 h-20 rounded-2xl bg-gradient-to-br from-blue-400 to-purple-500 flex-shrink-0 shadow-md flex items-center justify-center text-white text-2xl font-bold ${getAvatarRingClass() || 'ring-4 ring-white dark:ring-gray-900'}`}>
                       {(finalDisplayName)[0].toUpperCase()}
                     </div>
                   )}
@@ -1120,13 +1151,9 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
                     )}
                     <div className="flex items-center gap-2 mt-2">
                       {renderFollowButton()}
+                      {renderFollowsYouBadge()}
                       {renderDMButton()}
                       {renderBlockButton()}
-                      {bskyProfile?.viewer?.followedBy && (
-                        <span className="px-2 py-0.5 bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 text-xs rounded">
-                          Follows you
-                        </span>
-                      )}
                     </div>
                     {bskyProfile?.description && (
                       <p className="text-sm text-gray-600 dark:text-gray-400 mt-2 line-clamp-2">{linkifyText(bskyProfile.description)}</p>
@@ -1257,9 +1284,9 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
               <div className="mx-4 mt-4 mb-4 bg-white dark:bg-gray-900 rounded-2xl shadow-lg p-4">
                 <div className="flex items-start gap-4">
                   {avatar ? (
-                    <img src={avatar} alt="" className="w-20 h-20 rounded-2xl flex-shrink-0 ring-4 ring-white dark:ring-gray-900 shadow-md" />
+                    <img src={avatar} alt="" className={`w-20 h-20 rounded-2xl flex-shrink-0 shadow-md ${getAvatarRingClass() || 'ring-4 ring-white dark:ring-gray-900'}`} />
                   ) : (
-                    <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-blue-400 to-purple-500 flex-shrink-0 ring-4 ring-white dark:ring-gray-900 shadow-md flex items-center justify-center text-white text-2xl font-bold">
+                    <div className={`w-20 h-20 rounded-2xl bg-gradient-to-br from-blue-400 to-purple-500 flex-shrink-0 shadow-md flex items-center justify-center text-white text-2xl font-bold ${getAvatarRingClass() || 'ring-4 ring-white dark:ring-gray-900'}`}>
                       {(finalDisplayName)[0].toUpperCase()}
                     </div>
                   )}
@@ -1315,14 +1342,10 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
                       ) : (
                         <>
                           {renderFollowButton()}
+                          {renderFollowsYouBadge()}
                           {renderDMButton()}
                           {renderBlockButton()}
                         </>
-                      )}
-                      {bskyProfile?.viewer?.followedBy && (
-                        <span className="px-2 py-0.5 bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 text-xs rounded">
-                          Follows you
-                        </span>
                       )}
                     </div>
                     {/* Labels from moderation services */}
@@ -1797,9 +1820,9 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
               {/* Non-verified profile header */}
               <div className="flex items-start gap-4 mb-4 p-4 pb-0">
                 {avatar ? (
-                  <img src={avatar} alt="" className="w-20 h-20 rounded-full flex-shrink-0" />
+                  <img src={avatar} alt="" className={`w-20 h-20 rounded-full flex-shrink-0 ${getAvatarRingClass()}`} />
                 ) : (
-                  <div className="w-20 h-20 rounded-full bg-gray-200 dark:bg-gray-700 flex-shrink-0" />
+                  <div className={`w-20 h-20 rounded-full bg-gray-200 dark:bg-gray-700 flex-shrink-0 ${getAvatarRingClass()}`} />
                 )}
                 <div className="flex-1 min-w-0">
                   <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100 truncate">
@@ -1824,6 +1847,7 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
                   )}
                   <div className="mt-3 flex items-center gap-2">
                     {renderFollowButton()}
+                    {renderFollowsYouBadge()}
                     {renderDMButton()}
                     {renderBlockButton()}
                   </div>
@@ -1946,9 +1970,9 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
               {/* Profile Header - always visible */}
               <div className="flex items-start gap-4 mb-4 p-4 pb-0">
                 {avatar ? (
-                  <img src={avatar} alt="" className="w-20 h-20 rounded-full flex-shrink-0" />
+                  <img src={avatar} alt="" className={`w-20 h-20 rounded-full flex-shrink-0 ${getAvatarRingClass()}`} />
                 ) : (
-                  <div className="w-20 h-20 rounded-full bg-gray-200 dark:bg-gray-700 flex-shrink-0" />
+                  <div className={`w-20 h-20 rounded-full bg-gray-200 dark:bg-gray-700 flex-shrink-0 ${getAvatarRingClass()}`} />
                 )}
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
@@ -2018,6 +2042,7 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
                     ) : (
                       <>
                         {renderFollowButton()}
+                        {renderFollowsYouBadge()}
                         {renderDMButton()}
                         {renderBlockButton()}
                       </>
