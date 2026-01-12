@@ -121,6 +121,7 @@ export default function DMSidebar({ defaultExpanded = false, embedded = false }:
   const [isExpanded, setIsExpanded] = useState(defaultExpanded || embedded);
   const [convos, setConvos] = useState<Convo[]>([]);
   const [followingDids, setFollowingDids] = useState<Set<string> | null>(null);
+  const [acceptedDids, setAcceptedDids] = useState<Set<string>>(new Set()); // Track accepted requests locally
   const [showRequests, setShowRequests] = useState(false);
   const [selectedConvoId, setSelectedConvoId] = useState<string | null>(null);
   const [selectedConvo, setSelectedConvo] = useState<Convo | null>(null);
@@ -430,13 +431,14 @@ export default function DMSidebar({ defaultExpanded = false, embedded = false }:
 
   const otherMember = selectedConvo?.members.find(m => m.did !== session?.did);
 
-  // Filter conversations into main chats (from followed users) and requests (from strangers)
+  // Filter conversations into main chats (from followed users or accepted) and requests (from strangers)
   // If followingDids hasn't loaded yet, show all in Messages to avoid flash of wrong content
   const followsLoaded = followingDids !== null;
   const { mainChats, requests } = convos.reduce(
     (acc, convo) => {
       const other = convo.members.find(m => m.did !== session?.did);
-      if (!followsLoaded || (other && followingDids.has(other.did))) {
+      // Show in main chats if: follows not loaded yet, OR you follow them, OR you accepted their request
+      if (!followsLoaded || (other && (followingDids.has(other.did) || acceptedDids.has(other.did)))) {
         acc.mainChats.push(convo);
       } else {
         acc.requests.push(convo);
@@ -830,6 +832,10 @@ export default function DMSidebar({ defaultExpanded = false, embedded = false }:
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
+                                // Add to accepted set - this moves the convo to Messages tab
+                                setAcceptedDids(prev => new Set(prev).add(other.did));
+                                // Switch to Messages tab and open the conversation
+                                setShowRequests(false);
                                 handleSelectConvo(convo.id);
                               }}
                               className="px-2 py-1 text-[10px] font-medium text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/20 hover:bg-emerald-100 dark:hover:bg-emerald-900/40 rounded"
