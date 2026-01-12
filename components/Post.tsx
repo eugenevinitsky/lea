@@ -2453,10 +2453,20 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
               <img
                 src={author.avatar}
                 alt={author.displayName || author.handle}
-                className={`w-12 h-12 rounded-full hover:opacity-80 transition-opacity ${author.viewer?.following ? 'ring-[3px] ring-blue-300 dark:ring-blue-400/60 shadow-[0_0_8px_rgba(147,197,253,0.5)] dark:shadow-[0_0_8px_rgba(96,165,250,0.4)]' : ''}`}
+                className={`w-12 h-12 rounded-full hover:opacity-80 transition-opacity ${
+                  author.viewer?.following && author.viewer?.followedBy
+                    ? 'ring-[3px] ring-purple-400 dark:ring-purple-400/60 shadow-[0_0_8px_rgba(192,132,252,0.5)] dark:shadow-[0_0_8px_rgba(167,139,250,0.4)]'
+                    : author.viewer?.following
+                    ? 'ring-[3px] ring-blue-300 dark:ring-blue-400/60 shadow-[0_0_8px_rgba(147,197,253,0.5)] dark:shadow-[0_0_8px_rgba(96,165,250,0.4)]'
+                    : ''}`}
               />
             ) : (
-              <div className={`w-12 h-12 rounded-full bg-blue-500 flex items-center justify-center text-white font-bold hover:opacity-80 transition-opacity ${author.viewer?.following ? 'ring-[3px] ring-blue-300 dark:ring-blue-400/60 shadow-[0_0_8px_rgba(147,197,253,0.5)] dark:shadow-[0_0_8px_rgba(96,165,250,0.4)]' : ''}`}>
+              <div className={`w-12 h-12 rounded-full bg-blue-500 flex items-center justify-center text-white font-bold hover:opacity-80 transition-opacity ${
+                  author.viewer?.following && author.viewer?.followedBy
+                    ? 'ring-[3px] ring-purple-400 dark:ring-purple-400/60 shadow-[0_0_8px_rgba(192,132,252,0.5)] dark:shadow-[0_0_8px_rgba(167,139,250,0.4)]'
+                    : author.viewer?.following
+                    ? 'ring-[3px] ring-blue-300 dark:ring-blue-400/60 shadow-[0_0_8px_rgba(147,197,253,0.5)] dark:shadow-[0_0_8px_rgba(96,165,250,0.4)]'
+                    : ''}`}>
                 {(author.displayName || author.handle)[0].toUpperCase()}
               </div>
             )}
