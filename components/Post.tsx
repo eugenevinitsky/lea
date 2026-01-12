@@ -2369,9 +2369,16 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
   // Handle click on the article to open the thread
   const handleArticleClick = (e: React.MouseEvent) => {
     // Don't trigger if clicking on interactive elements (buttons, links, inputs)
+    // But exclude the wrapper <a> itself from this check
     const target = e.target as HTMLElement;
-    const isInteractive = target.closest('button, a, input, textarea, [role="button"]');
-    if (isInteractive) return;
+    const interactiveElement = target.closest('button, a, input, textarea, [role="button"]');
+    const isInteractiveChild = interactiveElement && interactiveElement !== e.currentTarget;
+    
+    if (isInteractiveChild) {
+      // Prevent the anchor from navigating when clicking buttons/links inside
+      e.preventDefault();
+      return;
+    }
 
     // Don't trigger if user is selecting text
     const selection = window.getSelection();
