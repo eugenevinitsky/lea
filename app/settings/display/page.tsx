@@ -204,6 +204,56 @@ function DisplayContent() {
                 />
               </label>
             </div>
+
+            {/* Avatar ring indicators section */}
+            <div className="pt-4 border-t border-gray-200 dark:border-gray-800">
+              <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-3">Avatar Ring Indicators</h3>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
+                Show colored rings around profile photos to indicate your relationship with the author.
+              </p>
+
+              {/* Following ring (blue) */}
+              <div className="p-4 bg-gray-50 dark:bg-gray-900 rounded-lg mb-3">
+                <label className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-full bg-gray-300 dark:bg-gray-600 ring-[3px] ring-blue-300 dark:ring-blue-400/60 shadow-[0_0_8px_rgba(147,197,253,0.5)] dark:shadow-[0_0_8px_rgba(96,165,250,0.4)]" />
+                    <div>
+                      <p className="font-medium text-gray-900 dark:text-gray-100">People I follow</p>
+                      <p className="text-sm text-gray-500 dark:text-gray-400">
+                        Blue ring around people you follow
+                      </p>
+                    </div>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={settings.showFollowingRing}
+                    onChange={(e) => updateSettings({ showFollowingRing: e.target.checked })}
+                    className="w-5 h-5 rounded border-gray-300 text-blue-500 focus:ring-blue-500"
+                  />
+                </label>
+              </div>
+
+              {/* Mutual ring (purple) */}
+              <div className="p-4 bg-gray-50 dark:bg-gray-900 rounded-lg">
+                <label className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-full bg-gray-300 dark:bg-gray-600 ring-[3px] ring-purple-400 dark:ring-purple-400/60 shadow-[0_0_8px_rgba(192,132,252,0.5)] dark:shadow-[0_0_8px_rgba(167,139,250,0.4)]" />
+                    <div>
+                      <p className="font-medium text-gray-900 dark:text-gray-100">Mutuals</p>
+                      <p className="text-sm text-gray-500 dark:text-gray-400">
+                        Purple ring around people who follow each other
+                      </p>
+                    </div>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={settings.showMutualRing}
+                    onChange={(e) => updateSettings({ showMutualRing: e.target.checked })}
+                    className="w-5 h-5 rounded border-gray-300 text-blue-500 focus:ring-blue-500"
+                  />
+                </label>
+              </div>
+            </div>
           </div>
         </main>
       </div>

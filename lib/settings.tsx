@@ -13,6 +13,8 @@ export interface LeaSettings {
   dimNonVerified: boolean;
   dimReposts: boolean;
   expandSelfThreads: boolean;
+  showFollowingRing: boolean; // Blue ring around people you follow
+  showMutualRing: boolean; // Purple ring around mutuals
 
   // Notifications
   notifyLikes: boolean;
@@ -35,6 +37,8 @@ const DEFAULT_SETTINGS: LeaSettings = {
   dimNonVerified: false,
   dimReposts: false,
   expandSelfThreads: true,
+  showFollowingRing: true,
+  showMutualRing: true,
   notifyLikes: true,
   notifyReposts: true,
   notifyQuotes: true,
