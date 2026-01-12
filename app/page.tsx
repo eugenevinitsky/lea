@@ -593,6 +593,26 @@ function AppContent() {
 
           {/* Feed Tabs - sticky below header when scrolling */}
           <div className="relative border-b border-gray-200 dark:border-gray-800 sticky top-14 z-10 bg-white dark:bg-gray-950">
+            {/* Scroll to top button - desktop only, far left */}
+            <button
+              onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+              className="hidden lg:flex absolute left-0 top-0 bottom-0 w-8 bg-white dark:bg-gray-950 z-10 items-center justify-center border-r border-gray-200 dark:border-gray-800 text-gray-500 hover:text-blue-500 hover:bg-gray-50 dark:hover:bg-gray-900 transition-colors"
+              title="Scroll to top"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 10l7-7m0 0l7 7m-7-7v18" />
+              </svg>
+            </button>
+            {/* Refresh button - desktop only, second from left */}
+            <button
+              onClick={() => setRefreshKey(k => k + 1)}
+              className="hidden lg:flex absolute left-8 top-0 bottom-0 w-8 bg-white dark:bg-gray-950 z-10 items-center justify-center border-r border-gray-200 dark:border-gray-800 text-gray-500 hover:text-blue-500 hover:bg-gray-50 dark:hover:bg-gray-900 transition-colors"
+              title="Refresh feed"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+            </button>
             {/* Left scroll arrow - desktop only */}
             <button
               onClick={() => {
@@ -600,7 +620,7 @@ function AppContent() {
                 if (container) container.scrollBy({ left: -150, behavior: 'smooth' });
               }}
               disabled={!canScrollLeft}
-              className={`hidden lg:flex absolute left-0 top-0 bottom-0 w-8 bg-white dark:bg-gray-950 z-10 items-center justify-center border-r border-gray-200 dark:border-gray-800 transition-colors ${
+              className={`hidden lg:flex absolute left-16 top-0 bottom-0 w-8 bg-white dark:bg-gray-950 z-10 items-center justify-center border-r border-gray-200 dark:border-gray-800 transition-colors ${
                 canScrollLeft
                   ? 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 cursor-pointer'
                   : 'text-gray-300 dark:text-gray-700 cursor-default'
@@ -629,7 +649,7 @@ function AppContent() {
             </button>
             <div
               ref={feedsContainerRef}
-              className="flex overflow-x-auto scrollbar-hide lg:mx-8"
+              className="flex overflow-x-auto scrollbar-hide lg:ml-24 lg:mr-8"
             >
               {pinnedFeeds.map((feed, index) => {
                 const isActive = activeFeedUri === feed.uri || (activeFeedUri === null && index === 0);
@@ -709,6 +729,26 @@ function AppContent() {
                       </svg>
                     )}
                     <span className="whitespace-nowrap">{feed.displayName}</span>
+                    {/* Info button for active custom feed generators */}
+                    {isActive && feed.uri.includes('/app.bsky.feed.generator/') && (() => {
+                      const match = feed.uri.match(/^at:\/\/([^/]+)\/app\.bsky\.feed\.generator\/([^/]+)$/);
+                      if (match) {
+                        const [, didOrHandle, rkey] = match;
+                        return (
+                          <a
+                            href={`/feed/${didOrHandle}/${rkey}`}
+                            onClick={(e) => e.stopPropagation()}
+                            className="p-0.5 text-gray-400 hover:text-blue-500 transition-colors"
+                            title="Feed info"
+                          >
+                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                          </a>
+                        );
+                      }
+                      return null;
+                    })()}
                     {isActive && (
                       <div className={`absolute bottom-0 left-0 right-0 h-0.5 ${
                         (isSkygest || isKeyword) ? 'bg-purple-500' : 'bg-blue-500'

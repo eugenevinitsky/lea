@@ -378,68 +378,6 @@ export default function Feed({ feedId, feedUri, feedName, acceptsInteractions, r
 
   return (
     <div>
-      {/* Header - hidden on mobile since feed name is in tabs, sticky below feed tabs */}
-      {/* top-14 (3.5rem) for main header + ~2.375rem for feed tabs = ~5.875rem total */}
-      <div className="hidden lg:block sticky top-[5.875rem] z-10 bg-white dark:bg-gray-950 border-y border-gray-200 dark:border-gray-800 p-3">
-        <div className="flex items-center justify-between">
-          <div>
-            <div className="flex items-center gap-2">
-              <h2 className="font-semibold text-gray-900 dark:text-gray-100">{effectiveFeedName}</h2>
-              {feedDetailUrl && (
-                <a
-                  href={feedDetailUrl}
-                  className="p-1 text-gray-400 hover:text-blue-500 transition-colors"
-                  title="Feed info"
-                >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                </a>
-              )}
-            </div>
-            {isPapersFeed && (
-              <p className="text-xs text-gray-500">
-                {filteredPosts.length} paper{filteredPosts.length !== 1 ? 's' : ''} found in {totalScanned} posts
-              </p>
-            )}
-            {isKeywordFeed && effectiveKeyword && (
-              <p className="text-xs text-purple-500 flex items-center gap-1">
-                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                </svg>
-                Search: &quot;{effectiveKeyword}&quot;
-              </p>
-            )}
-          </div>
-          <div className="flex items-center gap-1">
-            <button
-              onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
-              className="p-2 text-gray-500 hover:text-blue-500 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors"
-              title="Scroll to top"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 10l7-7m0 0l7 7m-7-7v18" />
-              </svg>
-            </button>
-            <button
-              onClick={() => {
-                setPosts([]);
-                setCursor(undefined);
-                setLoadedPages(0);
-                loadFeed();
-              }}
-              disabled={loading}
-              className="p-2 text-gray-500 hover:text-blue-500 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors disabled:opacity-50"
-              title="Refresh feed"
-            >
-              <svg className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-              </svg>
-            </button>
-          </div>
-        </div>
-      </div>
-
       {/* Hidden posts indicator */}
       {hiddenCount > 0 && (
         <div className="px-4 py-2 bg-amber-50 dark:bg-amber-900/20 border-b border-amber-200 dark:border-amber-800">
