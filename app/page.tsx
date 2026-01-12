@@ -368,25 +368,18 @@ function AppContent() {
     <div className="min-h-screen bg-gray-50 dark:bg-black">
       {/* Header */}
       <header className="sticky top-0 z-20 bg-white/80 dark:bg-black/80 backdrop-blur border-b border-gray-200 dark:border-gray-800">
-        <div className="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between relative">
-          {/* Mobile header - hamburger menu on left */}
-          <button
-            onClick={() => setShowMobileMenu(!showMobileMenu)}
-            className="lg:hidden p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full"
-          >
-            <svg className="w-6 h-6 text-gray-600 dark:text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-            </svg>
-          </button>
-
-          {/* Desktop: Lea on left */}
-          <h1
-            className="hidden lg:block text-xl font-bold text-blue-500 cursor-pointer hover:text-blue-600 transition-colors"
-            onClick={() => window.location.reload()}
-          >Lea</h1>
-
-          {/* Desktop header items */}
-          <div className="hidden lg:flex items-center gap-3">
+        <div className="max-w-5xl mx-auto px-4 py-3">
+          {/* Desktop header - matches body layout */}
+          <div className="hidden lg:flex items-center gap-4">
+            {/* Left section matching sidebar width */}
+            <div className="w-64 flex-shrink-0">
+              <h1
+                className="text-xl font-bold text-blue-500 cursor-pointer hover:text-blue-600 transition-colors"
+                onClick={() => window.location.reload()}
+              >Lea</h1>
+            </div>
+            {/* Main section matching main content width */}
+            <div className="flex-1 max-w-xl flex items-center justify-end gap-3">
             <ResearcherSearch onSelectResearcher={navigateToProfile} onOpenThread={openThread} onSearch={(q) => window.location.href = `/search?q=${encodeURIComponent(q)}`} />
             <button
               onClick={() => {
@@ -430,24 +423,35 @@ function AppContent() {
                 Get verified
               </a>
             )}
+            </div>
           </div>
 
-          {/* Mobile: Lea centered */}
-          <h1
-            className="lg:hidden absolute left-1/2 -translate-x-1/2 text-xl font-bold text-blue-500 cursor-pointer hover:text-blue-600 transition-colors"
-            onClick={() => window.location.reload()}
-          >Lea</h1>
+          {/* Mobile header */}
+          <div className="lg:hidden flex items-center justify-between relative">
+            <button
+              onClick={() => setShowMobileMenu(!showMobileMenu)}
+              className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full"
+            >
+              <svg className="w-6 h-6 text-gray-600 dark:text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+              </svg>
+            </button>
 
-          {/* Mobile: Feed settings on right */}
-          <button
-            onClick={() => setShowFeedDiscovery(true)}
-            className="lg:hidden p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full"
-            title="Manage feeds"
-          >
-            <svg className="w-5 h-5 text-gray-600 dark:text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 20l4-16m2 16l4-16M6 9h14M4 15h14" />
-            </svg>
-          </button>
+            <h1
+              className="absolute left-1/2 -translate-x-1/2 text-xl font-bold text-blue-500 cursor-pointer hover:text-blue-600 transition-colors"
+              onClick={() => window.location.reload()}
+            >Lea</h1>
+
+            <button
+              onClick={() => setShowFeedDiscovery(true)}
+              className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full"
+              title="Manage feeds"
+            >
+              <svg className="w-5 h-5 text-gray-600 dark:text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 20l4-16m2 16l4-16M6 9h14M4 15h14" />
+              </svg>
+            </button>
+          </div>
         </div>
 
         {/* Mobile dropdown menu */}
