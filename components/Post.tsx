@@ -479,17 +479,27 @@ function RichText({ text, facets }: { text: string; facets?: AppBskyFeedPost.Rec
       );
     } else if (feature.$type === 'app.bsky.richtext.facet#mention') {
       const did = (feature as { did: string }).did;
+      // Extract handle from mention text (remove @ prefix)
+      const mentionHandle = facetText.startsWith('@') ? facetText.slice(1) : facetText;
       elements.push(
-        <a
+        <ProfileHoverCard
           key={byteStart}
-          href={`/u/${did}`}
-          className="text-blue-500 hover:underline"
-          onClick={(e) => e.stopPropagation()}
+          did={did}
+          handle={mentionHandle}
+          onOpenProfile={() => {
+            window.location.href = `/u/${did}`;
+          }}
         >
-          {facetText}
-        </a>
+          <a
+            href={`/u/${did}`}
+            className="text-blue-500 hover:underline"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {facetText}
+          </a>
+        </ProfileHoverCard>
       );
-    } else if (feature.$type === 'app.bsky.richtext.facet#tag') {
+    }
       const tag = (feature as { tag: string }).tag;
       elements.push(
         <a
