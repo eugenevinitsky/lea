@@ -2380,20 +2380,22 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
 
   // Handle click on the article to open the thread
   const handleArticleClick = (e: React.MouseEvent) => {
-    // If the event was already handled (e.g., by a button's onClick), don't navigate
-    if (e.defaultPrevented) {
-      return;
-    }
-
     // Don't trigger if clicking on interactive elements (buttons, links, inputs)
     // But exclude the wrapper <a> itself from this check
+    // NOTE: We check this FIRST before defaultPrevented because we need to
+    // call preventDefault() on the anchor even if a child already did
     const target = e.target as HTMLElement;
-    const interactiveElement = target.closest('button, a, input, textarea, [role="button"]');
+    const interactiveElement = target.closest('button, a:not([data-post-wrapper]), input, textarea, [role="button"]');
     const isInteractiveChild = interactiveElement && interactiveElement !== e.currentTarget;
     
     if (isInteractiveChild) {
       // Prevent the anchor from navigating when clicking buttons/links inside
       e.preventDefault();
+      return;
+    }
+
+    // If the event was already handled (e.g., by a button's onClick), don't navigate
+    if (e.defaultPrevented) {
       return;
     }
 
@@ -2411,10 +2413,21 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
     onOpenThread?.(post.uri);
   };
 
+  // Capture phase handler to intercept clicks on interactive elements before they cause navigation
+  const handleClickCapture = (e: React.MouseEvent) => {
+    const target = e.target as HTMLElement;
+    const interactiveElement = target.closest('button, a:not([data-post-wrapper]), input, textarea, [role="button"]');
+    if (interactiveElement) {
+      // An interactive element was clicked - prevent anchor navigation
+      // The element's own onClick will handle the action
+      e.preventDefault();
+    }
+  };
+
   // If we have a URL and thread handler, wrap in an anchor for right-click support
   const ArticleWrapper = postUrl && onOpenThread ? 'a' : 'article';
   const articleProps = postUrl && onOpenThread
-    ? { href: postUrl, onClick: handleArticleClick, className: `${articleClass} cursor-pointer block` }
+    ? { href: postUrl, onClick: handleArticleClick, onClickCapture: handleClickCapture, className: `${articleClass} cursor-pointer block`, 'data-post-wrapper': true }
     : { className: articleClass, onClick: onOpenThread ? handleArticleClick : undefined };
 
   return (
@@ -2761,6 +2774,7 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
             {/* Bookmark button */}
             <div className="relative" ref={bookmarkMenuRef}>
               <button
+                type="button"
                 onClick={handleBookmarkClick}
                 className={`flex items-center gap-1.5 lg:gap-1 transition-colors py-1 ${
                   bookmarked
