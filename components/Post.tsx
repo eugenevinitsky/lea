@@ -499,7 +499,7 @@ function RichText({ text, facets }: { text: string; facets?: AppBskyFeedPost.Rec
           </a>
         </ProfileHoverCard>
       );
-    }
+    } else if (feature.$type === 'app.bsky.richtext.facet#tag') {
       const tag = (feature as { tag: string }).tag;
       elements.push(
         <a
