@@ -2416,7 +2416,8 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
   // Capture phase handler to intercept clicks on interactive elements before they cause navigation
   const handleClickCapture = (e: React.MouseEvent) => {
     const target = e.target as HTMLElement;
-    const interactiveElement = target.closest('button, a:not([data-post-wrapper]), input, textarea, [role="button"]');
+    // Include img because post images have click handlers for lightbox
+    const interactiveElement = target.closest('button, a:not([data-post-wrapper]), input, textarea, [role="button"], img');
     if (interactiveElement) {
       // An interactive element was clicked - prevent anchor navigation
       // The element's own onClick will handle the action
