@@ -7,6 +7,125 @@ let verifiedOnlyListUri: string | null = null;
 let personalListUri: string | null = null;
 
 const SESSION_KEY = 'lea-bsky-session';
+const DEFAULT_PDS = 'https://bsky.social';
+const PLC_DIRECTORY = 'https://plc.directory';
+
+// ============================================
+// PDS Resolution for Custom PDS Support
+// ============================================
+
+// DID Document types
+interface DidService {
+  id: string;
+  type: string;
+  serviceEndpoint: string;
+}
+
+interface DidDocument {
+  id: string;
+  alsoKnownAs?: string[];
+  service?: DidService[];
+  verificationMethod?: unknown[];
+}
+
+// Stored session now includes PDS URL
+interface StoredSession {
+  did: string;
+  handle: string;
+  accessJwt: string;
+  refreshJwt: string;
+  pdsUrl?: string; // User's PDS endpoint (may be missing in old sessions)
+}
+
+// Current PDS URL for the logged-in user
+let currentPdsUrl: string = DEFAULT_PDS;
+
+/**
+ * Resolve a DID to its DID Document
+ * Supports did:plc (via PLC directory) and did:web (via .well-known)
+ */
+export async function resolveDid(did: string): Promise<DidDocument> {
+  if (did.startsWith('did:plc:')) {
+    // Resolve via PLC directory
+    const response = await fetch(`${PLC_DIRECTORY}/${did}`);
+    if (!response.ok) {
+      throw new Error(`Failed to resolve DID ${did}: ${response.status}`);
+    }
+    return response.json();
+  } else if (did.startsWith('did:web:')) {
+    // Resolve did:web via .well-known endpoint
+    // did:web:example.com -> https://example.com/.well-known/did.json
+    // did:web:example.com:path:to:resource -> https://example.com/path/to/resource/did.json
+    const parts = did.replace('did:web:', '').split(':');
+    const domain = parts[0];
+    const path = parts.slice(1).join('/');
+    const url = path
+      ? `https://${domain}/${path}/did.json`
+      : `https://${domain}/.well-known/did.json`;
+    
+    const response = await fetch(url);
+    if (!response.ok) {
+      throw new Error(`Failed to resolve DID ${did}: ${response.status}`);
+    }
+    return response.json();
+  } else {
+    throw new Error(`Unsupported DID method: ${did}`);
+  }
+}
+
+/**
+ * Extract PDS service endpoint from a DID Document
+ * Looks for service with id ending in #atproto_pds and type AtprotoPersonalDataServer
+ */
+export function getPdsFromDidDoc(didDoc: DidDocument): string | null {
+  if (!didDoc.service || !Array.isArray(didDoc.service)) {
+    return null;
+  }
+  
+  const pdsService = didDoc.service.find(s =>
+    s.id?.endsWith('#atproto_pds') &&
+    s.type === 'AtprotoPersonalDataServer'
+  );
+  
+  return pdsService?.serviceEndpoint || null;
+}
+
+/**
+ * Resolve a handle to the user's PDS URL
+ * Flow: handle -> DID (via any PDS) -> DID Document -> PDS URL
+ */
+export async function resolvePdsForHandle(handle: string): Promise<{ did: string; pdsUrl: string }> {
+  // First, resolve handle to DID using bsky.social (works for any handle)
+  const resolveResponse = await fetch(
+    `${DEFAULT_PDS}/xrpc/com.atproto.identity.resolveHandle?handle=${encodeURIComponent(handle)}`
+  );
+  
+  if (!resolveResponse.ok) {
+    throw new Error(`Failed to resolve handle ${handle}: ${resolveResponse.status}`);
+  }
+  
+  const { did } = await resolveResponse.json();
+  
+  // Now resolve the DID to get the DID document
+  const didDoc = await resolveDid(did);
+  
+  // Extract PDS URL from DID document
+  const pdsUrl = getPdsFromDidDoc(didDoc);
+  
+  if (!pdsUrl) {
+    console.warn(`No PDS found in DID document for ${did}, falling back to ${DEFAULT_PDS}`);
+    return { did, pdsUrl: DEFAULT_PDS };
+  }
+  
+  return { did, pdsUrl };
+}
+
+/**
+ * Get the current PDS URL for the logged-in user
+ */
+export function getCurrentPdsUrl(): string {
+  return currentPdsUrl;
+}
 
 // Helper to build profile URLs that handles dots in custom domain handles
 // Next.js interprets .com, .net etc. as file extensions, so we use DIDs for those
@@ -42,12 +161,18 @@ export function getAgent(): BskyAgent | null {
 }
 
 // Save session to localStorage (called on login and token refresh)
+// Now includes pdsUrl for custom PDS support
 function persistSession(evt: string, session?: { did: string; handle: string; accessJwt: string; refreshJwt: string }) {
   if (typeof window === 'undefined') return;
 
   if (evt === 'create' || evt === 'update') {
     if (session) {
-      localStorage.setItem(SESSION_KEY, JSON.stringify(session));
+      // Include the current PDS URL in the stored session
+      const storedSession: StoredSession = {
+        ...session,
+        pdsUrl: currentPdsUrl,
+      };
+      localStorage.setItem(SESSION_KEY, JSON.stringify(storedSession));
     }
   } else if (evt === 'expired') {
     localStorage.removeItem(SESSION_KEY);
@@ -64,12 +189,39 @@ export async function restoreSession(): Promise<boolean> {
   if (!stored) return false;
 
   try {
-    const sessionData = JSON.parse(stored);
+    const sessionData: StoredSession = JSON.parse(stored);
+    
+    // Use stored PDS URL, or re-resolve if missing (for old sessions)
+    let pdsUrl = sessionData.pdsUrl;
+    if (!pdsUrl && sessionData.did) {
+      try {
+        // Re-resolve PDS for sessions that don't have it stored
+        const didDoc = await resolveDid(sessionData.did);
+        pdsUrl = getPdsFromDidDoc(didDoc) || DEFAULT_PDS;
+        console.log(`Re-resolved PDS for ${sessionData.did}: ${pdsUrl}`);
+      } catch (err) {
+        console.warn('Failed to re-resolve PDS, using default:', err);
+        pdsUrl = DEFAULT_PDS;
+      }
+    }
+    
+    currentPdsUrl = pdsUrl || DEFAULT_PDS;
+    
     agent = new BskyAgent({
-      service: 'https://bsky.social',
+      service: currentPdsUrl,
       persistSession: persistSession,
     });
-    await agent.resumeSession(sessionData);
+    
+    // Extract just the session fields needed by resumeSession (exclude pdsUrl)
+    // The session data was originally from AtpSessionData, so it has all required fields
+    // We use type assertion since StoredSession extends the base session with pdsUrl
+    const { pdsUrl: _pdsUrl, ...atpSessionData } = sessionData;
+    // Add default 'active' if missing (for older stored sessions)
+    const sessionForResume = {
+      ...atpSessionData,
+      active: (atpSessionData as { active?: boolean }).active ?? true,
+    };
+    await agent.resumeSession(sessionForResume);
     
     // Configure labelers from user's subscriptions (includes LEA labeler)
     // We await this to ensure labels are included in feed responses
@@ -89,8 +241,32 @@ export async function restoreSession(): Promise<boolean> {
 }
 
 export async function login(identifier: string, password: string): Promise<BskyAgent> {
+  // First, resolve the user's PDS from their handle/DID
+  // This allows users on custom PDS to log in properly
+  let pdsUrl = DEFAULT_PDS;
+  
+  try {
+    // Handle can be either a handle (e.g., alice.bsky.social) or a DID
+    if (identifier.startsWith('did:')) {
+      // If it's a DID, resolve directly to DID document
+      const didDoc = await resolveDid(identifier);
+      pdsUrl = getPdsFromDidDoc(didDoc) || DEFAULT_PDS;
+    } else {
+      // If it's a handle, resolve handle -> DID -> PDS
+      const resolved = await resolvePdsForHandle(identifier);
+      pdsUrl = resolved.pdsUrl;
+    }
+    console.log(`Resolved PDS for ${identifier}: ${pdsUrl}`);
+  } catch (err) {
+    console.warn(`Failed to resolve PDS for ${identifier}, using default:`, err);
+    // Fall back to default PDS if resolution fails
+    pdsUrl = DEFAULT_PDS;
+  }
+  
+  currentPdsUrl = pdsUrl;
+  
   agent = new BskyAgent({
-    service: 'https://bsky.social',
+    service: pdsUrl,
     persistSession: persistSession,
   });
   await agent.login({ identifier, password });
@@ -110,6 +286,7 @@ export async function login(identifier: string, password: string): Promise<BskyA
 export function logout() {
   agent = null;
   personalListUri = null; // Clear personal list cache on logout
+  currentPdsUrl = DEFAULT_PDS; // Reset PDS to default
   clearModerationCache(); // Clear moderation cache on logout
   if (typeof window !== 'undefined') {
     localStorage.removeItem(SESSION_KEY);
