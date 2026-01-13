@@ -25,6 +25,7 @@ import {
 const QUICK_REACTIONS = ['❤️', '👍', '😂', '😮', '😢'];
 
 const POLL_INTERVAL = 10000;
+const ACCEPTED_DMS_KEY = 'lea_accepted_dm_dids';
 
 function formatTime(dateString: string) {
   const date = new Date(dateString);
@@ -122,7 +123,20 @@ export default function DMSidebar({ defaultExpanded = false, embedded = false }:
   const [isExpanded, setIsExpanded] = useState(defaultExpanded || embedded);
   const [convos, setConvos] = useState<Convo[]>([]);
   const [followingDids, setFollowingDids] = useState<Set<string> | null>(null);
-  const [acceptedDids, setAcceptedDids] = useState<Set<string>>(new Set()); // Track accepted requests locally
+  const [acceptedDids, setAcceptedDids] = useState<Set<string>>(() => {
+    // Load accepted DIDs from localStorage on mount
+    if (typeof window !== 'undefined') {
+      try {
+        const stored = localStorage.getItem(ACCEPTED_DMS_KEY);
+        if (stored) {
+          return new Set(JSON.parse(stored));
+        }
+      } catch (e) {
+        console.error('Failed to load accepted DIDs from localStorage:', e);
+      }
+    }
+    return new Set();
+  });
   const [showRequests, setShowRequests] = useState(false);
   const [selectedConvoId, setSelectedConvoId] = useState<string | null>(null);
   const [selectedConvo, setSelectedConvo] = useState<Convo | null>(null);
@@ -146,6 +160,17 @@ export default function DMSidebar({ defaultExpanded = false, embedded = false }:
   const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const session = getSession();
+
+  // Persist acceptedDids to localStorage when it changes
+  useEffect(() => {
+    if (acceptedDids.size > 0) {
+      try {
+        localStorage.setItem(ACCEPTED_DMS_KEY, JSON.stringify([...acceptedDids]));
+      } catch (e) {
+        console.error('Failed to save accepted DIDs to localStorage:', e);
+      }
+    }
+  }, [acceptedDids]);
 
   // Handle adding/removing reactions
   const handleReaction = async (messageId: string, emoji: string) => {
