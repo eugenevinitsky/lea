@@ -2435,7 +2435,7 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
   // If we have a URL and thread handler, wrap in an anchor for right-click support
   const ArticleWrapper = postUrl && onOpenThread ? 'a' : 'article';
   const articleProps = postUrl && onOpenThread
-    ? { href: postUrl, onClick: handleArticleClick, onClickCapture: handleClickCapture, className: `${articleClass} cursor-pointer block`, 'data-post-wrapper': true }
+    ? { href: postUrl, onClick: handleArticleClick, onClickCapture: handleClickCapture, className: `${articleClass} cursor-pointer block`, 'data-post-wrapper': true, draggable: false }
     : { className: articleClass, onClick: onOpenThread ? handleArticleClick : undefined };
 
   return (
