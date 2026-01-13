@@ -118,11 +118,16 @@ export async function GET(request: NextRequest) {
       publicationVenues: r.publicationVenues ? JSON.parse(r.publicationVenues) : [],
     }));
 
-    return NextResponse.json({ 
+    return NextResponse.json({
       researchers: formattedResearchers,
       field,
       value,
       count: formattedResearchers.length,
+    }, {
+      headers: {
+        // Cache at CDN for 5 minutes, stale-while-revalidate for 10 min
+        'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=600',
+      },
     });
   } catch (error) {
     console.error('Failed to search researchers by field:', error);

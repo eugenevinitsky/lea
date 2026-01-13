@@ -19,6 +19,11 @@ export async function GET() {
 
     return NextResponse.json({
       researchers: recent,
+    }, {
+      headers: {
+        // Cache at CDN for 5 minutes, stale-while-revalidate for 10 min
+        'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=600',
+      },
     });
   } catch (error) {
     console.error('Failed to fetch recent researchers:', error);

@@ -57,6 +57,11 @@ export async function GET(request: NextRequest) {
       title: title.slice(0, 300), // Bluesky limits
       description: description.slice(0, 1000),
       image,
+    }, {
+      headers: {
+        // Cache at CDN for 1 hour, stale-while-revalidate for 24 hours (page metadata rarely changes)
+        'Cache-Control': 'public, s-maxage=3600, stale-while-revalidate=86400',
+      },
     });
   } catch (error) {
     console.error('Failed to fetch link metadata:', error);

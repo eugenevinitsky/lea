@@ -159,7 +159,12 @@ export async function GET(request: NextRequest) {
       })
       .slice(0, limit);
 
-    return NextResponse.json({ posts: allPosts });
+    return NextResponse.json({ posts: allPosts }, {
+      headers: {
+        // Cache at CDN for 5 minutes, stale-while-revalidate for 10 min
+        'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=600',
+      },
+    });
   } catch (error) {
     console.error('Failed to fetch trending blog posts:', error);
     return NextResponse.json({ error: 'Failed to fetch trending blog posts' }, { status: 500 });

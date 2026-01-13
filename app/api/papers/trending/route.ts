@@ -68,7 +68,12 @@ export async function GET(request: NextRequest) {
       )
       .limit(limit);
 
-    return NextResponse.json({ papers });
+    return NextResponse.json({ papers }, {
+      headers: {
+        // Cache at CDN for 5 minutes, stale-while-revalidate for 10 min
+        'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=600',
+      },
+    });
   } catch (error) {
     console.error('Failed to fetch trending papers:', error);
     return NextResponse.json({ error: 'Failed to fetch trending papers' }, { status: 500 });

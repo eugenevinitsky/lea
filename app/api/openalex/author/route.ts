@@ -29,7 +29,12 @@ export async function GET(request: NextRequest) {
     }
 
     const data = await response.json();
-    return NextResponse.json(data);
+    return NextResponse.json(data, {
+      headers: {
+        // Cache at CDN for 1 hour, stale-while-revalidate for 24 hours (external data rarely changes)
+        'Cache-Control': 'public, s-maxage=3600, stale-while-revalidate=86400',
+      },
+    });
   } catch (error) {
     console.error('Error fetching author from OpenAlex:', error);
     return NextResponse.json(
