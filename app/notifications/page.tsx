@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { restoreSession, getSession, getBlueskyProfile, checkSafetyAlerts, dismissSafetyAlert, SafetyAlert, AlertThresholds, followUser, unfollowUser, isVerifiedResearcher, Label, buildProfileUrl, checkVerificationStatus } from '@/lib/bluesky';
+import { restoreSession, getSession, getBlueskyProfile, checkSafetyAlerts, dismissSafetyAlert, SafetyAlert, AlertThresholds, followUser, unfollowUser, isVerifiedResearcher, Label, buildProfileUrl, checkVerificationStatus, blockUser, getKnownFollowers, BlueskyProfile } from '@/lib/bluesky';
 import { useFollowing } from '@/lib/following-context';
 import { SettingsProvider } from '@/lib/settings';
 import { BookmarksProvider, useBookmarks } from '@/lib/bookmarks';
@@ -21,6 +21,7 @@ import ModerationBox from '@/components/ModerationBox';
 import SafetyPanel from '@/components/SafetyPanel';
 import ResearcherSearch from '@/components/ResearcherSearch';
 import ProfileHoverCard from '@/components/ProfileHoverCard';
+import ProfileLabels from '@/components/ProfileLabels';
 
 // Helper to format relative time
 function formatTime(dateString: string) {
@@ -917,6 +918,506 @@ function FollowRow({
   );
 }
 
+// Enhanced follower row with spam indicators, labels, mutual connections, and block
+interface EnhancedFollowerProfile extends BlueskyProfile {
+  indexedAt: string; // When they followed
+  mutualFollowers?: { did: string; handle: string; displayName?: string; avatar?: string }[];
+}
+
+function EnhancedFollowerRow({
+  profile,
+  isSelected,
+  onSelect,
+  onOpenProfile,
+  onBlocked,
+}: {
+  profile: EnhancedFollowerProfile;
+  isSelected: boolean;
+  onSelect: (did: string, selected: boolean) => void;
+  onOpenProfile: (did: string) => void;
+  onBlocked: (did: string) => void;
+}) {
+  const [isFollowing, setIsFollowing] = useState(!!profile.viewer?.following);
+  const [followUri, setFollowUri] = useState<string | undefined>(profile.viewer?.following);
+  const [followLoading, setFollowLoading] = useState(false);
+  const [blockLoading, setBlockLoading] = useState(false);
+  const { refresh: refreshFollowing } = useFollowing();
+
+  const isVerified = profile.labels ? isVerifiedResearcher(profile.labels) : false;
+  const isMutual = isFollowing && !!profile.viewer?.followedBy;
+
+  // Spam indicators
+  const hasNoAvatar = !profile.avatar;
+  const hasNoBio = !profile.description || profile.description.trim().length < 10;
+  const followersCount = profile.followersCount || 0;
+  const followsCount = profile.followsCount || 0;
+  const hasHighFollowRatio = followsCount > 10 && followersCount > 0 && followsCount / followersCount > 10;
+  const hasSpamIndicators = hasNoAvatar || hasNoBio || hasHighFollowRatio;
+
+  const handleFollow = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (followLoading) return;
+    setFollowLoading(true);
+    try {
+      const result = await followUser(profile.did);
+      setIsFollowing(true);
+      setFollowUri(result.uri);
+      refreshFollowing();
+    } catch (err) {
+      console.error('Failed to follow:', err);
+    } finally {
+      setFollowLoading(false);
+    }
+  };
+
+  const handleUnfollow = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (followLoading || !followUri) return;
+    setFollowLoading(true);
+    try {
+      await unfollowUser(followUri);
+      setIsFollowing(false);
+      setFollowUri(undefined);
+      refreshFollowing();
+    } catch (err) {
+      console.error('Failed to unfollow:', err);
+    } finally {
+      setFollowLoading(false);
+    }
+  };
+
+  const handleBlock = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (blockLoading) return;
+    if (!window.confirm(`Block @${profile.handle}? They won't be able to see your posts or interact with you.`)) return;
+    setBlockLoading(true);
+    try {
+      await blockUser(profile.did);
+      onBlocked(profile.did);
+    } catch (err) {
+      console.error('Failed to block:', err);
+    } finally {
+      setBlockLoading(false);
+    }
+  };
+
+  // Determine avatar ring color
+  const getAvatarRingClass = () => {
+    if (isMutual) {
+      return 'ring-[3px] ring-purple-400 dark:ring-purple-400/60 shadow-[0_0_8px_rgba(192,132,252,0.5)]';
+    }
+    if (isFollowing) {
+      return 'ring-[3px] ring-blue-300 dark:ring-blue-400/60 shadow-[0_0_8px_rgba(147,197,253,0.5)]';
+    }
+    return '';
+  };
+
+  return (
+    <div
+      className={`p-4 hover:bg-gray-50 dark:hover:bg-gray-800/50 border-b border-gray-100 dark:border-gray-800 last:border-b-0 ${
+        hasSpamIndicators ? 'bg-amber-50/50 dark:bg-amber-900/10' : ''
+      }`}
+    >
+      <div className="flex items-start gap-3">
+        {/* Checkbox */}
+        <div className="flex-shrink-0 pt-1">
+          <input
+            type="checkbox"
+            checked={isSelected}
+            onChange={(e) => onSelect(profile.did, e.target.checked)}
+            onClick={(e) => e.stopPropagation()}
+            className="w-4 h-4 rounded border-gray-300 text-blue-500 focus:ring-blue-500 cursor-pointer"
+          />
+        </div>
+
+        {/* Avatar with ring */}
+        <div
+          className="flex-shrink-0 relative cursor-pointer"
+          onClick={() => onOpenProfile(profile.did)}
+        >
+          {profile.avatar ? (
+            <img
+              src={profile.avatar}
+              alt=""
+              className={`w-12 h-12 rounded-full ${getAvatarRingClass()}`}
+            />
+          ) : (
+            <div className={`w-12 h-12 rounded-full bg-gradient-to-br from-gray-300 to-gray-400 dark:from-gray-600 dark:to-gray-700 flex items-center justify-center text-white text-lg font-bold ${getAvatarRingClass()}`}>
+              {(profile.displayName || profile.handle)[0].toUpperCase()}
+            </div>
+          )}
+          {isVerified && (
+            <span
+              className="absolute -bottom-0.5 -right-0.5 inline-flex items-center justify-center w-5 h-5 bg-emerald-500 rounded-full border-2 border-white dark:border-gray-900"
+              title="Verified Researcher"
+            >
+              <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+              </svg>
+            </span>
+          )}
+        </div>
+
+        {/* Profile info */}
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <span
+              className="font-semibold text-gray-900 dark:text-gray-100 truncate cursor-pointer hover:underline"
+              onClick={() => onOpenProfile(profile.did)}
+            >
+              {profile.displayName || profile.handle}
+            </span>
+            <span className="text-xs text-gray-400">{formatTime(profile.indexedAt)}</span>
+          </div>
+          <p
+            className="text-sm text-gray-500 dark:text-gray-400 cursor-pointer hover:underline"
+            onClick={() => onOpenProfile(profile.did)}
+          >
+            @{profile.handle}
+          </p>
+
+          {/* Bio */}
+          {profile.description ? (
+            <p className="mt-1.5 text-sm text-gray-600 dark:text-gray-300 line-clamp-2">
+              {profile.description}
+            </p>
+          ) : null}
+
+          {/* Labels */}
+          <ProfileLabels profile={profile} compact />
+
+          {/* Stats row */}
+          <div className="mt-2 flex items-center gap-3 flex-wrap text-xs">
+            <span>
+              <span className="font-semibold text-gray-700 dark:text-gray-200">
+                {followersCount.toLocaleString()}
+              </span>
+              <span className="text-gray-500"> followers</span>
+            </span>
+            <span>
+              <span className="font-semibold text-gray-700 dark:text-gray-200">
+                {followsCount.toLocaleString()}
+              </span>
+              <span className="text-gray-500"> following</span>
+            </span>
+            {/* Mutual followers */}
+            {profile.mutualFollowers && profile.mutualFollowers.length > 0 && (
+              <span className="flex items-center gap-1">
+                <div className="flex -space-x-1">
+                  {profile.mutualFollowers.slice(0, 3).map((m) => (
+                    m.avatar ? (
+                      <img key={m.did} src={m.avatar} className="w-4 h-4 rounded-full border border-white dark:border-gray-800" alt="" />
+                    ) : (
+                      <div key={m.did} className="w-4 h-4 rounded-full bg-blue-400 border border-white dark:border-gray-800" />
+                    )
+                  ))}
+                </div>
+                <span className="text-gray-500">
+                  {profile.mutualFollowers.length} mutual{profile.mutualFollowers.length !== 1 ? 's' : ''}
+                </span>
+              </span>
+            )}
+          </div>
+
+          {/* Spam indicators */}
+          {hasSpamIndicators && (
+            <div className="mt-2 flex items-center gap-2 flex-wrap">
+              {hasNoAvatar && (
+                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 text-xs bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 rounded">
+                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                  </svg>
+                  No avatar
+                </span>
+              )}
+              {hasNoBio && (
+                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 text-xs bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 rounded">
+                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h7" />
+                  </svg>
+                  No bio
+                </span>
+              )}
+              {hasHighFollowRatio && (
+                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 text-xs bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 rounded">
+                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                  </svg>
+                  High follow ratio
+                </span>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Actions */}
+        <div className="flex-shrink-0 flex items-center gap-2">
+          {/* Follow/Following button */}
+          <button
+            onClick={isFollowing ? handleUnfollow : handleFollow}
+            disabled={followLoading}
+            className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
+              isFollowing
+                ? 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-red-100 hover:text-red-600 dark:hover:bg-red-900/30 dark:hover:text-red-400'
+                : 'bg-blue-500 text-white hover:bg-blue-600'
+            } disabled:opacity-50`}
+          >
+            {followLoading ? (
+              <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+              </svg>
+            ) : isFollowing ? (
+              'Following'
+            ) : (
+              'Follow'
+            )}
+          </button>
+
+          {/* Block button */}
+          <button
+            onClick={handleBlock}
+            disabled={blockLoading}
+            className="p-1.5 rounded-full text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors disabled:opacity-50"
+            title="Block"
+          >
+            {blockLoading ? (
+              <svg className="animate-spin w-5 h-5" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+              </svg>
+            ) : (
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
+              </svg>
+            )}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// New Followers Pane - dedicated section for managing new followers
+type FollowerSortOption = 'recent' | 'followers' | 'following';
+
+function NewFollowersPane({
+  follows,
+  onOpenProfile,
+}: {
+  follows: NotificationItem[];
+  onOpenProfile: (did: string) => void;
+}) {
+  const [profiles, setProfiles] = useState<EnhancedFollowerProfile[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [sortBy, setSortBy] = useState<FollowerSortOption>('recent');
+  const [selectedDids, setSelectedDids] = useState<Set<string>>(new Set());
+  const [blockedDids, setBlockedDids] = useState<Set<string>>(new Set());
+  const [batchBlocking, setBatchBlocking] = useState(false);
+
+  // Fetch full profile data for each follower
+  useEffect(() => {
+    const fetchProfiles = async () => {
+      setLoading(true);
+      try {
+        const profilePromises = follows.map(async (f) => {
+          const profile = await getBlueskyProfile(f.author.did);
+          if (!profile) return null;
+
+          // Fetch mutual followers
+          let mutualFollowers: EnhancedFollowerProfile['mutualFollowers'] = [];
+          try {
+            const known = await getKnownFollowers(f.author.did, 5);
+            mutualFollowers = known.followers;
+          } catch {
+            // Ignore errors
+          }
+
+          return {
+            ...profile,
+            indexedAt: f.indexedAt,
+            mutualFollowers,
+          } as EnhancedFollowerProfile;
+        });
+
+        const results = await Promise.all(profilePromises);
+        setProfiles(results.filter((p): p is EnhancedFollowerProfile => p !== null));
+      } catch (err) {
+        console.error('Failed to fetch follower profiles:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (follows.length > 0) {
+      fetchProfiles();
+    } else {
+      setLoading(false);
+    }
+  }, [follows]);
+
+  // Sort profiles
+  const sortedProfiles = useMemo(() => {
+    const filtered = profiles.filter((p) => !blockedDids.has(p.did));
+    return [...filtered].sort((a, b) => {
+      switch (sortBy) {
+        case 'followers':
+          return (b.followersCount || 0) - (a.followersCount || 0);
+        case 'following':
+          return (b.followsCount || 0) - (a.followsCount || 0);
+        case 'recent':
+        default:
+          return new Date(b.indexedAt).getTime() - new Date(a.indexedAt).getTime();
+      }
+    });
+  }, [profiles, sortBy, blockedDids]);
+
+  const handleSelect = (did: string, selected: boolean) => {
+    setSelectedDids((prev) => {
+      const next = new Set(prev);
+      if (selected) {
+        next.add(did);
+      } else {
+        next.delete(did);
+      }
+      return next;
+    });
+  };
+
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      setSelectedDids(new Set(sortedProfiles.map((p) => p.did)));
+    } else {
+      setSelectedDids(new Set());
+    }
+  };
+
+  const handleBlocked = (did: string) => {
+    setBlockedDids((prev) => new Set(prev).add(did));
+    setSelectedDids((prev) => {
+      const next = new Set(prev);
+      next.delete(did);
+      return next;
+    });
+  };
+
+  const handleBatchBlock = async () => {
+    if (selectedDids.size === 0) return;
+    if (!window.confirm(`Block ${selectedDids.size} account${selectedDids.size !== 1 ? 's' : ''}? They won't be able to see your posts or interact with you.`)) return;
+
+    setBatchBlocking(true);
+    try {
+      for (const did of selectedDids) {
+        try {
+          await blockUser(did);
+          handleBlocked(did);
+        } catch (err) {
+          console.error(`Failed to block ${did}:`, err);
+        }
+      }
+    } finally {
+      setBatchBlocking(false);
+    }
+  };
+
+  const visibleCount = sortedProfiles.length;
+  const allSelected = visibleCount > 0 && selectedDids.size === visibleCount;
+  const someSelected = selectedDids.size > 0 && selectedDids.size < visibleCount;
+
+  return (
+    <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden">
+      {/* Header */}
+      <div className="p-4 border-b border-gray-200 dark:border-gray-800 bg-amber-50 dark:bg-amber-900/20">
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-sm font-semibold text-amber-700 dark:text-amber-300 flex items-center gap-2">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+            </svg>
+            New Followers
+            <span className="px-1.5 py-0.5 text-xs font-medium bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 rounded-full">
+              {visibleCount}
+            </span>
+          </h3>
+
+          {/* Sort dropdown */}
+          <select
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value as FollowerSortOption)}
+            className="text-xs bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded px-2 py-1 text-gray-600 dark:text-gray-300"
+          >
+            <option value="recent">Most recent</option>
+            <option value="followers">Most followers</option>
+            <option value="following">Most following</option>
+          </select>
+        </div>
+
+        {/* Batch actions */}
+        <div className="flex items-center justify-between">
+          <label className="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-400 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={allSelected}
+              ref={(el) => {
+                if (el) el.indeterminate = someSelected;
+              }}
+              onChange={(e) => handleSelectAll(e.target.checked)}
+              className="w-4 h-4 rounded border-gray-300 text-blue-500 focus:ring-blue-500"
+            />
+            Select all
+          </label>
+
+          {selectedDids.size > 0 && (
+            <button
+              onClick={handleBatchBlock}
+              disabled={batchBlocking}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 hover:bg-red-100 dark:hover:bg-red-900/30 rounded-full transition-colors disabled:opacity-50"
+            >
+              {batchBlocking ? (
+                <svg className="animate-spin w-3.5 h-3.5" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                </svg>
+              ) : (
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
+                </svg>
+              )}
+              Block {selectedDids.size} selected
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Content */}
+      <div className="max-h-[600px] overflow-y-auto">
+        {loading ? (
+          <div className="flex items-center justify-center py-12">
+            <div className="animate-spin w-6 h-6 border-2 border-amber-500 border-t-transparent rounded-full" />
+          </div>
+        ) : sortedProfiles.length === 0 ? (
+          <div className="p-8 text-center">
+            <svg className="w-10 h-10 mx-auto text-gray-300 dark:text-gray-600 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+            <p className="text-sm text-gray-500 dark:text-gray-400">No new followers in the last 24 hours</p>
+          </div>
+        ) : (
+          sortedProfiles.map((profile) => (
+            <EnhancedFollowerRow
+              key={profile.did}
+              profile={profile}
+              isSelected={selectedDids.has(profile.did)}
+              onSelect={handleSelect}
+              onOpenProfile={onOpenProfile}
+              onBlocked={handleBlocked}
+            />
+          ))
+        )}
+      </div>
+    </div>
+  );
+}
+
 // Clustered like group - groups likes on the same post
 interface LikeCluster {
   postUri: string;
@@ -1645,6 +2146,10 @@ function NotificationsExplorerContent() {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Left column - Activity feed */}
             <div className="lg:col-span-2 space-y-6">
+              <NewFollowersPane
+                follows={grouped.follows}
+                onOpenProfile={handleOpenProfile}
+              />
               <ActivityTimeline notifications={allNotifications} />
               <GroupedActivity
                 grouped={grouped}
