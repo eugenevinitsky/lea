@@ -1811,7 +1811,9 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [showMobileInteractionMenu]);
 
-  const handleBookmarkClick = () => {
+  const handleBookmarkClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
     // If collections exist, show menu for both adding and managing
     if (collections.length > 0) {
       setShowBookmarkMenu(!showBookmarkMenu);
