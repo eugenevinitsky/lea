@@ -2415,6 +2415,13 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
 
   // Capture phase handler to intercept clicks on interactive elements before they cause navigation
   const handleClickCapture = (e: React.MouseEvent) => {
+    // Check for text selection first - allow users to highlight text without navigating
+    const selection = window.getSelection();
+    if (selection && selection.toString().length > 0) {
+      e.preventDefault();
+      return;
+    }
+
     const target = e.target as HTMLElement;
     // Include img because post images have click handlers for lightbox
     const interactiveElement = target.closest('button, a:not([data-post-wrapper]), input, textarea, [role="button"], img');
