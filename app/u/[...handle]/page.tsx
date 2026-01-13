@@ -19,6 +19,7 @@ import SettingsPanel from '@/components/SettingsPanel';
 import ResearcherSearch from '@/components/ResearcherSearch';
 import Onboarding from '@/components/Onboarding';
 import ThreadView from '@/components/ThreadView';
+import Composer from '@/components/Composer';
 
 function ProfilePageContent() {
   const params = useParams();
@@ -37,6 +38,7 @@ function ProfilePageContent() {
   const [onboardingStartStep, setOnboardingStartStep] = useState(1);
   const [isVerified, setIsVerified] = useState(false);
   const [threadUri, setThreadUri] = useState<string | null>(null);
+  const [showComposer, setShowComposer] = useState(false);
   const { setUserDid } = useBookmarks();
 
   // Restore session on mount
@@ -223,6 +225,17 @@ function ProfilePageContent() {
           <ModerationBox onOpenProfile={handleOpenProfile} />
           <SafetyPanel onOpenProfile={handleOpenProfile} onOpenThread={openThread} />
           <SettingsPanel />
+
+          {/* Compose Button */}
+          <button
+            onClick={() => setShowComposer(true)}
+            className="w-full py-2 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white text-sm font-medium rounded-full flex items-center justify-center gap-1.5 transition-all shadow-sm"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+            </svg>
+            New Post
+          </button>
         </aside>
 
         {/* Main content */}
@@ -267,6 +280,34 @@ function ProfilePageContent() {
       {/* Profile Editor Modal */}
       {showProfileEditor && (
         <ProfileEditor onClose={() => setShowProfileEditor(false)} />
+      )}
+
+      {/* Composer Modal */}
+      {showComposer && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              setShowComposer(false);
+            }
+          }}
+        >
+          <div className="w-full h-full lg:w-[600px] lg:h-auto lg:max-h-[80vh] lg:rounded-2xl bg-white dark:bg-gray-950 flex flex-col lg:shadow-2xl">
+            <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 dark:border-gray-800">
+              <button
+                onClick={() => setShowComposer(false)}
+                className="text-blue-500 hover:text-blue-600 font-medium"
+              >
+                Cancel
+              </button>
+              <span className="font-semibold text-gray-900 dark:text-gray-100">New Post</span>
+              <div className="w-14" />
+            </div>
+            <div className="flex-1 overflow-y-auto">
+              <Composer onPost={() => setShowComposer(false)} />
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
