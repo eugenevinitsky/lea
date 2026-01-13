@@ -2380,6 +2380,11 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
 
   // Handle click on the article to open the thread
   const handleArticleClick = (e: React.MouseEvent) => {
+    // If the event was already handled (e.g., by a button's onClick), don't navigate
+    if (e.defaultPrevented) {
+      return;
+    }
+
     // Don't trigger if clicking on interactive elements (buttons, links, inputs)
     // But exclude the wrapper <a> itself from this check
     const target = e.target as HTMLElement;
