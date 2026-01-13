@@ -951,8 +951,18 @@ function EnhancedFollowerRow({
   const hasNoBio = !profile.description || profile.description.trim().length < 10;
   const followersCount = profile.followersCount || 0;
   const followsCount = profile.followsCount || 0;
-  const hasHighFollowRatio = followsCount > 10 && followersCount > 0 && followsCount / followersCount > 10;
-  const hasSpamIndicators = hasNoAvatar || hasNoBio || hasHighFollowRatio;
+  const followsManyAccounts = followsCount > 5000;
+  const hasSpamIndicators = hasNoAvatar || hasNoBio || followsManyAccounts;
+
+  // Handle click with modifier keys to open in new tab
+  const handleProfileClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (e.metaKey || e.ctrlKey || e.button === 1) {
+      window.open(`/u/${profile.handle}`, '_blank');
+    } else {
+      onOpenProfile(profile.did);
+    }
+  };
 
   const handleFollow = async (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -1033,7 +1043,8 @@ function EnhancedFollowerRow({
         {/* Avatar with ring */}
         <div
           className="flex-shrink-0 relative cursor-pointer"
-          onClick={() => onOpenProfile(profile.did)}
+          onClick={handleProfileClick}
+          onAuxClick={handleProfileClick}
         >
           {profile.avatar ? (
             <img
@@ -1063,7 +1074,8 @@ function EnhancedFollowerRow({
           <div className="flex items-center gap-1.5 flex-wrap">
             <span
               className="font-semibold text-gray-900 dark:text-gray-100 truncate cursor-pointer hover:underline"
-              onClick={() => onOpenProfile(profile.did)}
+              onClick={handleProfileClick}
+              onAuxClick={handleProfileClick}
             >
               {profile.displayName || profile.handle}
             </span>
@@ -1071,7 +1083,8 @@ function EnhancedFollowerRow({
           </div>
           <p
             className="text-sm text-gray-500 dark:text-gray-400 cursor-pointer hover:underline"
-            onClick={() => onOpenProfile(profile.did)}
+            onClick={handleProfileClick}
+            onAuxClick={handleProfileClick}
           >
             @{profile.handle}
           </p>
@@ -1138,12 +1151,12 @@ function EnhancedFollowerRow({
                   No bio
                 </span>
               )}
-              {hasHighFollowRatio && (
+              {followsManyAccounts && (
                 <span className="inline-flex items-center gap-1 px-1.5 py-0.5 text-xs bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 rounded">
                   <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
                   </svg>
-                  High follow ratio
+                  Follows 5k+
                 </span>
               )}
             </div>
