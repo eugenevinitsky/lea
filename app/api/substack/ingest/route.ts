@@ -285,14 +285,15 @@ export async function POST(request: NextRequest) {
         const metadata = await fetchSubstackMetadata(post.url, post.subdomain, post.slug);
 
         // Filter for technical/intellectual content using BOW classifier
-        // Combine title, description, and body text for better classification accuracy
+        // Combine title, description, and body text (matches training data format)
         const classificationText = [
           metadata?.title || '',
           metadata?.description || '',
           metadata?.bodyText || '',
         ].filter(Boolean).join(' ');
 
-        if (!isTechnicalContent(metadata?.title || '', classificationText)) {
+        // Pass combined text - isTechnicalContent will concatenate args, so use empty title
+        if (!isTechnicalContent('', classificationText)) {
           console.log(`Skipping non-technical Substack post: ${post.url} (title: ${metadata?.title})`);
           continue;
         }

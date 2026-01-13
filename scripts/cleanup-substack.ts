@@ -23,8 +23,8 @@ function tokenize(text: string): string[] {
     .filter(word => word.length > 0);
 }
 
-function isTechnicalContent(title: string, description: string): boolean {
-  const tokens = tokenize(title + ' ' + description);
+function isTechnicalContent(combinedText: string): boolean {
+  const tokens = tokenize(combinedText);
   let techScore = model.classPriors.technical;
   let nonTechScore = model.classPriors['non-technical'];
 
@@ -98,7 +98,7 @@ async function main() {
       bodyText || '',
     ].filter(Boolean).join(' ');
 
-    const isTechnical = isTechnicalContent(post.title || '', classificationText);
+    const isTechnical = isTechnicalContent(classificationText);
 
     if (isTechnical) {
       kept.push({ id: post.id, title: post.title });

@@ -84,13 +84,14 @@ export async function POST(request: NextRequest) {
         bodyText || '',
       ].filter(Boolean).join(' ');
 
-      const isTechnical = isTechnicalContent(post.title || '', classificationText);
+      // Pass combined text - matches training data format
+      const isTechnical = isTechnicalContent('', classificationText);
 
       if (isTechnical) {
         kept.push({ id: post.id, title: post.title });
       } else {
         // Get classification details for logging
-        const details = classifyContent(post.title || '', classificationText);
+        const details = classifyContent('', classificationText);
         removed.push({
           id: post.id,
           title: post.title,
