@@ -53,6 +53,59 @@ async function fetchBodyFromRss(subdomain: string, slug: string): Promise<string
   }
 }
 
+// Fetch body text directly from article page (fallback when RSS doesn't have it)
+async function fetchBodyFromPage(url: string): Promise<string | null> {
+  try {
+    const response = await fetch(url, {
+      headers: {
+        'User-Agent': 'Lea/1.0 (mailto:support@lea.community)',
+        'Accept': 'text/html',
+      },
+    });
+
+    if (!response.ok) return null;
+
+    const html = await response.text();
+
+    // Find content between available-content and end of article
+    const start = html.indexOf('class="available-content"');
+    const end = html.indexOf('</article>');
+
+    if (start > 0 && end > start) {
+      const content = html.slice(start, end);
+      // Extract text from paragraphs
+      const paragraphs = content.match(/<p[^>]*>([^<]+)<\/p>/g) || [];
+      const text = paragraphs.map(p => stripHtml(p)).join(' ');
+      if (text.length > 100) {
+        return text.slice(0, 2000);
+      }
+    }
+
+    // Fallback: try to get text from article body
+    const articleMatch = html.match(/<article[^>]*>([\s\S]*?)<\/article>/);
+    if (articleMatch) {
+      const bodyText = stripHtml(articleMatch[1]);
+      if (bodyText.length > 100) {
+        return bodyText.slice(0, 2000);
+      }
+    }
+
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+// Fetch body text - try RSS first, then fall back to page scraping
+async function fetchBodyText(subdomain: string, slug: string, url: string): Promise<string | null> {
+  // Try RSS first (faster, less load on Substack)
+  const rssBody = await fetchBodyFromRss(subdomain, slug);
+  if (rssBody) return rssBody;
+
+  // Fall back to fetching the actual page
+  return fetchBodyFromPage(url);
+}
+
 // Cleanup endpoint to reclassify existing posts using body text from RSS
 export async function POST(request: NextRequest) {
   // Basic auth check - require a secret
@@ -71,10 +124,10 @@ export async function POST(request: NextRequest) {
     const removed: { id: number; title: string | null; reason: string }[] = [];
 
     for (const post of allPosts) {
-      // Try to fetch body text from RSS for better classification
+      // Try to fetch body text (RSS first, then page scraping)
       let bodyText: string | null = null;
       if (post.subdomain && post.slug) {
-        bodyText = await fetchBodyFromRss(post.subdomain, post.slug);
+        bodyText = await fetchBodyText(post.subdomain, post.slug, post.url);
       }
 
       // Combine title, description, and body text for classification
