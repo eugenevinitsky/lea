@@ -231,6 +231,16 @@ function AutoExpandSentinel({
 export default function ThreadView({ uri, onClose, onOpenThread, onOpenProfile, inline }: ThreadViewProps) {
   const [currentUri, setCurrentUri] = useState(uri);
   const [history, setHistory] = useState<string[]>([]);
+
+  // Sync currentUri when uri prop changes from parent (e.g., when navigating via onOpenThread callback)
+  const prevUriRef = useRef(uri);
+  useEffect(() => {
+    if (uri !== prevUriRef.current) {
+      prevUriRef.current = uri;
+      setCurrentUri(uri);
+      setHistory([]); // Reset history when navigating from outside
+    }
+  }, [uri]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [parents, setParents] = useState<AppBskyFeedDefs.PostView[]>([]);

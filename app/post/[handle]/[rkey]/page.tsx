@@ -103,24 +103,40 @@ function PostPageContent() {
 
   // Navigate to a different thread
   const navigateToThread = useCallback(async (uri: string) => {
-    // Parse the AT URI to extract handle and rkey
-    // Format: at://did:plc:xxx/app.bsky.feed.post/rkey
-    const match = uri.match(/^at:\/\/(did:[^/]+)\/app\.bsky\.feed\.post\/([^/]+)$/);
+    // Parse the AT URI to extract identifier (DID or handle) and rkey
+    // Format: at://did:plc:xxx/app.bsky.feed.post/rkey or at://handle.bsky.social/app.bsky.feed.post/rkey
+    const match = uri.match(/^at:\/\/([^/]+)\/app\.bsky\.feed\.post\/([^/]+)$/);
     if (match) {
-      const [, did, postRkey] = match;
-      // Resolve DID to handle for cleaner URL
-      try {
-        const profile = await getBlueskyProfile(did);
-        if (profile?.handle) {
-          router.push(buildPostUrl(profile.handle, postRkey, profile.did));
-          return;
+      const [, identifier, postRkey] = match;
+
+      // Check if identifier is a DID or handle
+      if (identifier.startsWith('did:')) {
+        // It's a DID - resolve to handle for cleaner URL
+        try {
+          const profile = await getBlueskyProfile(identifier);
+          if (profile?.handle) {
+            window.location.href = buildPostUrl(profile.handle, postRkey, profile.did);
+            return;
+          }
+        } catch {
+          // Fall through to use DID
         }
-      } catch {
-        // Fall through to use DID
+        window.location.href = buildPostUrl(identifier, postRkey);
+      } else {
+        // It's a handle - resolve to get DID for consistent URL format
+        try {
+          const did = await resolveHandle(identifier);
+          if (did) {
+            window.location.href = buildPostUrl(identifier, postRkey, did);
+            return;
+          }
+        } catch {
+          // Fall through to use handle directly
+        }
+        window.location.href = buildPostUrl(identifier, postRkey);
       }
-      router.push(buildPostUrl(did, postRkey));
     }
-  }, [router]);
+  }, []);
 
   const session = getSession();
 
