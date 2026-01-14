@@ -96,7 +96,7 @@ function DraggablePane({
       <div
         draggable
         onDragStart={(e) => onDragStart(e, id)}
-        className="absolute top-3 right-3 z-10 p-1.5 rounded-md bg-gray-100/90 dark:bg-gray-800/90 hover:bg-gray-200 dark:hover:bg-gray-700 cursor-grab active:cursor-grabbing opacity-0 group-hover:opacity-100 transition-opacity"
+        className="absolute top-3 right-3 z-10 p-1.5 rounded-md bg-gray-100/90 dark:bg-gray-800/90 hover:bg-gray-200 dark:hover:bg-gray-700 cursor-grab active:cursor-grabbing"
         title="Drag to reorder"
       >
         <svg className="w-4 h-4 text-gray-500 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1188,7 +1188,7 @@ function MyPostsActivityPane({
         <select
           value={sortBy}
           onChange={(e) => setSortBy(e.target.value as PostSortOption)}
-          className="text-xs bg-gray-100 dark:bg-gray-800 border-0 rounded-lg px-2 py-1 text-gray-600 dark:text-gray-300 focus:ring-2 focus:ring-blue-500"
+          className="text-xs bg-gray-100 dark:bg-gray-800 border-0 rounded-lg px-2 py-1 mr-10 text-gray-600 dark:text-gray-300 focus:ring-2 focus:ring-blue-500"
         >
           <option value="recent_activity">Recent activity</option>
           <option value="most_engagement">Most engagement</option>
@@ -1923,14 +1923,14 @@ function NewFollowersPane({
   return (
     <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden">
       {/* Header */}
-      <div className="p-4 border-b border-gray-200 dark:border-gray-800 bg-amber-50 dark:bg-amber-900/20">
+      <div className="p-4 border-b border-gray-200 dark:border-gray-800">
         <div className="flex items-center justify-between mb-3">
-          <h3 className="text-sm font-semibold text-amber-700 dark:text-amber-300 flex items-center gap-2">
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-2">
+            <svg className="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
             </svg>
             New Followers
-            <span className="px-1.5 py-0.5 text-xs font-medium bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 rounded-full">
+            <span className="px-1.5 py-0.5 text-xs font-medium bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-full">
               {visibleCount}
             </span>
           </h3>
@@ -1939,7 +1939,7 @@ function NewFollowersPane({
           <select
             value={sortBy}
             onChange={(e) => setSortBy(e.target.value as FollowerSortOption)}
-            className="text-xs bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded px-2 py-1 text-gray-600 dark:text-gray-300"
+            className="text-xs bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded px-2 py-1 mr-10 text-gray-600 dark:text-gray-300"
           >
             <option value="recent">Most recent</option>
             <option value="followers">Most followers</option>
