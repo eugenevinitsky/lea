@@ -779,37 +779,35 @@ function LikesRollupRow({
   );
 }
 
-// Rolled-up replies row showing avatars and "X, Y, Z, and N others replied"
-function RepliesRollupRow({
-  replies,
+// Rolled-up reposts row showing avatars and "X, Y, Z, and N others reposted"
+function RepostsRollupRow({
+  reposts,
   onOpenProfile,
-  onOpenPost,
 }: {
-  replies: PostActivity[];
+  reposts: PostActivity[];
   onOpenProfile: (did: string) => void;
-  onOpenPost: (uri: string) => void;
 }) {
-  if (replies.length === 0) return null;
+  if (reposts.length === 0) return null;
   
-  const style = ACTIVITY_STYLES.reply;
+  const style = ACTIVITY_STYLES.repost;
   const MAX_NAMES = 3;
   const MAX_AVATARS = 5;
   
-  // Get unique repliers (in case of duplicates)
-  const uniqueRepliers = replies.reduce((acc, reply) => {
-    if (!acc.find(r => r.author.did === reply.author.did)) {
-      acc.push(reply);
+  // Get unique reposters (in case of duplicates)
+  const uniqueReposters = reposts.reduce((acc, repost) => {
+    if (!acc.find(r => r.author.did === repost.author.did)) {
+      acc.push(repost);
     }
     return acc;
   }, [] as PostActivity[]);
   
-  const displayedRepliers = uniqueRepliers.slice(0, MAX_NAMES);
-  const remainingCount = uniqueRepliers.length - MAX_NAMES;
-  const avatarsToShow = uniqueRepliers.slice(0, MAX_AVATARS);
+  const displayedReposters = uniqueReposters.slice(0, MAX_NAMES);
+  const remainingCount = uniqueReposters.length - MAX_NAMES;
+  const avatarsToShow = uniqueReposters.slice(0, MAX_AVATARS);
   
   // Build the names string
   const formatNames = () => {
-    const names = displayedRepliers.map(r => r.author.displayName || r.author.handle);
+    const names = displayedReposters.map(r => r.author.displayName || r.author.handle);
     if (remainingCount <= 0) {
       if (names.length === 1) return names[0];
       if (names.length === 2) return `${names[0]} and ${names[1]}`;
@@ -818,52 +816,40 @@ function RepliesRollupRow({
     return `${names.join(', ')}, and ${remainingCount} other${remainingCount === 1 ? '' : 's'}`;
   };
   
-  // Click handler - if only one reply, go to that reply; otherwise go to first replier's profile
-  const handleClick = () => {
-    if (replies.length === 1 && replies[0].uri) {
-      onOpenPost(replies[0].uri);
-    } else if (replies[0]?.uri) {
-      onOpenPost(replies[0].uri);
-    }
-  };
-  
   return (
-    <div
-      className={`flex items-center gap-2 py-1.5 px-2 rounded-lg ${style.bg} cursor-pointer hover:opacity-80 transition-opacity`}
-      onClick={handleClick}
-    >
+    <div className={`flex items-center gap-2 py-1.5 px-2 rounded-lg ${style.bg}`}>
       {/* Stacked avatars */}
       <div className="flex -space-x-1.5 flex-shrink-0">
-        {avatarsToShow.map((replier, i) => (
-          replier.author.avatar ? (
+        {avatarsToShow.map((reposter, i) => (
+          reposter.author.avatar ? (
             <img
-              key={replier.author.did}
-              src={replier.author.avatar}
+              key={reposter.author.did}
+              src={reposter.author.avatar}
               alt=""
               className="w-5 h-5 rounded-full border border-white dark:border-gray-900 cursor-pointer hover:z-10 hover:scale-110 transition-transform"
               style={{ zIndex: MAX_AVATARS - i }}
               onClick={(e) => {
                 e.stopPropagation();
-                onOpenProfile(replier.author.did);
+                onOpenProfile(reposter.author.did);
               }}
             />
           ) : (
             <div
-              key={replier.author.did}
+              key={reposter.author.did}
               className="w-5 h-5 rounded-full bg-gray-400 flex items-center justify-center text-white text-[10px] font-bold border border-white dark:border-gray-900 cursor-pointer hover:z-10 hover:scale-110 transition-transform"
               style={{ zIndex: MAX_AVATARS - i }}
               onClick={(e) => {
                 e.stopPropagation();
-                onOpenProfile(replier.author.did);
+                onOpenProfile(reposter.author.did);
               }}
             >
-              {(replier.author.displayName || replier.author.handle)[0].toUpperCase()}
+              {(reposter.author.displayName || reposter.author.handle)[0].toUpperCase()}
             </div>
           )
         ))}
       </div>
       
-      {/* Reply icon */}
+      {/* Repost icon */}
       <span className={`flex-shrink-0 ${style.color}`}>
         {style.icon}
       </span>
@@ -874,7 +860,7 @@ function RepliesRollupRow({
           <span className="font-medium text-gray-900 dark:text-gray-100">
             {formatNames()}
           </span>
-          <span className="text-gray-500 dark:text-gray-400"> replied</span>
+          <span className="text-gray-500 dark:text-gray-400"> reposted</span>
         </span>
       </div>
     </div>
@@ -896,10 +882,10 @@ function PostActivityRow({
   const postText = (post.record as { text?: string })?.text || '';
   const isReply = !!(post.record as { reply?: unknown })?.reply;
   
-  // Separate likes and replies from other activity types (they get rolled up)
+  // Separate likes and reposts from other activity types (they get rolled up)
   const likesActivity = activity.filter(a => a.type === 'like');
-  const repliesActivity = activity.filter(a => a.type === 'reply');
-  const otherActivity = activity.filter(a => a.type !== 'like' && a.type !== 'reply');
+  const repostsActivity = activity.filter(a => a.type === 'repost');
+  const otherActivity = activity.filter(a => a.type !== 'like' && a.type !== 'repost');
   
   // Show first 3 other activities by default, rest on expand
   const DEFAULT_SHOW = 3;
@@ -1017,16 +1003,15 @@ function PostActivityRow({
             />
           )}
           
-          {/* Show rolled-up replies */}
-          {repliesActivity.length > 0 && (
-            <RepliesRollupRow
-              replies={repliesActivity}
+          {/* Show rolled-up reposts */}
+          {repostsActivity.length > 0 && (
+            <RepostsRollupRow
+              reposts={repostsActivity}
               onOpenProfile={onOpenProfile}
-              onOpenPost={onOpenPost}
             />
           )}
           
-          {/* Show other activities (reposts, quotes, mentions) */}
+          {/* Show other activities (replies, quotes, mentions) */}
           {visibleOtherActivity.map((a, i) => (
             <ActivityItem
               key={`${a.type}-${a.author.did}-${i}`}
