@@ -545,7 +545,7 @@ const ACTIVITY_STYLES = {
   },
 };
 
-// Single activity item row
+// Single activity item row (for non-like activities)
 function ActivityItem({
   activity,
   onOpenProfile,
@@ -568,6 +568,18 @@ function ActivityItem({
         }
       }}
     >
+      {/* Avatar */}
+      {activity.author.avatar ? (
+        <img
+          src={activity.author.avatar}
+          alt=""
+          className="w-5 h-5 rounded-full flex-shrink-0"
+        />
+      ) : (
+        <div className="w-5 h-5 rounded-full bg-gray-400 flex items-center justify-center text-white text-[10px] font-bold flex-shrink-0">
+          {(activity.author.displayName || activity.author.handle)[0].toUpperCase()}
+        </div>
+      )}
       <span className={`flex-shrink-0 mt-0.5 ${style.color}`}>
         {style.icon}
       </span>
@@ -595,6 +607,94 @@ function ActivityItem({
   );
 }
 
+// Rolled-up likes row showing avatars and "X, Y, Z, and N others liked"
+function LikesRollupRow({
+  likes,
+  onOpenProfile,
+}: {
+  likes: PostActivity[];
+  onOpenProfile: (did: string) => void;
+}) {
+  if (likes.length === 0) return null;
+  
+  const style = ACTIVITY_STYLES.like;
+  const MAX_NAMES = 3;
+  const MAX_AVATARS = 5;
+  
+  // Get unique likers (in case of duplicates)
+  const uniqueLikers = likes.reduce((acc, like) => {
+    if (!acc.find(l => l.author.did === like.author.did)) {
+      acc.push(like);
+    }
+    return acc;
+  }, [] as PostActivity[]);
+  
+  const displayedLikers = uniqueLikers.slice(0, MAX_NAMES);
+  const remainingCount = uniqueLikers.length - MAX_NAMES;
+  const avatarsToShow = uniqueLikers.slice(0, MAX_AVATARS);
+  
+  // Build the names string
+  const formatNames = () => {
+    const names = displayedLikers.map(l => l.author.displayName || l.author.handle);
+    if (remainingCount <= 0) {
+      if (names.length === 1) return names[0];
+      if (names.length === 2) return `${names[0]} and ${names[1]}`;
+      return `${names.slice(0, -1).join(', ')}, and ${names[names.length - 1]}`;
+    }
+    return `${names.join(', ')}, and ${remainingCount} other${remainingCount === 1 ? '' : 's'}`;
+  };
+  
+  return (
+    <div className={`flex items-center gap-2 py-1.5 px-2 rounded-lg ${style.bg}`}>
+      {/* Stacked avatars */}
+      <div className="flex -space-x-1.5 flex-shrink-0">
+        {avatarsToShow.map((liker, i) => (
+          liker.author.avatar ? (
+            <img
+              key={liker.author.did}
+              src={liker.author.avatar}
+              alt=""
+              className="w-5 h-5 rounded-full border border-white dark:border-gray-900 cursor-pointer hover:z-10 hover:scale-110 transition-transform"
+              style={{ zIndex: MAX_AVATARS - i }}
+              onClick={(e) => {
+                e.stopPropagation();
+                onOpenProfile(liker.author.did);
+              }}
+            />
+          ) : (
+            <div
+              key={liker.author.did}
+              className="w-5 h-5 rounded-full bg-gray-400 flex items-center justify-center text-white text-[10px] font-bold border border-white dark:border-gray-900 cursor-pointer hover:z-10 hover:scale-110 transition-transform"
+              style={{ zIndex: MAX_AVATARS - i }}
+              onClick={(e) => {
+                e.stopPropagation();
+                onOpenProfile(liker.author.did);
+              }}
+            >
+              {(liker.author.displayName || liker.author.handle)[0].toUpperCase()}
+            </div>
+          )
+        ))}
+      </div>
+      
+      {/* Heart icon */}
+      <span className={`flex-shrink-0 ${style.color}`}>
+        {style.icon}
+      </span>
+      
+      {/* Names */}
+      <div className="flex-1 min-w-0">
+        <span className="text-xs">
+          <span className="font-medium text-gray-900 dark:text-gray-100">
+            {formatNames()}
+          </span>
+          <span className="text-gray-500 dark:text-gray-400"> liked</span>
+        </span>
+      </div>
+    </div>
+  );
+}
+
 // Row for a single post with its activity
 function PostActivityRow({
   postWithActivity,
@@ -610,10 +710,14 @@ function PostActivityRow({
   const postText = (post.record as { text?: string })?.text || '';
   const isReply = !!(post.record as { reply?: unknown })?.reply;
   
-  // Show first 3 by default, rest on expand
+  // Separate likes from other activity types
+  const likesActivity = activity.filter(a => a.type === 'like');
+  const nonLikeActivity = activity.filter(a => a.type !== 'like');
+  
+  // Show first 3 non-like activities by default, rest on expand
   const DEFAULT_SHOW = 3;
-  const visibleActivity = expanded ? activity : activity.slice(0, DEFAULT_SHOW);
-  const hiddenCount = activity.length - DEFAULT_SHOW;
+  const visibleNonLikeActivity = expanded ? nonLikeActivity : nonLikeActivity.slice(0, DEFAULT_SHOW);
+  const hiddenNonLikeCount = nonLikeActivity.length - DEFAULT_SHOW;
   
   // Count by type
   const counts = useMemo(() => {
@@ -718,7 +822,16 @@ function PostActivityRow({
       {/* Activity feed */}
       {activity.length > 0 && (
         <div className="px-3 pb-3 space-y-1">
-          {visibleActivity.map((a, i) => (
+          {/* Show rolled-up likes first if there are any */}
+          {likesActivity.length > 0 && (
+            <LikesRollupRow
+              likes={likesActivity}
+              onOpenProfile={onOpenProfile}
+            />
+          )}
+          
+          {/* Show non-like activities */}
+          {visibleNonLikeActivity.map((a, i) => (
             <ActivityItem
               key={`${a.type}-${a.author.did}-${i}`}
               activity={a}
@@ -727,7 +840,7 @@ function PostActivityRow({
             />
           ))}
           
-          {hiddenCount > 0 && !expanded && (
+          {hiddenNonLikeCount > 0 && !expanded && (
             <button
               onClick={(e) => {
                 e.stopPropagation();
@@ -735,11 +848,11 @@ function PostActivityRow({
               }}
               className="w-full py-1.5 text-xs text-blue-500 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
             >
-              Show {hiddenCount} more
+              Show {hiddenNonLikeCount} more
             </button>
           )}
           
-          {expanded && hiddenCount > 0 && (
+          {expanded && hiddenNonLikeCount > 0 && (
             <button
               onClick={(e) => {
                 e.stopPropagation();
@@ -2291,7 +2404,7 @@ function NotificationsExplorerContent() {
               </svg>
             </button>
             <div>
-              <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Notification Explorer</h2>
+              <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Notifications Dashboard</h2>
               <p className="text-sm text-gray-500 dark:text-gray-400">
                 {loading ? 'Loading notifications from the last 24 hours...' : `${totalNotifications} notifications in the last 24 hours`}
               </p>
