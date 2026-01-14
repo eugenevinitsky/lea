@@ -24,6 +24,90 @@ import ResearcherSearch from '@/components/ResearcherSearch';
 import ProfileHoverCard from '@/components/ProfileHoverCard';
 import ProfileLabels from '@/components/ProfileLabels';
 
+// Storage key for pane order
+const PANE_ORDER_KEY = 'lea-dashboard-pane-order';
+
+// Default pane order
+const DEFAULT_LEFT_PANES = ['new-followers', 'my-posts'];
+const DEFAULT_RIGHT_PANES = ['alerts', 'breakdown', 'top-interactors'];
+
+// Load pane order from localStorage
+function loadPaneOrder(): { left: string[]; right: string[] } {
+  if (typeof window === 'undefined') {
+    return { left: DEFAULT_LEFT_PANES, right: DEFAULT_RIGHT_PANES };
+  }
+  try {
+    const saved = localStorage.getItem(PANE_ORDER_KEY);
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      // Validate that all panes are present
+      const allLeft = new Set(DEFAULT_LEFT_PANES);
+      const allRight = new Set(DEFAULT_RIGHT_PANES);
+      const hasAllLeft = parsed.left?.length === allLeft.size && parsed.left.every((p: string) => allLeft.has(p));
+      const hasAllRight = parsed.right?.length === allRight.size && parsed.right.every((p: string) => allRight.has(p));
+      if (hasAllLeft && hasAllRight) {
+        return parsed;
+      }
+    }
+  } catch {
+    // Ignore parse errors
+  }
+  return { left: DEFAULT_LEFT_PANES, right: DEFAULT_RIGHT_PANES };
+}
+
+// Save pane order to localStorage
+function savePaneOrder(order: { left: string[]; right: string[] }) {
+  if (typeof window === 'undefined') return;
+  localStorage.setItem(PANE_ORDER_KEY, JSON.stringify(order));
+}
+
+// Draggable pane wrapper with drag handle
+function DraggablePane({
+  id,
+  children,
+  onDragStart,
+  onDragOver,
+  onDrop,
+  isDragging,
+  isDropTarget,
+}: {
+  id: string;
+  children: React.ReactNode;
+  onDragStart: (e: React.DragEvent, id: string) => void;
+  onDragOver: (e: React.DragEvent, id: string) => void;
+  onDrop: (e: React.DragEvent, id: string) => void;
+  isDragging: boolean;
+  isDropTarget: boolean;
+}) {
+  return (
+    <div
+      className={`group relative transition-all duration-200 ${
+        isDragging ? 'opacity-50 scale-[0.98]' : ''
+      } ${
+        isDropTarget ? 'ring-2 ring-blue-400 ring-offset-2 dark:ring-offset-gray-900' : ''
+      }`}
+      onDragOver={(e) => {
+        e.preventDefault();
+        onDragOver(e, id);
+      }}
+      onDrop={(e) => onDrop(e, id)}
+    >
+      {/* Drag handle */}
+      <div
+        draggable
+        onDragStart={(e) => onDragStart(e, id)}
+        className="absolute top-3 right-3 z-10 p-1.5 rounded-md bg-gray-100/90 dark:bg-gray-800/90 hover:bg-gray-200 dark:hover:bg-gray-700 cursor-grab active:cursor-grabbing opacity-0 group-hover:opacity-100 transition-opacity"
+        title="Drag to reorder"
+      >
+        <svg className="w-4 h-4 text-gray-500 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8h16M4 16h16" />
+        </svg>
+      </div>
+      {children}
+    </div>
+  );
+}
+
 // Helper to format relative time
 function formatTime(dateString: string) {
   const date = new Date(dateString);
@@ -2345,6 +2429,58 @@ function NotificationsExplorerContent() {
     mentions: [],
   });
   const [loading, setLoading] = useState(false);
+  
+  // Pane ordering state
+  const [paneOrder, setPaneOrder] = useState(() => loadPaneOrder());
+  const [draggingPane, setDraggingPane] = useState<string | null>(null);
+  const [dropTarget, setDropTarget] = useState<string | null>(null);
+  const [dragColumn, setDragColumn] = useState<'left' | 'right' | null>(null);
+  
+  // Drag handlers
+  const handleDragStart = (e: React.DragEvent, id: string, column: 'left' | 'right') => {
+    setDraggingPane(id);
+    setDragColumn(column);
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', id);
+  };
+  
+  const handleDragOver = (e: React.DragEvent, id: string, column: 'left' | 'right') => {
+    e.preventDefault();
+    // Only allow dropping in the same column
+    if (dragColumn === column && draggingPane !== id) {
+      setDropTarget(id);
+    }
+  };
+  
+  const handleDrop = (e: React.DragEvent, targetId: string, column: 'left' | 'right') => {
+    e.preventDefault();
+    if (!draggingPane || dragColumn !== column) return;
+    
+    const columnKey = column === 'left' ? 'left' : 'right';
+    const currentOrder = [...paneOrder[columnKey]];
+    const dragIndex = currentOrder.indexOf(draggingPane);
+    const dropIndex = currentOrder.indexOf(targetId);
+    
+    if (dragIndex !== -1 && dropIndex !== -1 && dragIndex !== dropIndex) {
+      // Remove dragged item and insert at new position
+      currentOrder.splice(dragIndex, 1);
+      currentOrder.splice(dropIndex, 0, draggingPane);
+      
+      const newOrder = { ...paneOrder, [columnKey]: currentOrder };
+      setPaneOrder(newOrder);
+      savePaneOrder(newOrder);
+    }
+    
+    setDraggingPane(null);
+    setDropTarget(null);
+    setDragColumn(null);
+  };
+  
+  const handleDragEnd = () => {
+    setDraggingPane(null);
+    setDropTarget(null);
+    setDragColumn(null);
+  };
 
   // Restore session on mount
   useEffect(() => {
@@ -2529,31 +2665,79 @@ function NotificationsExplorerContent() {
             <div className="animate-spin w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full" />
           </div>
         ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6" onDragEnd={handleDragEnd}>
             {/* Left column - Activity feed */}
             <div className="lg:col-span-2 space-y-6">
-              <NewFollowersPane
-                follows={grouped.follows}
-                onOpenProfile={handleOpenProfile}
-              />
-              <MyPostsActivityPane
-                notifications={allNotifications}
-                onOpenProfile={handleOpenProfile}
-                onOpenPost={openThread}
-              />
+              {paneOrder.left.map((paneId) => {
+                const paneContent = {
+                  'new-followers': (
+                    <NewFollowersPane
+                      follows={grouped.follows}
+                      onOpenProfile={handleOpenProfile}
+                    />
+                  ),
+                  'my-posts': (
+                    <MyPostsActivityPane
+                      notifications={allNotifications}
+                      onOpenProfile={handleOpenProfile}
+                      onOpenPost={openThread}
+                    />
+                  ),
+                }[paneId];
+                
+                if (!paneContent) return null;
+                
+                return (
+                  <DraggablePane
+                    key={paneId}
+                    id={paneId}
+                    onDragStart={(e) => handleDragStart(e, paneId, 'left')}
+                    onDragOver={(e) => handleDragOver(e, paneId, 'left')}
+                    onDrop={(e) => handleDrop(e, paneId, 'left')}
+                    isDragging={draggingPane === paneId}
+                    isDropTarget={dropTarget === paneId}
+                  >
+                    {paneContent}
+                  </DraggablePane>
+                );
+              })}
             </div>
 
             {/* Right column - Stats and insights */}
             <div className="space-y-6">
-              <AlertsSection
-                onOpenPost={openThread}
-                onOpenProfile={handleOpenProfile}
-              />
-              <CategoryBreakdown grouped={grouped} />
-              <TopInteractors
-                notifications={allNotifications}
-                onOpenProfile={handleOpenProfile}
-              />
+              {paneOrder.right.map((paneId) => {
+                const paneContent = {
+                  'alerts': (
+                    <AlertsSection
+                      onOpenPost={openThread}
+                      onOpenProfile={handleOpenProfile}
+                    />
+                  ),
+                  'breakdown': <CategoryBreakdown grouped={grouped} />,
+                  'top-interactors': (
+                    <TopInteractors
+                      notifications={allNotifications}
+                      onOpenProfile={handleOpenProfile}
+                    />
+                  ),
+                }[paneId];
+                
+                if (!paneContent) return null;
+                
+                return (
+                  <DraggablePane
+                    key={paneId}
+                    id={paneId}
+                    onDragStart={(e) => handleDragStart(e, paneId, 'right')}
+                    onDragOver={(e) => handleDragOver(e, paneId, 'right')}
+                    onDrop={(e) => handleDrop(e, paneId, 'right')}
+                    isDragging={draggingPane === paneId}
+                    isDropTarget={dropTarget === paneId}
+                  >
+                    {paneContent}
+                  </DraggablePane>
+                );
+              })}
             </div>
           </div>
         )}
