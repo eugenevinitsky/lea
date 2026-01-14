@@ -2189,6 +2189,56 @@ export async function getMyRecentPostsWithMetrics(
   }
 }
 
+// Get user's recent posts AND replies (for activity pane)
+export async function getMyRecentPostsAndReplies(
+  daysBack: number = 7,
+  maxPosts: number = 100
+): Promise<AppBskyFeedDefs.PostView[]> {
+  if (!agent?.session?.did) return [];
+  
+  const cutoffDate = new Date(Date.now() - daysBack * 24 * 60 * 60 * 1000);
+  const posts: AppBskyFeedDefs.PostView[] = [];
+  let cursor: string | undefined;
+  
+  try {
+    // Keep fetching until we have enough posts or go past cutoff
+    while (posts.length < maxPosts) {
+      const response = await agent.getAuthorFeed({
+        actor: agent.session.did,
+        limit: 50,
+        cursor,
+        filter: 'posts_with_replies', // Include replies
+      });
+      
+      for (const item of response.data.feed) {
+        // Skip reposts
+        if (item.reason) continue;
+        // Only include posts by current user
+        if (item.post.author.did !== agent.session!.did) continue;
+        
+        const postDate = new Date(item.post.indexedAt);
+        if (postDate < cutoffDate) {
+          // Reached posts older than cutoff, stop
+          return posts;
+        }
+        
+        posts.push(item.post);
+        if (posts.length >= maxPosts) break;
+      }
+      
+      if (!response.data.cursor || response.data.feed.length < 50) {
+        break;
+      }
+      cursor = response.data.cursor;
+    }
+    
+    return posts;
+  } catch (error) {
+    console.error('Failed to fetch recent posts and replies:', error);
+    return posts; // Return what we have so far
+  }
+}
+
 // Check for safety alerts on user's posts
 export async function checkSafetyAlerts(thresholds?: AlertThresholds): Promise<SafetyAlert[]> {
   if (!agent?.session?.did) return [];
