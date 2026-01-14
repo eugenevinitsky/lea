@@ -1774,18 +1774,15 @@ function EnhancedFollowerRow({
           <button
             onClick={handleBlock}
             disabled={blockLoading}
-            className="p-1.5 rounded-full text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors disabled:opacity-50"
-            title="Block"
+            className="px-3 py-1.5 rounded-full text-sm font-medium bg-red-500 text-white hover:bg-red-600 transition-colors disabled:opacity-50"
           >
             {blockLoading ? (
-              <svg className="animate-spin w-5 h-5" fill="none" viewBox="0 0 24 24">
+              <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
               </svg>
             ) : (
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
-              </svg>
+              'Block'
             )}
           </button>
         </div>
@@ -1995,7 +1992,7 @@ function NewFollowersPane({
             <svg className="w-10 h-10 mx-auto text-gray-300 dark:text-gray-600 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
             </svg>
-            <p className="text-sm text-gray-500 dark:text-gray-400">No new followers in the last 24 hours</p>
+            <p className="text-sm text-gray-500 dark:text-gray-400">No new followers in the last week</p>
           </div>
         ) : (
           sortedProfiles.map((profile) => (
@@ -2482,33 +2479,33 @@ function NotificationsExplorerContent() {
     });
   }, [setUserDid]);
 
-  // Fetch all notifications from the last 24 hours
+  // Fetch all notifications from the last week
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+      const oneWeekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
       let allNotifs: NotificationItem[] = [];
       let nextCursor: string | undefined = undefined;
       let hasMore = true;
 
-      // Keep fetching until we have all notifications from the last 24 hours
+      // Keep fetching until we have all notifications from the last week
       while (hasMore) {
         const result = await fetchNotifications(nextCursor);
         
-        // Filter to only include notifications from last 24 hours
+        // Filter to only include notifications from last week
         const recentNotifs = result.notifications.filter(
-          n => new Date(n.indexedAt) >= twentyFourHoursAgo
+          n => new Date(n.indexedAt) >= oneWeekAgo
         );
         
         allNotifs = [...allNotifs, ...recentNotifs];
         
         // Stop if we got fewer notifications than requested (end of data)
-        // or if the oldest notification in this batch is older than 24 hours
+        // or if the oldest notification in this batch is older than a week
         const oldestInBatch = result.notifications[result.notifications.length - 1];
         if (
           !result.cursor ||
           result.notifications.length < 50 ||
-          (oldestInBatch && new Date(oldestInBatch.indexedAt) < twentyFourHoursAgo)
+          (oldestInBatch && new Date(oldestInBatch.indexedAt) < oneWeekAgo)
         ) {
           hasMore = false;
         } else {
@@ -2639,7 +2636,7 @@ function NotificationsExplorerContent() {
             <div>
               <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Notifications Dashboard</h2>
               <p className="text-sm text-gray-500 dark:text-gray-400">
-                {loading ? 'Loading notifications from the last 24 hours...' : `${totalNotifications} notifications in the last 24 hours`}
+                {loading ? 'Loading notifications from the last week...' : `${totalNotifications} notifications in the last week`}
               </p>
             </div>
           </div>
