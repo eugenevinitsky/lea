@@ -2380,16 +2380,20 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
 
   // Handle click on the article to open the thread
   const handleArticleClick = (e: React.MouseEvent) => {
-    // Don't trigger if clicking on interactive elements (buttons, links, inputs)
-    // But exclude the wrapper <a> itself from this check
-    // NOTE: We check this FIRST before defaultPrevented because we need to
-    // call preventDefault() on the anchor even if a child already did
     const target = e.target as HTMLElement;
-    const interactiveElement = target.closest('button, a:not([data-post-wrapper]), input, textarea, [role="button"]');
-    const isInteractiveChild = interactiveElement && interactiveElement !== e.currentTarget;
     
-    if (isInteractiveChild) {
-      // Prevent the anchor from navigating when clicking buttons/links inside
+    // If clicking on a link inside the post (not the wrapper), let it navigate normally
+    const link = target.closest('a:not([data-post-wrapper])');
+    if (link) {
+      // Don't prevent default - let the link work
+      // The link's onClick with stopPropagation will prevent this handler from doing anything else
+      return;
+    }
+    
+    // Don't trigger if clicking on other interactive elements (buttons, inputs)
+    const interactiveElement = target.closest('button, input, textarea, [role="button"]');
+    if (interactiveElement) {
+      // Prevent the wrapper anchor from navigating
       e.preventDefault();
       return;
     }
@@ -2423,8 +2427,17 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
     }
 
     const target = e.target as HTMLElement;
-    // Include img because post images have click handlers for lightbox
-    const interactiveElement = target.closest('button, a:not([data-post-wrapper]), input, textarea, [role="button"], img');
+    // For links inside the post (not the wrapper), let them navigate normally
+    // Only prevent default for buttons, images (lightbox), inputs, etc.
+    const link = target.closest('a:not([data-post-wrapper])');
+    if (link) {
+      // Let the link work normally - don't prevent default
+      // stopPropagation in the link's onClick will prevent the post wrapper from handling it
+      return;
+    }
+
+    // For non-link interactive elements (buttons, images, inputs), prevent the wrapper anchor navigation
+    const interactiveElement = target.closest('button, input, textarea, [role="button"], img');
     if (interactiveElement) {
       // An interactive element was clicked - prevent anchor navigation
       // The element's own onClick will handle the action
