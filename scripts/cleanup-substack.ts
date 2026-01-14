@@ -23,8 +23,15 @@ function tokenize(text: string): string[] {
     .filter(word => word.length > 0);
 }
 
-function isTechnicalContent(combinedText: string): boolean {
+// Normalized margin threshold - require margin > 0.05 for technical classification
+const NORMALIZED_MARGIN_THRESHOLD = 0.05;
+
+function classifyContent(combinedText: string): { isTechnical: boolean; normalizedMargin: number } {
   const tokens = tokenize(combinedText);
+  if (tokens.length === 0) {
+    return { isTechnical: false, normalizedMargin: -1 };
+  }
+
   let techScore = model.classPriors.technical;
   let nonTechScore = model.classPriors['non-technical'];
 
@@ -37,7 +44,13 @@ function isTechnicalContent(combinedText: string): boolean {
       : model.unknownWordLogProb['non-technical'];
   }
 
-  return techScore > nonTechScore;
+  const margin = techScore - nonTechScore;
+  const normalizedMargin = margin / (tokens.length + 1);
+
+  return {
+    isTechnical: normalizedMargin > NORMALIZED_MARGIN_THRESHOLD,
+    normalizedMargin,
+  };
 }
 
 function stripHtml(html: string): string {
@@ -133,8 +146,8 @@ async function main() {
   const allPosts = await db.select().from(discoveredSubstackPosts);
   console.log(`Found ${allPosts.length} posts\n`);
 
-  const kept: { id: number; title: string | null }[] = [];
-  const removed: { id: number; title: string | null; hasBody: boolean }[] = [];
+  const kept: { id: number; title: string | null; normalizedMargin: number }[] = [];
+  const removed: { id: number; title: string | null; hasBody: boolean; normalizedMargin: number }[] = [];
 
   for (let i = 0; i < allPosts.length; i++) {
     const post = allPosts[i];
@@ -151,15 +164,16 @@ async function main() {
       bodyText || '',
     ].filter(Boolean).join(' ');
 
-    const isTechnical = isTechnicalContent(classificationText);
+    const { isTechnical, normalizedMargin } = classifyContent(classificationText);
 
     if (isTechnical) {
-      kept.push({ id: post.id, title: post.title });
+      kept.push({ id: post.id, title: post.title, normalizedMargin });
     } else {
       removed.push({
         id: post.id,
         title: post.title,
         hasBody: !!bodyText,
+        normalizedMargin,
       });
     }
   }
@@ -168,8 +182,9 @@ async function main() {
   console.log(`Kept: ${kept.length}`);
   console.log(`To remove: ${removed.length}`);
 
-  console.log('\nPosts to remove:');
-  removed.forEach(p => console.log(`  - ${p.title} (body: ${p.hasBody ? 'yes' : 'no'})`));
+  console.log('\nPosts to remove (sorted by normalized margin):');
+  removed.sort((a, b) => b.normalizedMargin - a.normalizedMargin);
+  removed.forEach(p => console.log(`  - [${p.normalizedMargin.toFixed(3)}] ${p.title} (body: ${p.hasBody ? 'yes' : 'no'})`));
 
   if (removed.length > 0 && shouldDelete) {
     console.log('\nDeleting...');
