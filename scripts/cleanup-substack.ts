@@ -23,8 +23,15 @@ function tokenize(text: string): string[] {
     .filter(word => word.length > 0);
 }
 
-function isTechnicalContent(combinedText: string): boolean {
+// Normalized margin threshold - require margin > 0.05 for technical classification
+const NORMALIZED_MARGIN_THRESHOLD = 0.05;
+
+function classifyContent(combinedText: string): { isTechnical: boolean; normalizedMargin: number } {
   const tokens = tokenize(combinedText);
+  if (tokens.length === 0) {
+    return { isTechnical: false, normalizedMargin: -1 };
+  }
+
   let techScore = model.classPriors.technical;
   let nonTechScore = model.classPriors['non-technical'];
 
@@ -37,7 +44,13 @@ function isTechnicalContent(combinedText: string): boolean {
       : model.unknownWordLogProb['non-technical'];
   }
 
-  return techScore > nonTechScore;
+  const margin = techScore - nonTechScore;
+  const normalizedMargin = margin / (tokens.length + 1);
+
+  return {
+    isTechnical: normalizedMargin > NORMALIZED_MARGIN_THRESHOLD,
+    normalizedMargin,
+  };
 }
 
 function stripHtml(html: string): string {
@@ -73,6 +86,59 @@ async function fetchBodyFromRss(subdomain: string, slug: string): Promise<string
   }
 }
 
+// Fetch body text directly from article page (fallback when RSS doesn't have it)
+async function fetchBodyFromPage(url: string): Promise<string | null> {
+  try {
+    const response = await fetch(url, {
+      headers: {
+        'User-Agent': 'Lea/1.0 (mailto:support@lea.community)',
+        'Accept': 'text/html',
+      },
+    });
+
+    if (!response.ok) return null;
+
+    const html = await response.text();
+
+    // Find content between available-content and end of article
+    const start = html.indexOf('class="available-content"');
+    const end = html.indexOf('</article>');
+
+    if (start > 0 && end > start) {
+      const content = html.slice(start, end);
+      // Extract text from paragraphs
+      const paragraphs = content.match(/<p[^>]*>([^<]+)<\/p>/g) || [];
+      const text = paragraphs.map(p => stripHtml(p)).join(' ');
+      if (text.length > 100) {
+        return text.slice(0, 2000);
+      }
+    }
+
+    // Fallback: try to get text from article body
+    const articleMatch = html.match(/<article[^>]*>([\s\S]*?)<\/article>/);
+    if (articleMatch) {
+      const bodyText = stripHtml(articleMatch[1]);
+      if (bodyText.length > 100) {
+        return bodyText.slice(0, 2000);
+      }
+    }
+
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+// Fetch body text - try RSS first, then fall back to page scraping
+async function fetchBodyText(subdomain: string, slug: string, url: string): Promise<string | null> {
+  // Try RSS first (faster, less load on Substack)
+  const rssBody = await fetchBodyFromRss(subdomain, slug);
+  if (rssBody) return rssBody;
+
+  // Fall back to fetching the actual page
+  return fetchBodyFromPage(url);
+}
+
 async function main() {
   const shouldDelete = process.argv.includes('--delete');
 
@@ -80,8 +146,8 @@ async function main() {
   const allPosts = await db.select().from(discoveredSubstackPosts);
   console.log(`Found ${allPosts.length} posts\n`);
 
-  const kept: { id: number; title: string | null }[] = [];
-  const removed: { id: number; title: string | null; hasBody: boolean }[] = [];
+  const kept: { id: number; title: string | null; normalizedMargin: number }[] = [];
+  const removed: { id: number; title: string | null; hasBody: boolean; normalizedMargin: number }[] = [];
 
   for (let i = 0; i < allPosts.length; i++) {
     const post = allPosts[i];
@@ -89,7 +155,7 @@ async function main() {
 
     let bodyText: string | null = null;
     if (post.subdomain && post.slug) {
-      bodyText = await fetchBodyFromRss(post.subdomain, post.slug);
+      bodyText = await fetchBodyText(post.subdomain, post.slug, post.url);
     }
 
     const classificationText = [
@@ -98,15 +164,16 @@ async function main() {
       bodyText || '',
     ].filter(Boolean).join(' ');
 
-    const isTechnical = isTechnicalContent(classificationText);
+    const { isTechnical, normalizedMargin } = classifyContent(classificationText);
 
     if (isTechnical) {
-      kept.push({ id: post.id, title: post.title });
+      kept.push({ id: post.id, title: post.title, normalizedMargin });
     } else {
       removed.push({
         id: post.id,
         title: post.title,
         hasBody: !!bodyText,
+        normalizedMargin,
       });
     }
   }
@@ -115,8 +182,9 @@ async function main() {
   console.log(`Kept: ${kept.length}`);
   console.log(`To remove: ${removed.length}`);
 
-  console.log('\nPosts to remove:');
-  removed.forEach(p => console.log(`  - ${p.title} (body: ${p.hasBody ? 'yes' : 'no'})`));
+  console.log('\nPosts to remove (sorted by normalized margin):');
+  removed.sort((a, b) => b.normalizedMargin - a.normalizedMargin);
+  removed.forEach(p => console.log(`  - [${p.normalizedMargin.toFixed(3)}] ${p.title} (body: ${p.hasBody ? 'yes' : 'no'})`));
 
   if (removed.length > 0 && shouldDelete) {
     console.log('\nDeleting...');
