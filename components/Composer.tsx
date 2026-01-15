@@ -1092,6 +1092,16 @@ export default function Composer({ onPost, quotePost }: ComposerProps) {
         </div>
 
         <div className="flex items-center gap-3">
+          {/* Character count */}
+          <span className={`text-sm ${
+            threadPosts[focusedIndex]?.length > leaExtendedLimit
+              ? 'text-red-500'
+              : willUseExtended[focusedIndex]
+                ? 'text-amber-500'
+                : 'text-gray-400'
+          }`}>
+            {threadPosts[focusedIndex]?.length || 0}/{willUseExtended[focusedIndex] ? leaExtendedLimit : blueskyLimit}
+          </span>
           {/* Post button */}
           <button
             type="submit"
@@ -1104,7 +1114,9 @@ export default function Composer({ onPost, quotePost }: ComposerProps) {
                 : 'Posting...'
               : isThread
                 ? `Post thread (${threadPosts.filter(p => p.trim()).length})`
-                : 'Post'}
+                : quotePost
+                  ? 'Quote'
+                  : 'Post'}
           </button>
         </div>
       </div>
