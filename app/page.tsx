@@ -798,7 +798,7 @@ function AppContent() {
               {/* Settings button - right after last feed tab */}
               <button
                 onClick={() => setShowFeedDiscovery(true)}
-                className="w-full px-3 py-2.5 text-gray-500 hover:text-blue-500 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors flex items-center gap-2"
+                className="w-full px-3 py-2.5 text-gray-500 hover:text-blue-500 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors flex items-center gap-2 border-t border-gray-200 dark:border-gray-800"
                 title="Manage feeds"
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
