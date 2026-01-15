@@ -308,6 +308,34 @@ export const articleMentions = pgTable(
   ]
 );
 
+// Invite codes for closed beta access
+export const inviteCodes = pgTable(
+  'invite_codes',
+  {
+    code: varchar('code', { length: 50 }).primaryKey(),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+    createdBy: varchar('created_by', { length: 255 }), // DID of creator, if applicable
+    maxUses: integer('max_uses').default(1).notNull(), // How many times this code can be used
+    usedCount: integer('used_count').default(0).notNull(), // How many times it has been used
+    expiresAt: timestamp('expires_at'), // Optional expiration
+    note: text('note'), // Internal note about who this code is for
+  }
+);
+
+// Users authorized to access the app (have successfully logged in with a valid invite)
+export const authorizedUsers = pgTable(
+  'authorized_users',
+  {
+    did: varchar('did', { length: 255 }).primaryKey(),
+    handle: varchar('handle', { length: 255 }),
+    authorizedAt: timestamp('authorized_at').defaultNow().notNull(),
+    inviteCodeUsed: varchar('invite_code_used', { length: 50 }), // Which invite code they used
+  },
+  (table) => [
+    index('authorized_users_handle_idx').on(table.handle),
+  ]
+);
+
 // Type exports
 export type VerifiedResearcher = typeof verifiedResearchers.$inferSelect;
 export type NewVerifiedResearcher = typeof verifiedResearchers.$inferInsert;
@@ -331,6 +359,10 @@ export type DiscoveredArticle = typeof discoveredArticles.$inferSelect;
 export type NewDiscoveredArticle = typeof discoveredArticles.$inferInsert;
 export type ArticleMention = typeof articleMentions.$inferSelect;
 export type NewArticleMention = typeof articleMentions.$inferInsert;
+export type InviteCode = typeof inviteCodes.$inferSelect;
+export type NewInviteCode = typeof inviteCodes.$inferInsert;
+export type AuthorizedUser = typeof authorizedUsers.$inferSelect;
+export type NewAuthorizedUser = typeof authorizedUsers.$inferInsert;
 
 // Profile field types
 export interface ProfileLink {

@@ -1,11 +1,23 @@
 'use client';
 
 import { useState } from 'react';
-import { login } from '@/lib/bluesky';
+import { login, getSession } from '@/lib/bluesky';
 import NewUserGuide from './NewUserGuide';
 
 interface LoginProps {
   onLogin: (forceOnboarding?: boolean) => void;
+}
+
+// Check if a user is authorized to access the app (must be a verified researcher)
+async function checkUserAccess(did: string): Promise<boolean> {
+  try {
+    const res = await fetch(`/api/auth/check-access?did=${encodeURIComponent(did)}`);
+    const data = await res.json();
+    return data.authorized === true;
+  } catch (err) {
+    console.error('Failed to check user access:', err);
+    return false;
+  }
 }
 
 function FeatureCard({ icon, title, description, color }: {
@@ -34,6 +46,7 @@ export default function Login({ onLogin }: LoginProps) {
   const [loading, setLoading] = useState(false);
   const [forceOnboarding, setForceOnboarding] = useState(false);
   const [showNewUserGuide, setShowNewUserGuide] = useState(false);
+  const [showVerificationRequired, setShowVerificationRequired] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -42,8 +55,27 @@ export default function Login({ onLogin }: LoginProps) {
     try {
       setLoading(true);
       setError(null);
+      
+      // First, log in to Bluesky to get the user's DID
       await login(identifier, password);
-      onLogin(forceOnboarding);
+      const session = getSession();
+      
+      if (!session?.did) {
+        setError('Login failed - could not get session');
+        return;
+      }
+      
+      // Check if user is a verified researcher
+      const isAuthorized = await checkUserAccess(session.did);
+      
+      if (isAuthorized) {
+        // User is verified, proceed
+        onLogin(forceOnboarding);
+        return;
+      }
+      
+      // User is not verified - show verification required message
+      setShowVerificationRequired(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Login failed');
     } finally {
@@ -232,77 +264,113 @@ export default function Login({ onLogin }: LoginProps) {
               </div>
             )}
 
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
-                  Handle or Email
-                </label>
-                <input
-                  type="text"
-                  value={identifier}
-                  onChange={(e) => setIdentifier(e.target.value)}
-                  placeholder="yourhandle.bsky.social"
-                  className="w-full px-4 py-3 border border-gray-200 dark:border-gray-700 rounded-xl bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white dark:focus:bg-gray-800 transition-colors"
-                  disabled={loading}
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
-                  App Password
-                </label>
-                <input
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="xxxx-xxxx-xxxx-xxxx"
-                  className="w-full px-4 py-3 border border-gray-200 dark:border-gray-700 rounded-xl bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white dark:focus:bg-gray-800 transition-colors"
-                  disabled={loading}
-                />
-                <p className="mt-2 text-xs text-gray-500">
-                  Create an app password at{' '}
-                  <a
-                    href="https://bsky.app/settings/app-passwords"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-blue-500 hover:underline"
-                  >
-                    bsky.app/settings
-                  </a>
-                </p>
-              </div>
-
-              {/* Test checkbox for forcing onboarding */}
-              <label className="flex items-center gap-2 p-3 bg-amber-50 dark:bg-amber-900/20 rounded-lg border border-amber-200 dark:border-amber-800 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={forceOnboarding}
-                  onChange={(e) => setForceOnboarding(e.target.checked)}
-                  className="w-4 h-4 text-amber-500 border-gray-300 rounded focus:ring-amber-500"
-                />
-                <span className="text-sm text-amber-700 dark:text-amber-300">
-                  Show onboarding flow (testing)
-                </span>
-              </label>
-
-              <button
-                type="submit"
-                disabled={!identifier || !password || loading}
-                className="w-full py-3.5 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-semibold rounded-xl disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg shadow-blue-500/25 disabled:shadow-none"
-              >
-                {loading ? (
-                  <span className="flex items-center justify-center gap-2">
-                    <svg className="animate-spin w-5 h-5" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+            {showVerificationRequired ? (
+              /* Verification required message */
+              <div className="space-y-4">
+                <div className="p-4 bg-emerald-50 dark:bg-emerald-900/20 rounded-xl border border-emerald-200 dark:border-emerald-800">
+                  <div className="flex items-center gap-2 mb-2">
+                    <svg className="w-5 h-5 text-emerald-600 dark:text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
                     </svg>
-                    Signing in...
+                    <span className="font-medium text-emerald-700 dark:text-emerald-300">Verification Required</span>
+                  </div>
+                  <p className="text-sm text-emerald-600 dark:text-emerald-400">
+                    Lea is currently limited to verified researchers. Link your ORCID to get access.
+                  </p>
+                </div>
+                
+                <a
+                  href="/verify"
+                  className="block w-full py-3.5 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white font-semibold rounded-xl text-center transition-all shadow-lg shadow-emerald-500/25"
+                >
+                  Verify with ORCID
+                </a>
+                
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowVerificationRequired(false);
+                    setError(null);
+                  }}
+                  className="w-full py-2 text-sm text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
+                >
+                  ← Back to login
+                </button>
+              </div>
+            ) : (
+              /* Standard login form */
+              <form onSubmit={handleSubmit} className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
+                    Handle or Email
+                  </label>
+                  <input
+                    type="text"
+                    value={identifier}
+                    onChange={(e) => setIdentifier(e.target.value)}
+                    placeholder="yourhandle.bsky.social"
+                    className="w-full px-4 py-3 border border-gray-200 dark:border-gray-700 rounded-xl bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white dark:focus:bg-gray-800 transition-colors"
+                    disabled={loading}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
+                    App Password
+                  </label>
+                  <input
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="xxxx-xxxx-xxxx-xxxx"
+                    className="w-full px-4 py-3 border border-gray-200 dark:border-gray-700 rounded-xl bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white dark:focus:bg-gray-800 transition-colors"
+                    disabled={loading}
+                  />
+                  <p className="mt-2 text-xs text-gray-500">
+                    Create an app password at{' '}
+                    <a
+                      href="https://bsky.app/settings/app-passwords"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-blue-500 hover:underline"
+                    >
+                      bsky.app/settings
+                    </a>
+                  </p>
+                </div>
+                
+                {/* Test checkbox for forcing onboarding */}
+                <label className="flex items-center gap-2 p-3 bg-amber-50 dark:bg-amber-900/20 rounded-lg border border-amber-200 dark:border-amber-800 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={forceOnboarding}
+                    onChange={(e) => setForceOnboarding(e.target.checked)}
+                    className="w-4 h-4 text-amber-500 border-gray-300 rounded focus:ring-amber-500"
+                  />
+                  <span className="text-sm text-amber-700 dark:text-amber-300">
+                    Show onboarding flow (testing)
                   </span>
-                ) : (
-                  'Sign in'
-                )}
-              </button>
-            </form>
+                </label>
+
+                <button
+                  type="submit"
+                  disabled={!identifier || !password || loading}
+                  className="w-full py-3.5 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-semibold rounded-xl disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg shadow-blue-500/25 disabled:shadow-none"
+                >
+                  {loading ? (
+                    <span className="flex items-center justify-center gap-2">
+                      <svg className="animate-spin w-5 h-5" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                      </svg>
+                      Signing in...
+                    </span>
+                  ) : (
+                    'Sign in'
+                  )}
+                </button>
+              </form>
+            )}
 
             {/* New to Bluesky link */}
             <button
