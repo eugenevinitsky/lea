@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { login, getSession } from '@/lib/bluesky';
+import { login, getSession, logout } from '@/lib/bluesky';
 import NewUserGuide from './NewUserGuide';
 
 interface LoginProps {
@@ -74,7 +74,8 @@ export default function Login({ onLogin }: LoginProps) {
         return;
       }
       
-      // User is not verified - show verification required message
+      // User is not verified - log them out and show message
+      logout();
       setShowVerificationRequired(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Login failed');
