@@ -11,7 +11,7 @@ import {
   NotificationItem,
   GroupedNotifications,
 } from '@/lib/notifications';
-import { useSettings } from '@/lib/settings';
+import { useSettings, UserSettings } from '@/lib/settings';
 import ProfileHoverCard from './ProfileHoverCard';
 
 interface NotificationsProps {
@@ -35,15 +35,36 @@ function formatTime(dateString: string) {
   return date.toLocaleDateString();
 }
 
+// Helper to compute avatar ring class
+function getAvatarRingClass(viewer: NotificationItem['author']['viewer'], settings: UserSettings): string {
+  if (!viewer) return '';
+  const isMutual = viewer.following && viewer.followedBy;
+  const following = !!viewer.following;
+  const followedBy = !!viewer.followedBy;
+
+  if (isMutual && settings.showMutualRing) {
+    return 'ring-[3px] ring-purple-400 dark:ring-purple-400/60 shadow-[0_0_8px_rgba(192,132,252,0.5)] dark:shadow-[0_0_8px_rgba(167,139,250,0.4)]';
+  }
+  if (following && settings.showFollowingRing) {
+    return 'ring-[3px] ring-blue-300 dark:ring-blue-400/60 shadow-[0_0_8px_rgba(147,197,253,0.5)] dark:shadow-[0_0_8px_rgba(96,165,250,0.4)]';
+  }
+  if (followedBy && settings.showFollowerRing) {
+    return 'ring-[3px] ring-yellow-400 dark:ring-yellow-400/60 shadow-[0_0_8px_rgba(250,204,21,0.5)] dark:shadow-[0_0_8px_rgba(250,204,21,0.4)]';
+  }
+  return '';
+}
+
 // Notification item component
 function NotificationItemView({
   notification,
   onOpenPost,
   onOpenProfile,
+  settings,
 }: {
   notification: NotificationItem;
   onOpenPost?: (uri: string) => void;
   onOpenProfile?: (did: string) => void;
+  settings: UserSettings;
 }) {
   const handleClick = () => {
     // For follows, open the follower's profile
@@ -64,6 +85,8 @@ function NotificationItemView({
     }
   };
 
+  const avatarRingClass = getAvatarRingClass(notification.author.viewer, settings);
+
   return (
     <div
       className="p-2.5 hover:bg-gray-50 dark:hover:bg-gray-800/50 cursor-pointer group"
@@ -79,7 +102,7 @@ function NotificationItemView({
             <img
               src={notification.author.avatar}
               alt={notification.author.handle}
-              className="w-7 h-7 rounded-full flex-shrink-0 hover:ring-2 hover:ring-blue-400 transition-all cursor-pointer"
+              className={`w-7 h-7 rounded-full flex-shrink-0 transition-all cursor-pointer ${avatarRingClass || 'hover:ring-2 hover:ring-blue-400'}`}
               onClick={(e) => {
                 e.stopPropagation();
                 onOpenProfile?.(notification.author.did);
@@ -87,7 +110,7 @@ function NotificationItemView({
             />
           ) : (
             <div
-              className="w-7 h-7 rounded-full bg-blue-500 flex items-center justify-center text-white text-xs font-bold flex-shrink-0 hover:ring-2 hover:ring-blue-400 transition-all cursor-pointer"
+              className={`w-7 h-7 rounded-full bg-blue-500 flex items-center justify-center text-white text-xs font-bold flex-shrink-0 transition-all cursor-pointer ${avatarRingClass || 'hover:ring-2 hover:ring-blue-400'}`}
               onClick={(e) => {
                 e.stopPropagation();
                 onOpenProfile?.(notification.author.did);
@@ -151,6 +174,7 @@ function CategorySection({
   onOpenProfile,
   enabled,
   onToggleEnabled,
+  settings,
 }: {
   title: string;
   icon: React.ReactNode;
@@ -173,6 +197,7 @@ function CategorySection({
   onOpenProfile?: (did: string) => void;
   enabled: boolean;
   onToggleEnabled: () => void;
+  settings: UserSettings;
 }) {
   const isEmpty = notifications.length === 0;
 
@@ -244,6 +269,7 @@ function CategorySection({
               notification={n}
               onOpenPost={onOpenPost}
               onOpenProfile={onOpenProfile}
+              settings={settings}
             />
           ))}
           {hasMore && (
@@ -584,6 +610,7 @@ export default function Notifications({ onOpenPost, onOpenProfile, embedded = fa
                     onOpenProfile={onOpenProfile}
                     enabled={cat.enabled}
                     onToggleEnabled={() => updateSettings({ [cat.settingKey]: !cat.enabled })}
+                    settings={settings}
                   />
                 ))}
               </div>

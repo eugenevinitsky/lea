@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { getBlueskyProfile, followUser, unfollowUser, isVerifiedResearcher, Label, BlueskyProfile } from '@/lib/bluesky';
 import { useFollowing } from '@/lib/following-context';
+import { useSettings } from '@/lib/settings';
 import ProfileLabels from './ProfileLabels';
 
 interface ProfileHoverCardProps {
@@ -37,6 +38,7 @@ export default function ProfileHoverCard({ did, handle, children, onOpenProfile 
   const [followLoading, setFollowLoading] = useState(false);
   const [cardPosition, setCardPosition] = useState({ top: 0, left: 0 });
   const { refresh: refreshFollowing } = useFollowing();
+  const { settings } = useSettings();
 
   const hoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const hideTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -174,6 +176,27 @@ export default function ProfileHoverCard({ did, handle, children, onOpenProfile 
 
   const isVerified = profile?.labels ? isVerifiedResearcher(profile.labels) : false;
 
+  // Compute avatar ring class based on relationship and settings
+  const getAvatarRingClass = () => {
+    if (!profile?.viewer) return '';
+    const isMutual = profile.viewer.following && profile.viewer.followedBy;
+    const following = !!profile.viewer.following;
+    const followedBy = !!profile.viewer.followedBy;
+
+    if (isMutual && settings.showMutualRing) {
+      return 'ring-[3px] ring-purple-400 dark:ring-purple-400/60 shadow-[0_0_8px_rgba(192,132,252,0.5)] dark:shadow-[0_0_8px_rgba(167,139,250,0.4)]';
+    }
+    if (following && settings.showFollowingRing) {
+      return 'ring-[3px] ring-blue-300 dark:ring-blue-400/60 shadow-[0_0_8px_rgba(147,197,253,0.5)] dark:shadow-[0_0_8px_rgba(96,165,250,0.4)]';
+    }
+    if (followedBy && settings.showFollowerRing) {
+      return 'ring-[3px] ring-yellow-400 dark:ring-yellow-400/60 shadow-[0_0_8px_rgba(250,204,21,0.5)] dark:shadow-[0_0_8px_rgba(250,204,21,0.4)]';
+    }
+    return '';
+  };
+
+  const avatarRingClass = getAvatarRingClass();
+
   const cardContent = showCard && (
     <div
       ref={cardRef}
@@ -208,10 +231,10 @@ export default function ProfileHoverCard({ did, handle, children, onOpenProfile 
                   <img
                     src={profile.avatar}
                     alt=""
-                    className="w-14 h-14 rounded-full hover:opacity-80 transition-opacity"
+                    className={`w-14 h-14 rounded-full hover:opacity-80 transition-opacity ${avatarRingClass}`}
                   />
                 ) : (
-                  <div className="w-14 h-14 rounded-full bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center text-white text-xl font-bold">
+                  <div className={`w-14 h-14 rounded-full bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center text-white text-xl font-bold ${avatarRingClass}`}>
                     {(profile.displayName || profile.handle)[0].toUpperCase()}
                   </div>
                 )}

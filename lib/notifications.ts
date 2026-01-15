@@ -14,6 +14,10 @@ export interface NotificationItem {
     handle: string;
     displayName?: string;
     avatar?: string;
+    viewer?: {
+      following?: string;
+      followedBy?: string;
+    };
   };
   // For replies/quotes/mentions, the post record
   record?: {
@@ -111,6 +115,10 @@ export async function fetchNotifications(cursor?: string): Promise<{
       handle: n.author.handle,
       displayName: n.author.displayName,
       avatar: n.author.avatar,
+      viewer: n.author.viewer ? {
+        following: n.author.viewer.following,
+        followedBy: n.author.viewer.followedBy,
+      } : undefined,
     },
     record: n.record as NotificationItem['record'],
   }));
