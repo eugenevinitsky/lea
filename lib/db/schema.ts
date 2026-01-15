@@ -332,6 +332,53 @@ export type NewDiscoveredArticle = typeof discoveredArticles.$inferInsert;
 export type ArticleMention = typeof articleMentions.$inferSelect;
 export type NewArticleMention = typeof articleMentions.$inferInsert;
 
+// Polls attached to posts
+export const polls = pgTable(
+  'polls',
+  {
+    id: varchar('id', { length: 50 }).primaryKey(),
+    postUri: varchar('post_uri', { length: 500 }).notNull().unique(), // The Bluesky post this poll is attached to
+    creatorDid: varchar('creator_did', { length: 255 }).notNull(),
+    question: text('question'), // Optional question text (post text can serve as question)
+    options: text('options').notNull(), // JSON array of {id: string, text: string}
+    endsAt: timestamp('ends_at'), // Optional expiration time
+    allowMultiple: boolean('allow_multiple').default(false), // Allow multiple selections
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+  },
+  (table) => [
+    index('polls_post_uri_idx').on(table.postUri),
+    index('polls_creator_idx').on(table.creatorDid),
+  ]
+);
+
+// Poll votes
+export const pollVotes = pgTable(
+  'poll_votes',
+  {
+    id: varchar('id', { length: 50 }).primaryKey(),
+    pollId: varchar('poll_id', { length: 50 }).notNull(),
+    voterDid: varchar('voter_did', { length: 255 }).notNull(),
+    optionId: varchar('option_id', { length: 50 }).notNull(), // Which option was selected
+    votedAt: timestamp('voted_at').defaultNow().notNull(),
+  },
+  (table) => [
+    index('poll_votes_poll_idx').on(table.pollId),
+    index('poll_votes_voter_idx').on(table.voterDid),
+    // Unique constraint: one vote per user per poll (for single-choice polls)
+    // For multiple choice, we allow multiple rows per user
+  ]
+);
+
+export type Poll = typeof polls.$inferSelect;
+export type NewPoll = typeof polls.$inferInsert;
+export type PollVote = typeof pollVotes.$inferSelect;
+export type NewPollVote = typeof pollVotes.$inferInsert;
+
+export interface PollOption {
+  id: string;
+  text: string;
+}
+
 // Profile field types
 export interface ProfileLink {
   title: string;

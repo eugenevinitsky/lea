@@ -15,6 +15,13 @@
       "when": 1767638484265,
       "tag": "0001_workable_eternals",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1768440220407,
+      "tag": "0002_third_squirrel_girl",
+      "breakpoints": true
     }
   ]
 }

@@ -36,6 +36,7 @@ import QuotesView from './QuotesView';
 import EmojiPicker from './EmojiPicker';
 import LabelBadges from './LabelBadges';
 import ProfileLabels from './ProfileLabels';
+import PollDisplay from './PollDisplay';
 import Link from 'next/link';
 import type { BlueskyProfile } from '@/lib/bluesky';
 import { extractPaperUrl, extractAnyUrl, getPaperIdFromUrl, PAPER_DOMAINS, LinkFacet } from '@/lib/papers';
@@ -2715,6 +2716,9 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
 
           {/* Embedded content (images, links, etc.) */}
           <PostEmbed embed={post.embed} onOpenThread={onOpenThread} />
+
+          {/* Poll (if any) */}
+          <PollDisplay postUri={post.uri} />
 
           {/* Engagement actions */}
           <div className="flex gap-6 lg:gap-4 mt-3 text-base lg:text-sm text-gray-500">
