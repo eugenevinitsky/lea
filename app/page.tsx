@@ -590,87 +590,116 @@ function AppContent() {
           </button>
         </aside>
 
-        {/* Main content - full width on mobile, constrained on desktop */}
-        <main
-          ref={mainContentRef}
-          onTouchStart={handleTouchStart}
-          onTouchMove={handleTouchMove}
-          onTouchEnd={handleTouchEnd}
-          className="flex-1 w-full lg:max-w-xl bg-white dark:bg-gray-950 min-h-screen border-x border-gray-200 dark:border-gray-800 pb-16 lg:pb-0"
-          style={{ transform: `translateY(${pullDistance}px)`, transition: isPulling ? 'none' : 'transform 0.2s ease-out' }}
-        >
-          {/* Pull-to-refresh indicator */}
-          {(pullDistance > 0 || isRefreshing) && (
-            <div
-              className="lg:hidden absolute left-0 right-0 flex items-center justify-center pointer-events-none"
-              style={{ top: -50, height: 50 }}
-            >
-              <div className={`w-8 h-8 border-3 border-blue-500 border-t-transparent rounded-full ${isRefreshing ? 'animate-spin' : ''}`}
-                style={{ transform: `rotate(${pullDistance * 3}deg)` }}
-              />
-            </div>
-          )}
+        {/* Main content area with feed and vertical tabs */}
+        <div className="flex-1 flex lg:max-w-[calc(576px+140px)]">
+          {/* Main content - full width on mobile, constrained on desktop */}
+          <main
+            ref={mainContentRef}
+            onTouchStart={handleTouchStart}
+            onTouchMove={handleTouchMove}
+            onTouchEnd={handleTouchEnd}
+            className="flex-1 w-full lg:max-w-xl bg-white dark:bg-gray-950 min-h-screen border-l border-gray-200 dark:border-gray-800 lg:border-r-0 border-r pb-16 lg:pb-0"
+            style={{ transform: `translateY(${pullDistance}px)`, transition: isPulling ? 'none' : 'transform 0.2s ease-out' }}
+          >
+            {/* Pull-to-refresh indicator */}
+            {(pullDistance > 0 || isRefreshing) && (
+              <div
+                className="lg:hidden absolute left-0 right-0 flex items-center justify-center pointer-events-none"
+                style={{ top: -50, height: 50 }}
+              >
+                <div className={`w-8 h-8 border-3 border-blue-500 border-t-transparent rounded-full ${isRefreshing ? 'animate-spin' : ''}`}
+                  style={{ transform: `rotate(${pullDistance * 3}deg)` }}
+                />
+              </div>
+            )}
 
-          {/* Feed Tabs - sticky below header when scrolling */}
-          <div className="relative border-b border-gray-200 dark:border-gray-800 sticky top-14 z-10 bg-white dark:bg-gray-950">
-            {/* Left scroll arrow - desktop only */}
-            <button
-              onClick={() => {
-                const container = feedsContainerRef.current;
-                if (container) container.scrollBy({ left: -150, behavior: 'smooth' });
-              }}
-              disabled={!canScrollLeft}
-              className={`hidden lg:flex absolute left-0 top-0 bottom-0 w-8 bg-white dark:bg-gray-950 z-10 items-center justify-center border-r border-gray-200 dark:border-gray-800 transition-colors ${
-                canScrollLeft
-                  ? 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 cursor-pointer'
-                  : 'text-gray-300 dark:text-gray-700 cursor-default'
-              }`}
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-              </svg>
-            </button>
-            {/* Right scroll arrow - desktop only */}
-            <button
-              onClick={() => {
-                const container = feedsContainerRef.current;
-                if (container) container.scrollBy({ left: 150, behavior: 'smooth' });
-              }}
-              disabled={!canScrollRight}
-              className={`hidden lg:flex absolute right-16 top-0 bottom-0 w-8 bg-white dark:bg-gray-950 z-10 items-center justify-center border-l border-gray-200 dark:border-gray-800 transition-colors ${
-                canScrollRight
-                  ? 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 cursor-pointer'
-                  : 'text-gray-300 dark:text-gray-700 cursor-default'
-              }`}
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-              </svg>
-            </button>
-            {/* Refresh button - desktop only, second from right */}
-            <button
-              onClick={() => setRefreshKey(k => k + 1)}
-              className="hidden lg:flex absolute right-8 top-0 bottom-0 w-8 bg-white dark:bg-gray-950 z-10 items-center justify-center border-l border-gray-200 dark:border-gray-800 text-gray-500 hover:text-blue-500 hover:bg-gray-50 dark:hover:bg-gray-900 transition-colors"
-              title="Refresh feed"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-              </svg>
-            </button>
-            {/* Scroll to top button - desktop only, far right */}
-            <button
-              onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
-              className="hidden lg:flex absolute right-0 top-0 bottom-0 w-8 bg-white dark:bg-gray-950 z-10 items-center justify-center border-l border-gray-200 dark:border-gray-800 text-gray-500 hover:text-blue-500 hover:bg-gray-50 dark:hover:bg-gray-900 transition-colors"
-              title="Scroll to top"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 10l7-7m0 0l7 7m-7-7v18" />
-              </svg>
-            </button>
-            <div
-              ref={feedsContainerRef}
-              className="flex overflow-x-auto scrollbar-hide lg:ml-8 lg:mr-24"
-            >
+            {/* Mobile Feed Tabs - horizontal, sticky below header */}
+            <div className="lg:hidden relative border-b border-gray-200 dark:border-gray-800 sticky top-14 z-10 bg-white dark:bg-gray-950">
+              <div
+                ref={feedsContainerRef}
+                className="flex overflow-x-auto scrollbar-hide"
+              >
+                {pinnedFeeds.map((feed, index) => {
+                  const isActive = activeFeedUri === feed.uri || (activeFeedUri === null && index === 0);
+                  const isSkygest = feed.uri.includes('preprintdigest');
+                  const isKeyword = feed.type === 'keyword';
+
+                  return (
+                    <button
+                      key={feed.uri}
+                      onClick={() => setActiveFeedUri(feed.uri)}
+                      className={`flex-shrink-0 px-4 py-3 text-base font-medium transition-colors relative flex items-center justify-center gap-1 ${
+                        isActive
+                          ? (isSkygest || isKeyword) ? 'text-purple-500' : 'text-blue-500'
+                          : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
+                      }`}
+                    >
+                      {isSkygest && (
+                        <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                      )}
+                      {isKeyword && (
+                        <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                        </svg>
+                      )}
+                      <span className="whitespace-nowrap">{feed.displayName}</span>
+                      {isActive && (
+                        <div className={`absolute bottom-0 left-0 right-0 h-0.5 ${
+                          (isSkygest || isKeyword) ? 'bg-purple-500' : 'bg-blue-500'
+                        }`} />
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Feed Content */}
+            {activeFeedUri && (() => {
+              const activeFeed = pinnedFeeds.find(f => f.uri === activeFeedUri);
+              return (
+                <Feed
+                  feedUri={activeFeedUri}
+                  feedName={activeFeed?.displayName}
+                  acceptsInteractions={activeFeed?.acceptsInteractions}
+                  feedType={activeFeed?.type}
+                  keyword={activeFeed?.keyword}
+                  refreshKey={refreshKey}
+                  onOpenProfile={navigateToProfile}
+                  onOpenThread={openThread}
+                />
+              );
+            })()}
+          </main>
+
+          {/* Right Sidebar - Vertical Feed Tabs (desktop only) */}
+          <aside className="hidden lg:flex flex-col w-[140px] flex-shrink-0 sticky top-14 max-h-[calc(100vh-3.5rem)] bg-gray-50 dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800">
+            {/* Top buttons: Refresh and Scroll to top */}
+            <div className="flex border-b border-gray-200 dark:border-gray-800">
+              <button
+                onClick={() => setRefreshKey(k => k + 1)}
+                className="flex-1 p-2 text-gray-500 hover:text-blue-500 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors flex items-center justify-center"
+                title="Refresh feed"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+              </button>
+              <button
+                onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+                className="flex-1 p-2 text-gray-500 hover:text-blue-500 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors flex items-center justify-center border-l border-gray-200 dark:border-gray-800"
+                title="Scroll to top"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 10l7-7m0 0l7 7m-7-7v18" />
+                </svg>
+              </button>
+            </div>
+
+            {/* Feed tabs */}
+            <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-gray-700">
               {pinnedFeeds.map((feed, index) => {
                 const isActive = activeFeedUri === feed.uri || (activeFeedUri === null && index === 0);
                 const isSkygest = feed.uri.includes('preprintdigest');
@@ -716,28 +745,19 @@ function AppContent() {
                         }
                       }
                     }}
-                    className={`flex-shrink-0 px-4 lg:px-3 py-3 lg:py-2.5 text-base lg:text-sm font-medium transition-colors relative flex items-center justify-center gap-1 group cursor-grab active:cursor-grabbing ${
+                    className={`w-full px-3 py-2.5 text-sm font-medium transition-colors relative flex items-center gap-1.5 group cursor-grab active:cursor-grabbing ${
                       isDragging ? 'opacity-50' : ''
                     } ${
                       isDragOver ? 'bg-blue-50 dark:bg-blue-900/20' : ''
                     } ${
                       isActive
-                        ? (isSkygest || isKeyword) ? 'text-purple-500' : 'text-blue-500'
-                        : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
+                        ? `bg-white dark:bg-gray-950 border-l-0 ${
+                            (isSkygest || isKeyword) ? 'text-purple-500' : 'text-blue-500'
+                          }`
+                        : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
                     }`}
                     title="Drag to reorder • Right-click to unpin"
                   >
-                    {/* Drag handle - visible on hover, desktop only */}
-                    <span className="hidden lg:inline opacity-0 group-hover:opacity-50 transition-opacity text-gray-400 mr-0.5 cursor-grab">
-                      <svg className="w-3 h-3" viewBox="0 0 24 24" fill="currentColor">
-                        <circle cx="9" cy="6" r="2" />
-                        <circle cx="15" cy="6" r="2" />
-                        <circle cx="9" cy="12" r="2" />
-                        <circle cx="15" cy="12" r="2" />
-                        <circle cx="9" cy="18" r="2" />
-                        <circle cx="15" cy="18" r="2" />
-                      </svg>
-                    </span>
                     {isSkygest && (
                       <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -748,9 +768,9 @@ function AppContent() {
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                       </svg>
                     )}
-                    <span className="whitespace-nowrap">{feed.displayName}</span>
-                    {/* Info button for active custom feed generators */}
-                    {isActive && feed.uri.includes('/app.bsky.feed.generator/') && (() => {
+                    <span className="truncate flex-1 text-left">{feed.displayName}</span>
+                    {/* Info button for custom feed generators */}
+                    {feed.uri.includes('/app.bsky.feed.generator/') && (() => {
                       const match = feed.uri.match(/^at:\/\/([^/]+)\/app\.bsky\.feed\.generator\/([^/]+)$/);
                       if (match) {
                         const [, didOrHandle, rkey] = match;
@@ -758,7 +778,7 @@ function AppContent() {
                           <a
                             href={`/feed/${didOrHandle}/${rkey}`}
                             onClick={(e) => e.stopPropagation()}
-                            className="p-0.5 text-gray-400 hover:text-blue-500 transition-colors"
+                            className="p-0.5 text-gray-400 hover:text-blue-500 transition-colors opacity-0 group-hover:opacity-100"
                             title="Feed info"
                           >
                             <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -769,48 +789,28 @@ function AppContent() {
                       }
                       return null;
                     })()}
-                    {isActive && (
-                      <div className={`absolute bottom-0 left-0 right-0 h-0.5 ${
-                        (isSkygest || isKeyword) ? 'bg-purple-500' : 'bg-blue-500'
-                      }`} />
-                    )}
                     {isDragOver && (
-                      <div className="absolute left-0 top-0 bottom-0 w-0.5 bg-blue-500" />
+                      <div className="absolute left-0 right-0 top-0 h-0.5 bg-blue-500" />
                     )}
                   </button>
                 );
               })}
-              {/* Manage feeds button - desktop only (mobile uses header hashtag) */}
-              <button
-                onClick={() => setShowFeedDiscovery(true)}
-                className="hidden lg:block flex-shrink-0 px-2.5 py-2.5 text-blue-500 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
-                title="Manage feeds"
-              >
-                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                </svg>
-              </button>
             </div>
-          </div>
 
-          {/* Feed Content */}
-          {activeFeedUri && (() => {
-            const activeFeed = pinnedFeeds.find(f => f.uri === activeFeedUri);
-            return (
-              <Feed
-                feedUri={activeFeedUri}
-                feedName={activeFeed?.displayName}
-                acceptsInteractions={activeFeed?.acceptsInteractions}
-                feedType={activeFeed?.type}
-                keyword={activeFeed?.keyword}
-                refreshKey={refreshKey}
-                onOpenProfile={navigateToProfile}
-                onOpenThread={openThread}
-              />
-            );
-          })()}
-        </main>
+            {/* Settings button at bottom */}
+            <button
+              onClick={() => setShowFeedDiscovery(true)}
+              className="p-3 text-gray-500 hover:text-blue-500 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors flex items-center gap-2 border-t border-gray-200 dark:border-gray-800"
+              title="Manage feeds"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+              </svg>
+              <span className="text-xs font-medium">Feeds</span>
+            </button>
+          </aside>
+        </div>
       </div>
 
       {/* Thread View Modal */}
