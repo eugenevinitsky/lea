@@ -351,21 +351,32 @@ export const polls = pgTable(
   ]
 );
 
-// Poll votes
+// Poll votes - anonymous, no voter info stored
 export const pollVotes = pgTable(
   'poll_votes',
   {
     id: varchar('id', { length: 50 }).primaryKey(),
     pollId: varchar('poll_id', { length: 50 }).notNull(),
-    voterDid: varchar('voter_did', { length: 255 }).notNull(),
     optionId: varchar('option_id', { length: 50 }).notNull(), // Which option was selected
     votedAt: timestamp('voted_at').defaultNow().notNull(),
   },
   (table) => [
     index('poll_votes_poll_idx').on(table.pollId),
-    index('poll_votes_voter_idx').on(table.voterDid),
-    // Unique constraint: one vote per user per poll (for single-choice polls)
-    // For multiple choice, we allow multiple rows per user
+  ]
+);
+
+// Poll participants - tracks who has voted (hashed, can't see what they voted for)
+export const pollParticipants = pgTable(
+  'poll_participants',
+  {
+    id: varchar('id', { length: 50 }).primaryKey(),
+    pollId: varchar('poll_id', { length: 50 }).notNull(),
+    voterHash: varchar('voter_hash', { length: 64 }).notNull(), // SHA-256 hash of pollId:voterDid
+    votedAt: timestamp('voted_at').defaultNow().notNull(),
+  },
+  (table) => [
+    index('poll_participants_poll_idx').on(table.pollId),
+    index('poll_participants_hash_idx').on(table.voterHash),
   ]
 );
 
@@ -373,6 +384,8 @@ export type Poll = typeof polls.$inferSelect;
 export type NewPoll = typeof polls.$inferInsert;
 export type PollVote = typeof pollVotes.$inferSelect;
 export type NewPollVote = typeof pollVotes.$inferInsert;
+export type PollParticipant = typeof pollParticipants.$inferSelect;
+export type NewPollParticipant = typeof pollParticipants.$inferInsert;
 
 export interface PollOption {
   id: string;

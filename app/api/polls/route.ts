@@ -1,10 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db, polls, pollVotes } from '@/lib/db';
+import { db, polls, pollVotes, pollParticipants } from '@/lib/db';
 import { eq, and } from 'drizzle-orm';
+import { createHash } from 'crypto';
 
 interface PollOption {
   id: string;
   text: string;
+}
+
+// Hash voter DID with poll ID for anonymous participation tracking
+// This prevents seeing who voted for what, but still prevents double voting
+function hashVoter(pollId: string, voterDid: string): string {
+  return createHash('sha256').update(`${pollId}:${voterDid}`).digest('hex');
 }
 
 // GET /api/polls?postUri=xxx - Fetch poll data by post URI
@@ -37,7 +44,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Poll not found' }, { status: 404 });
     }
 
-    // Fetch all votes for this poll
+    // Fetch all votes for this poll (anonymous - no voter info)
     const votes = await db
       .select()
       .from(pollVotes)
@@ -53,12 +60,19 @@ export async function GET(request: NextRequest) {
       }
     });
 
-    // Check if current user has voted
-    let userVotes: string[] = [];
+    // Check if current user has voted (using participation table)
+    let hasVoted = false;
     if (voterDid) {
-      userVotes = votes
-        .filter(v => v.voterDid === voterDid)
-        .map(v => v.optionId);
+      const voterHash = hashVoter(poll.id, voterDid);
+      const [participant] = await db
+        .select()
+        .from(pollParticipants)
+        .where(and(
+          eq(pollParticipants.pollId, poll.id),
+          eq(pollParticipants.voterHash, voterHash)
+        ))
+        .limit(1);
+      hasVoted = !!participant;
     }
 
     const totalVotes = votes.length;
@@ -79,7 +93,7 @@ export async function GET(request: NextRequest) {
       endsAt: poll.endsAt,
       isExpired,
       totalVotes,
-      userVotes,
+      hasVoted, // Changed from userVotes array to simple boolean
       createdAt: poll.createdAt,
     });
   } catch (error) {
@@ -146,11 +160,11 @@ export async function POST(request: NextRequest) {
       }
 
       case 'vote': {
-        const { pollId, voterDid, optionId } = data;
+        const { pollId, voterDid, optionIds } = data;
 
-        if (!pollId || !voterDid || !optionId) {
+        if (!pollId || !voterDid || !optionIds || !Array.isArray(optionIds) || optionIds.length === 0) {
           return NextResponse.json(
-            { error: 'pollId, voterDid, and optionId required' },
+            { error: 'pollId, voterDid, and optionIds required' },
             { status: 400 }
           );
         }
@@ -170,91 +184,53 @@ export async function POST(request: NextRequest) {
           return NextResponse.json({ error: 'Poll has ended' }, { status: 400 });
         }
 
-        // Validate option exists
+        // Validate options exist
         const options: PollOption[] = JSON.parse(poll.options);
-        if (!options.some(opt => opt.id === optionId)) {
-          return NextResponse.json({ error: 'Invalid option' }, { status: 400 });
+        const validOptionIds = options.map(opt => opt.id);
+        for (const optionId of optionIds) {
+          if (!validOptionIds.includes(optionId)) {
+            return NextResponse.json({ error: 'Invalid option' }, { status: 400 });
+          }
         }
 
-        // Check existing votes by this user
-        const existingVotes = await db
+        // Check if multiple options allowed
+        if (!poll.allowMultiple && optionIds.length > 1) {
+          return NextResponse.json({ error: 'Multiple selections not allowed' }, { status: 400 });
+        }
+
+        // Hash the voter DID for anonymous participation tracking
+        const voterHash = hashVoter(pollId, voterDid);
+
+        // Check if user has already voted
+        const [existingParticipant] = await db
           .select()
-          .from(pollVotes)
+          .from(pollParticipants)
           .where(and(
-            eq(pollVotes.pollId, pollId),
-            eq(pollVotes.voterDid, voterDid)
-          ));
+            eq(pollParticipants.pollId, pollId),
+            eq(pollParticipants.voterHash, voterHash)
+          ))
+          .limit(1);
 
-        // If not allowing multiple votes and user already voted, remove old vote
-        if (!poll.allowMultiple && existingVotes.length > 0) {
-          await db
-            .delete(pollVotes)
-            .where(and(
-              eq(pollVotes.pollId, pollId),
-              eq(pollVotes.voterDid, voterDid)
-            ));
+        if (existingParticipant) {
+          return NextResponse.json({ error: 'Already voted' }, { status: 400 });
         }
 
-        // Check if already voted for this specific option
-        if (existingVotes.some(v => v.optionId === optionId)) {
-          return NextResponse.json({ error: 'Already voted for this option' }, { status: 400 });
-        }
-
-        // Add vote
-        const voteId = `vote_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-        await db.insert(pollVotes).values({
-          id: voteId,
+        // Record participation (hashed - can't see what they voted for)
+        const participantId = `part_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        await db.insert(pollParticipants).values({
+          id: participantId,
           pollId,
-          voterDid,
-          optionId,
+          voterHash,
         });
 
-        return NextResponse.json({ success: true });
-      }
-
-      case 'unvote': {
-        const { pollId, voterDid, optionId } = data;
-
-        if (!pollId || !voterDid) {
-          return NextResponse.json(
-            { error: 'pollId and voterDid required' },
-            { status: 400 }
-          );
-        }
-
-        // Fetch poll to check if it exists and isn't expired
-        const [poll] = await db
-          .select()
-          .from(polls)
-          .where(eq(polls.id, pollId))
-          .limit(1);
-
-        if (!poll) {
-          return NextResponse.json({ error: 'Poll not found' }, { status: 404 });
-        }
-
-        if (poll.endsAt && new Date(poll.endsAt) < new Date()) {
-          return NextResponse.json({ error: 'Poll has ended' }, { status: 400 });
-        }
-
-        // Remove vote(s)
-        if (optionId) {
-          // Remove specific vote
-          await db
-            .delete(pollVotes)
-            .where(and(
-              eq(pollVotes.pollId, pollId),
-              eq(pollVotes.voterDid, voterDid),
-              eq(pollVotes.optionId, optionId)
-            ));
-        } else {
-          // Remove all votes by this user on this poll
-          await db
-            .delete(pollVotes)
-            .where(and(
-              eq(pollVotes.pollId, pollId),
-              eq(pollVotes.voterDid, voterDid)
-            ));
+        // Record anonymous votes (no voter info - can't see who voted)
+        for (const optionId of optionIds) {
+          const voteId = `vote_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+          await db.insert(pollVotes).values({
+            id: voteId,
+            pollId,
+            optionId,
+          });
         }
 
         return NextResponse.json({ success: true });

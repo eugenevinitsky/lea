@@ -20,7 +20,7 @@ interface PollData {
   endsAt: string | null;
   isExpired: boolean;
   totalVotes: number;
-  userVotes: string[];
+  hasVoted: boolean;
   createdAt: string;
 }
 
@@ -50,6 +50,7 @@ export default function PollDisplay({ postUri }: PollDisplayProps) {
   const [loading, setLoading] = useState(true);
   const [voting, setVoting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [selectedOptions, setSelectedOptions] = useState<string[]>([]);
 
   const session = getSession();
   const voterDid = session?.did;
@@ -81,66 +82,28 @@ export default function PollDisplay({ postUri }: PollDisplayProps) {
     fetchPoll();
   }, [postUri, voterDid]);
 
-  const handleVote = async (optionId: string) => {
-    if (!poll || !voterDid || voting || poll.isExpired) return;
+  const toggleOption = (optionId: string) => {
+    if (!poll || poll.hasVoted || poll.isExpired) return;
 
-    // Check if already voted for this option
-    if (poll.userVotes.includes(optionId)) {
-      // Unvote
-      setVoting(true);
-      try {
-        const response = await fetch('/api/polls', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            action: 'unvote',
-            pollId: poll.id,
-            voterDid,
-            optionId,
-          }),
-        });
-
-        if (!response.ok) throw new Error('Failed to remove vote');
-
-        // Update local state
-        setPoll(prev => {
-          if (!prev) return prev;
-          const newUserVotes = prev.userVotes.filter(id => id !== optionId);
-          const newOptions = prev.options.map(opt => {
-            if (opt.id === optionId) {
-              const newVotes = opt.votes - 1;
-              const newTotal = prev.totalVotes - 1;
-              return {
-                ...opt,
-                votes: newVotes,
-                percentage: newTotal > 0 ? Math.round((newVotes / newTotal) * 100) : 0,
-              };
-            }
-            // Recalculate percentage for other options
-            const newTotal = prev.totalVotes - 1;
-            return {
-              ...opt,
-              percentage: newTotal > 0 ? Math.round((opt.votes / newTotal) * 100) : 0,
-            };
-          });
-          return {
-            ...prev,
-            userVotes: newUserVotes,
-            totalVotes: prev.totalVotes - 1,
-            options: newOptions,
-          };
-        });
-      } catch (err) {
-        console.error('Vote error:', err);
-        setError('Failed to remove vote');
-      } finally {
-        setVoting(false);
-      }
-      return;
+    if (poll.allowMultiple) {
+      // Toggle selection for multiple choice
+      setSelectedOptions(prev =>
+        prev.includes(optionId)
+          ? prev.filter(id => id !== optionId)
+          : [...prev, optionId]
+      );
+    } else {
+      // Single choice - replace selection
+      setSelectedOptions([optionId]);
     }
+  };
 
-    // Vote
+  const submitVote = async () => {
+    if (!poll || !voterDid || voting || poll.hasVoted || poll.isExpired || selectedOptions.length === 0) return;
+
     setVoting(true);
+    setError(null);
+
     try {
       const response = await fetch('/api/polls', {
         method: 'POST',
@@ -149,7 +112,7 @@ export default function PollDisplay({ postUri }: PollDisplayProps) {
           action: 'vote',
           pollId: poll.id,
           voterDid,
-          optionId,
+          optionIds: selectedOptions,
         }),
       });
 
@@ -158,37 +121,22 @@ export default function PollDisplay({ postUri }: PollDisplayProps) {
         throw new Error(data.error || 'Failed to vote');
       }
 
-      // Update local state
+      // Update local state to show results
       setPoll(prev => {
         if (!prev) return prev;
-        // If single choice, remove previous vote
-        let oldVoteOptionId: string | null = null;
-        if (!prev.allowMultiple && prev.userVotes.length > 0) {
-          oldVoteOptionId = prev.userVotes[0];
-        }
-
-        const newTotalVotes = oldVoteOptionId ? prev.totalVotes : prev.totalVotes + 1;
-        const newUserVotes = prev.allowMultiple
-          ? [...prev.userVotes, optionId]
-          : [optionId];
-
+        const newTotalVotes = prev.totalVotes + selectedOptions.length;
         const newOptions = prev.options.map(opt => {
-          let newVotes = opt.votes;
-          if (opt.id === optionId) {
-            newVotes = opt.votes + 1;
-          } else if (opt.id === oldVoteOptionId) {
-            newVotes = opt.votes - 1;
-          }
+          const wasSelected = selectedOptions.includes(opt.id);
+          const newVotes = wasSelected ? opt.votes + 1 : opt.votes;
           return {
             ...opt,
             votes: newVotes,
             percentage: newTotalVotes > 0 ? Math.round((newVotes / newTotalVotes) * 100) : 0,
           };
         });
-
         return {
           ...prev,
-          userVotes: newUserVotes,
+          hasVoted: true,
           totalVotes: newTotalVotes,
           options: newOptions,
         };
@@ -204,8 +152,8 @@ export default function PollDisplay({ postUri }: PollDisplayProps) {
   if (loading) return null;
   if (!poll) return null;
 
-  const hasVoted = poll.userVotes.length > 0;
-  const showResults = hasVoted || poll.isExpired;
+  const showResults = poll.hasVoted || poll.isExpired;
+  const canVote = voterDid && !poll.hasVoted && !poll.isExpired;
 
   return (
     <div className="mt-3 p-3 bg-gray-50 dark:bg-gray-800/50 rounded-xl border border-gray-200 dark:border-gray-700">
@@ -217,15 +165,14 @@ export default function PollDisplay({ postUri }: PollDisplayProps) {
 
       <div className="space-y-2">
         {poll.options.map((option) => {
-          const isSelected = poll.userVotes.includes(option.id);
-          const canVote = voterDid && !poll.isExpired && (poll.allowMultiple || !hasVoted || isSelected);
+          const isSelected = selectedOptions.includes(option.id);
 
           return (
             <button
               key={option.id}
               onClick={(e) => {
                 e.stopPropagation();
-                handleVote(option.id);
+                toggleOption(option.id);
               }}
               disabled={!canVote || voting}
               className={`w-full relative overflow-hidden rounded-lg border transition-all ${
@@ -234,16 +181,12 @@ export default function PollDisplay({ postUri }: PollDisplayProps) {
                   : canVote
                     ? 'border-gray-300 dark:border-gray-600 hover:border-blue-400 dark:hover:border-blue-500'
                     : 'border-gray-200 dark:border-gray-700'
-              } ${!canVote && !isSelected ? 'cursor-default' : ''}`}
+              } ${!canVote ? 'cursor-default' : 'cursor-pointer'}`}
             >
-              {/* Progress bar background */}
+              {/* Progress bar background - only show after voting */}
               {showResults && (
                 <div
-                  className={`absolute inset-y-0 left-0 transition-all duration-300 ${
-                    isSelected
-                      ? 'bg-blue-200 dark:bg-blue-800/40'
-                      : 'bg-gray-200 dark:bg-gray-700/50'
-                  }`}
+                  className="absolute inset-y-0 left-0 transition-all duration-300 bg-gray-200 dark:bg-gray-700/50"
                   style={{ width: `${option.percentage}%` }}
                 />
               )}
@@ -255,7 +198,7 @@ export default function PollDisplay({ postUri }: PollDisplayProps) {
                     : 'text-gray-700 dark:text-gray-300'
                 }`}>
                   {option.text}
-                  {isSelected && (
+                  {isSelected && !showResults && (
                     <svg className="inline-block w-4 h-4 ml-1.5 text-blue-500" fill="currentColor" viewBox="0 0 20 20">
                       <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                     </svg>
@@ -272,12 +215,29 @@ export default function PollDisplay({ postUri }: PollDisplayProps) {
         })}
       </div>
 
+      {/* Vote button - only show if can vote and has selection */}
+      {canVote && selectedOptions.length > 0 && (
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            submitVote();
+          }}
+          disabled={voting}
+          className="mt-3 w-full py-2 bg-blue-500 hover:bg-blue-600 disabled:bg-blue-400 text-white text-sm font-medium rounded-lg transition-colors"
+        >
+          {voting ? 'Voting...' : 'Vote'}
+        </button>
+      )}
+
       {/* Poll metadata */}
       <div className="mt-3 flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
         <span>{poll.totalVotes} vote{poll.totalVotes !== 1 ? 's' : ''}</span>
         <div className="flex items-center gap-2">
-          {poll.allowMultiple && (
-            <span className="text-gray-400">Multiple choice</span>
+          {poll.allowMultiple && !showResults && (
+            <span className="text-gray-400">Select multiple</span>
+          )}
+          {poll.hasVoted && (
+            <span className="text-green-500">Voted</span>
           )}
           {poll.endsAt && (
             <span>{formatTimeRemaining(poll.endsAt)}</span>
