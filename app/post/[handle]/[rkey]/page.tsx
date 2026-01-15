@@ -7,6 +7,7 @@ import { SettingsProvider } from '@/lib/settings';
 import { BookmarksProvider, useBookmarks } from '@/lib/bookmarks';
 import { FeedsProvider } from '@/lib/feeds';
 import { FollowingProvider } from '@/lib/following-context';
+import { ComposerProvider, useComposer } from '@/lib/composer-context';
 import Login from '@/components/Login';
 import ThreadView from '@/components/ThreadView';
 import Bookmarks from '@/components/Bookmarks';
@@ -33,7 +34,7 @@ function PostPageContent() {
   const [isVerified, setIsVerified] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [onboardingStartStep, setOnboardingStartStep] = useState(1);
-  const [showComposer, setShowComposer] = useState(false);
+  const { isOpen: showComposer, quotePost, openComposer, closeComposer } = useComposer();
   const { setUserDid } = useBookmarks();
 
   // Restore session on mount
@@ -239,7 +240,7 @@ function PostPageContent() {
 
           {/* Compose Button */}
           <button
-            onClick={() => setShowComposer(true)}
+            onClick={() => openComposer()}
             className="w-full py-2 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white text-sm font-medium rounded-full flex items-center justify-center gap-1.5 transition-all shadow-sm"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -294,23 +295,25 @@ function PostPageContent() {
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
           onClick={(e) => {
             if (e.target === e.currentTarget) {
-              setShowComposer(false);
+              closeComposer();
             }
           }}
         >
           <div className="w-full h-full lg:w-[600px] lg:h-auto lg:max-h-[80vh] lg:rounded-2xl bg-white dark:bg-gray-950 flex flex-col lg:shadow-2xl">
             <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 dark:border-gray-800">
               <button
-                onClick={() => setShowComposer(false)}
+                onClick={() => closeComposer()}
                 className="text-blue-500 hover:text-blue-600 font-medium"
               >
                 Cancel
               </button>
-              <span className="font-semibold text-gray-900 dark:text-gray-100">New Post</span>
+              <span className="font-semibold text-gray-900 dark:text-gray-100">
+                {quotePost ? 'Quote Post' : 'New Post'}
+              </span>
               <div className="w-14" />
             </div>
             <div className="flex-1 overflow-y-auto">
-              <Composer onPost={() => setShowComposer(false)} />
+              <Composer onPost={() => closeComposer()} quotePost={quotePost} />
             </div>
           </div>
         </div>
@@ -325,7 +328,9 @@ export default function PostPage() {
       <BookmarksProvider>
         <FeedsProvider>
           <FollowingProvider>
-            <PostPageContent />
+            <ComposerProvider>
+              <PostPageContent />
+            </ComposerProvider>
           </FollowingProvider>
         </FeedsProvider>
       </BookmarksProvider>

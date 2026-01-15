@@ -8,6 +8,7 @@ import { BookmarksProvider, useBookmarks } from '@/lib/bookmarks';
 import { FeedsProvider, useFeeds } from '@/lib/feeds';
 import { FollowingProvider } from '@/lib/following-context';
 import { useModeration } from '@/lib/moderation';
+import { ComposerProvider, useComposer } from '@/lib/composer-context';
 import Login from '@/components/Login';
 import Feed from '@/components/Feed';
 import Composer from '@/components/Composer';
@@ -40,7 +41,7 @@ function AppContent() {
   const [isVerified, setIsVerified] = useState(false);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(false);
-  const [showMobileComposer, setShowMobileComposer] = useState(false);
+  const { isOpen: showComposer, quotePost, openComposer, closeComposer } = useComposer();
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   const [showMobileBookmarks, setShowMobileBookmarks] = useState(false);
   const [showMobileNotifications, setShowMobileNotifications] = useState(false);
@@ -579,7 +580,7 @@ function AppContent() {
 
           {/* Compose Button */}
           <button
-            onClick={() => setShowMobileComposer(true)}
+            onClick={() => openComposer()}
             className="w-full py-2 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white text-sm font-medium rounded-full flex items-center justify-center gap-1.5 transition-all shadow-sm"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -876,7 +877,7 @@ function AppContent() {
 
       {/* Mobile Floating Action Button (FAB) for composing */}
       <button
-        onClick={() => setShowMobileComposer(true)}
+        onClick={() => openComposer()}
         className="lg:hidden fixed w-14 h-14 bg-blue-500 hover:bg-blue-600 text-white rounded-full shadow-lg flex items-center justify-center z-30 transition-transform hover:scale-105 active:scale-95 bottom-20 right-4"
         aria-label="Compose post"
       >
@@ -886,13 +887,13 @@ function AppContent() {
       </button>
 
       {/* Composer Modal */}
-      {showMobileComposer && (
+      {showComposer && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
           onClick={(e) => {
             // Close on backdrop click (desktop only)
             if (e.target === e.currentTarget) {
-              setShowMobileComposer(false);
+              closeComposer();
             }
           }}
         >
@@ -900,20 +901,22 @@ function AppContent() {
             {/* Modal header */}
             <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 dark:border-gray-800">
               <button
-                onClick={() => setShowMobileComposer(false)}
+                onClick={() => closeComposer()}
                 className="text-blue-500 hover:text-blue-600 font-medium"
               >
                 Cancel
               </button>
-              <span className="font-semibold text-gray-900 dark:text-gray-100">New Post</span>
+              <span className="font-semibold text-gray-900 dark:text-gray-100">
+                {quotePost ? 'Quote Post' : 'New Post'}
+              </span>
               <div className="w-14" /> {/* Spacer for centering */}
             </div>
             {/* Composer */}
             <div className="flex-1 overflow-y-auto">
               <Composer onPost={() => {
                 handlePost();
-                setShowMobileComposer(false);
-              }} />
+                closeComposer();
+              }} quotePost={quotePost} />
             </div>
           </div>
         </div>
@@ -1036,13 +1039,15 @@ export default function Home() {
         <BookmarksProvider>
           <FeedsProvider>
             <FollowingProvider>
-              <Suspense fallback={
-                <div className="min-h-screen bg-gray-50 dark:bg-black flex items-center justify-center">
-                  <div className="animate-spin w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full"></div>
-                </div>
-              }>
-                <AppContent />
-              </Suspense>
+              <ComposerProvider>
+                <Suspense fallback={
+                  <div className="min-h-screen bg-gray-50 dark:bg-black flex items-center justify-center">
+                    <div className="animate-spin w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full"></div>
+                  </div>
+                }>
+                  <AppContent />
+                </Suspense>
+              </ComposerProvider>
             </FollowingProvider>
           </FeedsProvider>
         </BookmarksProvider>

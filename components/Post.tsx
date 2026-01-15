@@ -29,6 +29,7 @@ import 'katex/dist/katex.min.css';
 import { isVerifiedResearcher, Label, createPost, ReplyRef, QuoteRef, likePost, unlikePost, repost, deleteRepost, deletePost, editPost, uploadImage, sendFeedInteraction, InteractionEvent, getSession, updateThreadgate, getThreadgateType, ThreadgateType, FEEDS, searchActors, detachQuote, buildProfileUrl, buildPostUrl } from '@/lib/bluesky';
 import { useSettings } from '@/lib/settings';
 import { useBookmarks, BookmarkedPost, COLLECTION_COLORS } from '@/lib/bookmarks';
+import { useComposer } from '@/lib/composer-context';
 import ProfileView from './ProfileView';
 import ProfileEditor from './ProfileEditor';
 import ProfileHoverCard from './ProfileHoverCard';
@@ -1520,6 +1521,7 @@ function PostEmbed({ embed, onOpenThread }: {
 
 export default function Post({ post, onReply, onOpenThread, feedContext, reqId, supportsInteractions, feedUri, onOpenProfile, reason, replyParent, isInSelfThread, isFirstInThread, isLastInThread, isInThread }: PostProps & { onReply?: () => void; onOpenThread?: (uri: string) => void; onOpenProfile?: (did: string) => void }) {
   const { settings } = useSettings();
+  const { openComposer } = useComposer();
   
   // Check if this is a repost
   const isRepost = reason && '$type' in reason && reason.$type === 'app.bsky.feed.defs#reasonRepost';
@@ -2769,7 +2771,18 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
                   </button>
                   <button
                     onClick={() => {
-                      setShowQuoteComposer(true);
+                      openComposer({
+                        uri: post.uri,
+                        cid: post.cid,
+                        author: {
+                          did: author.did,
+                          handle: author.handle,
+                          displayName: author.displayName,
+                          avatar: author.avatar,
+                        },
+                        text: record.text,
+                        createdAt: record.createdAt,
+                      });
                       setShowRepostMenu(false);
                     }}
                     className="w-full px-3 py-2 text-left text-sm hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center gap-2 text-gray-700 dark:text-gray-300"
