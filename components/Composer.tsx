@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { createPost, searchActors, ReplyRef, uploadImage, fetchLinkCard, extractUrlFromText, ExternalEmbed, ReplyRule, ReplyRestriction } from '@/lib/bluesky';
+import { createPost, searchActors, ReplyRef, uploadImage, fetchLinkCard, extractUrlFromText, ExternalEmbed, ReplyRule, ReplyRestriction, getSession } from '@/lib/bluesky';
 import { useSettings } from '@/lib/settings';
 import EmojiPicker from './EmojiPicker';
 
@@ -23,13 +23,27 @@ interface ImageAttachment {
 }
 
 const MAX_IMAGES = 4;
-const MAX_IMAGE_SIZE = 1000000; // 1MB limit per image
+const MAX_IMAGE_SIZE = 20000000; // 20MB limit per image (will be compressed before upload)
 
 interface ReplyOption {
   value: 'open' | 'nobody' | ReplyRule;
   label: string;
   exclusive?: boolean; // If true, selecting this deselects all others
 }
+
+interface PollOption {
+  id: string;
+  text: string;
+}
+
+const POLL_DURATION_OPTIONS = [
+  { value: 0, label: 'No time limit' },
+  { value: 1, label: '1 hour' },
+  { value: 6, label: '6 hours' },
+  { value: 24, label: '1 day' },
+  { value: 72, label: '3 days' },
+  { value: 168, label: '7 days' },
+];
 
 const REPLY_OPTIONS: ReplyOption[] = [
   { value: 'open', label: 'Anyone', exclusive: true },
@@ -70,6 +84,12 @@ export default function Composer({ onPost }: ComposerProps) {
   const [threadLinkPreviews, setThreadLinkPreviews] = useState<(ExternalEmbed | null)[]>([null]);
   const [loadingLinkPreview, setLoadingLinkPreview] = useState<number | null>(null);
   const [lastCheckedUrls, setLastCheckedUrls] = useState<string[]>(['']);
+
+  // Poll state
+  const [showPoll, setShowPoll] = useState(false);
+  const [pollOptions, setPollOptions] = useState<string[]>(['', '']);
+  const [pollDuration, setPollDuration] = useState(24); // hours
+  const [pollAllowMultiple, setPollAllowMultiple] = useState(false);
 
   // Thread management functions
   const addThreadPost = () => {
@@ -163,6 +183,35 @@ export default function Composer({ onPost }: ComposerProps) {
     );
     setThreadImages(updated);
   }, [threadImages]);
+
+  // Poll management functions
+  const addPollOption = () => {
+    if (pollOptions.length < 4) {
+      setPollOptions([...pollOptions, '']);
+    }
+  };
+
+  const removePollOption = (index: number) => {
+    if (pollOptions.length > 2) {
+      setPollOptions(pollOptions.filter((_, i) => i !== index));
+    }
+  };
+
+  const updatePollOption = (index: number, text: string) => {
+    const updated = [...pollOptions];
+    updated[index] = text;
+    setPollOptions(updated);
+  };
+
+  const togglePoll = () => {
+    if (showPoll) {
+      // Reset poll state when hiding
+      setPollOptions(['', '']);
+      setPollDuration(24);
+      setPollAllowMultiple(false);
+    }
+    setShowPoll(!showPoll);
+  };
 
   // Handle paste for images
   const handlePaste = useCallback((e: React.ClipboardEvent<HTMLTextAreaElement>, postIndex: number) => {
@@ -432,8 +481,18 @@ export default function Composer({ onPost }: ComposerProps) {
 
       // Post first item (only pass link preview if no images, since images take precedence)
       const firstLinkPreview = firstUploadedImages.length === 0 ? postsWithContent[0].linkPreview : null;
+
+      // Append poll text if poll is enabled
+      let postText = postsWithContent[0].text;
+      if (showPoll && pollOptions.filter(o => o.trim()).length >= 2) {
+        const validOptions = pollOptions.filter(o => o.trim());
+        const numberEmojis = ['1️⃣', '2️⃣', '3️⃣', '4️⃣'];
+        const pollText = validOptions.map((opt, i) => `${numberEmojis[i]} ${opt}`).join('\n');
+        postText = postText.trim() + '\n\n📊 Poll:\n' + pollText;
+      }
+
       const firstResult = await createPost(
-        postsWithContent[0].text,
+        postText,
         replyRestriction,
         undefined,
         undefined,
@@ -442,6 +501,35 @@ export default function Composer({ onPost }: ComposerProps) {
         firstLinkPreview || undefined
       );
       setPostingProgress(1);
+
+      // Create poll if enabled
+      if (showPoll && pollOptions.filter(o => o.trim()).length >= 2) {
+        const session = getSession();
+        if (session?.did) {
+          const validOptions = pollOptions.filter(o => o.trim());
+          const endsAt = pollDuration > 0
+            ? new Date(Date.now() + pollDuration * 60 * 60 * 1000).toISOString()
+            : null;
+
+          try {
+            await fetch('/api/polls', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                action: 'create',
+                postUri: firstResult.uri,
+                creatorDid: session.did,
+                options: validOptions,
+                endsAt,
+                allowMultiple: pollAllowMultiple,
+              }),
+            });
+          } catch (pollErr) {
+            console.error('Failed to create poll:', pollErr);
+            // Don't throw - post was created successfully, just poll failed
+          }
+        }
+      }
 
       let previousPost = firstResult;
       const rootPost = firstResult;
@@ -488,6 +576,10 @@ export default function Composer({ onPost }: ComposerProps) {
       setThreadLinkPreviews([null]);
       setLastCheckedUrls(['']);
       setDisableQuotes(false);
+      setShowPoll(false);
+      setPollOptions(['', '']);
+      setPollDuration(24);
+      setPollAllowMultiple(false);
       setPostingProgress(0);
       onPost?.();
     } catch (err) {
@@ -742,6 +834,93 @@ export default function Composer({ onPost }: ComposerProps) {
         Add to thread
       </button>
 
+      {/* Poll creation UI */}
+      {showPoll && (
+        <div className="mt-3 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Poll options</span>
+            <button
+              type="button"
+              onClick={togglePoll}
+              className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+
+          {/* Poll options */}
+          <div className="space-y-2">
+            {pollOptions.map((option, index) => (
+              <div key={index} className="flex items-center gap-2">
+                <input
+                  type="text"
+                  value={option}
+                  onChange={(e) => updatePollOption(index, e.target.value)}
+                  placeholder={`Option ${index + 1}`}
+                  className="flex-1 px-3 py-2 text-sm bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 dark:text-gray-100"
+                  maxLength={25}
+                />
+                {pollOptions.length > 2 && (
+                  <button
+                    type="button"
+                    onClick={() => removePollOption(index)}
+                    className="p-1.5 text-gray-400 hover:text-red-500 transition-colors"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+
+          {/* Add option button */}
+          {pollOptions.length < 4 && (
+            <button
+              type="button"
+              onClick={addPollOption}
+              className="mt-2 flex items-center gap-1 text-sm text-blue-500 hover:text-blue-600"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              </svg>
+              Add option
+            </button>
+          )}
+
+          {/* Poll settings */}
+          <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700 flex flex-wrap items-center gap-4">
+            {/* Duration */}
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-gray-500 dark:text-gray-400">Duration:</span>
+              <select
+                value={pollDuration}
+                onChange={(e) => setPollDuration(Number(e.target.value))}
+                className="text-xs px-2 py-1 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                {POLL_DURATION_OPTIONS.map(opt => (
+                  <option key={opt.value} value={opt.value}>{opt.label}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Allow multiple votes */}
+            <label className="flex items-center gap-1.5 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={pollAllowMultiple}
+                onChange={(e) => setPollAllowMultiple(e.target.checked)}
+                className="w-4 h-4 rounded border-gray-300 dark:border-gray-600 text-blue-500 focus:ring-blue-500 focus:ring-offset-0"
+              />
+              <span className="text-xs text-gray-600 dark:text-gray-400">Allow multiple choices</span>
+            </label>
+          </div>
+        </div>
+      )}
+
       {error && (
         <p className="mt-2 text-sm text-red-500">{error}</p>
       )}
@@ -768,6 +947,23 @@ export default function Composer({ onPost }: ComposerProps) {
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+            </svg>
+          </button>
+
+          {/* Poll button */}
+          <button
+            type="button"
+            onClick={togglePoll}
+            disabled={posting || isThread}
+            className={`p-2 rounded-full transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
+              showPoll
+                ? 'text-blue-500 bg-blue-50 dark:bg-blue-900/20'
+                : 'text-gray-500 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20'
+            }`}
+            title={isThread ? "Polls can't be added to threads" : showPoll ? 'Remove poll' : 'Add poll'}
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
             </svg>
           </button>
 

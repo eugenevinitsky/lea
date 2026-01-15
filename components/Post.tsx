@@ -36,6 +36,7 @@ import QuotesView from './QuotesView';
 import EmojiPicker from './EmojiPicker';
 import LabelBadges from './LabelBadges';
 import ProfileLabels from './ProfileLabels';
+import PollDisplay from './PollDisplay';
 import Link from 'next/link';
 import type { BlueskyProfile } from '@/lib/bluesky';
 import { extractPaperUrl, extractAnyUrl, getPaperIdFromUrl, PAPER_DOMAINS, LinkFacet } from '@/lib/papers';
@@ -1533,7 +1534,7 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
   const [replyImages, setReplyImages] = useState<Array<{ file: File; preview: string; alt: string }>>([]);
   const replyFileInputRef = useRef<HTMLInputElement>(null);
   const MAX_REPLY_IMAGES = 4;
-  const MAX_IMAGE_SIZE = 1000000; // 1MB
+  const MAX_IMAGE_SIZE = 20000000; // 20MB (will be compressed before upload)
 
   // Reply mention autocomplete state
   const [replyMentionQuery, setReplyMentionQuery] = useState<string | null>(null);
@@ -2380,8 +2381,14 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
 
   // Handle click on the article to open the thread
   const handleArticleClick = (e: React.MouseEvent) => {
+    // Don't navigate away if reply or quote composer is open - user might lose their work
+    if (showReplyComposer || showQuoteComposer) {
+      e.preventDefault();
+      return;
+    }
+
     const target = e.target as HTMLElement;
-    
+
     // If clicking on a link inside the post (not the wrapper), let it navigate normally
     const link = target.closest('a:not([data-post-wrapper])');
     if (link) {
@@ -2389,7 +2396,7 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
       // The link's onClick with stopPropagation will prevent this handler from doing anything else
       return;
     }
-    
+
     // Don't trigger if clicking on other interactive elements (buttons, inputs)
     const interactiveElement = target.closest('button, input, textarea, [role="button"]');
     if (interactiveElement) {
@@ -2419,6 +2426,18 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
 
   // Capture phase handler to intercept clicks on interactive elements before they cause navigation
   const handleClickCapture = (e: React.MouseEvent) => {
+    // Don't navigate away if reply or quote composer is open - user might lose their work
+    if (showReplyComposer || showQuoteComposer) {
+      const target = e.target as HTMLElement;
+      // Still allow external links to open
+      const link = target.closest('a:not([data-post-wrapper])');
+      if (link && (link as HTMLAnchorElement).target === '_blank') {
+        return; // Let external link work
+      }
+      e.preventDefault();
+      return;
+    }
+
     // Check for text selection first - allow users to highlight text without navigating
     const selection = window.getSelection();
     if (selection && selection.toString().length > 0) {
@@ -2439,9 +2458,13 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
     // For non-link interactive elements (buttons, images, inputs), prevent the wrapper anchor navigation
     const interactiveElement = target.closest('button, input, textarea, [role="button"], img');
     if (interactiveElement) {
-      // An interactive element was clicked - prevent anchor navigation
-      // The element's own onClick will handle the action
-      e.preventDefault();
+      // For external links (target="_blank"), let them open naturally
+      // Only prevent default for other interactive elements to stop the wrapper anchor from navigating
+      const isExternalLink = interactiveElement.tagName === 'A' &&
+        (interactiveElement as HTMLAnchorElement).target === '_blank';
+      if (!isExternalLink) {
+        e.preventDefault();
+      }
     }
   };
 
@@ -2693,6 +2716,9 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
 
           {/* Embedded content (images, links, etc.) */}
           <PostEmbed embed={post.embed} onOpenThread={onOpenThread} />
+
+          {/* Poll (if any) */}
+          <PollDisplay postUri={post.uri} />
 
           {/* Engagement actions */}
           <div className="flex gap-6 lg:gap-4 mt-3 text-base lg:text-sm text-gray-500">

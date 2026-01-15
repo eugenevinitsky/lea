@@ -364,6 +364,66 @@ export type NewInviteCode = typeof inviteCodes.$inferInsert;
 export type AuthorizedUser = typeof authorizedUsers.$inferSelect;
 export type NewAuthorizedUser = typeof authorizedUsers.$inferInsert;
 
+// Polls attached to posts
+export const polls = pgTable(
+  'polls',
+  {
+    id: varchar('id', { length: 50 }).primaryKey(),
+    postUri: varchar('post_uri', { length: 500 }).notNull().unique(), // The Bluesky post this poll is attached to
+    creatorDid: varchar('creator_did', { length: 255 }).notNull(),
+    question: text('question'), // Optional question text (post text can serve as question)
+    options: text('options').notNull(), // JSON array of {id: string, text: string}
+    endsAt: timestamp('ends_at'), // Optional expiration time
+    allowMultiple: boolean('allow_multiple').default(false), // Allow multiple selections
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+  },
+  (table) => [
+    index('polls_post_uri_idx').on(table.postUri),
+    index('polls_creator_idx').on(table.creatorDid),
+  ]
+);
+
+// Poll votes - anonymous, no voter info stored
+export const pollVotes = pgTable(
+  'poll_votes',
+  {
+    id: varchar('id', { length: 50 }).primaryKey(),
+    pollId: varchar('poll_id', { length: 50 }).notNull(),
+    optionId: varchar('option_id', { length: 50 }).notNull(), // Which option was selected
+    votedAt: timestamp('voted_at').defaultNow().notNull(),
+  },
+  (table) => [
+    index('poll_votes_poll_idx').on(table.pollId),
+  ]
+);
+
+// Poll participants - tracks who has voted (hashed, can't see what they voted for)
+export const pollParticipants = pgTable(
+  'poll_participants',
+  {
+    id: varchar('id', { length: 50 }).primaryKey(),
+    pollId: varchar('poll_id', { length: 50 }).notNull(),
+    voterHash: varchar('voter_hash', { length: 64 }).notNull(), // SHA-256 hash of pollId:voterDid
+    votedAt: timestamp('voted_at').defaultNow().notNull(),
+  },
+  (table) => [
+    index('poll_participants_poll_idx').on(table.pollId),
+    index('poll_participants_hash_idx').on(table.voterHash),
+  ]
+);
+
+export type Poll = typeof polls.$inferSelect;
+export type NewPoll = typeof polls.$inferInsert;
+export type PollVote = typeof pollVotes.$inferSelect;
+export type NewPollVote = typeof pollVotes.$inferInsert;
+export type PollParticipant = typeof pollParticipants.$inferSelect;
+export type NewPollParticipant = typeof pollParticipants.$inferInsert;
+
+export interface PollOption {
+  id: string;
+  text: string;
+}
+
 // Profile field types
 export interface ProfileLink {
   title: string;
