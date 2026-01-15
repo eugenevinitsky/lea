@@ -7,6 +7,7 @@ import { SettingsProvider } from '@/lib/settings';
 import { BookmarksProvider, useBookmarks } from '@/lib/bookmarks';
 import { FeedsProvider, useFeeds } from '@/lib/feeds';
 import { FollowingProvider } from '@/lib/following-context';
+import { ComposerProvider } from '@/lib/composer-context';
 import Login from '@/components/Login';
 import Bookmarks from '@/components/Bookmarks';
 import DMSidebar from '@/components/DMSidebar';
@@ -443,7 +444,9 @@ export default function FeedPage() {
       <BookmarksProvider>
         <FeedsProvider>
           <FollowingProvider>
-            <FeedPageContent />
+            <ComposerProvider>
+              <FeedPageContent />
+            </ComposerProvider>
           </FollowingProvider>
         </FeedsProvider>
       </BookmarksProvider>

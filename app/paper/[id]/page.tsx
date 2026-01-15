@@ -9,6 +9,7 @@ import { SettingsProvider } from '@/lib/settings';
 import { BookmarksProvider } from '@/lib/bookmarks';
 import { FeedsProvider } from '@/lib/feeds';
 import { FollowingProvider } from '@/lib/following-context';
+import { ComposerProvider } from '@/lib/composer-context';
 import Post from '@/components/Post';
 import FallbackPost from '@/components/FallbackPost';
 import Login from '@/components/Login';
@@ -533,13 +534,15 @@ export default function PaperPage() {
       <BookmarksProvider>
         <FeedsProvider>
           <FollowingProvider>
-            <Suspense fallback={
-              <div className="min-h-screen bg-gray-50 dark:bg-black flex items-center justify-center">
-                <div className="animate-spin w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full"></div>
-              </div>
-            }>
-              <PaperPageContent />
-            </Suspense>
+            <ComposerProvider>
+              <Suspense fallback={
+                <div className="min-h-screen bg-gray-50 dark:bg-black flex items-center justify-center">
+                  <div className="animate-spin w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full"></div>
+                </div>
+              }>
+                <PaperPageContent />
+              </Suspense>
+            </ComposerProvider>
           </FollowingProvider>
         </FeedsProvider>
       </BookmarksProvider>
