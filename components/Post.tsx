@@ -2380,8 +2380,14 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
 
   // Handle click on the article to open the thread
   const handleArticleClick = (e: React.MouseEvent) => {
+    // Don't navigate away if reply or quote composer is open - user might lose their work
+    if (showReplyComposer || showQuoteComposer) {
+      e.preventDefault();
+      return;
+    }
+
     const target = e.target as HTMLElement;
-    
+
     // If clicking on a link inside the post (not the wrapper), let it navigate normally
     const link = target.closest('a:not([data-post-wrapper])');
     if (link) {
@@ -2389,7 +2395,7 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
       // The link's onClick with stopPropagation will prevent this handler from doing anything else
       return;
     }
-    
+
     // Don't trigger if clicking on other interactive elements (buttons, inputs)
     const interactiveElement = target.closest('button, input, textarea, [role="button"]');
     if (interactiveElement) {
@@ -2419,6 +2425,18 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
 
   // Capture phase handler to intercept clicks on interactive elements before they cause navigation
   const handleClickCapture = (e: React.MouseEvent) => {
+    // Don't navigate away if reply or quote composer is open - user might lose their work
+    if (showReplyComposer || showQuoteComposer) {
+      const target = e.target as HTMLElement;
+      // Still allow external links to open
+      const link = target.closest('a:not([data-post-wrapper])');
+      if (link && (link as HTMLAnchorElement).target === '_blank') {
+        return; // Let external link work
+      }
+      e.preventDefault();
+      return;
+    }
+
     // Check for text selection first - allow users to highlight text without navigating
     const selection = window.getSelection();
     if (selection && selection.toString().length > 0) {
