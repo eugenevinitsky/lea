@@ -2439,9 +2439,13 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
     // For non-link interactive elements (buttons, images, inputs), prevent the wrapper anchor navigation
     const interactiveElement = target.closest('button, input, textarea, [role="button"], img');
     if (interactiveElement) {
-      // An interactive element was clicked - prevent anchor navigation
-      // The element's own onClick will handle the action
-      e.preventDefault();
+      // For external links (target="_blank"), let them open naturally
+      // Only prevent default for other interactive elements to stop the wrapper anchor from navigating
+      const isExternalLink = interactiveElement.tagName === 'A' &&
+        (interactiveElement as HTMLAnchorElement).target === '_blank';
+      if (!isExternalLink) {
+        e.preventDefault();
+      }
     }
   };
 
