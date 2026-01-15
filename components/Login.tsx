@@ -275,7 +275,7 @@ export default function Login({ onLogin }: LoginProps) {
                     <span className="font-medium text-emerald-700 dark:text-emerald-300">Verification Required</span>
                   </div>
                   <p className="text-sm text-emerald-600 dark:text-emerald-400">
-                    Lea is currently limited to verified researchers. Link your ORCID to get access.
+                    Lea is currently limited to verified researchers. Contact a team member to get access.
                   </p>
                 </div>
                 
