@@ -23,7 +23,7 @@ interface ImageAttachment {
 }
 
 const MAX_IMAGES = 4;
-const MAX_IMAGE_SIZE = 1000000; // 1MB limit per image
+const MAX_IMAGE_SIZE = 20000000; // 20MB limit per image (will be compressed before upload)
 
 interface ReplyOption {
   value: 'open' | 'nobody' | ReplyRule;

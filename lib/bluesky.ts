@@ -862,21 +862,96 @@ export interface ImageEmbed {
 }
 
 // Upload an image to Bluesky and return the blob reference
+// Compress image to fit within Bluesky's 1MB limit
+async function compressImage(file: File, maxSizeBytes: number = 976000): Promise<{ data: Uint8Array; mimeType: string }> {
+  // If file is already small enough and is JPEG/PNG, use it directly
+  if (file.size <= maxSizeBytes && (file.type === 'image/jpeg' || file.type === 'image/png')) {
+    const arrayBuffer = await file.arrayBuffer();
+    return { data: new Uint8Array(arrayBuffer), mimeType: file.type };
+  }
+
+  // Load image into canvas for compression
+  const img = new Image();
+  const url = URL.createObjectURL(file);
+
+  await new Promise<void>((resolve, reject) => {
+    img.onload = () => resolve();
+    img.onerror = () => reject(new Error('Failed to load image'));
+    img.src = url;
+  });
+
+  URL.revokeObjectURL(url);
+
+  // Calculate dimensions - maintain aspect ratio but limit max dimension
+  let { width, height } = img;
+  const maxDimension = 2048; // Max dimension for any side
+
+  if (width > maxDimension || height > maxDimension) {
+    if (width > height) {
+      height = Math.round((height * maxDimension) / width);
+      width = maxDimension;
+    } else {
+      width = Math.round((width * maxDimension) / height);
+      height = maxDimension;
+    }
+  }
+
+  const canvas = document.createElement('canvas');
+  canvas.width = width;
+  canvas.height = height;
+
+  const ctx = canvas.getContext('2d');
+  if (!ctx) throw new Error('Failed to get canvas context');
+
+  ctx.drawImage(img, 0, 0, width, height);
+
+  // Try different quality levels to get under the size limit
+  let quality = 0.9;
+  let blob: Blob | null = null;
+
+  while (quality > 0.1) {
+    blob = await new Promise<Blob | null>(resolve =>
+      canvas.toBlob(resolve, 'image/jpeg', quality)
+    );
+
+    if (blob && blob.size <= maxSizeBytes) {
+      break;
+    }
+    quality -= 0.1;
+  }
+
+  if (!blob || blob.size > maxSizeBytes) {
+    // Last resort: reduce dimensions further
+    const scale = 0.7;
+    canvas.width = Math.round(width * scale);
+    canvas.height = Math.round(height * scale);
+    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+    blob = await new Promise<Blob | null>(resolve =>
+      canvas.toBlob(resolve, 'image/jpeg', 0.8)
+    );
+  }
+
+  if (!blob) throw new Error('Failed to compress image');
+
+  const arrayBuffer = await blob.arrayBuffer();
+  return { data: new Uint8Array(arrayBuffer), mimeType: 'image/jpeg' };
+}
+
 export async function uploadImage(file: File): Promise<{ blob: unknown; mimeType: string }> {
   if (!agent) throw new Error('Not logged in');
 
-  // Read file as array buffer
-  const arrayBuffer = await file.arrayBuffer();
-  const uint8Array = new Uint8Array(arrayBuffer);
+  // Compress image if needed (Bluesky has 1MB limit)
+  const { data, mimeType } = await compressImage(file);
 
   // Upload to Bluesky
-  const response = await agent.uploadBlob(uint8Array, {
-    encoding: file.type,
+  const response = await agent.uploadBlob(data, {
+    encoding: mimeType,
   });
 
   return {
     blob: response.data.blob,
-    mimeType: file.type,
+    mimeType,
   };
 }
 

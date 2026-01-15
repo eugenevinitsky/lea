@@ -1533,7 +1533,7 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
   const [replyImages, setReplyImages] = useState<Array<{ file: File; preview: string; alt: string }>>([]);
   const replyFileInputRef = useRef<HTMLInputElement>(null);
   const MAX_REPLY_IMAGES = 4;
-  const MAX_IMAGE_SIZE = 1000000; // 1MB
+  const MAX_IMAGE_SIZE = 20000000; // 20MB (will be compressed before upload)
 
   // Reply mention autocomplete state
   const [replyMentionQuery, setReplyMentionQuery] = useState<string | null>(null);
