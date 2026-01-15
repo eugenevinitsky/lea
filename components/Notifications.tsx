@@ -11,7 +11,7 @@ import {
   NotificationItem,
   GroupedNotifications,
 } from '@/lib/notifications';
-import { useSettings, UserSettings } from '@/lib/settings';
+import { useSettings, LeaSettings } from '@/lib/settings';
 import ProfileHoverCard from './ProfileHoverCard';
 
 interface NotificationsProps {
@@ -36,7 +36,7 @@ function formatTime(dateString: string) {
 }
 
 // Helper to compute avatar ring class
-function getAvatarRingClass(viewer: NotificationItem['author']['viewer'], settings: UserSettings): string {
+function getAvatarRingClass(viewer: NotificationItem['author']['viewer'], settings: LeaSettings): string {
   if (!viewer) return '';
   const isMutual = viewer.following && viewer.followedBy;
   const following = !!viewer.following;
@@ -64,7 +64,7 @@ function NotificationItemView({
   notification: NotificationItem;
   onOpenPost?: (uri: string) => void;
   onOpenProfile?: (did: string) => void;
-  settings: UserSettings;
+  settings: LeaSettings;
 }) {
   const handleClick = () => {
     // For follows, open the follower's profile
@@ -197,7 +197,7 @@ function CategorySection({
   onOpenProfile?: (did: string) => void;
   enabled: boolean;
   onToggleEnabled: () => void;
-  settings: UserSettings;
+  settings: LeaSettings;
 }) {
   const isEmpty = notifications.length === 0;
 
