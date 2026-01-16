@@ -1179,7 +1179,7 @@ function MyPostsActivityPane({
     const loadPosts = async () => {
       setLoading(true);
       try {
-        const myPosts = await getMyRecentPostsAndReplies(7, 50);
+        const myPosts = await getMyRecentPostsAndReplies(2, 50);
         setPosts(myPosts);
       } catch (err) {
         console.error('Failed to load posts:', err);
@@ -1378,10 +1378,10 @@ function MyPostsActivityPane({
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
           </svg>
           <p className="text-sm text-gray-500 dark:text-gray-400">
-            {sortBy === 'recent_post' ? 'No posts in the last week' : 'No recent activity on your posts'}
+            {sortBy === 'recent_post' ? 'No posts in the last 48 hours' : 'No recent activity on your posts'}
           </p>
           <p className="text-xs text-gray-400 mt-1">
-            Activity from the last 7 days will appear here
+            Activity from the last 48 hours will appear here
           </p>
         </div>
       ) : sortBy === 'recent_activity' && groupedByPeriod ? (
@@ -1430,7 +1430,7 @@ function MyPostsActivityPane({
       {/* Footer with note */}
       <div className="p-3 border-t border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-800/50">
         <p className="text-xs text-gray-400 text-center">
-          Showing activity from the last 7 days
+          Showing activity from the last 48 hours
         </p>
       </div>
     </div>
@@ -1955,8 +1955,8 @@ function EnhancedFollowerRow({
             disabled={followLoading}
             className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
               isFollowing
-                ? 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-red-100 hover:text-red-600 dark:hover:bg-red-900/30 dark:hover:text-red-400'
-                : 'bg-blue-500 text-white hover:bg-blue-600'
+                ? 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'
+                : 'bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 hover:bg-blue-200 dark:hover:bg-blue-900/60'
             } disabled:opacity-50`}
           >
             {followLoading ? (
@@ -1975,7 +1975,7 @@ function EnhancedFollowerRow({
           <button
             onClick={handleBlock}
             disabled={blockLoading}
-            className="px-3 py-1.5 rounded-full text-sm font-medium bg-red-500 text-white hover:bg-red-600 transition-colors disabled:opacity-50"
+            className="px-3 py-1.5 rounded-full text-sm font-medium bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/20 dark:hover:text-red-400 transition-colors disabled:opacity-50"
           >
             {blockLoading ? (
               <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
@@ -2193,7 +2193,7 @@ function NewFollowersPane({
             <svg className="w-10 h-10 mx-auto text-gray-300 dark:text-gray-600 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
             </svg>
-            <p className="text-sm text-gray-500 dark:text-gray-400">No new followers in the last week</p>
+            <p className="text-sm text-gray-500 dark:text-gray-400">No new followers in the last 48 hours</p>
           </div>
         ) : (
           sortedProfiles.map((profile) => (
@@ -2680,17 +2680,17 @@ function NotificationsExplorerContent() {
     });
   }, [setUserDid]);
 
-  // Fetch all notifications from the last week
+  // Fetch all notifications from the last 48 hours
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const oneWeekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+      const cutoffTime = new Date(Date.now() - 48 * 60 * 60 * 1000);
       let allNotifs: NotificationItem[] = [];
       let nextCursor: string | undefined = undefined;
       let pageCount = 0;
       const MAX_PAGES = 50; // Safety limit to prevent infinite loops
 
-      // Keep fetching until we have all notifications from the last week
+      // Keep fetching until we have all notifications from the last 48 hours
       while (pageCount < MAX_PAGES) {
         pageCount++;
         const result = await fetchNotifications(nextCursor);
@@ -2700,9 +2700,9 @@ function NotificationsExplorerContent() {
           break;
         }
         
-        // Filter to only include notifications from last week
+        // Filter to only include notifications from last 48 hours
         const recentNotifs = result.notifications.filter(
-          n => new Date(n.indexedAt) >= oneWeekAgo
+          n => new Date(n.indexedAt) >= cutoffTime
         );
         
         allNotifs = [...allNotifs, ...recentNotifs];
@@ -2713,8 +2713,8 @@ function NotificationsExplorerContent() {
         
         // Stop if:
         // 1. No cursor (end of data)
-        // 2. The oldest notification in this batch is older than a week
-        if (!result.cursor || (oldestDate && oldestDate < oneWeekAgo)) {
+        // 2. The oldest notification in this batch is older than 48 hours
+        if (!result.cursor || (oldestDate && oldestDate < cutoffTime)) {
           break;
         }
         
@@ -2853,7 +2853,7 @@ function NotificationsExplorerContent() {
               <div>
                 <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Notifications Dashboard</h2>
                 <p className="text-sm text-gray-500 dark:text-gray-400">
-                  {loading ? 'Loading notifications from the last week...' : `${totalNotifications} notifications in the last week`}
+                  {loading ? 'Loading notifications...' : `${totalNotifications} notifications in the last 48 hours`}
                 </p>
               </div>
             </div>
