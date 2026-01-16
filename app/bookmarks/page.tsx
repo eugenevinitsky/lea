@@ -40,21 +40,37 @@ function getCollectionColors(color: string) {
   return colorMap[color] || COLLECTION_COLORS[0];
 }
 
+// Border color classes for collections
+const COLLECTION_BORDER_COLORS: Record<string, string> = {
+  'rose': 'border-rose-300 dark:border-rose-700',
+  'emerald': 'border-emerald-300 dark:border-emerald-700',
+  'purple': 'border-purple-300 dark:border-purple-700',
+  'blue': 'border-blue-300 dark:border-blue-700',
+  'amber': 'border-amber-300 dark:border-amber-700',
+  'cyan': 'border-cyan-300 dark:border-cyan-700',
+};
+
 // Bookmark Tile component
 function BookmarkTile({
   bookmark,
   onOpen,
   onOpenProfile,
   onRemove,
+  collectionColor,
 }: {
   bookmark: BookmarkedPost;
   onOpen: () => void;
   onOpenProfile: () => void;
   onRemove: () => void;
+  collectionColor?: string;
 }) {
+  const borderClass = collectionColor 
+    ? COLLECTION_BORDER_COLORS[collectionColor] || 'border-gray-200 dark:border-gray-700'
+    : 'border-gray-200 dark:border-gray-700';
+
   return (
     <div
-      className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-3 hover:shadow-md transition-shadow cursor-pointer group"
+      className={`bg-white dark:bg-gray-800 rounded-lg border-2 ${borderClass} p-3 hover:shadow-md transition-shadow cursor-pointer group`}
       onClick={onOpen}
     >
       <div className="flex items-start gap-2">
@@ -184,6 +200,7 @@ function CollectionPane({
                   onOpen={() => onOpenPost(bookmark.uri)}
                   onOpenProfile={() => onOpenProfile(bookmark.authorDid)}
                   onRemove={() => onRemoveFromCollection(bookmark.uri)}
+                  collectionColor={collection?.color}
                 />
               ))}
             </div>
@@ -546,15 +563,23 @@ function BookmarksDashboardContent() {
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {filteredBookmarks.map((bookmark) => (
-                  <BookmarkTile
-                    key={bookmark.uri}
-                    bookmark={bookmark}
-                    onOpen={() => handleOpenPost(bookmark.uri)}
-                    onOpenProfile={() => handleOpenProfile(bookmark.authorDid)}
-                    onRemove={() => removeBookmark(bookmark.uri)}
-                  />
-                ))}
+                {filteredBookmarks.map((bookmark) => {
+                  // Find the first collection this bookmark belongs to for border color
+                  const firstCollectionId = bookmark.collectionIds?.[0];
+                  const bookmarkCollection = firstCollectionId 
+                    ? collections.find(c => c.id === firstCollectionId)
+                    : undefined;
+                  return (
+                    <BookmarkTile
+                      key={bookmark.uri}
+                      bookmark={bookmark}
+                      onOpen={() => handleOpenPost(bookmark.uri)}
+                      onOpenProfile={() => handleOpenProfile(bookmark.authorDid)}
+                      onRemove={() => removeBookmark(bookmark.uri)}
+                      collectionColor={bookmarkCollection?.color}
+                    />
+                  );
+                })}
               </div>
             )}
           </div>
