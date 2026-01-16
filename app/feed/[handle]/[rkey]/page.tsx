@@ -2,7 +2,7 @@
 
 import { useParams } from 'next/navigation';
 import { useState, useEffect, useCallback } from 'react';
-import { restoreSession, getSession, getBlueskyProfile, logout, getFeedGenerator, likeFeed, unlikeFeed, FeedGeneratorInfo, buildProfileUrl, checkVerificationStatus } from '@/lib/bluesky';
+import { restoreSession, getSession, getBlueskyProfile, logout, getFeedGenerator, likeFeed, unlikeFeed, saveFeed, unsaveFeed, getSavedFeedUris, FeedGeneratorInfo, buildProfileUrl, checkVerificationStatus } from '@/lib/bluesky';
 import { SettingsProvider } from '@/lib/settings';
 import { BookmarksProvider, useBookmarks } from '@/lib/bookmarks';
 import { FeedsProvider, useFeeds } from '@/lib/feeds';
@@ -31,6 +31,8 @@ function FeedPageContent() {
   const [isVerified, setIsVerified] = useState(false);
   const [threadUri, setThreadUri] = useState<string | null>(null);
   const [liking, setLiking] = useState(false);
+  const [isSaved, setIsSaved] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [onboardingStartStep, setOnboardingStartStep] = useState(1);
   const { setUserDid } = useBookmarks();
@@ -77,9 +79,13 @@ function FeedPageContent() {
         // Construct feed URI
         const feedUri = `at://${creatorDid}/app.bsky.feed.generator/${rkey}`;
         
-        // Get feed info
-        const info = await getFeedGenerator(feedUri);
+        // Get feed info and saved status in parallel
+        const [info, savedUris] = await Promise.all([
+          getFeedGenerator(feedUri),
+          getSavedFeedUris(),
+        ]);
         setFeedInfo(info);
+        setIsSaved(savedUris.has(feedUri));
       } catch (err) {
         console.error('Failed to load feed:', err);
         setError('Failed to load feed');
@@ -182,6 +188,25 @@ function FeedPageContent() {
         type: 'feed',
         acceptsInteractions: feedInfo.acceptsInteractions ?? false,
       });
+    }
+  };
+
+  const handleSave = async () => {
+    if (!feedInfo || isSaving) return;
+    
+    setIsSaving(true);
+    try {
+      if (isSaved) {
+        await unsaveFeed(feedInfo.uri);
+        setIsSaved(false);
+      } else {
+        await saveFeed(feedInfo.uri);
+        setIsSaved(true);
+      }
+    } catch (err) {
+      console.error('Failed to save/unsave feed:', err);
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -374,19 +399,35 @@ function FeedPageContent() {
                   <span>{feedInfo.likeCount?.toLocaleString() || 0}</span>
                 </button>
 
-                {/* Pin/Unpin button */}
+                {/* Pin button */}
                 <button
                   onClick={handlePin}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-full transition-colors ${
+                  className={`p-2.5 rounded-full transition-colors ${
                     isPinned
-                      ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400'
-                      : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'
+                      ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-500 hover:bg-blue-200 dark:hover:bg-blue-900/50'
+                      : 'bg-gray-100 dark:bg-gray-800 text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 hover:text-gray-500'
                   }`}
+                  title={isPinned ? 'Unpin feed' : 'Pin feed'}
                 >
                   <svg className="w-5 h-5" fill={isPinned ? 'currentColor' : 'none'} stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 4v4l2 2v2h-5v8l-1 1-1-1v-8H6v-2l2-2V4a1 1 0 011-1h6a1 1 0 011 1z" />
+                  </svg>
+                </button>
+
+                {/* Bookmark/Save button */}
+                <button
+                  onClick={handleSave}
+                  disabled={isSaving}
+                  className={`p-2.5 rounded-full transition-colors disabled:opacity-50 ${
+                    isSaved
+                      ? 'bg-green-100 dark:bg-green-900/30 text-green-500 hover:bg-green-200 dark:hover:bg-green-900/50'
+                      : 'bg-gray-100 dark:bg-gray-800 text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 hover:text-gray-500'
+                  }`}
+                  title={isSaved ? 'Unsave feed' : 'Save feed'}
+                >
+                  <svg className={`w-5 h-5 ${isSaving ? 'animate-pulse' : ''}`} fill={isSaved ? 'currentColor' : 'none'} stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
                   </svg>
-                  <span>{isPinned ? 'Pinned' : 'Pin to feeds'}</span>
                 </button>
               </div>
 

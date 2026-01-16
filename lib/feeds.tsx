@@ -61,6 +61,13 @@ export const SUGGESTED_FEEDS = [
     avatar: undefined,
     acceptsInteractions: false,
   },
+  {
+    uri: 'at://did:plc:prng5tkqrb4b7f5xoishgpjl/app.bsky.feed.generator/highline-chron',
+    displayName: 'Highline ⬇️',
+    description: 'What you missed from your Following timeline, from oldest to newest: a couple of the most engaged posts from each account + a few reposts.',
+    avatar: undefined,
+    acceptsInteractions: false,
+  },
 ];
 
 // Default pinned feeds
