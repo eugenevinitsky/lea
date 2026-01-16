@@ -909,7 +909,8 @@ function PostActivityRow({
   isNew?: boolean;
   defaultCollapsed?: boolean;
 }) {
-  const [expanded, setExpanded] = useState(!defaultCollapsed);
+  // New posts should always start expanded
+  const [expanded, setExpanded] = useState(isNew || !defaultCollapsed);
   const { post, activity, totalEngagement } = postWithActivity;
   const postText = (post.record as { text?: string })?.text || '';
   const isReply = !!(post.record as { reply?: unknown })?.reply;
@@ -952,14 +953,6 @@ function PostActivityRow({
               {isReply && (
                 <span className="text-xs px-1.5 py-0.5 bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 rounded">
                   Reply
-                </span>
-              )}
-              {isHot && (
-                <span className="text-xs px-1.5 py-0.5 bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400 rounded flex items-center gap-1">
-                  <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24">
-                    <path d="M17.657 18.657A8 8 0 016.343 7.343S7 9 9 10c0-2 .5-5 2.986-7C14 5 16.09 5.777 17.656 7.343A7.975 7.975 0 0120 13a7.975 7.975 0 01-2.343 5.657z" />
-                  </svg>
-                  Hot
                 </span>
               )}
               <span className="text-xs text-gray-400">
@@ -1104,14 +1097,14 @@ function TimelineSectionHeader({ period }: { period: 'hour' | 'today' | 'week' }
     today: 'Earlier today',
     week: 'This week',
   };
-  const colors = {
-    hour: 'text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20',
-    today: 'text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-800/50',
-    week: 'text-gray-500 dark:text-gray-500 bg-gray-50/50 dark:bg-gray-800/30',
+  const styles = {
+    hour: 'text-blue-700 dark:text-blue-300 bg-blue-100 dark:bg-blue-900/40 border-l-4 border-blue-500',
+    today: 'text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-900/30 border-l-4 border-amber-400',
+    week: 'text-gray-600 dark:text-gray-400 bg-gray-100 dark:bg-gray-800 border-l-4 border-gray-400',
   };
   
   return (
-    <div className={`px-3 py-1.5 text-xs font-medium ${colors[period]} sticky top-0 z-10`}>
+    <div className={`px-3 py-1.5 text-xs font-semibold ${styles[period]} sticky top-0 z-10`}>
       {labels[period]}
     </div>
   );
