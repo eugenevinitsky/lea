@@ -559,25 +559,51 @@ export async function getFeedGenerators(feedUris: string[]): Promise<FeedGenerat
   return response.data.feeds as FeedGeneratorInfo[];
 }
 
-// Get user's saved feeds (both pinned and unpinned liked feeds)
-export async function getSavedFeeds(): Promise<FeedGeneratorInfo[]> {
-  if (!agent) throw new Error('Not logged in');
+// Get user's liked feeds (feeds they've actually hearted, not just saved/pinned)
+export async function getLikedFeeds(): Promise<FeedGeneratorInfo[]> {
+  if (!agent || !agent.session) throw new Error('Not logged in');
   
-  const prefs = await agent.getPreferences();
-  const savedFeeds = prefs.savedFeeds || [];
+  const likedFeedUris: string[] = [];
+  let cursor: string | undefined;
   
-  // Get unique feed URIs (type 'feed' means feed generators)
-  const feedUris = savedFeeds
-    .filter(sf => sf.type === 'feed' && sf.value.startsWith('at://'))
-    .map(sf => sf.value);
+  // Paginate through all like records
+  do {
+    const response = await agent.api.com.atproto.repo.listRecords({
+      repo: agent.session.did,
+      collection: 'app.bsky.feed.like',
+      limit: 100,
+      cursor,
+    });
+    
+    // Filter for likes on feed generators (not posts)
+    for (const record of response.data.records) {
+      const value = record.value as { subject?: { uri?: string } };
+      const subjectUri = value?.subject?.uri;
+      if (subjectUri && subjectUri.includes('/app.bsky.feed.generator/')) {
+        likedFeedUris.push(subjectUri);
+      }
+    }
+    
+    cursor = response.data.cursor;
+  } while (cursor);
   
-  if (feedUris.length === 0) {
+  if (likedFeedUris.length === 0) {
     return [];
   }
   
-  // Fetch full feed info for each URI
-  const feeds = await getFeedGenerators(feedUris);
-  return feeds;
+  // Fetch full feed info for each URI (in batches of 25)
+  const allFeeds: FeedGeneratorInfo[] = [];
+  for (let i = 0; i < likedFeedUris.length; i += 25) {
+    const batch = likedFeedUris.slice(i, i + 25);
+    try {
+      const feeds = await getFeedGenerators(batch);
+      allFeeds.push(...feeds);
+    } catch (err) {
+      console.error('Failed to fetch feed batch:', err);
+    }
+  }
+  
+  return allFeeds;
 }
 
 // Advanced search filters for posts

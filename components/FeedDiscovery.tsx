@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { searchFeeds, FeedGeneratorInfo, getFeedGenerators, getSavedFeeds, likeFeed, unlikeFeed } from '@/lib/bluesky';
+import { searchFeeds, FeedGeneratorInfo, getFeedGenerators, getLikedFeeds, likeFeed, unlikeFeed } from '@/lib/bluesky';
 import { useFeeds, SUGGESTED_FEEDS, PinnedFeed } from '@/lib/feeds';
 
 interface FeedDiscoveryProps {
@@ -234,7 +234,7 @@ export default function FeedDiscovery({ onClose }: FeedDiscoveryProps) {
       const loadLiked = async () => {
         setLoadingLiked(true);
         try {
-          const feeds = await getSavedFeeds();
+          const feeds = await getLikedFeeds();
           setLikedFeeds(feeds);
         } catch (err) {
           console.error('Failed to load liked feeds:', err);
