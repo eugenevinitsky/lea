@@ -149,16 +149,47 @@ function FeedCard({ feed, isPinned, onTogglePin, onLikeChange, isSaved: initialI
             <h3 className="font-medium text-gray-900 dark:text-gray-100 truncate">
               {feed.displayName}
             </h3>
-            <button
-              onClick={onTogglePin}
-              className={`flex-shrink-0 px-3 py-1 text-xs font-medium rounded-full transition-colors ${
-                isPinned
-                  ? 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-red-100 hover:text-red-600 dark:hover:bg-red-900/30 dark:hover:text-red-400'
-                  : 'bg-blue-500 text-white hover:bg-blue-600'
-              }`}
-            >
-              {isPinned ? 'Unpin' : 'Pin'}
-            </button>
+            <div className="flex items-center gap-1.5">
+              <button
+                onClick={onTogglePin}
+                className={`flex-shrink-0 p-1.5 rounded-full transition-colors ${
+                  isPinned
+                    ? 'text-blue-500 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/30'
+                    : 'text-gray-400 hover:text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800'
+                }`}
+                title={isPinned ? 'Unpin feed' : 'Pin feed'}
+              >
+                <svg className="w-4 h-4" fill={isPinned ? 'currentColor' : 'none'} stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" transform="rotate(45 12 12)" />
+                </svg>
+              </button>
+              {canSave && (
+                <button
+                  onClick={handleSave}
+                  disabled={isSaving}
+                  className={`flex-shrink-0 p-1.5 rounded-full transition-colors disabled:opacity-50 ${
+                    isSaved
+                      ? 'text-green-500 hover:text-green-600 hover:bg-green-50 dark:hover:bg-green-900/30'
+                      : 'text-gray-400 hover:text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800'
+                  }`}
+                  title={isSaved ? 'Unsave feed' : 'Save feed'}
+                >
+                  <svg 
+                    className={`w-4 h-4 ${isSaving ? 'animate-pulse' : ''}`} 
+                    fill={isSaved ? 'currentColor' : 'none'} 
+                    stroke="currentColor" 
+                    viewBox="0 0 24 24"
+                  >
+                    <path 
+                      strokeLinecap="round" 
+                      strokeLinejoin="round" 
+                      strokeWidth={2} 
+                      d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" 
+                    />
+                  </svg>
+                </button>
+              )}
+            </div>
           </div>
           {feed.description && (
             <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 line-clamp-2">
@@ -168,33 +199,6 @@ function FeedCard({ feed, isPinned, onTogglePin, onLikeChange, isSaved: initialI
           <div className="flex items-center gap-3 mt-1.5 text-[10px] text-gray-400">
             {feed.creator && (
               <span>by @{feed.creator.handle}</span>
-            )}
-            {canSave && (
-              <button
-                onClick={handleSave}
-                disabled={isSaving}
-                className={`flex items-center gap-1 transition-colors disabled:opacity-50 ${
-                  isSaved 
-                    ? 'text-blue-500 hover:text-blue-600' 
-                    : 'text-gray-400 hover:text-blue-500'
-                }`}
-                title={isSaved ? 'Unsave feed' : 'Save feed'}
-              >
-                <svg 
-                  className={`w-3.5 h-3.5 ${isSaving ? 'animate-pulse' : ''}`} 
-                  fill={isSaved ? 'currentColor' : 'none'} 
-                  stroke="currentColor" 
-                  viewBox="0 0 24 24"
-                >
-                  <path 
-                    strokeLinecap="round" 
-                    strokeLinejoin="round" 
-                    strokeWidth={2} 
-                    d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" 
-                  />
-                </svg>
-                <span>{isSaved ? 'Saved' : 'Save'}</span>
-              </button>
             )}
             {canLike && (
               <button
@@ -403,7 +407,7 @@ export default function FeedDiscovery({ onClose }: FeedDiscoveryProps) {
         {/* Header */}
         <div className="p-4 border-b border-gray-200 dark:border-gray-800">
           <div className="flex items-center justify-between mb-3">
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Discover Feeds</h2>
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Manage Feeds</h2>
             <button
               onClick={onClose}
               className="p-1 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full"
