@@ -559,6 +559,27 @@ export async function getFeedGenerators(feedUris: string[]): Promise<FeedGenerat
   return response.data.feeds as FeedGeneratorInfo[];
 }
 
+// Get user's saved feeds (both pinned and unpinned liked feeds)
+export async function getSavedFeeds(): Promise<FeedGeneratorInfo[]> {
+  if (!agent) throw new Error('Not logged in');
+  
+  const prefs = await agent.getPreferences();
+  const savedFeeds = prefs.savedFeeds || [];
+  
+  // Get unique feed URIs (type 'feed' means feed generators)
+  const feedUris = savedFeeds
+    .filter(sf => sf.type === 'feed' && sf.value.startsWith('at://'))
+    .map(sf => sf.value);
+  
+  if (feedUris.length === 0) {
+    return [];
+  }
+  
+  // Fetch full feed info for each URI
+  const feeds = await getFeedGenerators(feedUris);
+  return feeds;
+}
+
 // Advanced search filters for posts
 export interface SearchPostsFilters {
   author?: string;      // DID or handle - filter to posts by this account

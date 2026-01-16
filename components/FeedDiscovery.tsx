@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { searchFeeds, FeedGeneratorInfo, getFeedGenerators, likeFeed, unlikeFeed } from '@/lib/bluesky';
+import { searchFeeds, FeedGeneratorInfo, getFeedGenerators, getSavedFeeds, likeFeed, unlikeFeed } from '@/lib/bluesky';
 import { useFeeds, SUGGESTED_FEEDS, PinnedFeed } from '@/lib/feeds';
 
 interface FeedDiscoveryProps {
@@ -170,12 +170,17 @@ function FeedCard({ feed, isPinned, onTogglePin, onLikeChange }: {
   );
 }
 
+type Tab = 'suggested' | 'liked';
+
 export default function FeedDiscovery({ onClose }: FeedDiscoveryProps) {
+  const [activeTab, setActiveTab] = useState<Tab>('suggested');
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<FeedGeneratorInfo[]>([]);
   const [suggestedFeeds, setSuggestedFeeds] = useState<FeedGeneratorInfo[]>([]);
+  const [likedFeeds, setLikedFeeds] = useState<FeedGeneratorInfo[]>([]);
   const [loading, setLoading] = useState(false);
   const [loadingSuggestions, setLoadingSuggestions] = useState(true);
+  const [loadingLiked, setLoadingLiked] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { pinnedFeeds, addFeed, removeFeed, isPinned } = useFeeds();
 
@@ -222,6 +227,24 @@ export default function FeedDiscovery({ onClose }: FeedDiscoveryProps) {
     };
     loadSuggested();
   }, []);
+
+  // Load liked feeds when tab is selected
+  useEffect(() => {
+    if (activeTab === 'liked' && likedFeeds.length === 0 && !loadingLiked) {
+      const loadLiked = async () => {
+        setLoadingLiked(true);
+        try {
+          const feeds = await getSavedFeeds();
+          setLikedFeeds(feeds);
+        } catch (err) {
+          console.error('Failed to load liked feeds:', err);
+        } finally {
+          setLoadingLiked(false);
+        }
+      };
+      loadLiked();
+    }
+  }, [activeTab, likedFeeds.length, loadingLiked]);
 
   const handleSearch = useCallback(async () => {
     if (!searchQuery.trim()) {
@@ -286,8 +309,10 @@ export default function FeedDiscovery({ onClose }: FeedDiscoveryProps) {
     addFeed(pinnedFeed);
   };
 
-  const displayFeeds = searchQuery.trim() ? searchResults : suggestedFeeds;
   const isSearching = searchQuery.trim().length > 0;
+  const displayFeeds = isSearching 
+    ? searchResults 
+    : (activeTab === 'suggested' ? suggestedFeeds : likedFeeds);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
@@ -364,31 +389,59 @@ export default function FeedDiscovery({ onClose }: FeedDiscoveryProps) {
           </div>
         )}
 
+        {/* Tabs - only show when not searching */}
+        {!isSearching && (
+          <div className="flex border-b border-gray-200 dark:border-gray-800">
+            <button
+              onClick={() => setActiveTab('suggested')}
+              className={`flex-1 px-4 py-2.5 text-sm font-medium transition-colors ${
+                activeTab === 'suggested'
+                  ? 'text-blue-600 dark:text-blue-400 border-b-2 border-blue-500'
+                  : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
+              }`}
+            >
+              Suggested
+            </button>
+            <button
+              onClick={() => setActiveTab('liked')}
+              className={`flex-1 px-4 py-2.5 text-sm font-medium transition-colors ${
+                activeTab === 'liked'
+                  ? 'text-blue-600 dark:text-blue-400 border-b-2 border-blue-500'
+                  : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
+              }`}
+            >
+              Your Liked Feeds
+            </button>
+          </div>
+        )}
+
         {/* Content */}
         <div className="flex-1 overflow-y-auto">
           {error && (
             <div className="p-4 text-center text-red-500 text-sm">{error}</div>
           )}
 
-          {(loading || loadingSuggestions) && !error && (
+          {(loading || (activeTab === 'suggested' && loadingSuggestions) || (activeTab === 'liked' && loadingLiked)) && !error && (
             <div className="p-8 flex items-center justify-center">
               <div className="animate-spin w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full" />
             </div>
           )}
 
-          {!loading && !loadingSuggestions && !error && (
+          {!loading && !((activeTab === 'suggested' && loadingSuggestions) || (activeTab === 'liked' && loadingLiked)) && !error && (
             <>
-              {!isSearching && (
-                <div className="px-4 pt-3 pb-1">
-                  <h3 className="text-xs font-medium text-gray-500 dark:text-gray-400">
-                    Suggested for Researchers
-                  </h3>
-                </div>
-              )}
-
               {isSearching && searchResults.length === 0 && (
                 <div className="p-8 text-center text-gray-500 text-sm">
                   No feeds found for &quot;{searchQuery}&quot;
+                </div>
+              )}
+
+              {!isSearching && activeTab === 'liked' && likedFeeds.length === 0 && (
+                <div className="p-8 text-center">
+                  <svg className="w-12 h-12 mx-auto text-gray-300 dark:text-gray-600 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                  </svg>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">No liked feeds yet</p>
+                  <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">Like feeds to save them here</p>
                 </div>
               )}
 
