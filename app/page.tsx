@@ -661,6 +661,7 @@ function AppContent() {
               const activeFeed = pinnedFeeds.find(f => f.uri === activeFeedUri);
               return (
                 <Feed
+                  key={activeFeedUri}
                   feedUri={activeFeedUri}
                   feedName={activeFeed?.displayName}
                   acceptsInteractions={activeFeed?.acceptsInteractions}
