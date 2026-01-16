@@ -116,10 +116,9 @@ function classifyWithTfIdf(tokens: string[], model: TfIdfModel): {
   };
 }
 
-// Naive Bayes classification with TF-IDF weighting and length-normalized margin
-// The raw margin grows with document length, so we normalize by token count
-// to get a "per-word" margin that's comparable across documents
-const NORMALIZED_MARGIN_THRESHOLD = 0.05; // Require margin > 0.05 for technical classification
+// Naive Bayes classification with TF-IDF weighting
+// TF-IDF already normalizes by document length via term frequency, so we use raw margin
+const RAW_MARGIN_THRESHOLD = 0.65; // Require margin > 0.65 for technical classification
 
 function classifyWithNaiveBayes(tokens: string[], model: NaiveBayesModel): {
   prediction: string;
@@ -162,11 +161,10 @@ function classifyWithNaiveBayes(tokens: string[], model: NaiveBayesModel): {
   }
 
   const margin = scores['technical'] - scores['non-technical'];
-  // Normalize by token count to get per-word margin
-  // Add 1 to avoid division by zero and to account for class prior contribution
+  // Keep normalizedMargin for backwards compatibility in API, but use raw margin for decision
   const normalizedMargin = margin / (tokens.length + 1);
 
-  const prediction = normalizedMargin > NORMALIZED_MARGIN_THRESHOLD ? 'technical' : 'non-technical';
+  const prediction = margin > RAW_MARGIN_THRESHOLD ? 'technical' : 'non-technical';
   return { prediction, scores, margin, normalizedMargin };
 }
 
