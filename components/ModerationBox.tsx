@@ -472,11 +472,8 @@ export default function ModerationBox({ onOpenProfile, defaultExpanded = false, 
                                 {paper.recentPostCount ?? paper.postCount ?? paper.mentionCount} discussing now
                               </span>
                             </div>
-                            <p className="text-xs text-gray-900 dark:text-gray-100 font-medium truncate">
+                            <p className="text-xs text-gray-900 dark:text-gray-100 font-medium line-clamp-2">
                               {paper.title || displayId}
-                            </p>
-                            <p className="text-[10px] text-gray-500 truncate">
-                              {displayId}
                             </p>
                           </div>
                           <svg className="w-4 h-4 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
