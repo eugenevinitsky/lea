@@ -17,6 +17,7 @@ interface TfIdfModel {
 
 interface NaiveBayesModel {
   vocabulary: string[];
+  idf?: Record<string, number>;  // TF-IDF weights (optional for backwards compatibility)
   classPriors: Record<string, number>;
   wordLogProbs: Record<string, Record<string, number>>;
   unknownWordLogProb: Record<string, number>;
@@ -24,6 +25,7 @@ interface NaiveBayesModel {
     trainedAt: string;
     numExamples: Record<string, number>;
     vocabularySize: number;
+    totalDocuments?: number;
   };
 }
 
@@ -114,7 +116,7 @@ function classifyWithTfIdf(tokens: string[], model: TfIdfModel): {
   };
 }
 
-// Naive Bayes classification with length-normalized margin
+// Naive Bayes classification with TF-IDF weighting and length-normalized margin
 // The raw margin grows with document length, so we normalize by token count
 // to get a "per-word" margin that's comparable across documents
 const NORMALIZED_MARGIN_THRESHOLD = 0.05; // Require margin > 0.05 for technical classification
@@ -127,14 +129,32 @@ function classifyWithNaiveBayes(tokens: string[], model: NaiveBayesModel): {
 } {
   const scores: Record<string, number> = {};
 
+  // Use TF-IDF weighting if model has IDF values
+  const useTfIdf = model.idf && Object.keys(model.idf).length > 0;
+  const tf = useTfIdf ? computeTf(tokens) : null;
+
   for (const cls of ['technical', 'non-technical']) {
     let score = model.classPriors[cls];
 
-    for (const token of tokens) {
-      if (model.wordLogProbs[cls][token] !== undefined) {
-        score += model.wordLogProbs[cls][token];
-      } else {
-        score += model.unknownWordLogProb[cls];
+    if (useTfIdf && tf) {
+      // TF-IDF weighted scoring
+      for (const [token, tfValue] of Object.entries(tf)) {
+        const idfValue = model.idf![token] || 1;
+        const weight = tfValue * idfValue;
+        if (model.wordLogProbs[cls][token] !== undefined) {
+          score += weight * model.wordLogProbs[cls][token];
+        } else {
+          score += weight * model.unknownWordLogProb[cls];
+        }
+      }
+    } else {
+      // Standard bag-of-words scoring (backwards compatibility)
+      for (const token of tokens) {
+        if (model.wordLogProbs[cls][token] !== undefined) {
+          score += model.wordLogProbs[cls][token];
+        } else {
+          score += model.unknownWordLogProb[cls];
+        }
       }
     }
 

@@ -1,8 +1,8 @@
 /**
- * Naive Bayes BOW Classifier Training Script
+ * Naive Bayes TF-IDF Classifier Training Script
  *
- * Trains a Naive Bayes classifier on labeled text data and outputs
- * a model JSON file for runtime inference.
+ * Trains a Naive Bayes classifier with TF-IDF weighting on labeled text data
+ * and outputs a model JSON file for runtime inference.
  *
  * Usage: npx tsx scripts/train-classifier.ts
  */
@@ -17,6 +17,7 @@ interface TrainingExample {
 
 interface TrainedModel {
   vocabulary: string[];
+  idf: Record<string, number>;
   classPriors: Record<string, number>;
   wordLogProbs: Record<string, Record<string, number>>;
   unknownWordLogProb: Record<string, number>;
@@ -24,6 +25,7 @@ interface TrainedModel {
     trainedAt: string;
     numExamples: Record<string, number>;
     vocabularySize: number;
+    totalDocuments: number;
   };
 }
 
@@ -40,9 +42,24 @@ function tokenize(text: string): string[] {
     .filter(word => word.length > 0);
 }
 
-// Train the Naive Bayes classifier
+// Calculate term frequency (normalized by document length)
+function calculateTF(tokens: string[]): Record<string, number> {
+  const tf: Record<string, number> = {};
+  for (const token of tokens) {
+    tf[token] = (tf[token] || 0) + 1;
+  }
+  // Normalize by document length
+  const docLength = tokens.length;
+  for (const token of Object.keys(tf)) {
+    tf[token] = tf[token] / docLength;
+  }
+  return tf;
+}
+
+// Train the Naive Bayes classifier with TF-IDF
 function train(examples: TrainingExample[]): TrainedModel {
   const classes = ['technical', 'non-technical'] as const;
+  const totalDocs = examples.length;
 
   // Count documents per class
   const docCounts: Record<string, number> = {};
@@ -50,58 +67,77 @@ function train(examples: TrainingExample[]): TrainedModel {
     docCounts[cls] = examples.filter(e => e.label === cls).length;
   }
 
-  const totalDocs = examples.length;
-
   // Calculate class priors (log probabilities)
   const classPriors: Record<string, number> = {};
   for (const cls of classes) {
     classPriors[cls] = Math.log(docCounts[cls] / totalDocs);
   }
 
-  // Build vocabulary and count words per class
-  const wordCountsPerClass: Record<string, Record<string, number>> = {};
-  const totalWordsPerClass: Record<string, number> = {};
+  // Build vocabulary and document frequency for IDF
   const vocabulary = new Set<string>();
+  const docFrequency: Record<string, number> = {}; // How many docs contain each word
 
-  for (const cls of classes) {
-    wordCountsPerClass[cls] = {};
-    totalWordsPerClass[cls] = 0;
-  }
-
+  // First pass: build vocabulary and count document frequency
   for (const example of examples) {
     const tokens = tokenize(example.text);
-    for (const token of tokens) {
+    const uniqueTokens = new Set(tokens);
+    for (const token of uniqueTokens) {
       vocabulary.add(token);
-      wordCountsPerClass[example.label][token] = (wordCountsPerClass[example.label][token] || 0) + 1;
-      totalWordsPerClass[example.label]++;
+      docFrequency[token] = (docFrequency[token] || 0) + 1;
     }
   }
 
   const vocabArray = Array.from(vocabulary).sort();
   const vocabSize = vocabArray.length;
 
-  // Calculate log P(word|class) with Laplace smoothing
-  // P(word|class) = (count(word, class) + 1) / (totalWords(class) + vocabSize)
+  // Calculate IDF: log(N / df) with smoothing to avoid division by zero
+  const idf: Record<string, number> = {};
+  for (const word of vocabArray) {
+    // Add 1 to denominator for smoothing
+    idf[word] = Math.log(totalDocs / (docFrequency[word] + 1)) + 1; // +1 to ensure IDF >= 1
+  }
+
+  // Second pass: accumulate TF-IDF weighted counts per class
+  const tfidfSumsPerClass: Record<string, Record<string, number>> = {};
+  const totalTfidfPerClass: Record<string, number> = {};
+
+  for (const cls of classes) {
+    tfidfSumsPerClass[cls] = {};
+    totalTfidfPerClass[cls] = 0;
+  }
+
+  for (const example of examples) {
+    const tokens = tokenize(example.text);
+    const tf = calculateTF(tokens);
+
+    for (const [token, tfValue] of Object.entries(tf)) {
+      const tfidf = tfValue * (idf[token] || 1);
+      tfidfSumsPerClass[example.label][token] = (tfidfSumsPerClass[example.label][token] || 0) + tfidf;
+      totalTfidfPerClass[example.label] += tfidf;
+    }
+  }
+
+  // Calculate log P(word|class) with Laplace smoothing on TF-IDF weighted counts
   const wordLogProbs: Record<string, Record<string, number>> = {};
   const unknownWordLogProb: Record<string, number> = {};
 
   for (const cls of classes) {
     wordLogProbs[cls] = {};
-    const denominator = totalWordsPerClass[cls] + vocabSize;
+    const denominator = totalTfidfPerClass[cls] + vocabSize;
 
     for (const word of vocabArray) {
-      const count = wordCountsPerClass[cls][word] || 0;
+      const tfidfSum = tfidfSumsPerClass[cls][word] || 0;
       // Laplace smoothing: add 1 to numerator, add vocabSize to denominator
-      wordLogProbs[cls][word] = Math.log((count + 1) / denominator);
+      wordLogProbs[cls][word] = Math.log((tfidfSum + 1) / denominator);
     }
 
-    // Log probability for unknown words (words not in vocabulary)
-    // Use same smoothing formula with count = 0
+    // Log probability for unknown words
     unknownWordLogProb[cls] = Math.log(1 / denominator);
   }
 
   return {
     vocabulary: vocabArray,
+    idf,
     classPriors,
     wordLogProbs,
     unknownWordLogProb,
@@ -109,6 +145,7 @@ function train(examples: TrainingExample[]): TrainedModel {
       trainedAt: new Date().toISOString(),
       numExamples: docCounts,
       vocabularySize: vocabSize,
+      totalDocuments: totalDocs,
     },
   };
 }
@@ -156,8 +193,8 @@ function main() {
   fs.writeFileSync(outputPath, JSON.stringify(model, null, 2));
   console.log(`\nModel saved to: ${outputPath}`);
 
-  // Test with a few examples
-  console.log('\n--- Quick Test ---');
+  // Test with a few examples using TF-IDF weighted inference
+  console.log('\n--- Quick Test (TF-IDF weighted) ---');
   const testTexts = [
     'How Neural Networks Learn',
     'Trump Policy Sparks Debate',
@@ -167,15 +204,19 @@ function main() {
 
   for (const text of testTexts) {
     const tokens = tokenize(text);
+    const tf = calculateTF(tokens);
     const scores: Record<string, number> = {};
 
     for (const cls of ['technical', 'non-technical']) {
       let score = model.classPriors[cls];
-      for (const token of tokens) {
+      for (const [token, tfValue] of Object.entries(tf)) {
+        // Weight the log probability by TF-IDF
+        const idfValue = model.idf[token] || 1;
+        const weight = tfValue * idfValue;
         if (model.wordLogProbs[cls][token] !== undefined) {
-          score += model.wordLogProbs[cls][token];
+          score += weight * model.wordLogProbs[cls][token];
         } else {
-          score += model.unknownWordLogProb[cls];
+          score += weight * model.unknownWordLogProb[cls];
         }
       }
       scores[cls] = score;
