@@ -253,11 +253,11 @@ export default function Bookmarks({ onOpenPost, onOpenProfile, embedded = false 
 
   return (
     <div className={`bg-white dark:bg-gray-900 overflow-hidden ${embedded ? '' : 'rounded-xl border border-gray-200 dark:border-gray-800'}`}>
-      <button
-        onClick={() => setIsCollapsed(!isCollapsed)}
-        className="w-full p-3 border-b border-gray-200 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors"
-      >
-        <div className="flex items-center justify-between">
+      <div className="p-3 border-b border-gray-200 dark:border-gray-800 flex items-center justify-between">
+        <button
+          onClick={() => setIsCollapsed(!isCollapsed)}
+          className="flex items-center gap-2 hover:opacity-80 transition-opacity"
+        >
           <h3 className="font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-2">
             <svg className="w-4 h-4 text-blue-500" fill="currentColor" viewBox="0 0 24 24">
               <path d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
@@ -272,8 +272,18 @@ export default function Bookmarks({ onOpenPost, onOpenProfile, embedded = false 
           >
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
           </svg>
-        </div>
-      </button>
+        </button>
+        <a
+          href="/bookmarks"
+          className="p-1.5 text-gray-400 hover:text-blue-500 hover:bg-gray-100 dark:hover:bg-gray-800 rounded transition-colors"
+          title="Open bookmarks dashboard"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+          </svg>
+        </a>
+      </div>
 
               {showExportMenu && mounted && createPortal(
                 <div className="fixed inset-0 z-[9999] flex items-center justify-center">
