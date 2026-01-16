@@ -746,15 +746,6 @@ function AppContent() {
                       setDragOverIndex(null);
                     }}
                     onClick={() => setActiveFeedUri(feed.uri)}
-                    onContextMenu={(e) => {
-                      e.preventDefault();
-                      if (pinnedFeeds.length > 1) {
-                        removeFeed(feed.uri);
-                        if (isActive) {
-                          setActiveFeedUri(pinnedFeeds[0].uri === feed.uri ? pinnedFeeds[1]?.uri : pinnedFeeds[0].uri);
-                        }
-                      }
-                    }}
                     className={`w-full px-3 py-2.5 text-sm font-medium transition-colors relative flex items-center gap-1.5 group cursor-grab active:cursor-grabbing ${
                       isDragging ? 'opacity-50' : ''
                     } ${
@@ -766,7 +757,7 @@ function AppContent() {
                           }`
                         : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
                     }`}
-                    title="Drag to reorder • Right-click to unpin"
+                    title="Drag to reorder"
                   >
                     {isSkygest && (
                       <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
