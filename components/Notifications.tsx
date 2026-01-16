@@ -563,7 +563,7 @@ export default function Notifications({ onOpenPost, onOpenProfile, embedded = fa
               )}
             </h3>
             <svg
-              className={`w-4 h-4 text-gray-400 transition-transform ${isExpanded ? '' : 'rotate-180'}`}
+              className={`w-4 h-4 text-gray-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
