@@ -163,7 +163,10 @@ function AppContent() {
     }
   }, [checkScrollState, pinnedFeeds]);
 
-  // Scroll active feed tab into view when it changes
+  // Track the previous feed URI to detect actual feed changes
+  const prevFeedUriRef = useRef<string | null>(null);
+
+  // Scroll active feed tab into view and scroll page to top when feed changes
   useEffect(() => {
     if (!activeFeedUri || !feedsContainerRef.current) return;
     const container = feedsContainerRef.current;
@@ -183,6 +186,12 @@ function AppContent() {
         activeButton.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
       }
     }
+    
+    // Scroll page to top when switching feeds (but not on initial load)
+    if (prevFeedUriRef.current !== null && prevFeedUriRef.current !== activeFeedUri) {
+      window.scrollTo({ top: 0, behavior: 'instant' });
+    }
+    prevFeedUriRef.current = activeFeedUri;
   }, [activeFeedUri, pinnedFeeds]);
 
   // Restore scroll position after navigating back from a thread
