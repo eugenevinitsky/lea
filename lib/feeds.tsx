@@ -54,6 +54,13 @@ export const SUGGESTED_FEEDS = [
     avatar: undefined,
     acceptsInteractions: false,
   },
+  {
+    uri: 'at://did:plc:geoqe3qls5mwezckxxsewys2/app.bsky.feed.generator/aaabrbjcg4hmk',
+    displayName: 'BookSky 💙📚',
+    description: 'A feed for anyone who likes reading and books. Use 💙📚 or #booksky in your posts.',
+    avatar: undefined,
+    acceptsInteractions: false,
+  },
 ];
 
 // Default pinned feeds

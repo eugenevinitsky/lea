@@ -123,9 +123,35 @@ export default function FeedDiscovery({ onClose }: FeedDiscoveryProps) {
   useEffect(() => {
     const loadSuggested = async () => {
       try {
-        const uris = SUGGESTED_FEEDS.map(f => f.uri);
-        const feeds = await getFeedGenerators(uris);
-        setSuggestedFeeds(feeds);
+        // Filter to only real AT Protocol feed URIs (not special ones like 'verified-following')
+        const realFeedUris = SUGGESTED_FEEDS
+          .filter(f => f.uri.startsWith('at://'))
+          .map(f => f.uri);
+        
+        // Fetch info for real feeds from the API
+        const feedsFromApi = realFeedUris.length > 0 
+          ? await getFeedGenerators(realFeedUris) 
+          : [];
+        
+        // Create a map of URI to feed info from API
+        const feedInfoMap = new Map(feedsFromApi.map(f => [f.uri, f]));
+        
+        // Merge: use API info if available, otherwise use static definition
+        const mergedFeeds = SUGGESTED_FEEDS.map(staticFeed => {
+          const apiInfo = feedInfoMap.get(staticFeed.uri);
+          if (apiInfo) {
+            // Merge API info with static info (API provides avatar, creator, likeCount etc.)
+            return {
+              ...apiInfo,
+              // Keep our custom description if it's better
+              description: staticFeed.description || apiInfo.description,
+            };
+          }
+          // For special feeds like 'verified-following', use static definition
+          return staticFeed as unknown as FeedGeneratorInfo;
+        });
+        
+        setSuggestedFeeds(mergedFeeds);
       } catch (err) {
         console.error('Failed to load suggested feeds:', err);
         // Fall back to static suggestions
