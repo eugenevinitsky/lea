@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { searchFeeds, FeedGeneratorInfo, getFeedGenerators, getLikedFeeds, likeFeed, unlikeFeed } from '@/lib/bluesky';
+import { searchFeeds, FeedGeneratorInfo, getFeedGenerators, getSavedFeeds, getSavedFeedUris, saveFeed, unsaveFeed, likeFeed, unlikeFeed } from '@/lib/bluesky';
 import { useFeeds, SUGGESTED_FEEDS, PinnedFeed } from '@/lib/feeds';
 
 interface FeedDiscoveryProps {
@@ -50,7 +50,7 @@ function KeywordFeedCreator({ onAdd }: { onAdd: (keyword: string) => void }) {
   );
 }
 
-function FeedCard({ feed, isPinned, onTogglePin, onLikeChange }: {
+function FeedCard({ feed, isPinned, onTogglePin, onLikeChange, isSaved: initialIsSaved, onSaveChange }: {
   feed: {
     uri: string;
     cid?: string;
@@ -65,14 +65,24 @@ function FeedCard({ feed, isPinned, onTogglePin, onLikeChange }: {
   isPinned: boolean;
   onTogglePin: () => void;
   onLikeChange?: (uri: string, liked: boolean, likeUri?: string) => void;
+  isSaved?: boolean;
+  onSaveChange?: (uri: string, saved: boolean) => void;
 }) {
   const [isLiked, setIsLiked] = useState(!!feed.viewer?.like);
   const [likeUri, setLikeUri] = useState<string | undefined>(feed.viewer?.like);
   const [likeCount, setLikeCount] = useState(feed.likeCount || 0);
   const [isLiking, setIsLiking] = useState(false);
+  const [isSaved, setIsSaved] = useState(initialIsSaved || false);
+  const [isSaving, setIsSaving] = useState(false);
   
-  // Check if this is a real AT Protocol feed (can be liked)
+  // Update isSaved when prop changes
+  useEffect(() => {
+    setIsSaved(initialIsSaved || false);
+  }, [initialIsSaved]);
+  
+  // Check if this is a real AT Protocol feed (can be liked/saved)
   const canLike = feed.uri.startsWith('at://') && feed.cid;
+  const canSave = feed.uri.startsWith('at://');
 
   const handleLike = async (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -97,6 +107,28 @@ function FeedCard({ feed, isPinned, onTogglePin, onLikeChange }: {
       console.error('Failed to like/unlike feed:', err);
     } finally {
       setIsLiking(false);
+    }
+  };
+  
+  const handleSave = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!canSave || isSaving) return;
+    
+    setIsSaving(true);
+    try {
+      if (isSaved) {
+        await unsaveFeed(feed.uri);
+        setIsSaved(false);
+        onSaveChange?.(feed.uri, false);
+      } else {
+        await saveFeed(feed.uri);
+        setIsSaved(true);
+        onSaveChange?.(feed.uri, true);
+      }
+    } catch (err) {
+      console.error('Failed to save/unsave feed:', err);
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -136,6 +168,33 @@ function FeedCard({ feed, isPinned, onTogglePin, onLikeChange }: {
           <div className="flex items-center gap-3 mt-1.5 text-[10px] text-gray-400">
             {feed.creator && (
               <span>by @{feed.creator.handle}</span>
+            )}
+            {canSave && (
+              <button
+                onClick={handleSave}
+                disabled={isSaving}
+                className={`flex items-center gap-1 transition-colors disabled:opacity-50 ${
+                  isSaved 
+                    ? 'text-blue-500 hover:text-blue-600' 
+                    : 'text-gray-400 hover:text-blue-500'
+                }`}
+                title={isSaved ? 'Unsave feed' : 'Save feed'}
+              >
+                <svg 
+                  className={`w-3.5 h-3.5 ${isSaving ? 'animate-pulse' : ''}`} 
+                  fill={isSaved ? 'currentColor' : 'none'} 
+                  stroke="currentColor" 
+                  viewBox="0 0 24 24"
+                >
+                  <path 
+                    strokeLinecap="round" 
+                    strokeLinejoin="round" 
+                    strokeWidth={2} 
+                    d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" 
+                  />
+                </svg>
+                <span>{isSaved ? 'Saved' : 'Save'}</span>
+              </button>
             )}
             {canLike && (
               <button
@@ -177,17 +236,22 @@ export default function FeedDiscovery({ onClose }: FeedDiscoveryProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<FeedGeneratorInfo[]>([]);
   const [suggestedFeeds, setSuggestedFeeds] = useState<FeedGeneratorInfo[]>([]);
-  const [likedFeeds, setLikedFeeds] = useState<FeedGeneratorInfo[]>([]);
+  const [savedFeeds, setSavedFeeds] = useState<FeedGeneratorInfo[]>([]);
+  const [savedFeedUris, setSavedFeedUris] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(false);
   const [loadingSuggestions, setLoadingSuggestions] = useState(true);
-  const [loadingLiked, setLoadingLiked] = useState(false);
+  const [loadingSaved, setLoadingSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { pinnedFeeds, addFeed, removeFeed, isPinned } = useFeeds();
 
-  // Load suggested feeds info
+  // Load suggested feeds info and saved feed URIs
   useEffect(() => {
     const loadSuggested = async () => {
       try {
+        // Load saved feed URIs first (for showing save state)
+        const savedUris = await getSavedFeedUris();
+        setSavedFeedUris(savedUris);
+        
         // Filter to only real AT Protocol feed URIs (not special ones like 'verified-following')
         const realFeedUris = SUGGESTED_FEEDS
           .filter(f => f.uri.startsWith('at://'))
@@ -228,23 +292,38 @@ export default function FeedDiscovery({ onClose }: FeedDiscoveryProps) {
     loadSuggested();
   }, []);
 
-  // Load liked feeds when tab is selected
+  // Load saved feeds when tab is selected
   useEffect(() => {
-    if (activeTab === 'liked' && likedFeeds.length === 0 && !loadingLiked) {
-      const loadLiked = async () => {
-        setLoadingLiked(true);
+    if (activeTab === 'liked' && savedFeeds.length === 0 && !loadingSaved) {
+      const loadSavedList = async () => {
+        setLoadingSaved(true);
         try {
-          const feeds = await getLikedFeeds();
-          setLikedFeeds(feeds);
+          const feeds = await getSavedFeeds();
+          setSavedFeeds(feeds);
         } catch (err) {
-          console.error('Failed to load liked feeds:', err);
+          console.error('Failed to load saved feeds:', err);
         } finally {
-          setLoadingLiked(false);
+          setLoadingSaved(false);
         }
       };
-      loadLiked();
+      loadSavedList();
     }
-  }, [activeTab, likedFeeds.length, loadingLiked]);
+  }, [activeTab, savedFeeds.length, loadingSaved]);
+  
+  // Handle save/unsave changes to update UI
+  const handleSaveChange = (uri: string, saved: boolean) => {
+    if (saved) {
+      setSavedFeedUris(prev => new Set([...prev, uri]));
+    } else {
+      setSavedFeedUris(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(uri);
+        return newSet;
+      });
+      // Also remove from savedFeeds list if currently viewing that tab
+      setSavedFeeds(prev => prev.filter(f => f.uri !== uri));
+    }
+  };
 
   const handleSearch = useCallback(async () => {
     if (!searchQuery.trim()) {
@@ -312,7 +391,7 @@ export default function FeedDiscovery({ onClose }: FeedDiscoveryProps) {
   const isSearching = searchQuery.trim().length > 0;
   const displayFeeds = isSearching 
     ? searchResults 
-    : (activeTab === 'suggested' ? suggestedFeeds : likedFeeds);
+    : (activeTab === 'suggested' ? suggestedFeeds : savedFeeds);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
@@ -410,7 +489,7 @@ export default function FeedDiscovery({ onClose }: FeedDiscoveryProps) {
                   : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
               }`}
             >
-              Your Liked Feeds
+              Your Saved Feeds
             </button>
           </div>
         )}
@@ -421,13 +500,13 @@ export default function FeedDiscovery({ onClose }: FeedDiscoveryProps) {
             <div className="p-4 text-center text-red-500 text-sm">{error}</div>
           )}
 
-          {(loading || (activeTab === 'suggested' && loadingSuggestions) || (activeTab === 'liked' && loadingLiked)) && !error && (
+          {(loading || (activeTab === 'suggested' && loadingSuggestions) || (activeTab === 'liked' && loadingSaved)) && !error && (
             <div className="p-8 flex items-center justify-center">
               <div className="animate-spin w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full" />
             </div>
           )}
 
-          {!loading && !((activeTab === 'suggested' && loadingSuggestions) || (activeTab === 'liked' && loadingLiked)) && !error && (
+          {!loading && !((activeTab === 'suggested' && loadingSuggestions) || (activeTab === 'liked' && loadingSaved)) && !error && (
             <>
               {isSearching && searchResults.length === 0 && (
                 <div className="p-8 text-center text-gray-500 text-sm">
@@ -435,13 +514,13 @@ export default function FeedDiscovery({ onClose }: FeedDiscoveryProps) {
                 </div>
               )}
 
-              {!isSearching && activeTab === 'liked' && likedFeeds.length === 0 && (
+              {!isSearching && activeTab === 'liked' && savedFeeds.length === 0 && (
                 <div className="p-8 text-center">
                   <svg className="w-12 h-12 mx-auto text-gray-300 dark:text-gray-600 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
                   </svg>
-                  <p className="text-sm text-gray-500 dark:text-gray-400">No liked feeds yet</p>
-                  <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">Like feeds to save them here</p>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">No saved feeds yet</p>
+                  <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">Save feeds from Bluesky to see them here</p>
                 </div>
               )}
 
@@ -451,6 +530,8 @@ export default function FeedDiscovery({ onClose }: FeedDiscoveryProps) {
                   feed={feed}
                   isPinned={isPinned(feed.uri)}
                   onTogglePin={() => handleTogglePin(feed)}
+                  isSaved={savedFeedUris.has(feed.uri)}
+                  onSaveChange={handleSaveChange}
                 />
               ))}
             </>

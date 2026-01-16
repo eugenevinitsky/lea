@@ -559,42 +559,43 @@ export async function getFeedGenerators(feedUris: string[]): Promise<FeedGenerat
   return response.data.feeds as FeedGeneratorInfo[];
 }
 
-// Get user's liked feeds (feeds they've actually hearted, not just saved/pinned)
-export async function getLikedFeeds(): Promise<FeedGeneratorInfo[]> {
-  if (!agent || !agent.session) throw new Error('Not logged in');
+// Get user's saved feed URIs (for checking if a feed is saved)
+export async function getSavedFeedUris(): Promise<Set<string>> {
+  if (!agent) throw new Error('Not logged in');
   
-  const likedFeedUris: string[] = [];
-  let cursor: string | undefined;
+  const prefs = await agent.getPreferences();
+  const savedFeeds = prefs.savedFeeds || [];
   
-  // Paginate through all like records
-  do {
-    const response = await agent.api.com.atproto.repo.listRecords({
-      repo: agent.session.did,
-      collection: 'app.bsky.feed.like',
-      limit: 100,
-      cursor,
-    });
-    
-    // Filter for likes on feed generators (not posts)
-    for (const record of response.data.records) {
-      const value = record.value as { subject?: { uri?: string } };
-      const subjectUri = value?.subject?.uri;
-      if (subjectUri && subjectUri.includes('/app.bsky.feed.generator/')) {
-        likedFeedUris.push(subjectUri);
-      }
-    }
-    
-    cursor = response.data.cursor;
-  } while (cursor);
+  const feedUris = savedFeeds
+    .filter(sf => sf.type === 'feed' && sf.value.startsWith('at://'))
+    .map(sf => sf.value);
   
-  if (likedFeedUris.length === 0) {
+  return new Set(feedUris);
+}
+
+// Get user's saved feeds from preferences (feeds they've added to their list)
+export async function getSavedFeeds(): Promise<FeedGeneratorInfo[]> {
+  if (!agent) throw new Error('Not logged in');
+  
+  const prefs = await agent.getPreferences();
+  const savedFeeds = prefs.savedFeeds || [];
+  
+  // Get unique feed URIs (type 'feed' means feed generators, filter out lists)
+  const feedUris = savedFeeds
+    .filter(sf => sf.type === 'feed' && sf.value.startsWith('at://') && sf.value.includes('/app.bsky.feed.generator/'))
+    .map(sf => sf.value);
+  
+  // Deduplicate
+  const uniqueUris = [...new Set(feedUris)];
+  
+  if (uniqueUris.length === 0) {
     return [];
   }
   
-  // Fetch full feed info for each URI (in batches of 25)
+  // Fetch full feed info (in batches of 25)
   const allFeeds: FeedGeneratorInfo[] = [];
-  for (let i = 0; i < likedFeedUris.length; i += 25) {
-    const batch = likedFeedUris.slice(i, i + 25);
+  for (let i = 0; i < uniqueUris.length; i += 25) {
+    const batch = uniqueUris.slice(i, i + 25);
     try {
       const feeds = await getFeedGenerators(batch);
       allFeeds.push(...feeds);
@@ -604,6 +605,33 @@ export async function getLikedFeeds(): Promise<FeedGeneratorInfo[]> {
   }
   
   return allFeeds;
+}
+
+// Save a feed to user's saved feeds
+export async function saveFeed(feedUri: string): Promise<void> {
+  if (!agent) throw new Error('Not logged in');
+  
+  await agent.addSavedFeeds([{
+    type: 'feed',
+    value: feedUri,
+    pinned: false,
+  }]);
+}
+
+// Remove a feed from user's saved feeds
+export async function unsaveFeed(feedUri: string): Promise<void> {
+  if (!agent) throw new Error('Not logged in');
+  
+  // Get current saved feeds to find the ID of the one to remove
+  const prefs = await agent.getPreferences();
+  const savedFeeds = prefs.savedFeeds || [];
+  
+  // Find the saved feed entry with this URI
+  const feedToRemove = savedFeeds.find(sf => sf.value === feedUri);
+  
+  if (feedToRemove && feedToRemove.id) {
+    await agent.removeSavedFeeds([feedToRemove.id]);
+  }
 }
 
 // Advanced search filters for posts
