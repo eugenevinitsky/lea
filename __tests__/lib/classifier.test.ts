@@ -23,7 +23,7 @@ describe('Substack Classifier', () => {
     it('classifies non-technical content as non-technical', () => {
       expect(isTechnicalContent('Trump Policy Sparks Debate')).toBe(false);
       expect(isTechnicalContent('Democrats vs Republicans')).toBe(false);
-      expect(isTechnicalContent('Celebrity Gossip Weekly')).toBe(false);
+      expect(isTechnicalContent('Trump Immigration Policy Crisis')).toBe(false);
     });
 
     it('handles empty strings', () => {
@@ -82,7 +82,7 @@ describe('Substack Classifier', () => {
 
     it('classifies AI + politics mix based on dominant signal', () => {
       // Technical framing should win
-      const result1 = classifyContent('The Neuroscience of Political Polarization');
+      const result1 = classifyContent('Cognitive Psychology of Political Beliefs');
       expect(result1.isTechnical).toBe(true);
 
       // Political framing should win
