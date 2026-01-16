@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { searchFeeds, FeedGeneratorInfo, getFeedGenerators } from '@/lib/bluesky';
+import { searchFeeds, FeedGeneratorInfo, getFeedGenerators, likeFeed, unlikeFeed } from '@/lib/bluesky';
 import { useFeeds, SUGGESTED_FEEDS, PinnedFeed } from '@/lib/feeds';
 
 interface FeedDiscoveryProps {
@@ -50,19 +50,56 @@ function KeywordFeedCreator({ onAdd }: { onAdd: (keyword: string) => void }) {
   );
 }
 
-function FeedCard({ feed, isPinned, onTogglePin }: {
+function FeedCard({ feed, isPinned, onTogglePin, onLikeChange }: {
   feed: {
     uri: string;
+    cid?: string;
     displayName: string;
     description?: string;
     avatar?: string;
     acceptsInteractions?: boolean;
     likeCount?: number;
     creator?: { handle: string; displayName?: string };
+    viewer?: { like?: string };
   };
   isPinned: boolean;
   onTogglePin: () => void;
+  onLikeChange?: (uri: string, liked: boolean, likeUri?: string) => void;
 }) {
+  const [isLiked, setIsLiked] = useState(!!feed.viewer?.like);
+  const [likeUri, setLikeUri] = useState<string | undefined>(feed.viewer?.like);
+  const [likeCount, setLikeCount] = useState(feed.likeCount || 0);
+  const [isLiking, setIsLiking] = useState(false);
+  
+  // Check if this is a real AT Protocol feed (can be liked)
+  const canLike = feed.uri.startsWith('at://') && feed.cid;
+
+  const handleLike = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!canLike || isLiking || !feed.cid) return;
+    
+    setIsLiking(true);
+    try {
+      if (isLiked && likeUri) {
+        await unlikeFeed(likeUri);
+        setIsLiked(false);
+        setLikeUri(undefined);
+        setLikeCount(prev => Math.max(0, prev - 1));
+        onLikeChange?.(feed.uri, false);
+      } else {
+        const result = await likeFeed(feed.uri, feed.cid);
+        setIsLiked(true);
+        setLikeUri(result.uri);
+        setLikeCount(prev => prev + 1);
+        onLikeChange?.(feed.uri, true, result.uri);
+      }
+    } catch (err) {
+      console.error('Failed to like/unlike feed:', err);
+    } finally {
+      setIsLiking(false);
+    }
+  };
+
   return (
     <div className="p-3 border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/50">
       <div className="flex items-start gap-3">
@@ -100,8 +137,31 @@ function FeedCard({ feed, isPinned, onTogglePin }: {
             {feed.creator && (
               <span>by @{feed.creator.handle}</span>
             )}
-            {feed.likeCount !== undefined && feed.likeCount > 0 && (
-              <span>{feed.likeCount.toLocaleString()} likes</span>
+            {canLike && (
+              <button
+                onClick={handleLike}
+                disabled={isLiking}
+                className={`flex items-center gap-1 transition-colors disabled:opacity-50 ${
+                  isLiked 
+                    ? 'text-pink-500 hover:text-pink-600' 
+                    : 'text-gray-400 hover:text-pink-500'
+                }`}
+              >
+                <svg 
+                  className={`w-3.5 h-3.5 ${isLiking ? 'animate-pulse' : ''}`} 
+                  fill={isLiked ? 'currentColor' : 'none'} 
+                  stroke="currentColor" 
+                  viewBox="0 0 24 24"
+                >
+                  <path 
+                    strokeLinecap="round" 
+                    strokeLinejoin="round" 
+                    strokeWidth={2} 
+                    d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" 
+                  />
+                </svg>
+                {likeCount > 0 && <span>{likeCount.toLocaleString()}</span>}
+              </button>
             )}
           </div>
         </div>
