@@ -2486,11 +2486,18 @@ function NotificationsExplorerContent() {
       const oneWeekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
       let allNotifs: NotificationItem[] = [];
       let nextCursor: string | undefined = undefined;
-      let hasMore = true;
+      let pageCount = 0;
+      const MAX_PAGES = 50; // Safety limit to prevent infinite loops
 
       // Keep fetching until we have all notifications from the last week
-      while (hasMore) {
+      while (pageCount < MAX_PAGES) {
+        pageCount++;
         const result = await fetchNotifications(nextCursor);
+        
+        if (result.notifications.length === 0) {
+          // No more notifications
+          break;
+        }
         
         // Filter to only include notifications from last week
         const recentNotifs = result.notifications.filter(
@@ -2499,20 +2506,21 @@ function NotificationsExplorerContent() {
         
         allNotifs = [...allNotifs, ...recentNotifs];
         
-        // Stop if we got fewer notifications than requested (end of data)
-        // or if the oldest notification in this batch is older than a week
+        // Check the oldest notification in this batch
         const oldestInBatch = result.notifications[result.notifications.length - 1];
-        if (
-          !result.cursor ||
-          result.notifications.length < 50 ||
-          (oldestInBatch && new Date(oldestInBatch.indexedAt) < oneWeekAgo)
-        ) {
-          hasMore = false;
-        } else {
-          nextCursor = result.cursor;
+        const oldestDate = oldestInBatch ? new Date(oldestInBatch.indexedAt) : null;
+        
+        // Stop if:
+        // 1. No cursor (end of data)
+        // 2. The oldest notification in this batch is older than a week
+        if (!result.cursor || (oldestDate && oldestDate < oneWeekAgo)) {
+          break;
         }
+        
+        nextCursor = result.cursor;
       }
 
+      console.log(`Fetched ${allNotifs.length} notifications from ${pageCount} pages`);
       setAllNotifications(allNotifs);
       setGrouped(groupNotifications(allNotifs));
     } catch (err) {
