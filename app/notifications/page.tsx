@@ -553,6 +553,34 @@ function CategoryBreakdown({ grouped }: { grouped: GroupedNotifications }) {
   );
 }
 
+// Storage key for last viewed My Posts timestamp
+const MY_POSTS_LAST_VIEWED_KEY = 'lea-my-posts-last-viewed';
+
+function getMyPostsLastViewed(): Date {
+  if (typeof window === 'undefined') return new Date(0);
+  const saved = localStorage.getItem(MY_POSTS_LAST_VIEWED_KEY);
+  return saved ? new Date(saved) : new Date(0);
+}
+
+function setMyPostsLastViewed() {
+  if (typeof window === 'undefined') return;
+  localStorage.setItem(MY_POSTS_LAST_VIEWED_KEY, new Date().toISOString());
+}
+
+// Helper to categorize time periods
+function getTimePeriod(dateString: string): 'hour' | 'today' | 'week' | 'older' {
+  const date = new Date(dateString);
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffHours = diffMs / 3600000;
+  const diffDays = diffMs / 86400000;
+  
+  if (diffHours < 1) return 'hour';
+  if (diffDays < 1) return 'today';
+  if (diffDays < 7) return 'week';
+  return 'older';
+}
+
 // Activity item for a single interaction on a post
 interface PostActivity {
   type: 'like' | 'repost' | 'reply' | 'quote' | 'mention';
@@ -872,12 +900,16 @@ function PostActivityRow({
   postWithActivity,
   onOpenProfile,
   onOpenPost,
+  isNew,
+  defaultCollapsed,
 }: {
   postWithActivity: PostWithActivity;
   onOpenProfile: (did: string) => void;
   onOpenPost: (uri: string) => void;
+  isNew?: boolean;
+  defaultCollapsed?: boolean;
 }) {
-  const [expanded, setExpanded] = useState(false);
+  const [expanded, setExpanded] = useState(!defaultCollapsed);
   const { post, activity, totalEngagement } = postWithActivity;
   const postText = (post.record as { text?: string })?.text || '';
   const isReply = !!(post.record as { reply?: unknown })?.reply;
@@ -905,15 +937,18 @@ function PostActivityRow({
   const isHot = activity.length >= 10;
   
   return (
-    <div className="border-b border-gray-100 dark:border-gray-800 last:border-b-0">
+    <div className={`border-b border-gray-100 dark:border-gray-800 last:border-b-0 ${isNew ? 'bg-blue-50/50 dark:bg-blue-900/10' : ''}`}>
       {/* Post header */}
       <div
         className="p-3 hover:bg-gray-50 dark:hover:bg-gray-800/30 cursor-pointer"
-        onClick={() => onOpenPost(post.uri)}
+        onClick={() => setExpanded(!expanded)}
       >
         <div className="flex items-start gap-3">
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 mb-1">
+              {isNew && (
+                <span className="w-2 h-2 rounded-full bg-blue-500 flex-shrink-0" title="New activity" />
+              )}
               {isReply && (
                 <span className="text-xs px-1.5 py-0.5 bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 rounded">
                   Reply
@@ -930,6 +965,15 @@ function PostActivityRow({
               <span className="text-xs text-gray-400">
                 Posted {formatTime(post.indexedAt)}
               </span>
+              {/* Expand/collapse indicator */}
+              <svg
+                className={`w-4 h-4 text-gray-400 ml-auto transition-transform ${expanded ? 'rotate-180' : ''}`}
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
             </div>
             <p className="text-sm text-gray-900 dark:text-gray-100 line-clamp-2">
               {postText || <span className="italic text-gray-400">(no text)</span>}
@@ -992,8 +1036,8 @@ function PostActivityRow({
         </div>
       </div>
       
-      {/* Activity feed */}
-      {activity.length > 0 && (
+      {/* Activity feed - collapsible */}
+      {activity.length > 0 && expanded && (
         <div className="px-3 pb-3 space-y-1">
           {/* Show rolled-up likes first if there are any */}
           {likesActivity.length > 0 && (
@@ -1053,6 +1097,70 @@ function PostActivityRow({
 // Sort options for posts
 type PostSortOption = 'recent_activity' | 'most_engagement' | 'recent_post';
 
+// Timeline section header
+function TimelineSectionHeader({ period }: { period: 'hour' | 'today' | 'week' }) {
+  const labels = {
+    hour: 'Last hour',
+    today: 'Earlier today',
+    week: 'This week',
+  };
+  const colors = {
+    hour: 'text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20',
+    today: 'text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-800/50',
+    week: 'text-gray-500 dark:text-gray-500 bg-gray-50/50 dark:bg-gray-800/30',
+  };
+  
+  return (
+    <div className={`px-3 py-1.5 text-xs font-medium ${colors[period]} sticky top-0 z-10`}>
+      {labels[period]}
+    </div>
+  );
+}
+
+// Activity summary component
+function ActivitySummary({ 
+  newReplies, 
+  newQuotes, 
+  newMentions, 
+  newLikes, 
+  newReposts,
+  totalNew,
+}: { 
+  newReplies: number;
+  newQuotes: number;
+  newMentions: number;
+  newLikes: number;
+  newReposts: number;
+  totalNew: number;
+}) {
+  if (totalNew === 0) return null;
+  
+  const items = [
+    { count: newReplies, label: 'reply', labelPlural: 'replies', color: 'text-blue-500' },
+    { count: newQuotes, label: 'quote', labelPlural: 'quotes', color: 'text-purple-500' },
+    { count: newMentions, label: 'mention', labelPlural: 'mentions', color: 'text-amber-500' },
+    { count: newLikes, label: 'like', labelPlural: 'likes', color: 'text-rose-500' },
+    { count: newReposts, label: 'repost', labelPlural: 'reposts', color: 'text-emerald-500' },
+  ].filter(i => i.count > 0);
+  
+  return (
+    <div className="px-4 py-3 bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 border-b border-gray-200 dark:border-gray-800">
+      <div className="flex items-center gap-2 flex-wrap text-sm">
+        <span className="font-medium text-gray-700 dark:text-gray-300">New:</span>
+        {items.map((item, i) => (
+          <span key={item.label} className="flex items-center gap-1">
+            <span className={`font-semibold ${item.color}`}>{item.count}</span>
+            <span className="text-gray-500 dark:text-gray-400">
+              {item.count === 1 ? item.label : item.labelPlural}
+            </span>
+            {i < items.length - 1 && <span className="text-gray-300 dark:text-gray-600 mx-1">·</span>}
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // Main My Posts Activity pane
 function MyPostsActivityPane({
   notifications,
@@ -1066,6 +1174,12 @@ function MyPostsActivityPane({
   const [posts, setPosts] = useState<AppBskyFeedDefs.PostView[]>([]);
   const [loading, setLoading] = useState(true);
   const [sortBy, setSortBy] = useState<PostSortOption>('recent_activity');
+  const [lastViewed] = useState(() => getMyPostsLastViewed());
+  
+  // Mark as viewed when component mounts
+  useEffect(() => {
+    setMyPostsLastViewed();
+  }, []);
   
   // Fetch user's posts on mount
   useEffect(() => {
@@ -1168,6 +1282,60 @@ function MyPostsActivityPane({
   
   const totalActivityCount = postsWithActivity.reduce((sum, p) => sum + p.activity.length, 0);
   
+  // Calculate new activity counts (since last viewed)
+  const newActivityStats = useMemo(() => {
+    let newReplies = 0, newQuotes = 0, newMentions = 0, newLikes = 0, newReposts = 0;
+    
+    for (const p of postsWithActivity) {
+      for (const a of p.activity) {
+        if (new Date(a.indexedAt) > lastViewed) {
+          switch (a.type) {
+            case 'reply': newReplies++; break;
+            case 'quote': newQuotes++; break;
+            case 'mention': newMentions++; break;
+            case 'like': newLikes++; break;
+            case 'repost': newReposts++; break;
+          }
+        }
+      }
+    }
+    
+    return {
+      newReplies,
+      newQuotes,
+      newMentions,
+      newLikes,
+      newReposts,
+      totalNew: newReplies + newQuotes + newMentions + newLikes + newReposts,
+    };
+  }, [postsWithActivity, lastViewed]);
+  
+  // Group posts by time period for timeline view
+  const groupedByPeriod = useMemo(() => {
+    if (sortBy !== 'recent_activity') return null;
+    
+    const groups: { period: 'hour' | 'today' | 'week'; posts: PostWithActivity[] }[] = [];
+    let currentPeriod: 'hour' | 'today' | 'week' | null = null;
+    
+    for (const p of displayPosts) {
+      const period = getTimePeriod(p.latestActivityAt);
+      if (period === 'older') continue; // Skip older posts in timeline view
+      
+      if (period !== currentPeriod) {
+        currentPeriod = period;
+        groups.push({ period, posts: [] });
+      }
+      groups[groups.length - 1].posts.push(p);
+    }
+    
+    return groups;
+  }, [displayPosts, sortBy]);
+  
+  // Check if a post has new activity
+  const hasNewActivity = (p: PostWithActivity) => {
+    return p.activity.some(a => new Date(a.indexedAt) > lastViewed);
+  };
+  
   return (
     <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden">
       {/* Header */}
@@ -1177,9 +1345,14 @@ function MyPostsActivityPane({
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
           </svg>
           My Posts
-          {totalActivityCount > 0 && (
-            <span className="px-1.5 py-0.5 text-xs font-medium bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-full">
-              {totalActivityCount} interactions
+          {newActivityStats.totalNew > 0 && (
+            <span className="px-1.5 py-0.5 text-xs font-medium bg-blue-500 text-white rounded-full">
+              {newActivityStats.totalNew} new
+            </span>
+          )}
+          {totalActivityCount > 0 && newActivityStats.totalNew === 0 && (
+            <span className="px-1.5 py-0.5 text-xs font-medium bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 rounded-full">
+              {totalActivityCount} total
             </span>
           )}
         </h3>
@@ -1195,6 +1368,11 @@ function MyPostsActivityPane({
           <option value="recent_post">Recent posts</option>
         </select>
       </div>
+      
+      {/* Activity summary */}
+      {!loading && newActivityStats.totalNew > 0 && (
+        <ActivitySummary {...newActivityStats} />
+      )}
       
       {/* Content */}
       {loading ? (
@@ -1213,16 +1391,46 @@ function MyPostsActivityPane({
             Activity from the last 7 days will appear here
           </p>
         </div>
-      ) : (
-        <div className="max-h-[600px] overflow-y-auto divide-y divide-gray-100 dark:divide-gray-800">
-          {displayPosts.map((p) => (
-            <PostActivityRow
-              key={p.post.uri}
-              postWithActivity={p}
-              onOpenProfile={onOpenProfile}
-              onOpenPost={onOpenPost}
-            />
+      ) : sortBy === 'recent_activity' && groupedByPeriod ? (
+        // Timeline view with section headers
+        <div className="max-h-[600px] overflow-y-auto">
+          {groupedByPeriod.map((group) => (
+            <div key={group.period}>
+              <TimelineSectionHeader period={group.period} />
+              <div className="divide-y divide-gray-100 dark:divide-gray-800">
+                {group.posts.map((p) => {
+                  const isNew = hasNewActivity(p);
+                  return (
+                    <PostActivityRow
+                      key={p.post.uri}
+                      postWithActivity={p}
+                      onOpenProfile={onOpenProfile}
+                      onOpenPost={onOpenPost}
+                      isNew={isNew}
+                      defaultCollapsed={!isNew}
+                    />
+                  );
+                })}
+              </div>
+            </div>
           ))}
+        </div>
+      ) : (
+        // Standard list view
+        <div className="max-h-[600px] overflow-y-auto divide-y divide-gray-100 dark:divide-gray-800">
+          {displayPosts.map((p) => {
+            const isNew = hasNewActivity(p);
+            return (
+              <PostActivityRow
+                key={p.post.uri}
+                postWithActivity={p}
+                onOpenProfile={onOpenProfile}
+                onOpenPost={onOpenPost}
+                isNew={isNew}
+                defaultCollapsed={!isNew}
+              />
+            );
+          })}
         </div>
       )}
       
