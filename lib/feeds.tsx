@@ -260,10 +260,11 @@ export function FeedsProvider({ children }: { children: ReactNode }) {
     });
   };
 
-  const removeFeed = (uri: string) => {
+  const removeFeed = useCallback((uri: string) => {
     userModifiedFeeds.current = true;
+    hasFetchedFromServer.current = true; // Force sync even if we haven't fetched yet
     setPinnedFeeds(prev => prev.filter(f => f.uri !== uri));
-  };
+  }, []);
 
   const moveFeed = (uri: string, direction: 'up' | 'down') => {
     userModifiedFeeds.current = true;
