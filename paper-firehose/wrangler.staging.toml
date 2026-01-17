@@ -1,0 +1,31 @@
+name = "paper-firehose-staging"
+main = "src/index.ts"
+compatibility_date = "2024-01-01"
+
+# Durable Objects for persistent WebSocket connection
+[durable_objects]
+bindings = [
+  { name = "JETSTREAM_CONNECTION", class_name = "JetstreamConnection" }
+]
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["JetstreamConnection"]
+
+# Cron trigger to keep the firehose connection alive
+[triggers]
+crons = ["* * * * *"]  # Every minute
+
+# Environment variables (set via wrangler secret)
+# LEA_API_URL - Should point to Vercel preview URL
+# LEA_API_SECRET - Same secret as production or a staging-specific one
+
+# Observability and logging
+[observability]
+enabled = true
+head_sampling_rate = 1
+
+[observability.logs]
+enabled = true
+head_sampling_rate = 1
+invocation_logs = true
