@@ -18,6 +18,7 @@ export const SUGGESTED_FEEDS = [
     avatar: undefined,
     acceptsInteractions: false,
     type: 'verified' as const,
+    leaExclusive: true,
   },
   {
     uri: 'at://did:plc:uaadt6f5bbda6cycbmatcm3z/app.bsky.feed.generator/preprintdigest',
@@ -32,6 +33,15 @@ export const SUGGESTED_FEEDS = [
     description: 'Personalized recommendations based on your interests',
     avatar: undefined,
     acceptsInteractions: true,
+  },
+  {
+    uri: 'remix',
+    displayName: 'Remix 🎲',
+    description: 'A personalized mix of posts from all your pinned feeds, shuffled together',
+    avatar: undefined,
+    acceptsInteractions: false,
+    type: 'remix' as const,
+    leaExclusive: true,
   },
   {
     uri: 'at://did:plc:z72i7hdynmk6r22z27h6tvur/app.bsky.feed.generator/mutuals',
@@ -67,14 +77,6 @@ export const SUGGESTED_FEEDS = [
     description: 'What you missed from your Following timeline, from oldest to newest: a couple of the most engaged posts from each account + a few reposts.',
     avatar: undefined,
     acceptsInteractions: false,
-  },
-  {
-    uri: 'remix',
-    displayName: 'Remix 🎲',
-    description: 'A personalized mix of posts from all your pinned feeds, shuffled together',
-    avatar: undefined,
-    acceptsInteractions: false,
-    type: 'remix' as const,
   },
 ];
 

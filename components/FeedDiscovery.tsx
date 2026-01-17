@@ -61,6 +61,7 @@ function FeedCard({ feed, isPinned, onTogglePin, onLikeChange, isSaved: initialI
     likeCount?: number;
     creator?: { handle: string; displayName?: string };
     viewer?: { like?: string };
+    leaExclusive?: boolean;
   };
   isPinned: boolean;
   onTogglePin: () => void;
@@ -197,6 +198,11 @@ function FeedCard({ feed, isPinned, onTogglePin, onLikeChange, isSaved: initialI
             </p>
           )}
           <div className="flex items-center gap-3 mt-1.5 text-[10px] text-gray-400">
+            {feed.leaExclusive && (
+              <span className="px-1.5 py-0.5 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 rounded font-medium">
+                Only in Lea
+              </span>
+            )}
             {feed.creator && (
               <span>by @{feed.creator.handle}</span>
             )}
@@ -278,6 +284,8 @@ export default function FeedDiscovery({ onClose }: FeedDiscoveryProps) {
               ...apiInfo,
               // Keep our custom description if it's better
               description: staticFeed.description || apiInfo.description,
+              // Preserve Lea-exclusive flag
+              leaExclusive: 'leaExclusive' in staticFeed ? staticFeed.leaExclusive : undefined,
             };
           }
           // For special feeds like 'verified-following', use static definition
@@ -364,12 +372,16 @@ export default function FeedDiscovery({ onClose }: FeedDiscoveryProps) {
     if (isPinned(feed.uri)) {
       removeFeed(feed.uri);
     } else {
+      // Determine the feed type - check if it's a special feed from SUGGESTED_FEEDS
+      const suggestedFeed = SUGGESTED_FEEDS.find(f => f.uri === feed.uri);
+      const feedType = suggestedFeed?.type || 'feed';
+      
       const pinnedFeed: PinnedFeed = {
         uri: feed.uri,
         displayName: feed.displayName,
         avatar: feed.avatar,
         acceptsInteractions: feed.acceptsInteractions || false,
-        type: 'feed',
+        type: feedType,
       };
       addFeed(pinnedFeed);
     }
