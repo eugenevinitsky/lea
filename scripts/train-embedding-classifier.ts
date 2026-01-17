@@ -52,8 +52,7 @@ async function batchEmbed(texts: string[], batchSize = 50): Promise<number[][]> 
 
     const result = await model.batchEmbedContents({
       requests: batch.map(text => ({
-        content: { parts: [{ text }] },
-        taskType: 'CLASSIFICATION' as const,
+        content: { role: 'user', parts: [{ text }] },
       })),
     });
 
