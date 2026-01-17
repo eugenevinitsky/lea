@@ -4,7 +4,7 @@ import pg from 'pg';
 import { drizzle } from 'drizzle-orm/node-postgres';
 import { discoveredSubstackPosts, substackMentions } from '../lib/db/schema';
 import { inArray } from 'drizzle-orm';
-import model from '../lib/classifier-model.json';
+import { classifyContent } from '../lib/substack-classifier';
 
 const connectionString = process.env.POSTGRES_URL_NON_POOLING || process.env.POSTGRES_URL || process.env.DATABASE_URL;
 const pool = new pg.Pool({
@@ -12,46 +12,6 @@ const pool = new pg.Pool({
   ssl: { rejectUnauthorized: false },
 });
 const db = drizzle(pool);
-
-function tokenize(text: string): string[] {
-  return text
-    .toLowerCase()
-    .replace(/[^\w\s-]/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim()
-    .split(' ')
-    .filter(word => word.length > 0);
-}
-
-// Normalized margin threshold - require margin > 0.05 for technical classification
-const NORMALIZED_MARGIN_THRESHOLD = 0.05;
-
-function classifyContent(combinedText: string): { isTechnical: boolean; normalizedMargin: number } {
-  const tokens = tokenize(combinedText);
-  if (tokens.length === 0) {
-    return { isTechnical: false, normalizedMargin: -1 };
-  }
-
-  let techScore = model.classPriors.technical;
-  let nonTechScore = model.classPriors['non-technical'];
-
-  for (const token of tokens) {
-    techScore += (model.wordLogProbs.technical as Record<string, number>)[token] !== undefined
-      ? (model.wordLogProbs.technical as Record<string, number>)[token]
-      : model.unknownWordLogProb.technical;
-    nonTechScore += (model.wordLogProbs['non-technical'] as Record<string, number>)[token] !== undefined
-      ? (model.wordLogProbs['non-technical'] as Record<string, number>)[token]
-      : model.unknownWordLogProb['non-technical'];
-  }
-
-  const margin = techScore - nonTechScore;
-  const normalizedMargin = margin / (tokens.length + 1);
-
-  return {
-    isTechnical: normalizedMargin > NORMALIZED_MARGIN_THRESHOLD,
-    normalizedMargin,
-  };
-}
 
 function stripHtml(html: string): string {
   return html
@@ -146,8 +106,8 @@ async function main() {
   const allPosts = await db.select().from(discoveredSubstackPosts);
   console.log(`Found ${allPosts.length} posts\n`);
 
-  const kept: { id: number; title: string | null; normalizedMargin: number }[] = [];
-  const removed: { id: number; title: string | null; hasBody: boolean; normalizedMargin: number }[] = [];
+  const kept: { id: number; title: string | null; probability: number }[] = [];
+  const removed: { id: number; title: string | null; hasBody: boolean; probability: number }[] = [];
 
   for (let i = 0; i < allPosts.length; i++) {
     const post = allPosts[i];
@@ -164,16 +124,17 @@ async function main() {
       bodyText || '',
     ].filter(Boolean).join(' ');
 
-    const { isTechnical, normalizedMargin } = classifyContent(classificationText);
+    const result = classifyContent(classificationText);
+    const probability = result.probability ?? 0;
 
-    if (isTechnical) {
-      kept.push({ id: post.id, title: post.title, normalizedMargin });
+    if (result.isTechnical) {
+      kept.push({ id: post.id, title: post.title, probability });
     } else {
       removed.push({
         id: post.id,
         title: post.title,
         hasBody: !!bodyText,
-        normalizedMargin,
+        probability,
       });
     }
   }
@@ -182,9 +143,9 @@ async function main() {
   console.log(`Kept: ${kept.length}`);
   console.log(`To remove: ${removed.length}`);
 
-  console.log('\nPosts to remove (sorted by normalized margin):');
-  removed.sort((a, b) => b.normalizedMargin - a.normalizedMargin);
-  removed.forEach(p => console.log(`  - [${p.normalizedMargin.toFixed(3)}] ${p.title} (body: ${p.hasBody ? 'yes' : 'no'})`));
+  console.log('\nPosts to remove (sorted by probability):');
+  removed.sort((a, b) => b.probability - a.probability);
+  removed.forEach(p => console.log(`  - [${p.probability.toFixed(3)}] ${p.title} (body: ${p.hasBody ? 'yes' : 'no'})`));
 
   if (removed.length > 0 && shouldDelete) {
     console.log('\nDeleting...');

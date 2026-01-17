@@ -1,10 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db, discoveredSubstackPosts, substackMentions, verifiedResearchers } from '@/lib/db';
 import { eq, sql } from 'drizzle-orm';
-import { isTechnicalContent } from '@/lib/substack-classifier';
+import { initEmbeddingClassifier, classifyContentAsync, isEmbeddingClassifierReady } from '@/lib/substack-classifier';
 
 // Secret for authenticating requests from the Cloudflare Worker
 const API_SECRET = process.env.PAPER_FIREHOSE_SECRET;
+
+// Initialize embedding classifier on first request
+let classifierInitialized = false;
+async function ensureClassifierInitialized() {
+  if (!classifierInitialized && !isEmbeddingClassifierReady()) {
+    classifierInitialized = await initEmbeddingClassifier();
+  }
+}
 
 // Strip HTML tags and decode entities to get plain text
 function stripHtml(html: string): string {
@@ -276,20 +284,18 @@ async function processSingleIngest(req: IngestRequest): Promise<{ substackPostId
         .where(eq(discoveredSubstackPosts.normalizedId, post.normalizedId));
       substackPostId = existingPost.id;
     } else {
-      // Fetch metadata for new post (including body text from RSS for better classification)
+      // Fetch metadata for new post
       const metadata = await fetchSubstackMetadata(post.url, post.subdomain, post.slug);
 
-      // Filter for technical/intellectual content using BOW classifier
-      // Combine title, description, and body text (matches training data format)
-      const classificationText = [
+      // Filter for technical/intellectual content using embedding classifier
+      // Use title + description (body text dilutes the signal)
+      const result = await classifyContentAsync(
         metadata?.title || '',
-        metadata?.description || '',
-        metadata?.bodyText || '',
-      ].filter(Boolean).join(' ');
+        metadata?.description || ''
+      );
 
-      // Pass combined text - isTechnicalContent will concatenate args, so use empty title
-      if (!isTechnicalContent('', classificationText)) {
-        console.log(`Skipping non-technical Substack post: ${post.url} (title: ${metadata?.title})`);
+      if (!result.isTechnical) {
+        console.log(`Skipping non-technical Substack post: ${post.url} (title: ${metadata?.title}, prob: ${result.probability.toFixed(3)})`);
         continue;
       }
 
@@ -348,6 +354,9 @@ export async function POST(request: NextRequest) {
   }
 
   try {
+    // Initialize embedding classifier if needed
+    await ensureClassifierInitialized();
+
     const body = await request.json();
 
     // Check if this is a batched request
@@ -470,17 +479,15 @@ export async function POST(request: NextRequest) {
         // Fetch metadata for new post (including body text from RSS for better classification)
         const metadata = await fetchSubstackMetadata(post.url, post.subdomain, post.slug);
 
-        // Filter for technical/intellectual content using BOW classifier
-        // Combine title, description, and body text (matches training data format)
-        const classificationText = [
+        // Filter for technical/intellectual content using embedding classifier
+        // Use title + description (body text dilutes the signal)
+        const result = await classifyContentAsync(
           metadata?.title || '',
-          metadata?.description || '',
-          metadata?.bodyText || '',
-        ].filter(Boolean).join(' ');
+          metadata?.description || ''
+        );
 
-        // Pass combined text - isTechnicalContent will concatenate args, so use empty title
-        if (!isTechnicalContent('', classificationText)) {
-          console.log(`Skipping non-technical Substack post: ${post.url} (title: ${metadata?.title})`);
+        if (!result.isTechnical) {
+          console.log(`Skipping non-technical Substack post: ${post.url} (title: ${metadata?.title}, prob: ${result.probability.toFixed(3)})`);
           continue;
         }
 
