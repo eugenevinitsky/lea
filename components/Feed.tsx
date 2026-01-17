@@ -120,6 +120,22 @@ export default function Feed({ feedId, feedUri, feedName, acceptsInteractions, r
     return { posts: [] };
   };
 
+  // Fisher-Yates shuffle for randomizing posts
+  const shuffleArray = <T,>(array: T[]): T[] => {
+    const shuffled = [...array];
+    for (let i = shuffled.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
+    return shuffled;
+  };
+
+  // Check if a post is pinned in its feed (has reason of type reasonPin)
+  const isPinnedInFeed = (post: AppBskyFeedDefs.FeedViewPost): boolean => {
+    const reason = post.reason as { $type?: string } | undefined;
+    return reason?.$type === 'app.bsky.feed.defs#reasonPin';
+  };
+
   // Load remix feed - fetch from all pinned feeds and interleave
   const loadRemixFeed = async (loadMore = false): Promise<string | undefined> => {
     if (remixSourceFeeds.length === 0) {
@@ -148,7 +164,9 @@ export default function Feed({ feedId, feedUri, feedName, acceptsInteractions, r
           const feedCursor = loadMore ? remixCursors.get(feed.uri) : undefined;
           const result = await fetchFromSource(feed, feedCursor);
           newCursors.set(feed.uri, result.cursor);
-          return { feed, posts: result.posts.slice(0, POSTS_PER_FEED) };
+          // Filter out pinned posts from feeds
+          const filteredPosts = result.posts.filter(p => !isPinnedInFeed(p));
+          return { feed, posts: filteredPosts.slice(0, POSTS_PER_FEED) };
         } catch (err) {
           console.error(`Failed to fetch from ${feed.displayName}:`, err);
           return { feed, posts: [] };
@@ -172,6 +190,9 @@ export default function Feed({ feedId, feedUri, feedName, acceptsInteractions, r
         }
       }
 
+      // Shuffle the posts randomly (on initial load, not load more)
+      const finalPosts = loadMore ? allPosts : shuffleArray(allPosts);
+
       setRemixCursors(newCursors);
       
       // Check if any feed has more posts
@@ -180,9 +201,10 @@ export default function Feed({ feedId, feedUri, feedName, acceptsInteractions, r
       setCursor(remixCursor);
 
       if (loadMore) {
-        setPosts(prev => [...prev, ...allPosts]);
+        // Shuffle new posts before appending
+        setPosts(prev => [...prev, ...shuffleArray(finalPosts)]);
       } else {
-        setPosts(allPosts);
+        setPosts(finalPosts);
       }
       setLoadedPages(prev => prev + 1);
       return remixCursor;
