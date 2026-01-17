@@ -15,7 +15,7 @@ const connectionString = process.env.POSTGRES_URL_NON_POOLING || process.env.POS
 const pool = new pg.Pool({ connectionString, ssl: { rejectUnauthorized: false } });
 const db = drizzle(pool);
 
-const THRESHOLD = 0.5; // Posts below this are removed
+const THRESHOLD = 0.6; // Posts below this are removed
 const BATCH_SIZE = 50; // Google API batch limit
 
 async function main() {

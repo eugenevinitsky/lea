@@ -487,7 +487,7 @@ export async function classifyContentAsync(
   const probability = techScore / (techScore + nonTechScore);
 
   return {
-    isTechnical: probability >= 0.5,
+    isTechnical: probability >= 0.6,
     probability,
     prediction: probability >= 0.5 ? 'technical' : 'non-technical',
     modelType: 'embedding-knn',
@@ -550,7 +550,7 @@ export async function batchClassifyContentAsync(
     const probability = techScore / (techScore + nonTechScore);
 
     return {
-      isTechnical: probability >= 0.5,
+      isTechnical: probability >= 0.6,
       probability,
       prediction: probability >= 0.5 ? 'technical' : 'non-technical' as const,
     };
