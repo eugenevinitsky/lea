@@ -632,6 +632,7 @@ function AppContent() {
                   const isActive = activeFeedUri === feed.uri || (activeFeedUri === null && index === 0);
                   const isSkygest = feed.uri.includes('preprintdigest');
                   const isKeyword = feed.type === 'keyword';
+                  const isRemix = feed.type === 'remix' || feed.uri === 'remix';
 
                   return (
                     <button
@@ -639,7 +640,7 @@ function AppContent() {
                       onClick={() => setActiveFeedUri(feed.uri)}
                       className={`flex-shrink-0 px-4 py-3 text-base font-medium transition-colors relative flex items-center justify-center gap-1 ${
                         isActive
-                          ? (isSkygest || isKeyword) ? 'text-purple-500' : 'text-blue-500'
+                          ? (isSkygest || isKeyword) ? 'text-purple-500' : isRemix ? 'text-emerald-500' : 'text-blue-500'
                           : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
                       }`}
                     >
@@ -653,10 +654,15 @@ function AppContent() {
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                         </svg>
                       )}
+                      {isRemix && (
+                        <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                        </svg>
+                      )}
                       <span className="whitespace-nowrap">{feed.displayName}</span>
                       {isActive && (
                         <div className={`absolute bottom-0 left-0 right-0 h-0.5 ${
-                          (isSkygest || isKeyword) ? 'bg-purple-500' : 'bg-blue-500'
+                          (isSkygest || isKeyword) ? 'bg-purple-500' : isRemix ? 'bg-emerald-500' : 'bg-blue-500'
                         }`} />
                       )}
                     </button>
@@ -714,6 +720,7 @@ function AppContent() {
                 const isActive = activeFeedUri === feed.uri || (activeFeedUri === null && index === 0);
                 const isSkygest = feed.uri.includes('preprintdigest');
                 const isKeyword = feed.type === 'keyword';
+                const isRemix = feed.type === 'remix' || feed.uri === 'remix';
                 const isDragging = draggedIndex === index;
                 const isDragOver = dragOverIndex === index && draggedIndex !== index;
 
@@ -753,7 +760,7 @@ function AppContent() {
                     } ${
                       isActive
                         ? `bg-white dark:bg-gray-950 border-l-0 ${
-                            (isSkygest || isKeyword) ? 'text-purple-500' : 'text-blue-500'
+                            (isSkygest || isKeyword) ? 'text-purple-500' : isRemix ? 'text-emerald-500' : 'text-blue-500'
                           }`
                         : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
                     }`}
@@ -767,6 +774,11 @@ function AppContent() {
                     {isKeyword && (
                       <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                      </svg>
+                    )}
+                    {isRemix && (
+                      <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                       </svg>
                     )}
                     <span className="truncate flex-1 text-left">{feed.displayName}</span>

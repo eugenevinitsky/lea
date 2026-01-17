@@ -68,6 +68,14 @@ export const SUGGESTED_FEEDS = [
     avatar: undefined,
     acceptsInteractions: false,
   },
+  {
+    uri: 'remix',
+    displayName: 'Remix 🎲',
+    description: 'A personalized mix of posts from all your pinned feeds, shuffled together',
+    avatar: undefined,
+    acceptsInteractions: false,
+    type: 'remix' as const,
+  },
 ];
 
 // Default pinned feeds
@@ -100,8 +108,8 @@ export interface PinnedFeed {
   displayName: string;
   avatar?: string;
   acceptsInteractions: boolean;
-  // Feed type: 'feed' for feed generators, 'keyword' for search, 'list' for list feeds, 'verified' for timeline filtered to verified researchers
-  type?: 'feed' | 'keyword' | 'list' | 'verified';
+  // Feed type: 'feed' for feed generators, 'keyword' for search, 'list' for list feeds, 'verified' for timeline filtered to verified researchers, 'remix' for mixed feed
+  type?: 'feed' | 'keyword' | 'list' | 'verified' | 'remix';
   keyword?: string;
 }
 

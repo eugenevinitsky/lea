@@ -5,6 +5,7 @@ import { AppBskyFeedDefs, AppBskyFeedPost, AppBskyEmbedExternal } from '@atproto
 import { getTimeline, getFeed, getListFeed, searchPosts, FEEDS, FeedId, isVerifiedResearcher, Label, hasReplies, isReplyPost, getSelfThread, SelfThreadResult, getModerationOpts, moderatePost, ModerationOpts } from '@/lib/bluesky';
 import { VERIFIED_RESEARCHERS_LIST } from '@/lib/constants';
 import { useSettings } from '@/lib/settings';
+import { useFeeds, PinnedFeed } from '@/lib/feeds';
 import { detectPaperLink } from '@/lib/papers';
 import { recordResearcherSighting } from '@/lib/feed-tracking';
 import { getModerationUI, ModerationUIInfo } from '@/lib/moderation';
@@ -30,12 +31,17 @@ interface FeedProps {
 
 export default function Feed({ feedId, feedUri, feedName, acceptsInteractions, refreshKey, feedType, keyword, onOpenProfile, onOpenThread }: FeedProps) {
   const { settings } = useSettings();
+  const { pinnedFeeds } = useFeeds();
   const [posts, setPosts] = useState<AppBskyFeedDefs.FeedViewPost[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [cursor, setCursor] = useState<string | undefined>();
   const [loadedPages, setLoadedPages] = useState(0);
   const [internalThreadUri, setInternalThreadUri] = useState<string | null>(null);
+  
+  // Remix feed state - track cursors for each source feed
+  const [remixCursors, setRemixCursors] = useState<Map<string, string | undefined>>(new Map());
+  const [remixSourceIndex, setRemixSourceIndex] = useState(0);
   
   // Self-thread expansion state
   const [expandedThreads, setExpandedThreads] = useState<Map<string, SelfThreadResult>>(new Map());
@@ -56,7 +62,14 @@ export default function Feed({ feedId, feedUri, feedName, acceptsInteractions, r
   const isVerifiedFeed = feedId === 'verified' || feedType === 'verified' || feedUri === 'verified-following';
   const isKeywordFeed = feedType === 'keyword' || (feedUri?.startsWith('keyword:') ?? false);
   const isListFeed = (feedType === 'list' || (effectiveFeedUri?.includes('/app.bsky.graph.list/') ?? false)) && !isVerifiedFeed;
+  const isRemixFeed = feedType === 'remix' || feedUri === 'remix';
   const effectiveKeyword = keyword || (feedUri?.startsWith('keyword:') ? feedUri.slice(8).replace(/-/g, ' ') : null);
+  
+  // Get feeds to remix (all pinned feeds except Remix itself)
+  const remixSourceFeeds = useMemo(() => {
+    if (!isRemixFeed) return [];
+    return pinnedFeeds.filter(f => f.uri !== 'remix' && f.type !== 'remix');
+  }, [isRemixFeed, pinnedFeeds]);
   
   // Check if this is a feed generator that has a detail page
   const isCustomFeedGenerator = effectiveFeedUri?.includes('/app.bsky.feed.generator/') ?? false;
@@ -86,7 +99,104 @@ export default function Feed({ feedId, feedUri, feedName, acceptsInteractions, r
     });
   }, []);
 
+  // Helper to fetch posts from a single feed source
+  const fetchFromSource = async (feed: PinnedFeed, feedCursor?: string): Promise<{ posts: AppBskyFeedDefs.FeedViewPost[]; cursor?: string }> => {
+    if (feed.type === 'keyword' && feed.keyword) {
+      const result = await searchPosts(feed.keyword, feedCursor);
+      return { posts: result.posts.map(post => ({ post })), cursor: result.cursor };
+    } else if (feed.type === 'verified' || feed.uri === 'verified-following') {
+      const response = await getListFeed(VERIFIED_RESEARCHERS_LIST, feedCursor);
+      return { posts: response.data.feed, cursor: response.data.cursor };
+    } else if (feed.type === 'list' || feed.uri.includes('/app.bsky.graph.list/')) {
+      const response = await getListFeed(feed.uri, feedCursor);
+      return { posts: response.data.feed, cursor: response.data.cursor };
+    } else if (feed.uri === 'timeline') {
+      const response = await getTimeline(feedCursor);
+      return { posts: response.data.feed, cursor: response.data.cursor };
+    } else if (feed.uri.startsWith('at://')) {
+      const response = await getFeed(feed.uri, feedCursor);
+      return { posts: response.data.feed, cursor: response.data.cursor };
+    }
+    return { posts: [] };
+  };
+
+  // Load remix feed - fetch from all pinned feeds and interleave
+  const loadRemixFeed = async (loadMore = false) => {
+    if (remixSourceFeeds.length === 0) {
+      setPosts([]);
+      setLoading(false);
+      return;
+    }
+
+    try {
+      setLoading(true);
+      setError(null);
+
+      const POSTS_PER_FEED = 10;
+      const allPosts: AppBskyFeedDefs.FeedViewPost[] = [];
+      const newCursors = new Map(remixCursors);
+      const seenUris = new Set<string>();
+      
+      // If loading more, add existing post URIs to seen set for deduplication
+      if (loadMore) {
+        posts.forEach(p => seenUris.add(p.post.uri));
+      }
+
+      // Fetch from each source feed in parallel
+      const fetchPromises = remixSourceFeeds.map(async (feed) => {
+        try {
+          const feedCursor = loadMore ? remixCursors.get(feed.uri) : undefined;
+          const result = await fetchFromSource(feed, feedCursor);
+          newCursors.set(feed.uri, result.cursor);
+          return { feed, posts: result.posts.slice(0, POSTS_PER_FEED) };
+        } catch (err) {
+          console.error(`Failed to fetch from ${feed.displayName}:`, err);
+          return { feed, posts: [] };
+        }
+      });
+
+      const results = await Promise.all(fetchPromises);
+
+      // Round-robin interleave posts from all feeds
+      const maxLen = Math.max(...results.map(r => r.posts.length));
+      for (let i = 0; i < maxLen; i++) {
+        for (const result of results) {
+          if (i < result.posts.length) {
+            const post = result.posts[i];
+            // Deduplicate posts that appear in multiple feeds
+            if (!seenUris.has(post.post.uri)) {
+              seenUris.add(post.post.uri);
+              allPosts.push(post);
+            }
+          }
+        }
+      }
+
+      setRemixCursors(newCursors);
+      
+      // Check if any feed has more posts
+      const hasMore = Array.from(newCursors.values()).some(c => c !== undefined);
+      setCursor(hasMore ? 'remix-has-more' : undefined);
+
+      if (loadMore) {
+        setPosts(prev => [...prev, ...allPosts]);
+      } else {
+        setPosts(allPosts);
+      }
+      setLoadedPages(prev => prev + 1);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load remix feed');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const loadFeed = async (loadMore = false, currentCursor?: string) => {
+    // Remix feed has its own loading logic
+    if (isRemixFeed) {
+      return loadRemixFeed(loadMore);
+    }
+
     try {
       setLoading(true);
       setError(null);
@@ -147,6 +257,9 @@ export default function Feed({ feedId, feedUri, feedName, acceptsInteractions, r
     setExpandedThreads(new Map());
     loadingThreadsRef.current = new Set();
     checkedUrisRef.current = new Set();
+    // Reset remix state
+    setRemixCursors(new Map());
+    setRemixSourceIndex(0);
 
     // For papers feed or verified feed, scan multiple pages
     if (isPapersFeed || isVerifiedFeed) {
@@ -164,7 +277,7 @@ export default function Feed({ feedId, feedUri, feedName, acceptsInteractions, r
     } else {
       loadFeed();
     }
-  }, [feedId, feedUri, refreshKey, isKeywordFeed, effectiveKeyword]);
+  }, [feedId, feedUri, refreshKey, isKeywordFeed, effectiveKeyword, isRemixFeed, remixSourceFeeds.length]);
 
   // Track values in refs for IntersectionObserver callback (avoids stale closures)
   const loadingRef = useRef(loading);
