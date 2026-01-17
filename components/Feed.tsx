@@ -20,8 +20,8 @@ interface FeedProps {
   feedName?: string;
   acceptsInteractions?: boolean;
   refreshKey?: number;
-  // Feed type: 'feed' for generators, 'keyword' for search, 'list' for list feeds, 'verified' for timeline filtered to verified researchers
-  feedType?: 'feed' | 'keyword' | 'list' | 'verified';
+  // Feed type: 'feed' for generators, 'keyword' for search, 'list' for list feeds, 'verified' for timeline filtered to verified researchers, 'remix' for mixed feed
+  feedType?: 'feed' | 'keyword' | 'list' | 'verified' | 'remix';
   keyword?: string;
   // Callback to open a profile in the main view
   onOpenProfile?: (did: string) => void;
@@ -121,11 +121,11 @@ export default function Feed({ feedId, feedUri, feedName, acceptsInteractions, r
   };
 
   // Load remix feed - fetch from all pinned feeds and interleave
-  const loadRemixFeed = async (loadMore = false) => {
+  const loadRemixFeed = async (loadMore = false): Promise<string | undefined> => {
     if (remixSourceFeeds.length === 0) {
       setPosts([]);
       setLoading(false);
-      return;
+      return undefined;
     }
 
     try {
@@ -176,7 +176,8 @@ export default function Feed({ feedId, feedUri, feedName, acceptsInteractions, r
       
       // Check if any feed has more posts
       const hasMore = Array.from(newCursors.values()).some(c => c !== undefined);
-      setCursor(hasMore ? 'remix-has-more' : undefined);
+      const remixCursor = hasMore ? 'remix-has-more' : undefined;
+      setCursor(remixCursor);
 
       if (loadMore) {
         setPosts(prev => [...prev, ...allPosts]);
@@ -184,14 +185,16 @@ export default function Feed({ feedId, feedUri, feedName, acceptsInteractions, r
         setPosts(allPosts);
       }
       setLoadedPages(prev => prev + 1);
+      return remixCursor;
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load remix feed');
+      return undefined;
     } finally {
       setLoading(false);
     }
   };
 
-  const loadFeed = async (loadMore = false, currentCursor?: string) => {
+  const loadFeed = async (loadMore = false, currentCursor?: string): Promise<string | undefined> => {
     // Remix feed has its own loading logic
     if (isRemixFeed) {
       return loadRemixFeed(loadMore);
