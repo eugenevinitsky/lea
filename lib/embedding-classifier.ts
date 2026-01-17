@@ -80,10 +80,7 @@ export async function classifyWithEmbedding(
   const truncated = text.slice(0, 500);
 
   // Get embedding for input text
-  const result = await embeddingModel.embedContent({
-    content: { parts: [{ text: truncated }] },
-    taskType: 'CLASSIFICATION',
-  });
+  const result = await embeddingModel.embedContent(truncated);
 
   const embedding = result.embedding.values;
 
@@ -143,8 +140,7 @@ export async function batchClassifyWithEmbedding(
   // Batch embed
   const result = await embeddingModel.batchEmbedContents({
     requests: truncated.map(text => ({
-      content: { parts: [{ text }] },
-      taskType: 'CLASSIFICATION' as const,
+      content: { role: 'user', parts: [{ text }] },
     })),
   });
 
