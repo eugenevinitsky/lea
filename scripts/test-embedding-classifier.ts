@@ -7,8 +7,8 @@ dotenv.config({ path: '.env.local' });
 
 import { initEmbeddingClassifier, classifyWithEmbedding, loadEmbeddingData } from '../lib/embedding-classifier';
 
-const API_KEY = process.env.GOOGLE_AI_API_KEY;
-if (!API_KEY) {
+const API_KEY = process.env.GOOGLE_AI_API_KEY!;
+if (!process.env.GOOGLE_AI_API_KEY) {
   console.error('Missing GOOGLE_AI_API_KEY in .env.local');
   console.error('Get free key from: https://aistudio.google.com/app/apikey');
   process.exit(1);
