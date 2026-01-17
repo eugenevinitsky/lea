@@ -199,6 +199,15 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
   const [repliesCursor, setRepliesCursor] = useState<string | undefined>();
   const [repliesLoaded, setRepliesLoaded] = useState(false);
 
+  // Posts filter state
+  const [postsSearchQuery, setPostsSearchQuery] = useState('');
+  const [postsSearchInput, setPostsSearchInput] = useState('');
+  const [hideReposts, setHideReposts] = useState(false);
+  const [searchResults, setSearchResults] = useState<AppBskyFeedDefs.PostView[]>([]);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [searchCursor, setSearchCursor] = useState<string | undefined>();
+  const searchDebounceRef = useRef<NodeJS.Timeout | null>(null);
+
   // Infinite scroll observers
   const postsObserverRef = useRef<IntersectionObserver | null>(null);
   const repliesObserverRef = useRef<IntersectionObserver | null>(null);
@@ -268,6 +277,72 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
   const [interactionsError, setInteractionsError] = useState<string | null>(null);
   const [interactionsLoaded, setInteractionsLoaded] = useState(false);
   const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set());
+
+  // Search posts by author
+  const performSearch = useCallback(async (query: string, cursor?: string) => {
+    if (!query.trim() || !bskyProfile?.did) return;
+    
+    setSearchLoading(true);
+    try {
+      const results = await searchPosts(query, cursor, 'latest', { author: bskyProfile.did });
+      if (cursor) {
+        setSearchResults(prev => [...prev, ...results.posts]);
+      } else {
+        setSearchResults(results.posts);
+      }
+      setSearchCursor(results.cursor);
+    } catch (err) {
+      console.error('Search failed:', err);
+    } finally {
+      setSearchLoading(false);
+    }
+  }, [bskyProfile?.did]);
+
+  // Debounced search
+  useEffect(() => {
+    if (searchDebounceRef.current) {
+      clearTimeout(searchDebounceRef.current);
+    }
+    
+    if (!postsSearchQuery.trim()) {
+      setSearchResults([]);
+      setSearchCursor(undefined);
+      return;
+    }
+    
+    searchDebounceRef.current = setTimeout(() => {
+      performSearch(postsSearchQuery);
+    }, 300);
+    
+    return () => {
+      if (searchDebounceRef.current) {
+        clearTimeout(searchDebounceRef.current);
+      }
+    };
+  }, [postsSearchQuery, performSearch]);
+
+  // Handle search form submit
+  const handleSearchSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setPostsSearchQuery(postsSearchInput);
+  };
+
+  // Clear search
+  const clearSearch = () => {
+    setPostsSearchInput('');
+    setPostsSearchQuery('');
+    setSearchResults([]);
+    setSearchCursor(undefined);
+  };
+
+  // Filter posts based on hideReposts setting
+  const filteredPosts = useMemo(() => {
+    if (!hideReposts) return posts;
+    return posts.filter(item => !item.reason); // Posts with a reason are reposts
+  }, [posts, hideReposts]);
+
+  // Display posts (non-search mode, filtered by reposts)
+  const displayPosts = filteredPosts;
 
   useEffect(() => {
     async function fetchProfile() {
@@ -1615,13 +1690,116 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
           {/* Posts Tab */}
           {activeTab === 'posts' && !loading && !error && (
             <div>
-              {postsLoading && posts.length === 0 ? (
+              {/* Filter Bar */}
+              <div className="sticky top-0 z-10 bg-white dark:bg-gray-950 border-b border-gray-200 dark:border-gray-800 px-3 py-2">
+                <div className="flex items-center gap-3">
+                  {/* Search input */}
+                  <form onSubmit={handleSearchSubmit} className="flex-1 relative">
+                    <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                    </svg>
+                    <input
+                      type="text"
+                      value={postsSearchInput}
+                      onChange={(e) => setPostsSearchInput(e.target.value)}
+                      placeholder="Search posts..."
+                      className="w-full pl-8 pr-8 py-1.5 bg-gray-100 dark:bg-gray-800 border-0 rounded-lg text-sm text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                    {postsSearchInput && (
+                      <button
+                        type="button"
+                        onClick={clearSearch}
+                        className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    )}
+                  </form>
+                  
+                  {/* Filter toggle */}
+                  <div className="flex items-center gap-1 flex-shrink-0">
+                    <button
+                      onClick={() => setHideReposts(false)}
+                      disabled={!!postsSearchQuery}
+                      className={`px-2.5 py-1 text-xs font-medium rounded-l-full transition-colors ${
+                        !hideReposts && !postsSearchQuery
+                          ? 'bg-blue-500 text-white'
+                          : 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'
+                      } ${postsSearchQuery ? 'opacity-50 cursor-not-allowed' : ''}`}
+                    >
+                      All
+                    </button>
+                    <button
+                      onClick={() => setHideReposts(true)}
+                      disabled={!!postsSearchQuery}
+                      className={`px-2.5 py-1 text-xs font-medium rounded-r-full transition-colors ${
+                        hideReposts && !postsSearchQuery
+                          ? 'bg-blue-500 text-white'
+                          : 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'
+                      } ${postsSearchQuery ? 'opacity-50 cursor-not-allowed' : ''}`}
+                    >
+                      Original
+                    </button>
+                  </div>
+                </div>
+                
+                {/* Search status */}
+                {postsSearchQuery && (
+                  <div className="mt-2 flex items-center justify-between text-xs">
+                    <span className="text-gray-500 dark:text-gray-400">
+                      {searchLoading ? 'Searching...' : `${searchResults.length} result${searchResults.length !== 1 ? 's' : ''} for "${postsSearchQuery}"`}
+                    </span>
+                    <button
+                      onClick={clearSearch}
+                      className="text-blue-500 hover:text-blue-600"
+                    >
+                      Clear search
+                    </button>
+                  </div>
+                )}
+              </div>
+              
+              {postsLoading && posts.length === 0 && !postsSearchQuery ? (
                 <div className="flex items-center justify-center py-12"><div className="animate-spin w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full" /></div>
               ) : postsError ? (
                 <div className="text-center py-8 text-red-500">{postsError}</div>
-              ) : (
+              ) : postsSearchQuery ? (
+                // Search results view
                 <>
-                  {pinnedPost && (
+                  {searchLoading && searchResults.length === 0 ? (
+                    <div className="flex items-center justify-center py-12"><div className="animate-spin w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full" /></div>
+                  ) : searchResults.length === 0 ? (
+                    <div className="text-center py-8 text-gray-500">No posts found matching "{postsSearchQuery}"</div>
+                  ) : (
+                    <>
+                      {searchResults.map((post) => (
+                        <div key={post.uri} className="border-b border-gray-200 dark:border-gray-800 last:border-b-0">
+                          <Post post={post} onOpenThread={navigateToPost} />
+                        </div>
+                      ))}
+                      {searchCursor && (
+                        <div className="h-20 flex items-center justify-center">
+                          {searchLoading ? (
+                            <div className="animate-spin w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full" />
+                          ) : (
+                            <button
+                              onClick={() => performSearch(postsSearchQuery, searchCursor)}
+                              className="text-sm text-blue-500 hover:text-blue-600"
+                            >
+                              Load more results
+                            </button>
+                          )}
+                        </div>
+                      )}
+                    </>
+                  )}
+                </>
+              ) : (
+                // Normal posts view (with optional repost filter)
+                <>
+                  {pinnedPost && !hideReposts && (
                     <div className="border-b-2 border-blue-200 dark:border-blue-800 bg-blue-50/50 dark:bg-blue-900/10">
                       <div className="flex items-center gap-1.5 px-4 pt-3 pb-1">
                         <svg className="w-4 h-4 text-blue-500" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M3 6a3 3 0 013-3h10a1 1 0 01.8 1.6L14.25 8l2.55 3.4A1 1 0 0116 13H6a1 1 0 00-1 1v3a1 1 0 11-2 0V6z" clipRule="evenodd" /></svg>
@@ -1630,16 +1808,18 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
                       <Post post={pinnedPost} onOpenThread={navigateToPost} />
                     </div>
                   )}
-                  {posts.length === 0 && !pinnedPost ? (
-                    <div className="text-center py-8 text-gray-500">No posts yet</div>
+                  {displayPosts.length === 0 && !pinnedPost ? (
+                    <div className="text-center py-8 text-gray-500">
+                      {hideReposts ? 'No original posts yet' : 'No posts yet'}
+                    </div>
                   ) : (
                     <>
-                      {posts.filter(item => item.post.uri !== pinnedPost?.uri).map((item) => {
+                      {displayPosts.filter(item => item.post.uri !== pinnedPost?.uri).map((item) => {
                         const postUri = item.post.uri;
                         const expandedThread = expandedThreads.get(postUri);
 
                         // If this post has an expanded self-thread, render it
-                        if (expandedThread) {
+                        if (expandedThread && !hideReposts) {
                           return (
                             <SelfThread
                               key={`thread-${postUri}`}
