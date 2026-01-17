@@ -156,6 +156,102 @@ interface IngestRequest {
   createdAt: string;
 }
 
+interface BatchedIngestRequest {
+  batch: IngestRequest[];
+}
+
+// Process a single ingest request
+async function processSingleIngest(req: IngestRequest): Promise<{ articleId: number; normalizedId: string }[]> {
+  const { articles, postUri, authorDid, postText, createdAt } = req;
+
+  if (!articles || !Array.isArray(articles) || articles.length === 0) {
+    return [];
+  }
+
+  // Check if author is a verified researcher (3x weight for mentions)
+  const [verifiedAuthor] = await db
+    .select()
+    .from(verifiedResearchers)
+    .where(eq(verifiedResearchers.did, authorDid))
+    .limit(1);
+  const isVerified = !!verifiedAuthor;
+  const mentionWeight = isVerified ? 3 : 1;
+
+  const results: { articleId: number; normalizedId: string }[] = [];
+
+  for (const article of articles) {
+    // Upsert article
+    const [existingArticle] = await db
+      .select()
+      .from(discoveredArticles)
+      .where(eq(discoveredArticles.normalizedId, article.normalizedId))
+      .limit(1);
+
+    let articleId: number;
+
+    if (existingArticle) {
+      // Update existing article
+      await db
+        .update(discoveredArticles)
+        .set({
+          lastSeenAt: new Date(),
+          mentionCount: sql`${discoveredArticles.mentionCount} + ${mentionWeight}`,
+        })
+        .where(eq(discoveredArticles.normalizedId, article.normalizedId));
+      articleId = existingArticle.id;
+    } else {
+      // Fetch metadata for new article
+      const metadata = await fetchArticleMetadata(article.source, article.slug, article.url);
+
+      // Insert new article with metadata
+      const [inserted] = await db
+        .insert(discoveredArticles)
+        .values({
+          url: article.url,
+          normalizedId: article.normalizedId,
+          source: article.source,
+          slug: article.slug,
+          title: metadata?.title || null,
+          description: metadata?.description || null,
+          author: metadata?.author || null,
+          imageUrl: metadata?.imageUrl || null,
+          category: metadata?.category || null,
+          publishedAt: metadata?.publishedAt || null,
+          firstSeenAt: new Date(),
+          lastSeenAt: new Date(),
+          mentionCount: mentionWeight,
+        })
+        .returning({ id: discoveredArticles.id });
+      articleId = inserted.id;
+
+      console.log(`New article discovered: ${article.source} - ${metadata?.title || article.slug}`);
+    }
+
+    // Check if mention already exists
+    const [existingMention] = await db
+      .select()
+      .from(articleMentions)
+      .where(eq(articleMentions.postUri, postUri))
+      .limit(1);
+
+    if (!existingMention) {
+      // Insert mention
+      await db.insert(articleMentions).values({
+        articleId,
+        postUri,
+        authorDid,
+        postText: postText?.slice(0, 1000) || '',
+        createdAt: new Date(createdAt),
+        isVerifiedResearcher: isVerified,
+      });
+    }
+
+    results.push({ articleId, normalizedId: article.normalizedId });
+  }
+
+  return results;
+}
+
 // POST /api/articles/ingest - Ingest article mentions from firehose worker
 export async function POST(request: NextRequest) {
   // Verify API secret
@@ -165,92 +261,28 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const body: IngestRequest = await request.json();
-    const { articles, postUri, authorDid, postText, createdAt } = body;
+    const body = await request.json();
 
-    if (!articles || !Array.isArray(articles) || articles.length === 0) {
-      return NextResponse.json({ error: 'No articles provided' }, { status: 400 });
+    // Check if this is a batched request
+    if (body.batch && Array.isArray(body.batch)) {
+      const batchedBody = body as BatchedIngestRequest;
+      const allResults: { articleId: number; normalizedId: string }[] = [];
+
+      for (const req of batchedBody.batch) {
+        const results = await processSingleIngest(req);
+        allResults.push(...results);
+      }
+
+      console.log(`Processed batch of ${batchedBody.batch.length} requests, ${allResults.length} articles`);
+      return NextResponse.json({ success: true, articles: allResults, batchSize: batchedBody.batch.length });
     }
 
-    // Check if author is a verified researcher (3x weight for mentions)
-    const [verifiedAuthor] = await db
-      .select()
-      .from(verifiedResearchers)
-      .where(eq(verifiedResearchers.did, authorDid))
-      .limit(1);
-    const isVerified = !!verifiedAuthor;
-    const mentionWeight = isVerified ? 3 : 1;
+    // Handle single request (backwards compatibility)
+    const singleBody = body as IngestRequest;
+    const results = await processSingleIngest(singleBody);
 
-    const results: { articleId: number; normalizedId: string }[] = [];
-
-    for (const article of articles) {
-      // Upsert article
-      const [existingArticle] = await db
-        .select()
-        .from(discoveredArticles)
-        .where(eq(discoveredArticles.normalizedId, article.normalizedId))
-        .limit(1);
-
-      let articleId: number;
-
-      if (existingArticle) {
-        // Update existing article
-        await db
-          .update(discoveredArticles)
-          .set({
-            lastSeenAt: new Date(),
-            mentionCount: sql`${discoveredArticles.mentionCount} + ${mentionWeight}`,
-          })
-          .where(eq(discoveredArticles.normalizedId, article.normalizedId));
-        articleId = existingArticle.id;
-      } else {
-        // Fetch metadata for new article
-        const metadata = await fetchArticleMetadata(article.source, article.slug, article.url);
-
-        // Insert new article with metadata
-        const [inserted] = await db
-          .insert(discoveredArticles)
-          .values({
-            url: article.url,
-            normalizedId: article.normalizedId,
-            source: article.source,
-            slug: article.slug,
-            title: metadata?.title || null,
-            description: metadata?.description || null,
-            author: metadata?.author || null,
-            imageUrl: metadata?.imageUrl || null,
-            category: metadata?.category || null,
-            publishedAt: metadata?.publishedAt || null,
-            firstSeenAt: new Date(),
-            lastSeenAt: new Date(),
-            mentionCount: mentionWeight,
-          })
-          .returning({ id: discoveredArticles.id });
-        articleId = inserted.id;
-
-        console.log(`New article discovered: ${article.source} - ${metadata?.title || article.slug}`);
-      }
-
-      // Check if mention already exists
-      const [existingMention] = await db
-        .select()
-        .from(articleMentions)
-        .where(eq(articleMentions.postUri, postUri))
-        .limit(1);
-
-      if (!existingMention) {
-        // Insert mention
-        await db.insert(articleMentions).values({
-          articleId,
-          postUri,
-          authorDid,
-          postText: postText?.slice(0, 1000) || '',
-          createdAt: new Date(createdAt),
-          isVerifiedResearcher: isVerified,
-        });
-      }
-
-      results.push({ articleId, normalizedId: article.normalizedId });
+    if (results.length === 0 && singleBody.articles?.length > 0) {
+      return NextResponse.json({ error: 'No articles provided' }, { status: 400 });
     }
 
     return NextResponse.json({ success: true, articles: results });

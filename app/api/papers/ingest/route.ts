@@ -172,7 +172,158 @@ interface IngestRequest {
   authorDid: string;
   postText: string;
   createdAt: string;
-  quotedPostUri?: string; // URI of quoted post (for quote posts)
+  quotedPostUri?: string | null; // URI of quoted post (for quote posts)
+}
+
+interface BatchedIngestRequest {
+  batch: IngestRequest[];
+}
+
+// Process a single ingest request
+async function processSingleIngest(req: IngestRequest): Promise<{ paperId: number; normalizedId: string }[]> {
+  const { papers, postUri, authorDid, postText, createdAt, quotedPostUri } = req;
+
+  // Handle quote posts - if no direct paper links, check if quoted post mentions papers
+  if ((!papers || !Array.isArray(papers) || papers.length === 0) && quotedPostUri) {
+    // Look up papers mentioned by the quoted post
+    const quotedMentions = await db
+      .select({
+        paperId: paperMentions.paperId,
+        normalizedId: discoveredPapers.normalizedId,
+      })
+      .from(paperMentions)
+      .innerJoin(discoveredPapers, eq(paperMentions.paperId, discoveredPapers.id))
+      .where(eq(paperMentions.postUri, quotedPostUri));
+
+    if (quotedMentions.length === 0) {
+      return [];
+    }
+
+    // Check if author is a verified researcher
+    const [verifiedAuthor] = await db
+      .select()
+      .from(verifiedResearchers)
+      .where(eq(verifiedResearchers.did, authorDid))
+      .limit(1);
+    const isVerified = !!verifiedAuthor;
+    const mentionWeight = isVerified ? 3 : 1;
+
+    const results: { paperId: number; normalizedId: string }[] = [];
+
+    for (const mention of quotedMentions) {
+      // Check if mention already exists
+      const [existingMention] = await db
+        .select()
+        .from(paperMentions)
+        .where(eq(paperMentions.postUri, postUri))
+        .limit(1);
+
+      if (!existingMention) {
+        // Update paper mention count
+        await db
+          .update(discoveredPapers)
+          .set({
+            lastSeenAt: new Date(),
+            mentionCount: sql`${discoveredPapers.mentionCount} + ${mentionWeight}`,
+          })
+          .where(eq(discoveredPapers.id, mention.paperId));
+
+        // Insert mention
+        await db.insert(paperMentions).values({
+          paperId: mention.paperId,
+          postUri,
+          authorDid,
+          postText: postText?.slice(0, 1000) || '',
+          createdAt: new Date(createdAt),
+          isVerifiedResearcher: isVerified,
+        });
+      }
+
+      results.push({ paperId: mention.paperId, normalizedId: mention.normalizedId });
+    }
+
+    return results;
+  }
+
+  if (!papers || !Array.isArray(papers) || papers.length === 0) {
+    return [];
+  }
+
+  // Check if author is a verified researcher (3x weight for mentions)
+  const [verifiedAuthor] = await db
+    .select()
+    .from(verifiedResearchers)
+    .where(eq(verifiedResearchers.did, authorDid))
+    .limit(1);
+  const isVerified = !!verifiedAuthor;
+  const mentionWeight = isVerified ? 3 : 1;
+
+  const results: { paperId: number; normalizedId: string }[] = [];
+
+  for (const paper of papers) {
+    // Upsert paper
+    const [existingPaper] = await db
+      .select()
+      .from(discoveredPapers)
+      .where(eq(discoveredPapers.normalizedId, paper.normalizedId))
+      .limit(1);
+
+    let paperId: number;
+
+    if (existingPaper) {
+      // Update existing paper (verified researchers count 3x)
+      await db
+        .update(discoveredPapers)
+        .set({
+          lastSeenAt: new Date(),
+          mentionCount: sql`${discoveredPapers.mentionCount} + ${mentionWeight}`,
+        })
+        .where(eq(discoveredPapers.normalizedId, paper.normalizedId));
+      paperId = existingPaper.id;
+    } else {
+      // Fetch metadata for new paper
+      const metadata = await fetchPaperMetadata(paper.normalizedId, paper.source);
+
+      // Insert new paper with metadata (verified researchers count 3x)
+      const [inserted] = await db
+        .insert(discoveredPapers)
+        .values({
+          url: paper.url,
+          normalizedId: paper.normalizedId,
+          source: paper.source,
+          title: metadata?.title || null,
+          authors: metadata?.authors ? JSON.stringify(metadata.authors) : null,
+          firstSeenAt: new Date(),
+          lastSeenAt: new Date(),
+          mentionCount: mentionWeight,
+        })
+        .returning({ id: discoveredPapers.id });
+      paperId = inserted.id;
+    }
+
+    // Check if mention already exists
+    const [existingMention] = await db
+      .select()
+      .from(paperMentions)
+      .where(eq(paperMentions.postUri, postUri))
+      .limit(1);
+
+    if (!existingMention) {
+      // Insert mention
+      await db.insert(paperMentions).values({
+        paperId,
+        postUri,
+        authorDid,
+        postText: postText?.slice(0, 1000) || '',
+        createdAt: new Date(createdAt),
+        isVerifiedResearcher: isVerified,
+      });
+    }
+
+    results.push({ paperId, normalizedId: paper.normalizedId });
+  }
+
+  return results;
 }
 
 // POST /api/papers/ingest - Ingest paper mentions from firehose worker
@@ -184,8 +335,25 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const body: IngestRequest = await request.json();
-    const { papers, postUri, authorDid, postText, createdAt, quotedPostUri } = body;
+    const body = await request.json();
+
+    // Check if this is a batched request
+    if (body.batch && Array.isArray(body.batch)) {
+      const batchedBody = body as BatchedIngestRequest;
+      const allResults: { paperId: number; normalizedId: string }[] = [];
+
+      for (const req of batchedBody.batch) {
+        const results = await processSingleIngest(req);
+        allResults.push(...results);
+      }
+
+      console.log(`Processed batch of ${batchedBody.batch.length} requests, ${allResults.length} papers`);
+      return NextResponse.json({ success: true, papers: allResults, batchSize: batchedBody.batch.length });
+    }
+
+    // Handle single request (backwards compatibility)
+    const singleBody = body as IngestRequest;
+    const { papers, postUri, authorDid, postText, createdAt, quotedPostUri } = singleBody;
 
     // Handle quote posts - if no direct paper links, check if quoted post mentions papers
     if ((!papers || !Array.isArray(papers) || papers.length === 0) && quotedPostUri) {

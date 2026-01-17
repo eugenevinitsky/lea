@@ -4,6 +4,37 @@ interface Env {
   LEA_API_SECRET: string;
 }
 
+// Batching configuration
+const BATCH_SIZE = 50;        // Flush after 50 items
+const BATCH_INTERVAL_MS = 10000;  // Flush every 10 seconds
+
+// Batched request types
+interface BatchedPaperRequest {
+  papers: PaperMatch[];
+  postUri: string;
+  authorDid: string;
+  postText: string;
+  createdAt: string;
+  quotedPostUri: string | null;
+}
+
+interface BatchedSubstackRequest {
+  substackPosts: SubstackMatch[];
+  postUri: string;
+  authorDid: string;
+  postText: string;
+  createdAt: string;
+  quotedPostUri: string | null;
+}
+
+interface BatchedArticleRequest {
+  articles: ArticleMatch[];
+  postUri: string;
+  authorDid: string;
+  postText: string;
+  createdAt: string;
+}
+
 // Substack URL patterns
 const SUBSTACK_PATTERNS = [
   // Custom subdomain format: eugenewei.substack.com/p/status-as-a-service
@@ -243,9 +274,144 @@ export class JetstreamConnection implements DurableObject {
   private articlesFound = 0;
   private lastError: string | null = null;
 
+  // Batch buffers
+  private papersBatch: BatchedPaperRequest[] = [];
+  private substackBatch: BatchedSubstackRequest[] = [];
+  private articlesBatch: BatchedArticleRequest[] = [];
+  private lastFlushTime = Date.now();
+  private flushScheduled = false;
+
   constructor(state: DurableObjectState, env: Env) {
     this.state = state;
     this.env = env;
+  }
+
+  // Schedule a flush if not already scheduled
+  private scheduleFlush() {
+    if (this.flushScheduled) return;
+    this.flushScheduled = true;
+    // Use setTimeout for the flush timer (separate from keep-alive alarm)
+    setTimeout(() => this.flushAllBatches(), BATCH_INTERVAL_MS);
+  }
+
+  // Check if any batch needs flushing based on size
+  private checkBatchSizes() {
+    if (this.papersBatch.length >= BATCH_SIZE) {
+      this.flushPapersBatch();
+    }
+    if (this.substackBatch.length >= BATCH_SIZE) {
+      this.flushSubstackBatch();
+    }
+    if (this.articlesBatch.length >= BATCH_SIZE) {
+      this.flushArticlesBatch();
+    }
+  }
+
+  // Flush all batches
+  private async flushAllBatches() {
+    this.flushScheduled = false;
+    await Promise.all([
+      this.flushPapersBatch(),
+      this.flushSubstackBatch(),
+      this.flushArticlesBatch(),
+    ]);
+    this.lastFlushTime = Date.now();
+  }
+
+  // Flush papers batch
+  private async flushPapersBatch() {
+    if (this.papersBatch.length === 0) return;
+
+    const batch = this.papersBatch;
+    this.papersBatch = [];
+
+    try {
+      const response = await fetch(`${this.env.LEA_API_URL}/api/papers/ingest`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${this.env.LEA_API_SECRET}`,
+        },
+        body: JSON.stringify({ batch }),
+      });
+
+      if (!response.ok) {
+        const responseText = await response.text();
+        console.error('Papers batch API error:', response.status, responseText);
+        this.lastError = `Papers batch API error: ${response.status}`;
+      } else {
+        console.log(`Flushed papers batch: ${batch.length} requests`);
+      }
+    } catch (e) {
+      console.error('Failed to flush papers batch:', e);
+      this.lastError = `Papers batch error: ${e}`;
+      // Re-add to batch for retry on next flush
+      this.papersBatch = [...batch, ...this.papersBatch];
+    }
+  }
+
+  // Flush substack batch
+  private async flushSubstackBatch() {
+    if (this.substackBatch.length === 0) return;
+
+    const batch = this.substackBatch;
+    this.substackBatch = [];
+
+    try {
+      const response = await fetch(`${this.env.LEA_API_URL}/api/substack/ingest`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${this.env.LEA_API_SECRET}`,
+        },
+        body: JSON.stringify({ batch }),
+      });
+
+      if (!response.ok) {
+        const responseText = await response.text();
+        console.error('Substack batch API error:', response.status, responseText);
+        this.lastError = `Substack batch API error: ${response.status}`;
+      } else {
+        console.log(`Flushed substack batch: ${batch.length} requests`);
+      }
+    } catch (e) {
+      console.error('Failed to flush substack batch:', e);
+      this.lastError = `Substack batch error: ${e}`;
+      // Re-add to batch for retry on next flush
+      this.substackBatch = [...batch, ...this.substackBatch];
+    }
+  }
+
+  // Flush articles batch
+  private async flushArticlesBatch() {
+    if (this.articlesBatch.length === 0) return;
+
+    const batch = this.articlesBatch;
+    this.articlesBatch = [];
+
+    try {
+      const response = await fetch(`${this.env.LEA_API_URL}/api/articles/ingest`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${this.env.LEA_API_SECRET}`,
+        },
+        body: JSON.stringify({ batch }),
+      });
+
+      if (!response.ok) {
+        const responseText = await response.text();
+        console.error('Articles batch API error:', response.status, responseText);
+        this.lastError = `Articles batch API error: ${response.status}`;
+      } else {
+        console.log(`Flushed articles batch: ${batch.length} requests`);
+      }
+    } catch (e) {
+      console.error('Failed to flush articles batch:', e);
+      this.lastError = `Articles batch error: ${e}`;
+      // Re-add to batch for retry on next flush
+      this.articlesBatch = [...batch, ...this.articlesBatch];
+    }
   }
 
   // Alarm handler - keeps the DO alive and connection open
@@ -295,6 +461,12 @@ export class JetstreamConnection implements DurableObject {
         substackFound: this.substackFound,
         articlesFound: this.articlesFound,
         lastError: this.lastError,
+        batchSizes: {
+          papers: this.papersBatch.length,
+          substack: this.substackBatch.length,
+          articles: this.articlesBatch.length,
+        },
+        lastFlushTime: this.lastFlushTime,
       }), {
         headers: { 'Content-Type': 'application/json' }
       });
@@ -401,108 +573,46 @@ export class JetstreamConnection implements DurableObject {
     const postUri = `at://${event.did}/app.bsky.feed.post/${event.commit.rkey}`;
     const createdAt = record.createdAt || new Date().toISOString();
 
-    // Send papers to papers API (if any papers or quote post)
+    // Add to papers batch (if any papers or quote post)
     if (papers.length > 0 || quotedPostUri) {
-      try {
-        const response = await fetch(`${this.env.LEA_API_URL}/api/papers/ingest`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${this.env.LEA_API_SECRET}`,
-          },
-          body: JSON.stringify({
-            papers,
-            postUri,
-            authorDid: event.did,
-            postText: record.text || '',
-            createdAt,
-            quotedPostUri,
-          }),
-        });
-
-        const responseText = await response.text();
-        if (!response.ok) {
-          console.error('Papers API error:', response.status, responseText);
-          this.lastError = `Papers API error: ${response.status}`;
-        } else {
-          const logMsg = papers.length > 0
-            ? `Ingested ${papers.length} paper(s) from ${event.did}`
-            : `Processed quote post from ${event.did}`;
-          console.log(logMsg);
-        }
-      } catch (e) {
-        console.error('Failed to send papers to API:', e);
-        this.lastError = `Papers fetch error: ${e}`;
-      }
+      this.papersBatch.push({
+        papers,
+        postUri,
+        authorDid: event.did,
+        postText: record.text || '',
+        createdAt,
+        quotedPostUri,
+      });
     }
 
-    // Send Substack posts to Substack API (if any Substack links or quote post)
+    // Add to substack batch (if any Substack links or quote post)
     if (substackPosts.length > 0 || quotedPostUri) {
-      try {
-        const response = await fetch(`${this.env.LEA_API_URL}/api/substack/ingest`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${this.env.LEA_API_SECRET}`,
-          },
-          body: JSON.stringify({
-            substackPosts,
-            postUri,
-            authorDid: event.did,
-            postText: record.text || '',
-            createdAt,
-            quotedPostUri,
-          }),
-        });
-
-        const responseText = await response.text();
-        if (!response.ok) {
-          console.error('Substack API error:', response.status, responseText);
-          this.lastError = `Substack API error: ${response.status}`;
-        } else {
-          const logMsg = substackPosts.length > 0
-            ? `Ingested ${substackPosts.length} Substack post(s) from ${event.did}`
-            : `Processed quote post (Substack) from ${event.did}`;
-          console.log(logMsg);
-        }
-      } catch (e) {
-        console.error('Failed to send Substack to API:', e);
-        this.lastError = `Substack fetch error: ${e}`;
-      }
+      this.substackBatch.push({
+        substackPosts,
+        postUri,
+        authorDid: event.did,
+        postText: record.text || '',
+        createdAt,
+        quotedPostUri,
+      });
     }
 
-    // Send articles to articles API (if any article links)
+    // Add to articles batch (if any article links)
     if (articles.length > 0) {
-      try {
-        const response = await fetch(`${this.env.LEA_API_URL}/api/articles/ingest`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${this.env.LEA_API_SECRET}`,
-          },
-          body: JSON.stringify({
-            articles,
-            postUri,
-            authorDid: event.did,
-            postText: record.text || '',
-            createdAt,
-          }),
-        });
-
-        const responseText = await response.text();
-        if (!response.ok) {
-          console.error('Articles API error:', response.status, responseText);
-          this.lastError = `Articles API error: ${response.status}`;
-        } else {
-          console.log(`Ingested ${articles.length} article(s) from ${event.did}`);
-        }
-      } catch (e) {
-        console.error('Failed to send articles to API:', e);
-        this.lastError = `Articles fetch error: ${e}`;
-      }
+      this.articlesBatch.push({
+        articles,
+        postUri,
+        authorDid: event.did,
+        postText: record.text || '',
+        createdAt,
+      });
     }
 
-    this.lastError = null;
+    // Schedule flush timer if not already scheduled
+    this.scheduleFlush();
+
+    // Check if any batch is full and needs immediate flushing
+    this.checkBatchSizes();
   }
 }
 

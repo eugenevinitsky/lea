@@ -167,7 +167,176 @@ interface IngestRequest {
   authorDid: string;
   postText: string;
   createdAt: string;
-  quotedPostUri?: string; // URI of quoted post (for quote posts)
+  quotedPostUri?: string | null; // URI of quoted post (for quote posts)
+}
+
+interface BatchedIngestRequest {
+  batch: IngestRequest[];
+}
+
+// Process a single ingest request
+async function processSingleIngest(req: IngestRequest): Promise<{ substackPostId: number; normalizedId: string }[]> {
+  const { substackPosts, postUri, authorDid, postText, createdAt, quotedPostUri } = req;
+
+  // Handle quote posts - if no direct Substack links, check if quoted post mentions Substack
+  if ((!substackPosts || !Array.isArray(substackPosts) || substackPosts.length === 0) && quotedPostUri) {
+    // Look up Substack posts mentioned by the quoted post
+    const quotedMentions = await db
+      .select({
+        substackPostId: substackMentions.substackPostId,
+        normalizedId: discoveredSubstackPosts.normalizedId,
+      })
+      .from(substackMentions)
+      .innerJoin(discoveredSubstackPosts, eq(substackMentions.substackPostId, discoveredSubstackPosts.id))
+      .where(eq(substackMentions.postUri, quotedPostUri));
+
+    if (quotedMentions.length === 0) {
+      return [];
+    }
+
+    // Check if author is a verified researcher
+    const [verifiedAuthor] = await db
+      .select()
+      .from(verifiedResearchers)
+      .where(eq(verifiedResearchers.did, authorDid))
+      .limit(1);
+    const isVerified = !!verifiedAuthor;
+    const mentionWeight = isVerified ? 3 : 1;
+
+    const results: { substackPostId: number; normalizedId: string }[] = [];
+
+    for (const mention of quotedMentions) {
+      // Check if mention already exists
+      const [existingMention] = await db
+        .select()
+        .from(substackMentions)
+        .where(eq(substackMentions.postUri, postUri))
+        .limit(1);
+
+      if (!existingMention) {
+        // Update Substack post mention count
+        await db
+          .update(discoveredSubstackPosts)
+          .set({
+            lastSeenAt: new Date(),
+            mentionCount: sql`${discoveredSubstackPosts.mentionCount} + ${mentionWeight}`,
+          })
+          .where(eq(discoveredSubstackPosts.id, mention.substackPostId));
+
+        // Insert mention
+        await db.insert(substackMentions).values({
+          substackPostId: mention.substackPostId,
+          postUri,
+          authorDid,
+          postText: postText?.slice(0, 1000) || '',
+          createdAt: new Date(createdAt),
+          isVerifiedResearcher: isVerified,
+        });
+      }
+
+      results.push({ substackPostId: mention.substackPostId, normalizedId: mention.normalizedId });
+    }
+
+    return results;
+  }
+
+  if (!substackPosts || !Array.isArray(substackPosts) || substackPosts.length === 0) {
+    return [];
+  }
+
+  // Check if author is a verified researcher (3x weight for mentions)
+  const [verifiedAuthor] = await db
+    .select()
+    .from(verifiedResearchers)
+    .where(eq(verifiedResearchers.did, authorDid))
+    .limit(1);
+  const isVerified = !!verifiedAuthor;
+  const mentionWeight = isVerified ? 3 : 1;
+
+  const results: { substackPostId: number; normalizedId: string }[] = [];
+
+  for (const post of substackPosts) {
+    // Upsert Substack post
+    const [existingPost] = await db
+      .select()
+      .from(discoveredSubstackPosts)
+      .where(eq(discoveredSubstackPosts.normalizedId, post.normalizedId))
+      .limit(1);
+
+    let substackPostId: number;
+
+    if (existingPost) {
+      // Update existing post
+      await db
+        .update(discoveredSubstackPosts)
+        .set({
+          lastSeenAt: new Date(),
+          mentionCount: sql`${discoveredSubstackPosts.mentionCount} + ${mentionWeight}`,
+        })
+        .where(eq(discoveredSubstackPosts.normalizedId, post.normalizedId));
+      substackPostId = existingPost.id;
+    } else {
+      // Fetch metadata for new post (including body text from RSS for better classification)
+      const metadata = await fetchSubstackMetadata(post.url, post.subdomain, post.slug);
+
+      // Filter for technical/intellectual content using BOW classifier
+      // Combine title, description, and body text (matches training data format)
+      const classificationText = [
+        metadata?.title || '',
+        metadata?.description || '',
+        metadata?.bodyText || '',
+      ].filter(Boolean).join(' ');
+
+      // Pass combined text - isTechnicalContent will concatenate args, so use empty title
+      if (!isTechnicalContent('', classificationText)) {
+        console.log(`Skipping non-technical Substack post: ${post.url} (title: ${metadata?.title})`);
+        continue;
+      }
+
+      // Insert new Substack post with metadata
+      const [inserted] = await db
+        .insert(discoveredSubstackPosts)
+        .values({
+          url: post.url,
+          normalizedId: post.normalizedId,
+          subdomain: post.subdomain,
+          slug: post.slug,
+          title: metadata?.title || null,
+          description: metadata?.description || null,
+          author: metadata?.author || null,
+          newsletterName: metadata?.newsletterName || null,
+          imageUrl: metadata?.imageUrl || null,
+          firstSeenAt: new Date(),
+          lastSeenAt: new Date(),
+          mentionCount: mentionWeight,
+        })
+        .returning({ id: discoveredSubstackPosts.id });
+      substackPostId = inserted.id;
+    }
+
+    // Check if mention already exists
+    const [existingMention] = await db
+      .select()
+      .from(substackMentions)
+      .where(eq(substackMentions.postUri, postUri))
+      .limit(1);
+
+    if (!existingMention) {
+      // Insert mention
+      await db.insert(substackMentions).values({
+        substackPostId,
+        postUri,
+        authorDid,
+        postText: postText?.slice(0, 1000) || '',
+        createdAt: new Date(createdAt),
+        isVerifiedResearcher: isVerified,
+      });
+    }
+
+    results.push({ substackPostId, normalizedId: post.normalizedId });
+  }
+
+  return results;
 }
 
 // POST /api/substack/ingest - Ingest Substack mentions from firehose worker
@@ -179,8 +348,25 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const body: IngestRequest = await request.json();
-    const { substackPosts, postUri, authorDid, postText, createdAt, quotedPostUri } = body;
+    const body = await request.json();
+
+    // Check if this is a batched request
+    if (body.batch && Array.isArray(body.batch)) {
+      const batchedBody = body as BatchedIngestRequest;
+      const allResults: { substackPostId: number; normalizedId: string }[] = [];
+
+      for (const req of batchedBody.batch) {
+        const results = await processSingleIngest(req);
+        allResults.push(...results);
+      }
+
+      console.log(`Processed batch of ${batchedBody.batch.length} requests, ${allResults.length} substack posts`);
+      return NextResponse.json({ success: true, substackPosts: allResults, batchSize: batchedBody.batch.length });
+    }
+
+    // Handle single request (backwards compatibility)
+    const singleBody = body as IngestRequest;
+    const { substackPosts, postUri, authorDid, postText, createdAt, quotedPostUri } = singleBody;
 
     // Handle quote posts - if no direct Substack links, check if quoted post mentions Substack
     if ((!substackPosts || !Array.isArray(substackPosts) || substackPosts.length === 0) && quotedPostUri) {
