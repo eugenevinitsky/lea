@@ -1360,13 +1360,22 @@ function MyPostsActivityPane({
   );
 }
 
-// Mentions Pane Component
+// Entry for a mention with its activity
+interface MentionWithActivity {
+  mention: NotificationItem;
+  activity: PostActivity[];
+  isNew: boolean;
+}
+
+// Mentions Pane Component - shows mentions and activity on those mentions
 function MentionsPane({
   mentions,
+  allNotifications,
   onOpenProfile,
   onOpenPost,
 }: {
   mentions: NotificationItem[];
+  allNotifications: NotificationItem[];
   onOpenProfile: (did: string) => void;
   onOpenPost: (uri: string) => void;
 }) {
@@ -1377,52 +1386,191 @@ function MentionsPane({
     setMentionsLastViewed();
   }, []);
   
-  // Group mentions by time period
-  const groupedByPeriod = useMemo(() => {
-    // Filter to mentions with valid indexedAt and group by period
-    const periodMentions: { period: 'hour' | 'today' | 'week'; mention: NotificationItem; isNew: boolean }[] = [];
+  // Build a set of mention URIs for quick lookup
+  const mentionUris = useMemo(() => {
+    return new Set(mentions.map(m => m.uri));
+  }, [mentions]);
+  
+  // Build activity map keyed by mention URI (activity on the mention posts)
+  const activityByMention = useMemo(() => {
+    const map = new Map<string, PostActivity[]>();
     
-    for (const mention of mentions) {
-      const period = getTimePeriod(mention.indexedAt);
-      if (period === 'older') continue;
+    for (const n of allNotifications) {
+      // Skip the mentions themselves - we handle them separately
+      if (n.reason === 'mention') continue;
       
-      const isNew = new Date(mention.indexedAt) > lastViewed;
-      periodMentions.push({ period, mention, isNew });
+      // Determine which post this notification is about
+      let targetUri: string | undefined;
+      
+      if (n.reason === 'like' || n.reason === 'repost') {
+        targetUri = n.reasonSubject;
+      } else if (n.reason === 'reply' || n.reason === 'quote') {
+        targetUri = n.reasonSubject;
+      }
+      
+      // Only include if the target is one of our mention posts
+      if (!targetUri || !mentionUris.has(targetUri)) continue;
+      
+      const activity: PostActivity = {
+        type: n.reason as PostActivity['type'],
+        author: n.author,
+        text: n.record?.text,
+        uri: n.uri,
+        indexedAt: n.indexedAt,
+      };
+      
+      if (!map.has(targetUri)) {
+        map.set(targetUri, []);
+      }
+      map.get(targetUri)!.push(activity);
     }
     
-    // Sort by period priority then by time
+    // Sort activity within each mention by recency
+    for (const activities of map.values()) {
+      activities.sort((a, b) => new Date(b.indexedAt).getTime() - new Date(a.indexedAt).getTime());
+    }
+    
+    return map;
+  }, [allNotifications, mentionUris]);
+  
+  // Group mentions by time period, considering both the mention time and activity time
+  const groupedByPeriod = useMemo(() => {
+    // For each mention, determine which period(s) it should appear in based on its activity
+    const periodMentions: {
+      period: 'hour' | 'today' | 'week';
+      mentionUri: string;
+      activity: PostActivity[];
+    }[] = [];
+    
+    // Group activity by (mentionUri, period)
+    const activityByMentionAndPeriod = new Map<string, Map<'hour' | 'today' | 'week', PostActivity[]>>();
+    
+    for (const mention of mentions) {
+      const mentionPeriod = getTimePeriod(mention.indexedAt);
+      if (mentionPeriod === 'older') continue;
+      
+      // Initialize the mention in its own period (even if no additional activity)
+      if (!activityByMentionAndPeriod.has(mention.uri)) {
+        activityByMentionAndPeriod.set(mention.uri, new Map());
+      }
+      const mentionPeriods = activityByMentionAndPeriod.get(mention.uri)!;
+      if (!mentionPeriods.has(mentionPeriod)) {
+        mentionPeriods.set(mentionPeriod, []);
+      }
+      
+      // Add activity on this mention to the appropriate periods
+      const activities = activityByMention.get(mention.uri) || [];
+      for (const activity of activities) {
+        const activityPeriod = getTimePeriod(activity.indexedAt);
+        if (activityPeriod === 'older') continue;
+        
+        if (!mentionPeriods.has(activityPeriod)) {
+          mentionPeriods.set(activityPeriod, []);
+        }
+        mentionPeriods.get(activityPeriod)!.push(activity);
+      }
+    }
+    
+    // Convert to array format
+    for (const [mentionUri, periods] of activityByMentionAndPeriod.entries()) {
+      for (const [period, activity] of periods.entries()) {
+        periodMentions.push({ period, mentionUri, activity });
+      }
+    }
+    
+    // Sort by period priority then by latest activity/mention time
     const periodOrder = { hour: 0, today: 1, week: 2 };
     periodMentions.sort((a, b) => {
       if (a.period !== b.period) {
         return periodOrder[a.period] - periodOrder[b.period];
       }
-      return new Date(b.mention.indexedAt).getTime() - new Date(a.mention.indexedAt).getTime();
+      // Within same period, sort by latest activity or mention time
+      const mentionA = mentions.find(m => m.uri === a.mentionUri);
+      const mentionB = mentions.find(m => m.uri === b.mentionUri);
+      const aLatest = Math.max(
+        mentionA ? new Date(mentionA.indexedAt).getTime() : 0,
+        ...a.activity.map(act => new Date(act.indexedAt).getTime())
+      );
+      const bLatest = Math.max(
+        mentionB ? new Date(mentionB.indexedAt).getTime() : 0,
+        ...b.activity.map(act => new Date(act.indexedAt).getTime())
+      );
+      return bLatest - aLatest;
     });
     
     // Group into period sections
-    const groups: { period: 'hour' | 'today' | 'week'; entries: { mention: NotificationItem; isNew: boolean }[] }[] = [];
+    const groups: { period: 'hour' | 'today' | 'week'; entries: MentionWithActivity[] }[] = [];
     let currentPeriod: 'hour' | 'today' | 'week' | null = null;
     
     for (const item of periodMentions) {
+      const mention = mentions.find(m => m.uri === item.mentionUri);
+      if (!mention) continue;
+      
       if (item.period !== currentPeriod) {
         currentPeriod = item.period;
         groups.push({ period: item.period, entries: [] });
       }
-      groups[groups.length - 1].entries.push({ mention: item.mention, isNew: item.isNew });
+      
+      // Check if mention or any activity is new
+      const isNew = new Date(mention.indexedAt) > lastViewed || 
+        item.activity.some(a => new Date(a.indexedAt) > lastViewed);
+      
+      groups[groups.length - 1].entries.push({
+        mention,
+        activity: item.activity,
+        isNew,
+      });
     }
     
     return groups;
-  }, [mentions, lastViewed]);
+  }, [mentions, activityByMention, lastViewed]);
   
-  // Calculate new mentions count
-  const newMentionsCount = useMemo(() => {
-    return mentions.filter(m => new Date(m.indexedAt) > lastViewed && getTimePeriod(m.indexedAt) !== 'older').length;
-  }, [mentions, lastViewed]);
+  // Calculate totals
+  const totalActivityCount = useMemo(() => {
+    let count = mentions.filter(m => getTimePeriod(m.indexedAt) !== 'older').length;
+    for (const activities of activityByMention.values()) {
+      for (const a of activities) {
+        const period = getTimePeriod(a.indexedAt);
+        if (period !== 'older') count++;
+      }
+    }
+    return count;
+  }, [mentions, activityByMention]);
   
-  // Total count (excluding older)
-  const totalCount = useMemo(() => {
-    return mentions.filter(m => getTimePeriod(m.indexedAt) !== 'older').length;
-  }, [mentions]);
+  // Calculate new activity stats
+  const newActivityStats = useMemo(() => {
+    let newMentions = 0, newReplies = 0, newQuotes = 0, newLikes = 0, newReposts = 0;
+    
+    // Count new mentions
+    for (const mention of mentions) {
+      if (new Date(mention.indexedAt) > lastViewed && getTimePeriod(mention.indexedAt) !== 'older') {
+        newMentions++;
+      }
+    }
+    
+    // Count new activity on mentions
+    for (const activities of activityByMention.values()) {
+      for (const a of activities) {
+        if (new Date(a.indexedAt) > lastViewed && getTimePeriod(a.indexedAt) !== 'older') {
+          switch (a.type) {
+            case 'reply': newReplies++; break;
+            case 'quote': newQuotes++; break;
+            case 'like': newLikes++; break;
+            case 'repost': newReposts++; break;
+          }
+        }
+      }
+    }
+    
+    return {
+      newMentions,
+      newReplies,
+      newQuotes,
+      newLikes,
+      newReposts,
+      totalNew: newMentions + newReplies + newQuotes + newLikes + newReposts,
+    };
+  }, [mentions, activityByMention, lastViewed]);
   
   return (
     <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden">
@@ -1433,18 +1581,23 @@ function MentionsPane({
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 12a4 4 0 10-8 0 4 4 0 008 0zm0 0v1.5a2.5 2.5 0 005 0V12a9 9 0 10-9 9m4.5-1.206a8.959 8.959 0 01-4.5 1.207" />
           </svg>
           Mentions
-          {newMentionsCount > 0 && (
+          {newActivityStats.totalNew > 0 && (
             <span className="px-1.5 py-0.5 text-xs font-medium bg-amber-500 text-white rounded-full animate-pulse">
-              {newMentionsCount} new
+              {newActivityStats.totalNew} new
             </span>
           )}
-          {totalCount > 0 && newMentionsCount === 0 && (
+          {totalActivityCount > 0 && newActivityStats.totalNew === 0 && (
             <span className="px-1.5 py-0.5 text-xs font-medium bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 rounded-full">
-              {totalCount} total
+              {totalActivityCount} total
             </span>
           )}
         </h3>
       </div>
+      
+      {/* Activity summary */}
+      {newActivityStats.totalNew > 0 && (
+        <MentionsActivitySummary {...newActivityStats} />
+      )}
       
       {/* Content */}
       {groupedByPeriod.length === 0 ? (
@@ -1466,10 +1619,9 @@ function MentionsPane({
               <TimelineSectionHeader period={group.period} />
               <div className="divide-y divide-gray-100 dark:divide-gray-800">
                 {group.entries.map((entry, idx) => (
-                  <MentionRow
-                    key={`${entry.mention.uri}-${idx}`}
-                    mention={entry.mention}
-                    isNew={entry.isNew}
+                  <MentionActivityRow
+                    key={`${entry.mention.uri}-${group.period}-${idx}`}
+                    entry={entry}
                     onOpenProfile={onOpenProfile}
                     onOpenPost={onOpenPost}
                   />
@@ -1490,107 +1642,189 @@ function MentionsPane({
   );
 }
 
-// Single mention row
-function MentionRow({
-  mention,
-  isNew,
+// Activity summary for mentions pane
+function MentionsActivitySummary({ 
+  newMentions,
+  newReplies, 
+  newQuotes, 
+  newLikes, 
+  newReposts,
+  totalNew,
+}: { 
+  newMentions: number;
+  newReplies: number;
+  newQuotes: number;
+  newLikes: number;
+  newReposts: number;
+  totalNew: number;
+}) {
+  if (totalNew === 0) return null;
+  
+  const items = [
+    { count: newMentions, label: 'mention', labelPlural: 'mentions', color: 'text-amber-500' },
+    { count: newReplies, label: 'reply', labelPlural: 'replies', color: 'text-blue-500' },
+    { count: newQuotes, label: 'quote', labelPlural: 'quotes', color: 'text-purple-500' },
+    { count: newLikes, label: 'like', labelPlural: 'likes', color: 'text-rose-500' },
+    { count: newReposts, label: 'repost', labelPlural: 'reposts', color: 'text-emerald-500' },
+  ].filter(i => i.count > 0);
+  
+  return (
+    <div className="px-4 py-3 bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-900/20 dark:to-orange-900/20 border-b border-gray-200 dark:border-gray-800">
+      <div className="flex items-center gap-2 flex-wrap text-sm">
+        <span className="font-medium text-gray-700 dark:text-gray-300">New:</span>
+        {items.map((item, i) => (
+          <span key={item.label} className="flex items-center gap-1">
+            <span className={`font-semibold ${item.color}`}>{item.count}</span>
+            <span className="text-gray-500 dark:text-gray-400">
+              {item.count === 1 ? item.label : item.labelPlural}
+            </span>
+            {i < items.length - 1 && <span className="text-gray-300 dark:text-gray-600 mx-1">·</span>}
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// Row for a single mention with its activity
+function MentionActivityRow({
+  entry,
   onOpenProfile,
   onOpenPost,
 }: {
-  mention: NotificationItem;
-  isNew: boolean;
+  entry: MentionWithActivity;
   onOpenProfile: (did: string) => void;
   onOpenPost: (uri: string) => void;
 }) {
+  const { mention, activity, isNew } = entry;
   const postText = mention.record?.text || '';
   
+  // Separate likes and reposts from other activity types (they get rolled up)
+  const likesActivity = activity.filter(a => a.type === 'like');
+  const repostsActivity = activity.filter(a => a.type === 'repost');
+  const otherActivity = activity.filter(a => a.type !== 'like' && a.type !== 'repost');
+  
+  // Total activity count for this mention in this period
+  const periodActivityCount = activity.length;
+  
   return (
-    <div
-      className={`p-3 hover:bg-gray-50 dark:hover:bg-gray-800/30 cursor-pointer ${
-        isNew ? 'bg-amber-50/50 dark:bg-amber-900/10 border-l-4 border-l-amber-500' : ''
-      }`}
-      onClick={() => onOpenPost(mention.uri)}
-    >
-      <div className="flex items-start gap-3">
-        {/* Author avatar */}
-        <ProfileHoverCard
-          did={mention.author.did}
-          handle={mention.author.handle}
-          onOpenProfile={() => onOpenProfile(mention.author.did)}
-        >
-          {mention.author.avatar ? (
-            <img
-              src={mention.author.avatar}
-              alt=""
-              className="w-10 h-10 rounded-full cursor-pointer hover:ring-2 hover:ring-amber-400 flex-shrink-0"
-              onClick={(e) => {
-                e.stopPropagation();
-                onOpenProfile(mention.author.did);
-              }}
-            />
-          ) : (
-            <div
-              className="w-10 h-10 rounded-full bg-amber-500 flex items-center justify-center text-white text-sm font-bold flex-shrink-0 cursor-pointer hover:ring-2 hover:ring-amber-400"
-              onClick={(e) => {
-                e.stopPropagation();
-                onOpenProfile(mention.author.did);
-              }}
-            >
-              {(mention.author.displayName || mention.author.handle)[0].toUpperCase()}
-            </div>
-          )}
-        </ProfileHoverCard>
-        
-        {/* Content */}
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 mb-1">
-            {isNew && (
-              <span className="w-2 h-2 rounded-full bg-amber-500 flex-shrink-0 animate-pulse" title="New mention" />
+    <div className={`border-b border-gray-100 dark:border-gray-800 last:border-b-0 ${isNew ? 'bg-amber-50/50 dark:bg-amber-900/10 border-l-4 border-l-amber-500' : ''}`}>
+      {/* Mention header - clickable to open post */}
+      <div
+        className="p-3 hover:bg-gray-50 dark:hover:bg-gray-800/30 cursor-pointer"
+        onClick={() => onOpenPost(mention.uri)}
+      >
+        <div className="flex items-start gap-3">
+          {/* Author avatar */}
+          <ProfileHoverCard
+            did={mention.author.did}
+            handle={mention.author.handle}
+            onOpenProfile={() => onOpenProfile(mention.author.did)}
+          >
+            {mention.author.avatar ? (
+              <img
+                src={mention.author.avatar}
+                alt=""
+                className="w-10 h-10 rounded-full cursor-pointer hover:ring-2 hover:ring-amber-400 flex-shrink-0"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onOpenProfile(mention.author.did);
+                }}
+              />
+            ) : (
+              <div
+                className="w-10 h-10 rounded-full bg-amber-500 flex items-center justify-center text-white text-sm font-bold flex-shrink-0 cursor-pointer hover:ring-2 hover:ring-amber-400"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onOpenProfile(mention.author.did);
+                }}
+              >
+                {(mention.author.displayName || mention.author.handle)[0].toUpperCase()}
+              </div>
             )}
-            <span
-              className="text-sm font-medium text-gray-900 dark:text-gray-100 hover:text-amber-600 dark:hover:text-amber-400 cursor-pointer truncate"
-              onClick={(e) => {
-                e.stopPropagation();
-                onOpenProfile(mention.author.did);
-              }}
-            >
-              {mention.author.displayName || `@${mention.author.handle}`}
-            </span>
-            <span className="text-xs text-gray-400 flex-shrink-0">
-              @{mention.author.handle}
-            </span>
-            <span className="text-xs text-gray-400 flex-shrink-0">
-              · {formatTime(mention.indexedAt)}
-            </span>
-          </div>
+          </ProfileHoverCard>
           
-          <p className="text-sm text-gray-700 dark:text-gray-300 line-clamp-3">
-            {postText || <span className="italic text-gray-400">(no text)</span>}
-          </p>
-          
-          {/* Indicator that this is a mention */}
-          <div className="flex items-center gap-1.5 mt-2">
-            <span className="text-amber-500">
-              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 12a4 4 0 10-8 0 4 4 0 008 0zm0 0v1.5a2.5 2.5 0 005 0V12a9 9 0 10-9 9m4.5-1.206a8.959 8.959 0 01-4.5 1.207" />
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 mb-1">
+              {isNew && (
+                <span className="w-2 h-2 rounded-full bg-amber-500 flex-shrink-0 animate-pulse" title="New activity" />
+              )}
+              <span className="text-amber-500 flex-shrink-0">
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 12a4 4 0 10-8 0 4 4 0 008 0zm0 0v1.5a2.5 2.5 0 005 0V12a9 9 0 10-9 9m4.5-1.206a8.959 8.959 0 01-4.5 1.207" />
+                </svg>
+              </span>
+              <span
+                className="text-sm font-medium text-gray-900 dark:text-gray-100 hover:text-amber-600 dark:hover:text-amber-400 cursor-pointer truncate"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onOpenProfile(mention.author.did);
+                }}
+              >
+                {mention.author.displayName || `@${mention.author.handle}`}
+              </span>
+              <span className="text-xs text-amber-600 dark:text-amber-400">
+                mentioned you
+              </span>
+              <span className="text-xs text-gray-400 flex-shrink-0">
+                · {formatTime(mention.indexedAt)}
+              </span>
+              {/* Arrow to indicate clickable */}
+              <svg
+                className="w-4 h-4 text-gray-300 ml-auto flex-shrink-0"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
               </svg>
-            </span>
-            <span className="text-xs text-amber-600 dark:text-amber-400">
-              mentioned you
-            </span>
+            </div>
+            <p className="text-sm text-gray-700 dark:text-gray-300 line-clamp-2">
+              {postText || <span className="italic text-gray-400">(no text)</span>}
+            </p>
+            
+            {/* Activity count for this period */}
+            {periodActivityCount > 0 && (
+              <div className="flex items-center gap-2 mt-2 text-xs">
+                <span className="text-gray-500">
+                  {periodActivityCount} {periodActivityCount === 1 ? 'interaction' : 'interactions'} on this mention
+                </span>
+              </div>
+            )}
           </div>
         </div>
-        
-        {/* Arrow indicator */}
-        <svg
-          className="w-4 h-4 text-gray-300 flex-shrink-0 mt-1"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-        </svg>
       </div>
+      
+      {/* Activity feed - always visible if there's activity */}
+      {activity.length > 0 && (
+        <div className="px-3 pb-3 space-y-1">
+          {/* Show rolled-up likes first if there are any */}
+          {likesActivity.length > 0 && (
+            <LikesRollupRow
+              likes={likesActivity}
+              onOpenProfile={onOpenProfile}
+            />
+          )}
+          
+          {/* Show rolled-up reposts */}
+          {repostsActivity.length > 0 && (
+            <RepostsRollupRow
+              reposts={repostsActivity}
+              onOpenProfile={onOpenProfile}
+            />
+          )}
+          
+          {/* Show other activities (replies, quotes) */}
+          {otherActivity.map((a, i) => (
+            <ActivityItem
+              key={`${a.type}-${a.author.did}-${i}`}
+              activity={a}
+              onOpenProfile={onOpenProfile}
+              onOpenPost={onOpenPost}
+            />
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -3054,6 +3288,7 @@ function NotificationsExplorerContent() {
                   'mentions': (
                     <MentionsPane
                       mentions={grouped.mentions}
+                      allNotifications={allNotifications}
                       onOpenProfile={handleOpenProfile}
                       onOpenPost={openThread}
                     />
