@@ -4,6 +4,16 @@ import { eq } from 'drizzle-orm';
 import type { ProfileLink, ProfilePaper } from '@/lib/db/schema';
 import { verifyUserAccess } from '@/lib/server-auth';
 
+// Safe JSON parse that returns a default value on error
+function safeJsonParse<T>(json: string | null | undefined, defaultValue: T): T {
+  if (!json) return defaultValue;
+  try {
+    return JSON.parse(json) as T;
+  } catch {
+    return defaultValue;
+  }
+}
+
 // GET /api/profile?did=xxx - Fetch a user's profile
 export async function GET(request: NextRequest) {
   const did = request.nextUrl.searchParams.get('did');
@@ -27,15 +37,15 @@ export async function GET(request: NextRequest) {
       .where(eq(researcherProfiles.did, did))
       .limit(1);
 
-    // Parse JSON fields
+    // Parse JSON fields safely
     const profileData = profile ? {
       shortBio: profile.shortBio,
       affiliation: profile.affiliation,
-      disciplines: profile.disciplines ? JSON.parse(profile.disciplines) : [],
-      links: profile.links ? JSON.parse(profile.links) : [],
-      publicationVenues: profile.publicationVenues ? JSON.parse(profile.publicationVenues) : [],
-      favoriteOwnPapers: profile.favoriteOwnPapers ? JSON.parse(profile.favoriteOwnPapers) : [],
-      favoriteReadPapers: profile.favoriteReadPapers ? JSON.parse(profile.favoriteReadPapers) : [],
+      disciplines: safeJsonParse<string[]>(profile.disciplines, []),
+      links: safeJsonParse<ProfileLink[]>(profile.links, []),
+      publicationVenues: safeJsonParse<string[]>(profile.publicationVenues, []),
+      favoriteOwnPapers: safeJsonParse<ProfilePaper[]>(profile.favoriteOwnPapers, []),
+      favoriteReadPapers: safeJsonParse<ProfilePaper[]>(profile.favoriteReadPapers, []),
       updatedAt: profile.updatedAt,
     } : null;
 
@@ -46,7 +56,7 @@ export async function GET(request: NextRequest) {
       name: researcher.name,
       orcid: researcher.orcid || '',
       institution: researcher.institution,
-      researchTopics: researcher.researchTopics ? JSON.parse(researcher.researchTopics) : [],
+      researchTopics: safeJsonParse<string[]>(researcher.researchTopics, []),
       verifiedAt: researcher.verifiedAt,
       openAlexId: researcher.openAlexId,
     } : null;

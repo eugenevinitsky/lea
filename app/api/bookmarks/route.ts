@@ -3,6 +3,16 @@ import { db, userBookmarks, userBookmarkCollections } from '@/lib/db';
 import { eq, and, asc } from 'drizzle-orm';
 import { verifyUserAccess } from '@/lib/server-auth';
 
+// Safe JSON parse that returns a default value on error
+function safeJsonParse<T>(json: string | null | undefined, defaultValue: T): T {
+  if (!json) return defaultValue;
+  try {
+    return JSON.parse(json) as T;
+  } catch {
+    return defaultValue;
+  }
+}
+
 // GET /api/bookmarks?did=xxx - Fetch all bookmarks and collections for a user
 export async function GET(request: NextRequest) {
   const did = request.nextUrl.searchParams.get('did');
@@ -32,11 +42,17 @@ export async function GET(request: NextRequest) {
       .where(eq(userBookmarkCollections.userDid, did))
       .orderBy(asc(userBookmarkCollections.position));
 
-    // Parse JSON fields
-    const parsedBookmarks = bookmarks.map(b => ({
-      ...JSON.parse(b.postData),
-      collectionIds: b.collectionIds ? JSON.parse(b.collectionIds) : [],
-    }));
+    // Parse JSON fields (skip bookmarks with invalid data)
+    const parsedBookmarks = bookmarks
+      .map(b => {
+        const postData = safeJsonParse<Record<string, unknown>>(b.postData, {});
+        if (!postData || Object.keys(postData).length === 0) return null;
+        return {
+          ...postData,
+          collectionIds: safeJsonParse<string[]>(b.collectionIds, []),
+        };
+      })
+      .filter((b): b is NonNullable<typeof b> => b !== null);
 
     const parsedCollections = collections.map(c => ({
       id: c.id,
@@ -202,7 +218,7 @@ export async function POST(request: NextRequest) {
           .where(eq(userBookmarks.userDid, did));
 
         for (const bookmark of bookmarks) {
-          const collectionIds = bookmark.collectionIds ? JSON.parse(bookmark.collectionIds) : [];
+          const collectionIds = safeJsonParse<string[]>(bookmark.collectionIds, []);
           if (collectionIds.includes(id)) {
             const newIds = collectionIds.filter((cid: string) => cid !== id);
             await db

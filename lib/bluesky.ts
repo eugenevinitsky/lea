@@ -2322,9 +2322,14 @@ export async function checkSafetyAlerts(thresholds?: AlertThresholds): Promise<S
   const seenAlertIds = new Set<string>();
   
   // Load dismissed alerts from localStorage
-  const dismissedAlerts = new Set<string>(
-    JSON.parse(localStorage.getItem('lea-dismissed-alerts') || '[]')
-  );
+  let dismissedAlerts: Set<string>;
+  try {
+    dismissedAlerts = new Set<string>(
+      JSON.parse(localStorage.getItem('lea-dismissed-alerts') || '[]')
+    );
+  } catch {
+    dismissedAlerts = new Set<string>();
+  }
   
   try {
     // Get recent posts
@@ -2467,7 +2472,12 @@ export async function checkSafetyAlerts(thresholds?: AlertThresholds): Promise<S
 
 // Dismiss an alert (won't show again)
 export function dismissSafetyAlert(alertId: string): void {
-  const dismissed = JSON.parse(localStorage.getItem('lea-dismissed-alerts') || '[]');
+  let dismissed: string[];
+  try {
+    dismissed = JSON.parse(localStorage.getItem('lea-dismissed-alerts') || '[]');
+  } catch {
+    dismissed = [];
+  }
   if (!dismissed.includes(alertId)) {
     dismissed.push(alertId);
     // Keep only the last 100 dismissed alerts to avoid localStorage bloat
