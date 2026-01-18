@@ -283,6 +283,102 @@ const POLITICAL_SUBDOMAINS = [
   'immigrationnews',       // Immigration news
   'educationnews',         // Education news
   'healthcarepolicy',      // Healthcare policy
+
+  // More lifestyle / culture
+  'thecut',                // The Cut - lifestyle
+  'refinery29',            // Refinery29
+  'buzzfeed',              // Buzzfeed
+  'vice',                  // Vice
+  'vox',                   // Vox
+  'theringer',             // The Ringer - sports/culture
+  'defector',              // Defector - sports
+  'aftermath',             // Aftermath - gaming culture
+  'billsimmons',           // Bill Simmons
+
+  // Food / Cooking
+  'seriouseats',           // Serious Eats
+  'bonappetit',            // Bon Appetit
+  'smittenkitchen',        // Smitten Kitchen
+  'halfbakedharvest',      // Half Baked Harvest
+  'minimalistbaker',       // Minimalist Baker
+  'cookieandkate',         // Cookie and Kate
+  'loveandlemons',         // Love and Lemons
+  'pinchofyum',            // Pinch of Yum
+  'budgetbytes',           // Budget Bytes
+  'sallysbakingaddiction', // Baking
+  'kingarthurbaking',      // King Arthur
+
+  // Parenting / Family
+  'scarymommy',            // Scary Mommy
+  'fatherly',              // Fatherly
+
+  // Relationships
+  'askmolly',              // Ask Molly
+  'dearpolly',             // Dear Polly
+  'captainawkward',        // Captain Awkward
+
+  // History / Culture
+  'atlasobscura',          // Atlas Obscura
+  'aeonmagazine',          // Aeon
+  'lithub',                // Literary Hub
+  'electricliterature',    // Electric Lit
+  'theparisreview',        // Paris Review
+
+  // True Crime
+  'truecrime',             // True crime
+  'crimejunkie',           // Crime Junkie
+
+  // Humor / Satire
+  'mcsweeneys',            // McSweeney's
+  'reductress',            // Reductress
+  'hardtimes',             // Hard Times
+
+  // Art / Design
+  'hyperallergic',         // Art criticism
+  'colossal',              // Art/design
+  'dezeen',                // Architecture/design
+
+  // Music
+  'pitchfork',             // Pitchfork
+  'stereogum',             // Stereogum
+  'brooklynvegan',         // Brooklyn Vegan
+
+  // Film / TV
+  'indiewire',             // IndieWire
+  'avclub',                // AV Club
+  'vulture',               // Vulture
+
+  // Self-help / Productivity
+  'jamesclear',            // James Clear
+  'markmanson',            // Mark Manson
+  'ryanholiday',           // Ryan Holiday
+  'brainpickings',         // Brain Pickings
+  'farnamstreet',          // Farnam Street
+  'waitbutwhy',            // Wait But Why
+  'sahilbloom',            // Sahil Bloom
+
+  // Culture newsletters
+  'culturalstudy',         // Culture Study
+  'annehelen',             // Anne Helen Petersen
+  'griefbacon',            // Grief Bacon
+  'haleynahman',           // Maybe Baby
+  'garbageday',            // Garbage Day - internet culture
+  'embedded',              // Embedded
+  'readmax',               // Read Max
+
+  // More political
+  'theintercept',          // The Intercept
+  'jacobin',               // Jacobin
+  'currentaffairs',        // Current Affairs magazine
+  'thenewrepublic',        // The New Republic
+  'commentarymagazine',    // Commentary
+  'nationalreview',        // National Review
+  'weeklystandard',        // Weekly Standard
+  'reason',                // Reason
+  'cato',                  // Cato Institute
+  'brookings',             // Brookings
+  'heritage',              // Heritage Foundation
+  'aei',                   // AEI
 ];
 
 // Political search terms
