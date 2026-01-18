@@ -33,9 +33,10 @@ async function getOAuthClient(): Promise<BrowserOAuthClient> {
   
   const clientId = getClientId();
   
-  // For loopback/localhost, we need to pass clientMetadata directly
+// For loopback/localhost, we need to pass clientMetadata directly
   if (clientId.startsWith('http://localhost?')) {
     oauthClient = new BrowserOAuthClient({
+      handleResolver: 'https://bsky.social',
       clientMetadata: {
         client_id: clientId,
         redirect_uris: [window.location.origin + '/'],
@@ -51,6 +52,7 @@ async function getOAuthClient(): Promise<BrowserOAuthClient> {
     // Production: load from metadata URL
     oauthClient = await BrowserOAuthClient.load({
       clientId,
+      handleResolver: 'https://bsky.social',
       // Use fragment response mode to keep tokens out of server logs
       responseMode: 'fragment',
     });
