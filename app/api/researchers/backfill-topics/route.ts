@@ -1,6 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db, verifiedResearchers } from '@/lib/db';
 import { eq, isNull, and, ne } from 'drizzle-orm';
+import crypto from 'crypto';
+
+// Timing-safe secret comparison
+function verifySecret(provided: string | null, expected: string): boolean {
+  if (!provided) return false;
+  try {
+    const providedBuffer = Buffer.from(provided);
+    const expectedBuffer = Buffer.from(expected);
+    if (providedBuffer.length !== expectedBuffer.length) return false;
+    return crypto.timingSafeEqual(providedBuffer, expectedBuffer);
+  } catch {
+    return false;
+  }
+}
 
 // Backfill research topics for existing verified researchers
 // This fetches works from OpenAlex and extracts topics
@@ -16,7 +30,7 @@ export async function POST(request: NextRequest) {
       console.error('BACKFILL_SECRET not configured');
       return NextResponse.json({ error: 'Server configuration error' }, { status: 500 });
     }
-    if (key !== secret) {
+    if (!verifySecret(key, secret)) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 

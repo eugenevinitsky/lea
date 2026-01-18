@@ -2,6 +2,16 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db, verifiedResearchers, researcherProfiles } from '@/lib/db';
 import { eq, sql } from 'drizzle-orm';
 
+// Safe JSON parse that returns default value on error
+function safeJsonParse<T>(value: string | null, defaultValue: T): T {
+  if (!value) return defaultValue;
+  try {
+    return JSON.parse(value) as T;
+  } catch {
+    return defaultValue;
+  }
+}
+
 // Search researchers by a specific field value
 // GET /api/researchers/by-field?field=affiliation&value=MIT
 // GET /api/researchers/by-field?field=topic&value=NLP
@@ -112,10 +122,10 @@ export async function GET(request: NextRequest) {
       name: r.name,
       orcid: r.orcid,
       institution: r.affiliation || r.institution,
-      researchTopics: r.disciplines 
-        ? JSON.parse(r.disciplines) 
-        : (r.researchTopics ? JSON.parse(r.researchTopics) : []),
-      publicationVenues: r.publicationVenues ? JSON.parse(r.publicationVenues) : [],
+      researchTopics: r.disciplines
+        ? safeJsonParse<string[]>(r.disciplines, [])
+        : safeJsonParse<string[]>(r.researchTopics, []),
+      publicationVenues: safeJsonParse<string[]>(r.publicationVenues, []),
     }));
 
     return NextResponse.json({

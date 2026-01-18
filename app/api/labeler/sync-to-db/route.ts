@@ -3,6 +3,23 @@ import { BskyAgent } from '@atproto/api';
 import { db, verifiedResearchers } from '@/lib/db';
 import { eq } from 'drizzle-orm';
 import { nanoid } from 'nanoid';
+import crypto from 'crypto';
+
+// Timing-safe secret comparison
+function verifyInternalSecret(request: NextRequest): boolean {
+  const secret = process.env.INTERNAL_API_SECRET;
+  if (!secret) return false;
+  const authHeader = request.headers.get('authorization');
+  if (!authHeader?.startsWith('Bearer ')) return false;
+  try {
+    const providedBuffer = Buffer.from(authHeader.slice(7));
+    const expectedBuffer = Buffer.from(secret);
+    if (providedBuffer.length !== expectedBuffer.length) return false;
+    return crypto.timingSafeEqual(providedBuffer, expectedBuffer);
+  } catch {
+    return false;
+  }
+}
 
 const VERIFIED_RESEARCHER_LABEL = 'verified-researcher';
 const LABELER_DID = 'did:plc:7c7tx56n64jhzezlwox5dja6';
@@ -278,6 +295,11 @@ async function handleSingleDid(agent: BskyAgent, did: string, action: 'add' | 'r
 }
 
 export async function POST(request: NextRequest) {
+  // Verify internal API secret
+  if (!verifyInternalSecret(request)) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
   try {
     // Create a public agent for profile lookups
     const agent = new BskyAgent({ service: 'https://public.api.bsky.app' });

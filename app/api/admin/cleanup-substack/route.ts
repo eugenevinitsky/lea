@@ -2,6 +2,21 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db, discoveredSubstackPosts, substackMentions } from '@/lib/db';
 import { inArray } from 'drizzle-orm';
 import { initEmbeddingClassifier, classifyContentAsync, isEmbeddingClassifierReady } from '@/lib/substack-classifier';
+import crypto from 'crypto';
+
+// Timing-safe secret comparison
+function verifyBearerSecret(authHeader: string | null, expected: string): boolean {
+  if (!authHeader || !authHeader.startsWith('Bearer ')) return false;
+  const provided = authHeader.slice(7);
+  try {
+    const providedBuffer = Buffer.from(provided);
+    const expectedBuffer = Buffer.from(expected);
+    if (providedBuffer.length !== expectedBuffer.length) return false;
+    return crypto.timingSafeEqual(providedBuffer, expectedBuffer);
+  } catch {
+    return false;
+  }
+}
 
 // Strip HTML tags and decode entities to get plain text
 function stripHtml(html: string): string {
@@ -112,7 +127,11 @@ export async function POST(request: NextRequest) {
   const authHeader = request.headers.get('Authorization');
   const secret = process.env.PAPER_FIREHOSE_SECRET;
 
-  if (!secret || authHeader !== `Bearer ${secret}`) {
+  if (!secret) {
+    console.error('PAPER_FIREHOSE_SECRET not configured');
+    return NextResponse.json({ error: 'Server configuration error' }, { status: 500 });
+  }
+  if (!verifyBearerSecret(authHeader, secret)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 

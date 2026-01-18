@@ -1,6 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db, discoveredPapers } from '@/lib/db';
 import { isNull, eq } from 'drizzle-orm';
+import crypto from 'crypto';
+
+// Timing-safe secret comparison
+function verifySecret(provided: string | null, expected: string): boolean {
+  if (!provided) return false;
+  try {
+    const providedBuffer = Buffer.from(provided);
+    const expectedBuffer = Buffer.from(expected);
+    if (providedBuffer.length !== expectedBuffer.length) return false;
+    return crypto.timingSafeEqual(providedBuffer, expectedBuffer);
+  } catch {
+    return false;
+  }
+}
 
 // Fetch paper metadata from various sources
 async function fetchPaperMetadata(normalizedId: string, source: string): Promise<{ title?: string; authors?: string[] } | null> {
@@ -125,7 +139,7 @@ export async function POST(request: NextRequest) {
       console.error('BACKFILL_SECRET not configured');
       return NextResponse.json({ error: 'Server configuration error' }, { status: 500 });
     }
-    if (key !== secret) {
+    if (!verifySecret(key, secret)) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
