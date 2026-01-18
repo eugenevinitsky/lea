@@ -325,12 +325,12 @@ function AlertsSection({
 // Category color configs
 const CATEGORY_COLORS = {
   likes: {
-    bg: 'bg-rose-50 dark:bg-rose-900/20',
-    border: 'border-rose-400',
-    text: 'text-rose-700 dark:text-rose-300',
-    icon: 'text-rose-500',
-    fill: 'fill-rose-500',
-    bar: 'bg-rose-400',
+    bg: 'bg-pink-50 dark:bg-pink-900/20',
+    border: 'border-pink-300',
+    text: 'text-pink-600 dark:text-pink-300',
+    icon: 'text-pink-400',
+    fill: 'fill-pink-400',
+    bar: 'bg-pink-400',
   },
   reposts: {
     bg: 'bg-emerald-50 dark:bg-emerald-900/20',
@@ -622,8 +622,8 @@ interface PostWithActivity {
 // Activity type colors and icons
 const ACTIVITY_STYLES = {
   like: {
-    color: 'text-rose-500',
-    bg: 'bg-rose-50 dark:bg-rose-900/20',
+    color: 'text-pink-400',
+    bg: 'bg-pink-50 dark:bg-pink-900/20',
     icon: (
       <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24">
         <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />
@@ -1064,7 +1064,7 @@ function ActivitySummary({
     { count: newReplies, label: 'reply', labelPlural: 'replies', color: 'text-blue-500' },
     { count: newQuotes, label: 'quote', labelPlural: 'quotes', color: 'text-purple-500' },
     { count: newMentions, label: 'mention', labelPlural: 'mentions', color: 'text-amber-500' },
-    { count: newLikes, label: 'like', labelPlural: 'likes', color: 'text-rose-500' },
+    { count: newLikes, label: 'like', labelPlural: 'likes', color: 'text-pink-400' },
     { count: newReposts, label: 'repost', labelPlural: 'reposts', color: 'text-emerald-500' },
   ].filter(i => i.count > 0);
   
@@ -1664,7 +1664,7 @@ function MentionsActivitySummary({
     { count: newMentions, label: 'mention', labelPlural: 'mentions', color: 'text-amber-500' },
     { count: newReplies, label: 'reply', labelPlural: 'replies', color: 'text-blue-500' },
     { count: newQuotes, label: 'quote', labelPlural: 'quotes', color: 'text-purple-500' },
-    { count: newLikes, label: 'like', labelPlural: 'likes', color: 'text-rose-500' },
+    { count: newLikes, label: 'like', labelPlural: 'likes', color: 'text-pink-400' },
     { count: newReposts, label: 'repost', labelPlural: 'reposts', color: 'text-emerald-500' },
   ].filter(i => i.count > 0);
   
