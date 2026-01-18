@@ -439,6 +439,7 @@ export function isEmbeddingClassifierReady(): boolean {
 export async function classifyContentAsync(
   title: string,
   description?: string,
+  bodyText?: string,
   k: number = 15
 ): Promise<{
   isTechnical: boolean;
@@ -457,7 +458,10 @@ export async function classifyContentAsync(
     };
   }
 
-  const text = `${title} ${description || ''}`.slice(0, 500);
+  // Use body text if available (more informative), otherwise fall back to title + description
+  const text = bodyText && bodyText.length > 100
+    ? bodyText.slice(0, 500)
+    : `${title} ${description || ''}`.slice(0, 500);
 
   // Get embedding
   const result = await embeddingModel.embedContent(text);

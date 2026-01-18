@@ -288,10 +288,11 @@ async function processSingleIngest(req: IngestRequest): Promise<{ substackPostId
       const metadata = await fetchSubstackMetadata(post.url, post.subdomain, post.slug);
 
       // Filter for technical/intellectual content using embedding classifier
-      // Use title + description (body text dilutes the signal)
+      // Use body text if available (more accurate), otherwise title + description
       const result = await classifyContentAsync(
         metadata?.title || '',
-        metadata?.description || ''
+        metadata?.description || '',
+        metadata?.bodyText
       );
 
       if (!result.isTechnical) {
@@ -480,10 +481,11 @@ export async function POST(request: NextRequest) {
         const metadata = await fetchSubstackMetadata(post.url, post.subdomain, post.slug);
 
         // Filter for technical/intellectual content using embedding classifier
-        // Use title + description (body text dilutes the signal)
+        // Use body text if available (more accurate), otherwise title + description
         const result = await classifyContentAsync(
           metadata?.title || '',
-          metadata?.description || ''
+          metadata?.description || '',
+          metadata?.bodyText
         );
 
         if (!result.isTechnical) {
