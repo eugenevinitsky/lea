@@ -42,6 +42,16 @@ export default function Login({ onLogin }: LoginProps) {
       setLoading(true);
       setError(null);
       
+      // Check if user is authorized (verified researcher) before OAuth
+      const accessResponse = await fetch(`/api/auth/check-access?handle=${encodeURIComponent(handle)}`);
+      const accessData = await accessResponse.json();
+      
+      if (!accessData.authorized) {
+        setError('Lea is currently in testing and only available to verified researchers.');
+        setLoading(false);
+        return;
+      }
+      
       // Store forceOnboarding preference for after redirect
       if (forceOnboarding) {
         sessionStorage.setItem('lea-force-onboarding', 'true');
