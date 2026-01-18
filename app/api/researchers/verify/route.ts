@@ -81,9 +81,13 @@ export async function POST(request: NextRequest) {
         ? `https://${process.env.VERCEL_URL}`
         : process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
 
+      const internalSecret = process.env.INTERNAL_API_SECRET;
       await fetch(`${baseUrl}/api/labeler/add-to-list`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(internalSecret ? { 'Authorization': `Bearer ${internalSecret}` } : {}),
+        },
         body: JSON.stringify({ did }),
       });
     } catch (listError) {

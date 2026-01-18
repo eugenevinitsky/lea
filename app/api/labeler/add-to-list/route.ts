@@ -2,6 +2,17 @@ import { NextRequest, NextResponse } from 'next/server';
 import { BskyAgent } from '@atproto/api';
 import { VERIFIED_RESEARCHERS_LIST } from '@/lib/constants';
 
+// Verify internal API secret for admin endpoints
+function verifyInternalSecret(request: NextRequest): boolean {
+  const secret = process.env.INTERNAL_API_SECRET;
+  if (!secret) return false;
+
+  const authHeader = request.headers.get('authorization');
+  if (!authHeader?.startsWith('Bearer ')) return false;
+
+  return authHeader.slice(7) === secret;
+}
+
 // Get labeler agent
 async function getLabelerAgent(): Promise<BskyAgent | null> {
   const handle = process.env.LEA_LABELER_HANDLE;
@@ -25,6 +36,11 @@ async function getLabelerAgent(): Promise<BskyAgent | null> {
 
 export async function POST(request: NextRequest) {
   try {
+    // Require internal API secret - this endpoint is for internal use only
+    if (!verifyInternalSecret(request)) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const body = await request.json();
     const { handle, did } = body;
 

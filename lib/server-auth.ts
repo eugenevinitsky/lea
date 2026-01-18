@@ -66,13 +66,18 @@ export function verifySessionToken(token: string): VerifyResult | VerifyError {
       return { success: false, error: 'Session expired', status: 401 };
     }
 
-    // Verify signature
+    // Verify signature using timing-safe comparison
     const expectedSignature = crypto
       .createHmac('sha256', SESSION_SECRET)
       .update(`${did}:${expiresAt}`)
       .digest('hex');
 
-    if (signature !== expectedSignature) {
+    // Use timing-safe comparison to prevent timing attacks
+    const signatureBuffer = Buffer.from(signature, 'hex');
+    const expectedBuffer = Buffer.from(expectedSignature, 'hex');
+
+    if (signatureBuffer.length !== expectedBuffer.length ||
+        !crypto.timingSafeEqual(signatureBuffer, expectedBuffer)) {
       return { success: false, error: 'Invalid session', status: 401 };
     }
 
