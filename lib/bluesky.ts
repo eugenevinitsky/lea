@@ -2684,3 +2684,238 @@ export async function detachQuote(
     }
   );
 }
+
+// ============================================
+// List Management
+// ============================================
+
+export interface ListView {
+  uri: string;
+  cid: string;
+  name: string;
+  description?: string;
+  avatar?: string;
+  purpose: 'app.bsky.graph.defs#curatelist' | 'app.bsky.graph.defs#modlist' | 'app.bsky.graph.defs#referencelist';
+  listItemCount?: number;
+  indexedAt: string;
+  creator: {
+    did: string;
+    handle: string;
+    displayName?: string;
+    avatar?: string;
+  };
+}
+
+export interface ListItemView {
+  uri: string; // The listitem record URI (needed for removal)
+  subject: {
+    did: string;
+    handle: string;
+    displayName?: string;
+    avatar?: string;
+    description?: string;
+  };
+}
+
+// Get all lists owned by the current user
+export async function getMyLists(): Promise<ListView[]> {
+  if (!agent?.did) return [];
+  
+  try {
+    const lists: ListView[] = [];
+    let cursor: string | undefined;
+    
+    do {
+      const response = await agent.api.app.bsky.graph.getLists({
+        actor: agent.assertDid,
+        limit: 100,
+        cursor,
+      });
+      
+      for (const list of response.data.lists) {
+        // Only include curated lists (not moderation lists)
+        if (list.purpose === 'app.bsky.graph.defs#curatelist') {
+          lists.push(list as ListView);
+        }
+      }
+      
+      cursor = response.data.cursor;
+    } while (cursor);
+    
+    return lists;
+  } catch (error) {
+    console.error('Failed to get lists:', error);
+    return [];
+  }
+}
+
+// Create a new curated list
+export async function createList(
+  name: string,
+  description?: string
+): Promise<{ uri: string; cid: string }> {
+  if (!agent) throw new Error('Not logged in');
+  
+  const result = await agent.api.com.atproto.repo.createRecord({
+    repo: agent.assertDid,
+    collection: 'app.bsky.graph.list',
+    record: {
+      $type: 'app.bsky.graph.list',
+      purpose: 'app.bsky.graph.defs#curatelist',
+      name,
+      description: description || undefined,
+      createdAt: new Date().toISOString(),
+    },
+  });
+  
+  return { uri: result.data.uri, cid: result.data.cid };
+}
+
+// Update list metadata (name/description)
+export async function updateList(
+  listUri: string,
+  name: string,
+  description?: string
+): Promise<void> {
+  if (!agent) throw new Error('Not logged in');
+  
+  // Extract rkey from URI: at://did/app.bsky.graph.list/rkey
+  const parts = listUri.split('/');
+  const rkey = parts[parts.length - 1];
+  
+  // Get existing record to preserve other fields
+  const existing = await agent.api.com.atproto.repo.getRecord({
+    repo: agent.assertDid,
+    collection: 'app.bsky.graph.list',
+    rkey,
+  });
+  
+  // Update with new values
+  await agent.api.com.atproto.repo.putRecord({
+    repo: agent.assertDid,
+    collection: 'app.bsky.graph.list',
+    rkey,
+    record: {
+      ...existing.data.value as object,
+      name,
+      description: description || undefined,
+    },
+  });
+}
+
+// Delete a list
+export async function deleteList(listUri: string): Promise<void> {
+  if (!agent) throw new Error('Not logged in');
+  
+  // Extract rkey from URI
+  const parts = listUri.split('/');
+  const rkey = parts[parts.length - 1];
+  
+  await agent.api.com.atproto.repo.deleteRecord({
+    repo: agent.assertDid,
+    collection: 'app.bsky.graph.list',
+    rkey,
+  });
+}
+
+// Get all members of a list
+export async function getListMembers(listUri: string): Promise<ListItemView[]> {
+  if (!agent) return [];
+  
+  try {
+    const members: ListItemView[] = [];
+    let cursor: string | undefined;
+    
+    do {
+      const response = await agent.api.app.bsky.graph.getList({
+        list: listUri,
+        limit: 100,
+        cursor,
+      });
+      
+      for (const item of response.data.items) {
+        members.push({
+          uri: item.uri,
+          subject: {
+            did: item.subject.did,
+            handle: item.subject.handle,
+            displayName: item.subject.displayName,
+            avatar: item.subject.avatar,
+            description: item.subject.description,
+          },
+        });
+      }
+      
+      cursor = response.data.cursor;
+    } while (cursor);
+    
+    return members;
+  } catch (error) {
+    console.error('Failed to get list members:', error);
+    return [];
+  }
+}
+
+// Add a user to a list
+export async function addToList(
+  listUri: string,
+  subjectDid: string
+): Promise<{ uri: string; cid: string }> {
+  if (!agent) throw new Error('Not logged in');
+  
+  const result = await agent.api.com.atproto.repo.createRecord({
+    repo: agent.assertDid,
+    collection: 'app.bsky.graph.listitem',
+    record: {
+      $type: 'app.bsky.graph.listitem',
+      subject: subjectDid,
+      list: listUri,
+      createdAt: new Date().toISOString(),
+    },
+  });
+  
+  return { uri: result.data.uri, cid: result.data.cid };
+}
+
+// Remove a user from a list (requires the listitem URI)
+export async function removeFromList(listItemUri: string): Promise<void> {
+  if (!agent) throw new Error('Not logged in');
+  
+  // Extract rkey from URI: at://did/app.bsky.graph.listitem/rkey
+  const parts = listItemUri.split('/');
+  const rkey = parts[parts.length - 1];
+  
+  await agent.api.com.atproto.repo.deleteRecord({
+    repo: agent.assertDid,
+    collection: 'app.bsky.graph.listitem',
+    rkey,
+  });
+}
+
+// Check which of user's lists contain a specific DID
+// Returns a map of listUri -> listItemUri (or undefined if not in list)
+export async function getListMembershipsForUser(
+  targetDid: string
+): Promise<Map<string, string | undefined>> {
+  if (!agent?.did) return new Map();
+  
+  const lists = await getMyLists();
+  const memberships = new Map<string, string | undefined>();
+  
+  for (const list of lists) {
+    memberships.set(list.uri, undefined);
+    
+    // Check if target is in this list
+    try {
+      const members = await getListMembers(list.uri);
+      const membership = members.find(m => m.subject.did === targetDid);
+      if (membership) {
+        memberships.set(list.uri, membership.uri);
+      }
+    } catch {
+      // Ignore errors for individual lists
+    }
+  }
+  
+  return memberships;
+}
