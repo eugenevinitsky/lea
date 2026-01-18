@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { BskyAgent } from '@atproto/api';
 import { VERIFIED_RESEARCHERS_LIST } from '@/lib/constants';
+import crypto from 'crypto';
 
-// Verify internal API secret for admin endpoints
+// Verify internal API secret for admin endpoints (timing-safe)
 function verifyInternalSecret(request: NextRequest): boolean {
   const secret = process.env.INTERNAL_API_SECRET;
   if (!secret) return false;
@@ -10,7 +11,14 @@ function verifyInternalSecret(request: NextRequest): boolean {
   const authHeader = request.headers.get('authorization');
   if (!authHeader?.startsWith('Bearer ')) return false;
 
-  return authHeader.slice(7) === secret;
+  try {
+    const providedBuffer = Buffer.from(authHeader.slice(7));
+    const expectedBuffer = Buffer.from(secret);
+    if (providedBuffer.length !== expectedBuffer.length) return false;
+    return crypto.timingSafeEqual(providedBuffer, expectedBuffer);
+  } catch {
+    return false;
+  }
 }
 
 // Get labeler agent
@@ -67,7 +75,7 @@ export async function POST(request: NextRequest) {
         userDid = profile.data.did;
       } catch (error) {
         return NextResponse.json(
-          { error: `Could not resolve handle: ${handle}` },
+          { error: 'Could not resolve handle' },
           { status: 404 }
         );
       }
