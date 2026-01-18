@@ -331,9 +331,9 @@ export default function ProfileHoverCard({ did, handle, children, onOpenProfile 
               )}
             </button>
             <UserActionsMenu
-              userDid={profile.did}
-              userHandle={profile.handle}
-              userDisplayName={profile.displayName}
+              did={profile.did}
+              handle={profile.handle}
+              displayName={profile.displayName}
               isBlocking={!!profile.viewer?.blocking}
               blockUri={profile.viewer?.blocking}
               onBlock={async () => {
