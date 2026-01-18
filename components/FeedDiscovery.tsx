@@ -125,7 +125,7 @@ function ListFeedCreator({ onAdd, pinnedListUris }: { onAdd: (list: ListView) =>
               <p className="text-xs text-indigo-600 dark:text-indigo-400">All your lists are already pinned</p>
             </div>
           ) : (
-            <div className="space-y-1.5">
+            <div className="space-y-1.5 max-h-48 overflow-y-auto">
               {availableLists.map((list) => (
                 <button
                   key={list.uri}
