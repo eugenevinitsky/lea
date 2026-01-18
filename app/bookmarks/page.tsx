@@ -1,7 +1,9 @@
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import { restoreSession, getSession, getBlueskyProfile, buildProfileUrl, checkVerificationStatus } from '@/lib/bluesky';
+import { getSession, getBlueskyProfile, buildProfileUrl, checkVerificationStatus } from '@/lib/bluesky';
+import { initOAuth } from '@/lib/oauth';
+import { refreshAgent } from '@/lib/bluesky';
 import { SettingsProvider } from '@/lib/settings';
 import { BookmarksProvider, useBookmarks, BookmarkedPost, BookmarkCollection, COLLECTION_COLORS, exportToRIS, exportToBibTeX, exportToJSON, downloadFile } from '@/lib/bookmarks';
 import { FeedsProvider } from '@/lib/feeds';
@@ -603,7 +605,7 @@ export default function BookmarksDashboard() {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    restoreSession().then((restored) => {
+    initOAuth().then((result) => { refreshAgent(); const restored = !!result?.session;
       setIsLoggedIn(restored);
       setIsLoading(false);
     });

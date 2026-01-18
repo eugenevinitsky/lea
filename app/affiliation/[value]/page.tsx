@@ -2,7 +2,9 @@
 
 import { useParams, useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
-import { restoreSession, getSession, getBlueskyProfile, buildProfileUrl } from '@/lib/bluesky';
+import { getSession, getBlueskyProfile, buildProfileUrl } from '@/lib/bluesky';
+import { initOAuth } from '@/lib/oauth';
+import { refreshAgent } from '@/lib/bluesky';
 import { SettingsProvider } from '@/lib/settings';
 import { BookmarksProvider } from '@/lib/bookmarks';
 import { FeedsProvider } from '@/lib/feeds';
@@ -18,7 +20,7 @@ function AffiliationPageContent() {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    restoreSession().then((restored) => {
+    initOAuth().then((result) => { refreshAgent(); const restored = !!result?.session;
       if (restored) {
         setIsLoggedIn(true);
       }

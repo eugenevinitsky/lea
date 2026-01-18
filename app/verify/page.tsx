@@ -5,7 +5,9 @@ import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { getAuthorByOrcid, getAuthorWorks, OpenAlexAuthor, OpenAlexWork } from '@/lib/openalex';
 import { checkVerificationEligibility, VerificationResult, ESTABLISHED_VENUES, extractResearchTopics } from '@/lib/verification';
-import { getSession, restoreSession } from '@/lib/bluesky';
+import { getSession} from '@/lib/bluesky';
+import { initOAuth } from '@/lib/oauth';
+import { refreshAgent } from '@/lib/bluesky';
 
 type VerificationStep = 'input' | 'loading' | 'result';
 
@@ -26,7 +28,7 @@ function VerifyContent() {
 
   // Restore Bluesky session on mount
   useEffect(() => {
-    restoreSession().then((restored) => {
+    initOAuth().then((result) => { refreshAgent(); const restored = !!result?.session;
       setSessionRestored(true);
       setHasSession(restored);
     });

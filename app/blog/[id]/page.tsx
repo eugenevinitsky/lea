@@ -3,7 +3,9 @@
 import { useParams, useRouter } from 'next/navigation';
 import { useState, useEffect, useCallback, Suspense } from 'react';
 import { AppBskyFeedDefs } from '@atproto/api';
-import { restoreSession, getSession, getBlueskyProfile, getPostsByUris, searchPosts, buildProfileUrl } from '@/lib/bluesky';
+import { getSession, getBlueskyProfile, getPostsByUris, searchPosts, buildProfileUrl } from '@/lib/bluesky';
+import { initOAuth } from '@/lib/oauth';
+import { refreshAgent } from '@/lib/bluesky';
 import { SettingsProvider } from '@/lib/settings';
 import { BookmarksProvider } from '@/lib/bookmarks';
 import { FeedsProvider } from '@/lib/feeds';
@@ -55,7 +57,7 @@ function BlogPageContent() {
 
   // Restore session on mount
   useEffect(() => {
-    restoreSession().then((restored) => {
+    initOAuth().then((result) => { refreshAgent(); const restored = !!result?.session;
       if (restored) {
         setIsLoggedIn(true);
       }

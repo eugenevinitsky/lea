@@ -1,7 +1,9 @@
 'use client';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { restoreSession, getSession, getBlueskyProfile, checkSafetyAlerts, dismissSafetyAlert, SafetyAlert, AlertThresholds, followUser, unfollowUser, isVerifiedResearcher, Label, buildProfileUrl, checkVerificationStatus, blockUser, getKnownFollowers, BlueskyProfile, getMyRecentPostsAndReplies } from '@/lib/bluesky';
+import { getSession, getBlueskyProfile, checkSafetyAlerts, dismissSafetyAlert, SafetyAlert, AlertThresholds, followUser, unfollowUser, isVerifiedResearcher, Label, buildProfileUrl, checkVerificationStatus, blockUser, getKnownFollowers, BlueskyProfile, getMyRecentPostsAndReplies } from '@/lib/bluesky';
+import { initOAuth } from '@/lib/oauth';
+import { refreshAgent } from '@/lib/bluesky';
 import { AppBskyFeedDefs } from '@atproto/api';
 import { useFollowing } from '@/lib/following-context';
 import { SettingsProvider } from '@/lib/settings';
@@ -2667,7 +2669,7 @@ function NotificationsExplorerContent() {
 
   // Restore session on mount
   useEffect(() => {
-    restoreSession().then((restored) => {
+    initOAuth().then((result) => { refreshAgent(); const restored = !!result?.session;
       if (restored) {
         setIsLoggedIn(true);
         const session = getSession();

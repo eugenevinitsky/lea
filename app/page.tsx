@@ -2,7 +2,8 @@
 
 import React, { useState, useCallback, useEffect, Suspense, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { getSession, logout, restoreSession, getBlueskyProfile, buildProfileUrl, checkVerificationStatus } from '@/lib/bluesky';
+import { getSession, logout, getBlueskyProfile, buildProfileUrl, checkVerificationStatus, refreshAgent, configureAgentLabelers, setCachedHandle } from '@/lib/bluesky';
+import { initOAuth } from '@/lib/oauth';
 import { SettingsProvider } from '@/lib/settings';
 import { BookmarksProvider, useBookmarks } from '@/lib/bookmarks';
 import { FeedsProvider, useFeeds } from '@/lib/feeds';
@@ -219,58 +220,91 @@ function AppContent() {
     }
   }, []);
 
-  // Try to restore session on mount
+  // Initialize OAuth and restore session on mount
   useEffect(() => {
-    restoreSession().then((restored) => {
-      if (restored) {
-        setIsLoggedIn(true);
-        // Set user DID for bookmarks and feeds
-        const session = getSession();
-        if (session?.did) {
-          setBookmarksUserDid(session.did);
-          setFeedsUserDid(session.did);
+    const initAuth = async () => {
+      try {
+        const result = await initOAuth();
+        
+        if (result?.session) {
+          // Refresh the agent from OAuth session
+          refreshAgent();
+          
+          // Get session info (DID is available immediately)
+          const session = getSession();
+          if (session?.did) {
+            setBookmarksUserDid(session.did);
+            setFeedsUserDid(session.did);
+            
+            // Fetch and cache the user's handle
+            try {
+              const profile = await getBlueskyProfile(session.did);
+              if (profile?.handle) {
+                setCachedHandle(profile.handle);
+              }
+            } catch (err) {
+              console.error('Failed to fetch user profile:', err);
+            }
+            
+            // Configure labelers
+            await configureAgentLabelers();
+            
+            // Refresh moderation options
+            refreshModerationOpts();
+            
+            // Check verification status
+            checkVerificationStatus(session.did).then(setIsVerified);
+          }
+          
+          setIsLoggedIn(true);
+          
+          // Check if this was an OAuth callback (just logged in)
+          if (result.isCallback) {
+            // Check for force onboarding flag from login page
+            const forceOnboarding = sessionStorage.getItem('lea-force-onboarding');
+            if (forceOnboarding) {
+              sessionStorage.removeItem('lea-force-onboarding');
+              setShowOnboarding(true);
+            } else {
+              // Check if onboarding was completed
+              let onboardingComplete: string | null = null;
+              try {
+                onboardingComplete = localStorage.getItem('lea-onboarding-complete');
+              } catch {
+                // localStorage may fail in private browsing
+              }
+              if (!onboardingComplete) {
+                setShowOnboarding(true);
+              }
+            }
+          } else {
+            // Session restored (not a callback)
+            let onboardingComplete: string | null = null;
+            try {
+              onboardingComplete = localStorage.getItem('lea-onboarding-complete');
+            } catch {
+              // localStorage may fail in private browsing
+            }
+            if (!onboardingComplete) {
+              setShowOnboarding(true);
+            }
+          }
         }
-        // Refresh moderation options now that we have a session
-        refreshModerationOpts();
-        // Check if onboarding was completed
-        let onboardingComplete: string | null = null;
-        try {
-          onboardingComplete = localStorage.getItem('lea-onboarding-complete');
-        } catch {
-          // localStorage may fail in private browsing
-        }
-        if (!onboardingComplete) {
-          setShowOnboarding(true);
-        }
-        // Check verification status (cached in sessionStorage)
-        if (session?.did) {
-          checkVerificationStatus(session.did).then(setIsVerified);
-        }
+      } catch (err) {
+        console.error('OAuth init failed:', err);
+      } finally {
+        setIsLoading(false);
       }
-      setIsLoading(false);
-    });
+    };
+    
+    initAuth();
   }, [setBookmarksUserDid, setFeedsUserDid, refreshModerationOpts]);
 
-  const handleLogin = (forceOnboarding?: boolean) => {
-    setIsLoggedIn(true);
-    // Set user DID for bookmarks and feeds
-    const session = getSession();
-    if (session?.did) {
-      setBookmarksUserDid(session.did);
-      setFeedsUserDid(session.did);
-    }
-    // Refresh moderation options now that we have a session
-    refreshModerationOpts();
-    // Check if this is a first-time user or if onboarding is forced
-    let onboardingComplete: string | null = null;
-    try {
-      onboardingComplete = localStorage.getItem('lea-onboarding-complete');
-    } catch {
-      // localStorage may fail in private browsing
-    }
-    if (forceOnboarding || !onboardingComplete) {
-      setShowOnboarding(true);
-    }
+  // Note: With OAuth, login is handled via redirect in initOAuth().
+  // This callback is kept for compatibility but typically not called.
+  const handleLogin = () => {
+    // OAuth callback already handled in useEffect - just reload to reinitialize
+    window.location.reload();
   };
 
   const handleOnboardingComplete = () => {

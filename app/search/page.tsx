@@ -2,7 +2,9 @@
 
 import { useSearchParams } from 'next/navigation';
 import { useState, useEffect, useCallback, Suspense } from 'react';
-import { restoreSession, getSession, getBlueskyProfile, searchActors, searchPosts, isVerifiedResearcher, Label, buildProfileUrl, checkVerificationStatus } from '@/lib/bluesky';
+import { getSession, getBlueskyProfile, searchActors, searchPosts, isVerifiedResearcher, Label, buildProfileUrl, checkVerificationStatus } from '@/lib/bluesky';
+import { initOAuth } from '@/lib/oauth';
+import { refreshAgent } from '@/lib/bluesky';
 import { SettingsProvider } from '@/lib/settings';
 import { BookmarksProvider, useBookmarks } from '@/lib/bookmarks';
 import { FeedsProvider } from '@/lib/feeds';
@@ -60,7 +62,7 @@ function SearchPageContent() {
 
   // Restore session on mount
   useEffect(() => {
-    restoreSession().then((restored) => {
+    initOAuth().then((result) => { refreshAgent(); const restored = !!result?.session;
       if (restored) {
         setIsLoggedIn(true);
         const session = getSession();

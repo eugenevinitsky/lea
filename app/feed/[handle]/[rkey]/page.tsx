@@ -2,7 +2,9 @@
 
 import { useParams } from 'next/navigation';
 import { useState, useEffect, useCallback } from 'react';
-import { restoreSession, getSession, getBlueskyProfile, logout, getFeedGenerator, likeFeed, unlikeFeed, saveFeed, unsaveFeed, getSavedFeedUris, FeedGeneratorInfo, buildProfileUrl, checkVerificationStatus } from '@/lib/bluesky';
+import { getSession, getBlueskyProfile, logout, getFeedGenerator, likeFeed, unlikeFeed, saveFeed, unsaveFeed, getSavedFeedUris, FeedGeneratorInfo, buildProfileUrl, checkVerificationStatus } from '@/lib/bluesky';
+import { initOAuth } from '@/lib/oauth';
+import { refreshAgent } from '@/lib/bluesky';
 import { SettingsProvider } from '@/lib/settings';
 import { BookmarksProvider, useBookmarks } from '@/lib/bookmarks';
 import { FeedsProvider, useFeeds } from '@/lib/feeds';
@@ -40,7 +42,7 @@ function FeedPageContent() {
 
   // Restore session on mount
   useEffect(() => {
-    restoreSession().then((restored) => {
+    initOAuth().then((result) => { refreshAgent(); const restored = !!result?.session;
       if (restored) {
         setIsLoggedIn(true);
         const session = getSession();

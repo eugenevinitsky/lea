@@ -1,12 +1,13 @@
-import { BskyAgent, RichText, AppBskyFeedDefs, AppBskyActorDefs, moderatePost, moderateProfile, ModerationOpts, ModerationDecision, InterpretedLabelValueDefinition } from '@atproto/api';
+import { Agent, RichText, AppBskyFeedDefs, AppBskyActorDefs, moderatePost, moderateProfile, ModerationOpts, ModerationDecision, InterpretedLabelValueDefinition } from '@atproto/api';
+import { getAgentFromSession, getOAuthSession, oauthLogout } from './oauth';
 
-let agent: BskyAgent | null = null;
+// Agent is now managed by OAuth - we get it from the OAuth session
+let agent: Agent | null = null;
 
 // Cache for list URIs
 let verifiedOnlyListUri: string | null = null;
 let personalListUri: string | null = null;
 
-const SESSION_KEY = 'lea-bsky-session';
 const DEFAULT_PDS = 'https://bsky.social';
 const PLC_DIRECTORY = 'https://plc.directory';
 
@@ -26,15 +27,6 @@ interface DidDocument {
   alsoKnownAs?: string[];
   service?: DidService[];
   verificationMethod?: unknown[];
-}
-
-// Stored session now includes PDS URL
-interface StoredSession {
-  did: string;
-  handle: string;
-  accessJwt: string;
-  refreshJwt: string;
-  pdsUrl?: string; // User's PDS endpoint (may be missing in old sessions)
 }
 
 // Current PDS URL for the logged-in user
@@ -156,131 +148,38 @@ function configureLabeler() {
   }
 }
 
-export function getAgent(): BskyAgent | null {
+export function getAgent(): Agent | null {
+  // Get agent from OAuth session if we don't have one cached
+  if (!agent) {
+    agent = getAgentFromSession();
+  }
   return agent;
 }
 
-// Save session to localStorage (called on login and token refresh)
-// Now includes pdsUrl for custom PDS support
-function persistSession(evt: string, session?: { did: string; handle: string; accessJwt: string; refreshJwt: string }) {
-  if (typeof window === 'undefined') return;
-
-  if (evt === 'create' || evt === 'update') {
-    if (session) {
-      // Include the current PDS URL in the stored session
-      const storedSession: StoredSession = {
-        ...session,
-        pdsUrl: currentPdsUrl,
-      };
-      localStorage.setItem(SESSION_KEY, JSON.stringify(storedSession));
-    }
-  } else if (evt === 'expired') {
-    localStorage.removeItem(SESSION_KEY);
+// Refresh the agent from OAuth session (call after OAuth init)
+export function refreshAgent(): void {
+  agent = getAgentFromSession();
+  if (agent) {
+    // Configure labelers
+    configureLabeler();
   }
 }
 
-// Restore session from localStorage if available
-export async function restoreSession(): Promise<boolean> {
-  if (agent?.session) return true; // Already have a session
-
-  if (typeof window === 'undefined') return false; // SSR
-
-  const stored = localStorage.getItem(SESSION_KEY);
-  if (!stored) return false;
-
-  try {
-    const sessionData: StoredSession = JSON.parse(stored);
-    
-    // Use stored PDS URL, or re-resolve if missing (for old sessions)
-    let pdsUrl = sessionData.pdsUrl;
-    if (!pdsUrl && sessionData.did) {
-      try {
-        // Re-resolve PDS for sessions that don't have it stored
-        const didDoc = await resolveDid(sessionData.did);
-        pdsUrl = getPdsFromDidDoc(didDoc) || DEFAULT_PDS;
-        console.log(`Re-resolved PDS for ${sessionData.did}: ${pdsUrl}`);
-      } catch (err) {
-        console.warn('Failed to re-resolve PDS, using default:', err);
-        pdsUrl = DEFAULT_PDS;
-      }
-    }
-    
-    currentPdsUrl = pdsUrl || DEFAULT_PDS;
-    
-    agent = new BskyAgent({
-      service: currentPdsUrl,
-      persistSession: persistSession,
-    });
-    
-    // Extract just the session fields needed by resumeSession (exclude pdsUrl)
-    // The session data was originally from AtpSessionData, so it has all required fields
-    // We use type assertion since StoredSession extends the base session with pdsUrl
-    const { pdsUrl: _pdsUrl, ...atpSessionData } = sessionData;
-    // Add default 'active' if missing (for older stored sessions)
-    const sessionForResume = {
-      ...atpSessionData,
-      active: (atpSessionData as { active?: boolean }).active ?? true,
-    };
-    await agent.resumeSession(sessionForResume);
-    
-    // Configure labelers from user's subscriptions (includes LEA labeler)
-    // We await this to ensure labels are included in feed responses
-    try {
-      await configureSubscribedLabelers();
-    } catch (err) {
-      console.error('Failed to configure labelers on restore:', err);
-      configureLabeler(); // Fall back to just LEA labeler
-    }
-    
-    return true;
-  } catch (error) {
-    console.error('Failed to restore session:', error);
-    localStorage.removeItem(SESSION_KEY);
-    return false;
+// Configure labelers and return success
+export async function configureAgentLabelers(): Promise<boolean> {
+  if (!agent) {
+    agent = getAgentFromSession();
   }
-}
-
-export async function login(identifier: string, password: string): Promise<BskyAgent> {
-  // First, resolve the user's PDS from their handle/DID
-  // This allows users on custom PDS to log in properly
-  let pdsUrl = DEFAULT_PDS;
+  if (!agent) return false;
   
-  try {
-    // Handle can be either a handle (e.g., alice.bsky.social) or a DID
-    if (identifier.startsWith('did:')) {
-      // If it's a DID, resolve directly to DID document
-      const didDoc = await resolveDid(identifier);
-      pdsUrl = getPdsFromDidDoc(didDoc) || DEFAULT_PDS;
-    } else {
-      // If it's a handle, resolve handle -> DID -> PDS
-      const resolved = await resolvePdsForHandle(identifier);
-      pdsUrl = resolved.pdsUrl;
-    }
-    console.log(`Resolved PDS for ${identifier}: ${pdsUrl}`);
-  } catch (err) {
-    console.warn(`Failed to resolve PDS for ${identifier}, using default:`, err);
-    // Fall back to default PDS if resolution fails
-    pdsUrl = DEFAULT_PDS;
-  }
-  
-  currentPdsUrl = pdsUrl;
-  
-  agent = new BskyAgent({
-    service: pdsUrl,
-    persistSession: persistSession,
-  });
-  await agent.login({ identifier, password });
-  
-  // Configure labelers from user's subscriptions (includes LEA labeler)
-  // We await this to ensure labels are included in feed responses
   try {
     await configureSubscribedLabelers();
+    return true;
   } catch (err) {
-    console.error('Failed to configure labelers on login:', err);
+    console.error('Failed to configure labelers:', err);
     configureLabeler(); // Fall back to just LEA labeler
+    return true;
   }
-
-  return agent;
 }
 
 export function logout() {
@@ -288,10 +187,12 @@ export function logout() {
   personalListUri = null; // Clear personal list cache on logout
   currentPdsUrl = DEFAULT_PDS; // Reset PDS to default
   clearModerationCache(); // Clear moderation cache on logout
+  // Clear cached handle (defined later in file, but logout is called after setup)
   if (typeof window !== 'undefined') {
-    localStorage.removeItem(SESSION_KEY);
     sessionStorage.removeItem('lea-verified-status'); // Clear verification cache
   }
+  // Revoke OAuth session
+  oauthLogout();
 }
 
 export async function getTimeline(cursor?: string) {
@@ -465,7 +366,7 @@ export async function blockMultipleUsers(
   dids: string[],
   onProgress?: (completed: number, total: number) => void
 ): Promise<{ succeeded: number; failed: number }> {
-  if (!agent?.session?.did) throw new Error('Not logged in');
+  if (!agent?.did) throw new Error('Not logged in');
   
   let succeeded = 0;
   let failed = 0;
@@ -473,7 +374,7 @@ export async function blockMultipleUsers(
   for (let i = 0; i < dids.length; i++) {
     try {
       await agent.api.app.bsky.graph.block.create(
-        { repo: agent.session.did },
+        { repo: agent.assertDid },
         {
           subject: dids[i],
           createdAt: new Date().toISOString(),
@@ -904,11 +805,11 @@ async function getVerifiedOnlyListUri(): Promise<string | null> {
 
 // Fetch personal list URI for the current user
 async function getPersonalListUri(): Promise<string | null> {
-  if (!agent?.session?.did) return null;
+  if (!agent?.did) return null;
   if (personalListUri) return personalListUri;
 
   try {
-    const response = await fetch(`/api/list/uri?type=personal&did=${agent.session.did}`);
+    const response = await fetch(`/api/list/uri?type=personal&did=${agent.assertDid}`);
     if (response.ok) {
       const data = await response.json();
       personalListUri = data.listUri;
@@ -1261,7 +1162,7 @@ export async function createPost(
   // Apply postgate to disable quotes if requested
   if (disableQuotes && postResult.uri) {
     await agent.api.app.bsky.feed.postgate.create(
-      { repo: agent.session!.did, rkey: postResult.uri.split('/').pop()! },
+      { repo: agent.assertDid, rkey: postResult.uri.split('/').pop()! },
       {
         post: postResult.uri,
         createdAt: new Date().toISOString(),
@@ -1302,7 +1203,7 @@ export async function createPost(
 
     // Create threadgate (even with empty allow for 'nobody')
     await agent.api.app.bsky.feed.threadgate.create(
-      { repo: agent.session!.did, rkey: postResult.uri.split('/').pop()! },
+      { repo: agent.assertDid, rkey: postResult.uri.split('/').pop()! },
       {
         post: postResult.uri,
         createdAt: new Date().toISOString(),
@@ -1314,8 +1215,27 @@ export async function createPost(
   return postResult;
 }
 
-export function getSession() {
-  return agent?.session;
+// Cached handle for the current session (fetched once after login)
+let cachedHandle: string | null = null;
+
+export function getSession(): { did: string; handle: string } | null {
+  const oauthSession = getOAuthSession();
+  if (!oauthSession) return null;
+  
+  return {
+    did: oauthSession.sub,
+    handle: cachedHandle || oauthSession.sub, // Use cached handle or fall back to DID
+  };
+}
+
+// Set the cached handle after fetching the user's profile
+export function setCachedHandle(handle: string): void {
+  cachedHandle = handle;
+}
+
+// Clear the cached handle on logout
+export function clearCachedHandle(): void {
+  cachedHandle = null;
 }
 
 const VERIFIED_CACHE_KEY = 'lea-verified-status';
@@ -1372,7 +1292,7 @@ export async function updateThreadgate(
   // First, try to delete existing threadgate (if any)
   try {
     await agent.api.app.bsky.feed.threadgate.delete({
-      repo: agent.session!.did,
+      repo: agent.assertDid,
       rkey,
     });
   } catch {
@@ -1418,7 +1338,7 @@ export async function updateThreadgate(
   // Create the new threadgate
   if (allow.length > 0) {
     await agent.api.app.bsky.feed.threadgate.create(
-      { repo: agent.session!.did, rkey },
+      { repo: agent.assertDid, rkey },
       {
         post: postUri,
         createdAt: new Date().toISOString(),
@@ -1524,7 +1444,7 @@ export async function editPost(postUri: string, newText: string): Promise<{ uri:
 
   // Delete the old post
   await agent.api.app.bsky.feed.post.delete({
-    repo: agent.session!.did,
+    repo: agent.assertDid,
     rkey,
   });
 
@@ -1550,7 +1470,7 @@ export async function editPost(postUri: string, newText: string): Promise<{ uri:
   // Create the new post with the same rkey
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const result = await agent.api.app.bsky.feed.post.create(
-    { repo: agent.session!.did, rkey },
+    { repo: agent.assertDid, rkey },
     newRecord as any
   );
 
@@ -1653,10 +1573,10 @@ export async function getUserPostsForThreadgate(
   cursor?: string,
   limit: number = 50
 ): Promise<{ posts: Array<{ uri: string; cid: string }>; cursor?: string }> {
-  if (!agent?.session?.did) throw new Error('Not logged in');
+  if (!agent?.did) throw new Error('Not logged in');
   
   const response = await agent.getAuthorFeed({
-    actor: agent.session.did,
+    actor: agent.assertDid,
     limit,
     cursor,
     filter: 'posts_no_replies', // Get posts only, not replies
@@ -1668,7 +1588,7 @@ export async function getUserPostsForThreadgate(
       // Exclude reposts
       if (item.reason) return false;
       // Only include posts by the current user
-      return item.post.author.did === agent!.session!.did;
+      return item.post.author.did === agent!.assertDid;
     })
     .map(item => ({
       uri: item.post.uri,
@@ -1903,9 +1823,9 @@ export async function removeMessageReaction(convoId: string, messageId: string, 
 
 // Block a user - returns the URI of the block record for unblocking later
 export async function blockUser(did: string): Promise<{ uri: string }> {
-  if (!agent?.session?.did) throw new Error('Not logged in');
+  if (!agent?.did) throw new Error('Not logged in');
   const response = await agent.api.app.bsky.graph.block.create(
-    { repo: agent.session.did },
+    { repo: agent.assertDid },
     {
       subject: did,
       createdAt: new Date().toISOString(),
@@ -1916,13 +1836,13 @@ export async function blockUser(did: string): Promise<{ uri: string }> {
 
 // Unblock a user by deleting the block record
 export async function unblockUser(blockUri: string): Promise<void> {
-  if (!agent?.session?.did) throw new Error('Not logged in');
+  if (!agent?.did) throw new Error('Not logged in');
   // Parse the rkey from the block URI (at://did:plc:xxx/app.bsky.graph.block/rkey)
   const match = blockUri.match(/\/app\.bsky\.graph\.block\/([^/]+)$/);
   if (!match) throw new Error('Invalid block URI');
   const rkey = match[1];
   await agent.api.app.bsky.graph.block.delete(
-    { repo: agent.session.did, rkey }
+    { repo: agent.assertDid, rkey }
   );
 }
 
@@ -2054,7 +1974,7 @@ export interface UnknownFollowsResult {
 }
 
 export async function getUnknownFollows(actor: string, myFollowsDids?: Set<string>, limit: number = 50): Promise<UnknownFollowsResult> {
-  if (!agent || !agent.session) return { follows: [] };
+  if (!agent || !agent.did) return { follows: [] };
 
   try {
     // Get who this profile follows (first page is enough for display)
@@ -2069,7 +1989,7 @@ export async function getUnknownFollows(actor: string, myFollowsDids?: Set<strin
       let cursor: string | undefined;
       do {
         const response = await agent.getFollows({
-          actor: agent.session.did,
+          actor: agent.assertDid,
           limit: 100,
           cursor,
         });
@@ -2082,7 +2002,7 @@ export async function getUnknownFollows(actor: string, myFollowsDids?: Set<strin
 
     // Also exclude the current user themselves
     const excludeSet = new Set(followsToCheck);
-    excludeSet.add(agent.session.did);
+    excludeSet.add(agent.assertDid);
 
     // Filter to people the current user doesn't follow
     const unknownFollows = profileFollows
@@ -2254,7 +2174,7 @@ export async function getStarterPackMembers(listUri: string): Promise<{ did: str
 
 // Get all accounts the user follows (returns DIDs)
 export async function getMyFollows(): Promise<Set<string>> {
-  if (!agent?.session?.did) return new Set();
+  if (!agent?.did) return new Set();
   try {
     const followedDids = new Set<string>();
     let cursor: string | undefined;
@@ -2262,7 +2182,7 @@ export async function getMyFollows(): Promise<Set<string>> {
     // Paginate through all follows
     do {
       const response = await agent.getFollows({
-        actor: agent.session.did,
+        actor: agent.assertDid,
         limit: 100,
         cursor,
       });
@@ -2320,18 +2240,18 @@ export interface AlertThresholds {
 export async function getMyRecentPostsWithMetrics(
   limit: number = 20
 ): Promise<AppBskyFeedDefs.PostView[]> {
-  if (!agent?.session?.did) return [];
+  if (!agent?.did) return [];
   
   try {
     const response = await agent.getAuthorFeed({
-      actor: agent.session.did,
+      actor: agent.assertDid,
       limit,
       filter: 'posts_no_replies',
     });
     
     // Filter to only posts by current user (not reposts) and return PostView
     return response.data.feed
-      .filter(item => !item.reason && item.post.author.did === agent!.session!.did)
+      .filter(item => !item.reason && item.post.author.did === agent!.assertDid)
       .map(item => item.post);
   } catch (error) {
     console.error('Failed to fetch recent posts:', error);
@@ -2344,7 +2264,7 @@ export async function getMyRecentPostsAndReplies(
   daysBack: number = 7,
   maxPosts: number = 100
 ): Promise<AppBskyFeedDefs.PostView[]> {
-  if (!agent?.session?.did) return [];
+  if (!agent?.did) return [];
   
   const cutoffDate = new Date(Date.now() - daysBack * 24 * 60 * 60 * 1000);
   const posts: AppBskyFeedDefs.PostView[] = [];
@@ -2354,7 +2274,7 @@ export async function getMyRecentPostsAndReplies(
     // Keep fetching until we have enough posts or go past cutoff
     while (posts.length < maxPosts) {
       const response = await agent.getAuthorFeed({
-        actor: agent.session.did,
+        actor: agent.assertDid,
         limit: 50,
         cursor,
         filter: 'posts_with_replies', // Include replies
@@ -2364,7 +2284,7 @@ export async function getMyRecentPostsAndReplies(
         // Skip reposts
         if (item.reason) continue;
         // Only include posts by current user
-        if (item.post.author.did !== agent.session!.did) continue;
+        if (item.post.author.did !== agent.assertDid) continue;
         
         const postDate = new Date(item.post.indexedAt);
         if (postDate < cutoffDate) {
@@ -2391,7 +2311,7 @@ export async function getMyRecentPostsAndReplies(
 
 // Check for safety alerts on user's posts
 export async function checkSafetyAlerts(thresholds?: AlertThresholds): Promise<SafetyAlert[]> {
-  if (!agent?.session?.did) return [];
+  if (!agent?.did) return [];
   
   // Use provided thresholds or defaults
   const highEngagementThreshold = thresholds?.highEngagement ?? DEFAULT_HIGH_ENGAGEMENT_THRESHOLD;
@@ -2618,7 +2538,7 @@ export async function getLabelDefinitions(): Promise<Record<string, InterpretedL
 // Get complete moderation options (prefs + label definitions)
 // This is what you pass to moderatePost()
 export async function getModerationOpts(forceRefresh = false): Promise<ModerationOpts | null> {
-  if (!agent?.session?.did) return null;
+  if (!agent?.did) return null;
   
   // Return cached if still valid
   const now = Date.now();
@@ -2631,7 +2551,7 @@ export async function getModerationOpts(forceRefresh = false): Promise<Moderatio
     const labelDefs = await agent.getLabelDefinitions(prefs);
     
     cachedModerationOpts = {
-      userDid: agent.session.did,
+      userDid: agent.assertDid,
       prefs: prefs.moderationPrefs,
       labelDefs: labelDefs as Record<string, InterpretedLabelValueDefinition[]>,
     };
@@ -2720,7 +2640,7 @@ export async function detachQuote(
   // Try to get existing postgate for your post
   try {
     const response = await agent.api.app.bsky.feed.postgate.get({
-      repo: agent.session!.did,
+      repo: agent.assertDid,
       rkey,
     });
     // Extract values from the response
@@ -2745,7 +2665,7 @@ export async function detachQuote(
   if (hasExistingPostgate) {
     try {
       await agent.api.app.bsky.feed.postgate.delete({
-        repo: agent.session!.did,
+        repo: agent.assertDid,
         rkey,
       });
     } catch {
@@ -2755,7 +2675,7 @@ export async function detachQuote(
   
   // Create the postgate with updated detachedEmbeddingUris
   await agent.api.app.bsky.feed.postgate.create(
-    { repo: agent.session!.did, rkey },
+    { repo: agent.assertDid, rkey },
     {
       post: quotedPostUri,
       createdAt: new Date().toISOString(),

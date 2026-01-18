@@ -3,7 +3,9 @@
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useState, useEffect, useCallback, Suspense } from 'react';
 import { AppBskyFeedDefs, AppBskyEmbedExternal } from '@atproto/api';
-import { restoreSession, getSession, getBlueskyProfile, getPostsByUris, searchPosts, buildProfileUrl } from '@/lib/bluesky';
+import { getSession, getBlueskyProfile, getPostsByUris, searchPosts, buildProfileUrl } from '@/lib/bluesky';
+import { initOAuth } from '@/lib/oauth';
+import { refreshAgent } from '@/lib/bluesky';
 import { getUrlFromPaperId, getPaperTypeFromId, getSearchQueryForPaper, extractPaperUrl, extractAnyUrl, getPaperIdFromUrl, LinkFacet } from '@/lib/papers';
 import { SettingsProvider } from '@/lib/settings';
 import { BookmarksProvider } from '@/lib/bookmarks';
@@ -57,7 +59,7 @@ function PaperPageContent() {
 
   // Restore session on mount
   useEffect(() => {
-    restoreSession().then((restored) => {
+    initOAuth().then((result) => { refreshAgent(); const restored = !!result?.session;
       if (restored) {
         setIsLoggedIn(true);
       }
