@@ -2,9 +2,19 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db, verifiedResearchers } from '@/lib/db';
 import { eq } from 'drizzle-orm';
 import { nanoid } from 'nanoid';
+import { getAuthenticatedDid } from '@/lib/server-auth';
 
 export async function POST(request: NextRequest) {
   try {
+    // Verify the user is authenticated
+    const authenticatedDid = getAuthenticatedDid(request);
+    if (!authenticatedDid) {
+      return NextResponse.json(
+        { error: 'Authentication required' },
+        { status: 401 }
+      );
+    }
+
     const body = await request.json();
     const { did, handle, orcid, name, institution, researchTopics, verificationMethod = 'auto' } = body;
 
@@ -12,6 +22,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { error: 'Missing required fields: did and orcid' },
         { status: 400 }
+      );
+    }
+
+    // Ensure the user can only verify themselves
+    if (did !== authenticatedDid) {
+      return NextResponse.json(
+        { error: 'Cannot verify a different account' },
+        { status: 403 }
       );
     }
 

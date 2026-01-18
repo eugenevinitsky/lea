@@ -1,15 +1,33 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db, vouchRequests } from '@/lib/db';
 import { eq, and } from 'drizzle-orm';
+import { getAuthenticatedDid } from '@/lib/server-auth';
 
 export async function POST(request: NextRequest) {
   try {
+    // Verify the user is authenticated
+    const authenticatedDid = getAuthenticatedDid(request);
+    if (!authenticatedDid) {
+      return NextResponse.json(
+        { error: 'Authentication required' },
+        { status: 401 }
+      );
+    }
+
     const { requestId, voucherDid } = await request.json();
 
     if (!requestId || !voucherDid) {
       return NextResponse.json(
         { error: 'Missing required fields' },
         { status: 400 }
+      );
+    }
+
+    // Ensure the authenticated user is the voucher
+    if (voucherDid !== authenticatedDid) {
+      return NextResponse.json(
+        { error: 'Can only reject vouches addressed to yourself' },
+        { status: 403 }
       );
     }
 
