@@ -287,8 +287,14 @@ async function processSingleIngest(req: IngestRequest): Promise<{ substackPostId
       // Fetch metadata for new post
       const metadata = await fetchSubstackMetadata(post.url, post.subdomain, post.slug);
 
+      // Skip paywalled content (no body text available)
+      if (!metadata?.bodyText || metadata.bodyText.length < 100) {
+        console.log(`Skipping paywalled Substack post: ${post.url} (title: ${metadata?.title})`);
+        continue;
+      }
+
       // Filter for technical/intellectual content using embedding classifier
-      // Use body text if available (more accurate), otherwise title + description
+      // Use body text for classification (more accurate than title+description)
       const result = await classifyContentAsync(
         metadata?.title || '',
         metadata?.description || '',
@@ -480,8 +486,14 @@ export async function POST(request: NextRequest) {
         // Fetch metadata for new post (including body text from RSS for better classification)
         const metadata = await fetchSubstackMetadata(post.url, post.subdomain, post.slug);
 
+        // Skip paywalled content (no body text available)
+        if (!metadata?.bodyText || metadata.bodyText.length < 100) {
+          console.log(`Skipping paywalled Substack post: ${post.url} (title: ${metadata?.title})`);
+          continue;
+        }
+
         // Filter for technical/intellectual content using embedding classifier
-        // Use body text if available (more accurate), otherwise title + description
+        // Use body text for classification (more accurate than title+description)
         const result = await classifyContentAsync(
           metadata?.title || '',
           metadata?.description || '',
