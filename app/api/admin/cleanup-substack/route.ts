@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db, discoveredSubstackPosts, substackMentions } from '@/lib/db';
 import { inArray } from 'drizzle-orm';
-import { isTechnicalContent, classifyContent } from '@/lib/substack-classifier';
+import { initEmbeddingClassifier, classifyContentAsync, isEmbeddingClassifierReady } from '@/lib/substack-classifier';
 
 // Strip HTML tags and decode entities to get plain text
 function stripHtml(html: string): string {
@@ -117,6 +117,14 @@ export async function POST(request: NextRequest) {
   }
 
   try {
+    // Initialize embedding classifier
+    if (!isEmbeddingClassifierReady()) {
+      const initialized = await initEmbeddingClassifier();
+      if (!initialized) {
+        return NextResponse.json({ error: 'Failed to initialize embedding classifier' }, { status: 500 });
+      }
+    }
+
     // Fetch all existing posts
     const allPosts = await db.select().from(discoveredSubstackPosts);
 
@@ -130,25 +138,20 @@ export async function POST(request: NextRequest) {
         bodyText = await fetchBodyText(post.subdomain, post.slug, post.url);
       }
 
-      // Combine title, description, and body text for classification
-      const classificationText = [
+      // Classify using embedding k-NN
+      const result = await classifyContentAsync(
         post.title || '',
         post.description || '',
-        bodyText || '',
-      ].filter(Boolean).join(' ');
+        bodyText || undefined
+      );
 
-      // Pass combined text - matches training data format
-      const isTechnical = isTechnicalContent('', classificationText);
-
-      if (isTechnical) {
+      if (result.isTechnical) {
         kept.push({ id: post.id, title: post.title });
       } else {
-        // Get classification details for logging
-        const details = classifyContent('', classificationText);
         removed.push({
           id: post.id,
           title: post.title,
-          reason: `prediction=${details.prediction} tech=${details.scores['technical']?.toFixed(1)} non_tech=${details.scores['non-technical']?.toFixed(1)} body=${bodyText ? 'yes' : 'no'}`,
+          reason: `prediction=${result.prediction} prob=${result.probability.toFixed(3)} body=${bodyText ? 'yes' : 'no'}`,
         });
       }
     }

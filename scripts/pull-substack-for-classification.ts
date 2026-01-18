@@ -11,7 +11,7 @@ import { db, discoveredSubstackPosts } from '@/lib/db';
 import { desc, gte } from 'drizzle-orm';
 import * as fs from 'fs';
 import * as path from 'path';
-import { classifyContent } from '@/lib/substack-classifier';
+import { initEmbeddingClassifier, classifyContentAsync, isEmbeddingClassifierReady } from '@/lib/substack-classifier';
 
 interface PostForReview {
   id: number;
@@ -21,7 +21,7 @@ interface PostForReview {
   url: string;
   mentionCount: number;
   currentPrediction: string;
-  scores: { technical: number; 'non-technical': number };
+  probability: number;
 }
 
 async function main() {
@@ -37,6 +37,16 @@ async function main() {
     } else if (args[i] === '--days' && args[i + 1]) {
       days = parseInt(args[i + 1], 10);
       i++;
+    }
+  }
+
+  // Initialize embedding classifier
+  if (!isEmbeddingClassifierReady()) {
+    console.log('Initializing embedding classifier...');
+    const initialized = await initEmbeddingClassifier();
+    if (!initialized) {
+      console.error('Failed to initialize embedding classifier. Check GOOGLE_AI_API_KEY.');
+      process.exit(1);
     }
   }
 
@@ -65,7 +75,7 @@ async function main() {
   const postsForReview: PostForReview[] = [];
 
   for (const post of posts) {
-    const classification = classifyContent(post.title || '', post.description || '');
+    const classification = await classifyContentAsync(post.title || '', post.description || '');
 
     postsForReview.push({
       id: post.id,
@@ -75,7 +85,7 @@ async function main() {
       url: post.url,
       mentionCount: post.mentionCount,
       currentPrediction: classification.prediction,
-      scores: classification.scores as { technical: number; 'non-technical': number },
+      probability: classification.probability,
     });
   }
 
@@ -88,18 +98,17 @@ async function main() {
   console.log(`  - non-technical: ${nonTechnicalCount}`);
   console.log();
 
-  // Output posts for review - sorted by confidence (lowest first = most uncertain)
+  // Output posts for review - sorted by probability (closest to 0.5 = most uncertain)
   const sortedByUncertainty = [...postsForReview].sort((a, b) => {
-    const aDiff = Math.abs(a.scores.technical - a.scores['non-technical']);
-    const bDiff = Math.abs(b.scores.technical - b.scores['non-technical']);
-    return aDiff - bDiff; // Lower diff = more uncertain
+    const aUncertainty = Math.abs(a.probability - 0.5);
+    const bUncertainty = Math.abs(b.probability - 0.5);
+    return aUncertainty - bUncertainty; // Lower = more uncertain
   });
 
   console.log('=== POSTS SORTED BY UNCERTAINTY (review these first) ===\n');
 
   for (const post of sortedByUncertainty.slice(0, 50)) {
-    const diff = Math.abs(post.scores.technical - post.scores['non-technical']).toFixed(2);
-    console.log(`[${post.currentPrediction.toUpperCase()}] (uncertainty: ${diff})`);
+    console.log(`[${post.currentPrediction.toUpperCase()}] (prob: ${post.probability.toFixed(3)})`);
     console.log(`  Title: ${post.title || '(no title)'}`);
     console.log(`  Newsletter: ${post.subdomain}`);
     console.log(`  Mentions: ${post.mentionCount}`);
