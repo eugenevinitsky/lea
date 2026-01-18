@@ -18,7 +18,7 @@ function getClientId(): string {
   if (origin.includes('127.0.0.1') || origin.includes('localhost')) {
     // Use loopback client for local development
     // This tells the OAuth server this is a development client
-    return `http://localhost?redirect_uri=${encodeURIComponent(origin + '/')}&scope=${encodeURIComponent('atproto transition:generic')}`;
+    return `http://localhost?redirect_uri=${encodeURIComponent(origin + '/')}&scope=${encodeURIComponent('atproto transition:generic transition:chat.bsky')}`;
   }
   
   // Production: use the client metadata URL
@@ -40,7 +40,7 @@ async function getOAuthClient(): Promise<BrowserOAuthClient> {
       clientMetadata: {
         client_id: clientId,
         redirect_uris: [window.location.origin + '/'],
-        scope: 'atproto transition:generic',
+        scope: 'atproto transition:generic transition:chat.bsky',
         grant_types: ['authorization_code', 'refresh_token'],
         response_types: ['code'],
         application_type: 'web',
