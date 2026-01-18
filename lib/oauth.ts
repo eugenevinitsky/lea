@@ -111,16 +111,29 @@ export async function initOAuth(): Promise<{ session: OAuthSession; isCallback: 
     if (result?.session) {
       currentSession = result.session;
       notifySessionChange(currentSession);
-      
+
       // Check if this was a callback (state is defined when redirected back)
       const isCallback = result.state !== undefined;
-      
+
+      // Create server-side session for API authentication
+      // This sets an httpOnly cookie that our API endpoints can verify
+      try {
+        await fetch('/api/auth/session', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ did: result.session.sub }),
+        });
+      } catch (err) {
+        console.error('Failed to create server session:', err);
+        // Continue anyway - the OAuth session is still valid
+      }
+
       // Clean up URL params after callback
       if (isCallback && window.history.replaceState) {
         const cleanUrl = window.location.origin + window.location.pathname;
         window.history.replaceState({}, '', cleanUrl);
       }
-      
+
       return { session: result.session, isCallback };
     }
     
@@ -187,18 +200,25 @@ export function getAgentFromSession(): Agent | null {
  * Log out - revoke the current session
  */
 export async function oauthLogout(): Promise<void> {
+  // Clear server-side session cookie
+  try {
+    await fetch('/api/auth/session', { method: 'DELETE' });
+  } catch (err) {
+    console.error('Failed to clear server session:', err);
+  }
+
   if (!currentSession || !oauthClient) {
     currentSession = null;
     notifySessionChange(null);
     return;
   }
-  
+
   try {
     await oauthClient.revoke(currentSession.sub);
   } catch (error) {
     console.error('OAuth revoke failed:', error);
   }
-  
+
   currentSession = null;
   notifySessionChange(null);
 }

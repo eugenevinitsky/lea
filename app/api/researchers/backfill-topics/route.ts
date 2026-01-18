@@ -6,10 +6,17 @@ import { eq, isNull, and, ne } from 'drizzle-orm';
 // This fetches works from OpenAlex and extracts topics
 export async function POST(request: NextRequest) {
   try {
-    // Optional: Add a secret key check for security
+    // Require secret key for admin endpoints
     const { searchParams } = new URL(request.url);
     const key = searchParams.get('key');
-    if (key !== process.env.BACKFILL_SECRET && process.env.BACKFILL_SECRET) {
+    const secret = process.env.BACKFILL_SECRET;
+
+    // Always require authentication - fail if secret is not configured
+    if (!secret) {
+      console.error('BACKFILL_SECRET not configured');
+      return NextResponse.json({ error: 'Server configuration error' }, { status: 500 });
+    }
+    if (key !== secret) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 

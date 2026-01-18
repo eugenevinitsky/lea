@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { db, discoveredPapers } from '@/lib/db';
 import { isNull, eq } from 'drizzle-orm';
 
@@ -113,8 +113,22 @@ async function fetchPaperMetadata(normalizedId: string, source: string): Promise
 }
 
 // POST /api/papers/backfill-titles - Backfill titles for papers without them
-export async function POST() {
+export async function POST(request: NextRequest) {
   try {
+    // Require secret key for admin endpoints
+    const { searchParams } = new URL(request.url);
+    const key = searchParams.get('key');
+    const secret = process.env.BACKFILL_SECRET;
+
+    // Always require authentication - fail if secret is not configured
+    if (!secret) {
+      console.error('BACKFILL_SECRET not configured');
+      return NextResponse.json({ error: 'Server configuration error' }, { status: 500 });
+    }
+    if (key !== secret) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     // Get papers without titles OR with bad titles (like "arXiv Query:")
     const papersWithoutTitles = await db
       .select()
