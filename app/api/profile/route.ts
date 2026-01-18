@@ -14,6 +14,30 @@ function safeJsonParse<T>(json: string | null | undefined, defaultValue: T): T {
   }
 }
 
+// Validate URL format and protocol
+function isValidUrl(url: string): boolean {
+  try {
+    const parsed = new URL(url);
+    // Only allow http and https protocols
+    return parsed.protocol === 'http:' || parsed.protocol === 'https:';
+  } catch {
+    return false;
+  }
+}
+
+// Validate URL isn't a potential XSS vector
+function isSafeUrl(url: string): boolean {
+  if (!isValidUrl(url)) return false;
+
+  const urlLower = url.toLowerCase().trim();
+  // Block javascript: and data: URLs (could bypass protocol check via encoding)
+  if (urlLower.startsWith('javascript:') || urlLower.startsWith('data:')) {
+    return false;
+  }
+
+  return true;
+}
+
 // GET /api/profile?did=xxx - Fetch a user's profile
 export async function GET(request: NextRequest) {
   const did = request.nextUrl.searchParams.get('did');
@@ -107,26 +131,53 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: 'Max 3 favorite read papers' }, { status: 400 });
     }
 
-    // Validate link structure
+    // Validate link structure and URLs
     if (links) {
       for (const link of links as ProfileLink[]) {
         if (!link.title || !link.url) {
           return NextResponse.json({ error: 'Links must have title and url' }, { status: 400 });
         }
+        if (link.title.length > 100) {
+          return NextResponse.json({ error: 'Link title too long (max 100 chars)' }, { status: 400 });
+        }
+        if (!isSafeUrl(link.url)) {
+          return NextResponse.json({ error: 'Invalid link URL. Must be a valid http or https URL.' }, { status: 400 });
+        }
+        if (link.url.length > 2000) {
+          return NextResponse.json({ error: 'Link URL too long (max 2000 chars)' }, { status: 400 });
+        }
       }
     }
 
-    // Validate paper structure
+    // Validate paper structure and URLs
     const validatePapers = (papers: ProfilePaper[] | undefined, fieldName: string) => {
-      if (!papers) return;
+      if (!papers) return null;
       for (const paper of papers) {
         if (!paper.title || !paper.url) {
-          return NextResponse.json({ error: `${fieldName} must have title and url` }, { status: 400 });
+          return { error: `${fieldName} must have title and url` };
+        }
+        if (paper.title.length > 300) {
+          return { error: `${fieldName} title too long (max 300 chars)` };
+        }
+        if (!isSafeUrl(paper.url)) {
+          return { error: `Invalid ${fieldName.toLowerCase()} URL. Must be a valid http or https URL.` };
+        }
+        if (paper.url.length > 2000) {
+          return { error: `${fieldName} URL too long (max 2000 chars)` };
         }
       }
+      return null;
     };
-    validatePapers(favoriteOwnPapers, 'Favorite own papers');
-    validatePapers(favoriteReadPapers, 'Favorite read papers');
+
+    const ownPapersError = validatePapers(favoriteOwnPapers, 'Favorite own papers');
+    if (ownPapersError) {
+      return NextResponse.json(ownPapersError, { status: 400 });
+    }
+
+    const readPapersError = validatePapers(favoriteReadPapers, 'Favorite read papers');
+    if (readPapersError) {
+      return NextResponse.json(readPapersError, { status: 400 });
+    }
 
     // Check if profile exists
     const [existing] = await db
