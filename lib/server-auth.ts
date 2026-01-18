@@ -48,25 +48,27 @@ interface VerifyError {
 
 /**
  * Generate a signed session token
+ * Uses | as delimiter since DIDs contain colons (e.g., did:plc:abc123)
  */
 export function generateSessionToken(did: string): string {
   const expiresAt = Date.now() + SESSION_VALIDITY_MS;
-  const payload = `${did}:${expiresAt}`;
+  const payload = `${did}|${expiresAt}`;
   const signature = crypto
     .createHmac('sha256', getSessionSecret())
     .update(payload)
     .digest('hex');
 
-  return Buffer.from(`${payload}:${signature}`).toString('base64');
+  return Buffer.from(`${payload}|${signature}`).toString('base64');
 }
 
 /**
  * Verify a session token
+ * Uses | as delimiter since DIDs contain colons (e.g., did:plc:abc123)
  */
 export function verifySessionToken(token: string): VerifyResult | VerifyError {
   try {
     const decoded = Buffer.from(token, 'base64').toString('utf-8');
-    const parts = decoded.split(':');
+    const parts = decoded.split('|');
 
     if (parts.length !== 3) {
       return { success: false, error: 'Invalid session format', status: 401 };
@@ -83,7 +85,7 @@ export function verifySessionToken(token: string): VerifyResult | VerifyError {
     // Verify signature using timing-safe comparison
     const expectedSignature = crypto
       .createHmac('sha256', getSessionSecret())
-      .update(`${did}:${expiresAt}`)
+      .update(`${did}|${expiresAt}`)
       .digest('hex');
 
     // Use timing-safe comparison to prevent timing attacks

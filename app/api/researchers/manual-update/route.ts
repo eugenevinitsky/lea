@@ -1,6 +1,25 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db, verifiedResearchers } from '@/lib/db';
 import { eq } from 'drizzle-orm';
+import crypto from 'crypto';
+
+// Timing-safe secret comparison for admin endpoints
+function verifyAdminSecret(request: NextRequest): boolean {
+  const secret = process.env.BACKFILL_SECRET;
+  if (!secret) return false;
+
+  const authHeader = request.headers.get('authorization');
+  if (!authHeader?.startsWith('Bearer ')) return false;
+
+  try {
+    const providedBuffer = Buffer.from(authHeader.slice(7));
+    const expectedBuffer = Buffer.from(secret);
+    if (providedBuffer.length !== expectedBuffer.length) return false;
+    return crypto.timingSafeEqual(providedBuffer, expectedBuffer);
+  } catch {
+    return false;
+  }
+}
 
 // Fetch research topics from OpenAlex by author ID
 async function fetchTopicsForOpenAlexId(openalexId: string): Promise<string[]> {
@@ -65,6 +84,11 @@ async function fetchTopicsForOrcid(orcid: string): Promise<string[]> {
 }
 
 export async function POST(request: NextRequest) {
+  // Require admin authentication
+  if (!verifyAdminSecret(request)) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
   try {
     const body = await request.json();
     const { handle, orcid, openalexId } = body;
@@ -92,7 +116,7 @@ export async function POST(request: NextRequest) {
 
     if (researchers.length === 0) {
       return NextResponse.json(
-        { error: `Researcher not found: ${handle}` },
+        { error: 'Researcher not found' },
         { status: 404 }
       );
     }

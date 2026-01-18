@@ -1,5 +1,24 @@
 import { NextRequest, NextResponse } from 'next/server';
 
+// Validate URL format and ensure it's a safe URL
+function isValidPaperUrl(urlString: string): boolean {
+  try {
+    const url = new URL(urlString);
+    // Only allow http and https protocols
+    if (url.protocol !== 'http:' && url.protocol !== 'https:') {
+      return false;
+    }
+    // Block potentially dangerous URL schemes
+    const lowerUrl = urlString.toLowerCase();
+    if (lowerUrl.startsWith('javascript:') || lowerUrl.startsWith('data:')) {
+      return false;
+    }
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 // Extract DOI from various paper URLs
 function extractDoi(url: string): string | null {
   const lowerUrl = url.toLowerCase();
@@ -157,6 +176,10 @@ export async function GET(request: NextRequest) {
 
   if (!url) {
     return NextResponse.json({ error: 'URL required' }, { status: 400 });
+  }
+
+  if (!isValidPaperUrl(url)) {
+    return NextResponse.json({ error: 'Invalid URL format' }, { status: 400 });
   }
 
   try {

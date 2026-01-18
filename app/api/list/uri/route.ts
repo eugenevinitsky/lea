@@ -22,7 +22,7 @@ export async function GET(request: NextRequest) {
 
     if (!listUri) {
       return NextResponse.json(
-        { error: `${type} list not created yet` },
+        { error: 'List not created yet' },
         { status: 404 }
       );
     }

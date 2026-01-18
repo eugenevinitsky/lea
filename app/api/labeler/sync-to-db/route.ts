@@ -249,7 +249,7 @@ async function handleSingleDid(agent: BskyAgent, did: string, action: 'add' | 'r
   const profile = await getProfile(agent, did);
   if (!profile) {
     return NextResponse.json(
-      { error: `Could not fetch profile for ${did}` },
+      { error: 'Could not fetch profile' },
       { status: 400 }
     );
   }
