@@ -30,6 +30,7 @@ function AppContent() {
   const router = useRouter();
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [accessDenied, setAccessDenied] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [onboardingStartStep, setOnboardingStartStep] = useState(1);
   const [refreshKey, setRefreshKey] = useState(0);
@@ -233,6 +234,25 @@ function AppContent() {
           // Get session info (DID is available immediately)
           const session = getSession();
           if (session?.did) {
+            // Check if user is authorized (verified researcher)
+            try {
+              const accessResponse = await fetch(`/api/auth/check-access?did=${encodeURIComponent(session.did)}`);
+              const accessData = await accessResponse.json();
+              
+              if (!accessData.authorized) {
+                // User is not a verified researcher - deny access
+                setAccessDenied(true);
+                setIsLoading(false);
+                return;
+              }
+            } catch (err) {
+              console.error('Failed to check access:', err);
+              // On error, deny access to be safe
+              setAccessDenied(true);
+              setIsLoading(false);
+              return;
+            }
+            
             setBookmarksUserDid(session.did);
             setFeedsUserDid(session.did);
             
@@ -252,7 +272,7 @@ function AppContent() {
             // Refresh moderation options
             refreshModerationOpts();
             
-            // Check verification status
+            // Check verification status (for display purposes)
             checkVerificationStatus(session.did).then(setIsVerified);
           }
           
@@ -395,6 +415,47 @@ function AppContent() {
 
   if (!isLoggedIn) {
     return <Login onLogin={handleLogin} />;
+  }
+
+  if (accessDenied) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 dark:from-gray-950 dark:via-gray-900 dark:to-gray-950 flex items-center justify-center p-6">
+        <div className="max-w-md w-full bg-white dark:bg-gray-900 rounded-2xl p-8 shadow-xl shadow-gray-200/50 dark:shadow-none border border-gray-100 dark:border-gray-800 text-center">
+          <div className="w-16 h-16 mx-auto mb-6 bg-amber-100 dark:bg-amber-900/30 rounded-full flex items-center justify-center">
+            <svg className="w-8 h-8 text-amber-600 dark:text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+            </svg>
+          </div>
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-2">
+            Access Restricted
+          </h2>
+          <p className="text-gray-600 dark:text-gray-400 mb-6">
+            Lea is currently only available to verified researchers. To get access, you need to verify your researcher status through our ORCID verification process.
+          </p>
+          <div className="space-y-3">
+            <a
+              href="/verify"
+              className="block w-full py-3 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-semibold rounded-xl transition-all shadow-lg shadow-blue-500/25"
+            >
+              Verify Your Researcher Status
+            </a>
+            <button
+              onClick={() => {
+                logout();
+                setAccessDenied(false);
+                setIsLoggedIn(false);
+              }}
+              className="block w-full py-3 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 font-medium transition-colors"
+            >
+              Sign out and use a different account
+            </button>
+          </div>
+          <p className="mt-6 text-sm text-gray-500">
+            Already verified? It may take a few minutes for your verification to sync. Try refreshing the page.
+          </p>
+        </div>
+      </div>
+    );
   }
 
   if (showOnboarding) {
