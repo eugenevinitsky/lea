@@ -1,10 +1,12 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import ProfileHoverCard from './ProfileHoverCard';
 import { getActiveResearchers } from '@/lib/feed-tracking';
 import { getSession } from '@/lib/bluesky';
 import { useFollowing } from '@/lib/following-context';
+
+const PAGE_SIZE = 20;
 
 interface RecentResearcher {
   did: string;
@@ -118,8 +120,16 @@ export default function ModerationBox({ onOpenProfile, defaultExpanded = false, 
   const [loading, setLoading] = useState(false);
   const [papersLoading, setPapersLoading] = useState(false);
   const [substackLoading, setSubstackLoading] = useState(false);
+  const [loadingMorePapers, setLoadingMorePapers] = useState(false);
+  const [loadingMoreSubstack, setLoadingMoreSubstack] = useState(false);
+  const [hasMorePapers, setHasMorePapers] = useState(true);
+  const [hasMoreSubstack, setHasMoreSubstack] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const { followingDids } = useFollowing();
+
+  // Refs for scroll containers
+  const papersScrollRef = useRef<HTMLDivElement>(null);
+  const substackScrollRef = useRef<HTMLDivElement>(null);
 
   // Fetch recently verified when tab is selected or expanded
   useEffect(() => {
@@ -166,37 +176,88 @@ export default function ModerationBox({ onOpenProfile, defaultExpanded = false, 
     }
   };
 
-  const fetchTrendingPapers = async () => {
-    setPapersLoading(true);
+  const fetchTrendingPapers = async (offset = 0, append = false) => {
+    if (offset === 0) {
+      setPapersLoading(true);
+    } else {
+      setLoadingMorePapers(true);
+    }
     setError(null);
     try {
-      const response = await fetch('/api/papers/trending?hours=24&limit=20');
+      const response = await fetch(`/api/papers/trending?hours=24&limit=${PAGE_SIZE}&offset=${offset}`);
       const data = await response.json();
       if (data.papers) {
-        setTrendingPapers(data.papers);
+        if (append) {
+          setTrendingPapers(prev => [...prev, ...data.papers]);
+        } else {
+          setTrendingPapers(data.papers);
+        }
+        setHasMorePapers(data.hasMore ?? data.papers.length === PAGE_SIZE);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load papers');
     } finally {
       setPapersLoading(false);
+      setLoadingMorePapers(false);
     }
   };
 
-  const fetchTrendingSubstackPosts = async () => {
-    setSubstackLoading(true);
+  const fetchTrendingSubstackPosts = async (offset = 0, append = false) => {
+    if (offset === 0) {
+      setSubstackLoading(true);
+    } else {
+      setLoadingMoreSubstack(true);
+    }
     setError(null);
     try {
-      const response = await fetch('/api/substack/trending?hours=24&limit=20');
+      const response = await fetch(`/api/substack/trending?hours=24&limit=${PAGE_SIZE}&offset=${offset}`);
       const data = await response.json();
       if (data.posts) {
-        setTrendingSubstackPosts(data.posts);
+        if (append) {
+          setTrendingSubstackPosts(prev => [...prev, ...data.posts]);
+        } else {
+          setTrendingSubstackPosts(data.posts);
+        }
+        setHasMoreSubstack(data.hasMore ?? data.posts.length === PAGE_SIZE);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load Substack posts');
     } finally {
       setSubstackLoading(false);
+      setLoadingMoreSubstack(false);
     }
   };
+
+  // Load more handlers
+  const loadMorePapers = useCallback(() => {
+    if (!loadingMorePapers && hasMorePapers) {
+      fetchTrendingPapers(trendingPapers.length, true);
+    }
+  }, [loadingMorePapers, hasMorePapers, trendingPapers.length]);
+
+  const loadMoreSubstack = useCallback(() => {
+    if (!loadingMoreSubstack && hasMoreSubstack) {
+      fetchTrendingSubstackPosts(trendingSubstackPosts.length, true);
+    }
+  }, [loadingMoreSubstack, hasMoreSubstack, trendingSubstackPosts.length]);
+
+  // Scroll handler for papers
+  const handlePapersScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
+    const target = e.target as HTMLDivElement;
+    const nearBottom = target.scrollHeight - target.scrollTop - target.clientHeight < 100;
+    if (nearBottom && !loadingMorePapers && hasMorePapers) {
+      loadMorePapers();
+    }
+  }, [loadMorePapers, loadingMorePapers, hasMorePapers]);
+
+  // Scroll handler for substack
+  const handleSubstackScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
+    const target = e.target as HTMLDivElement;
+    const nearBottom = target.scrollHeight - target.scrollTop - target.clientHeight < 100;
+    if (nearBottom && !loadingMoreSubstack && hasMoreSubstack) {
+      loadMoreSubstack();
+    }
+  }, [loadMoreSubstack, loadingMoreSubstack, hasMoreSubstack]);
 
   // Filter out people the user already follows and the user themselves
   const session = getSession();
@@ -433,7 +494,11 @@ export default function ModerationBox({ onOpenProfile, defaultExpanded = false, 
                   <p className="text-[10px] text-gray-400 mt-1">Papers shared on Bluesky will appear here</p>
                 </div>
               ) : (
-                <div className={`overflow-y-auto divide-y divide-gray-100 dark:divide-gray-800 ${embedded ? 'flex-1' : 'max-h-[280px]'}`}>
+                <div
+                  className={`overflow-y-auto divide-y divide-gray-100 dark:divide-gray-800 ${embedded ? 'flex-1' : 'max-h-[280px]'}`}
+                  onScroll={handlePapersScroll}
+                  ref={papersScrollRef}
+                >
                   {trendingPapers.map((paper) => {
                     const sourceColors: Record<string, string> = {
                       arxiv: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400',
@@ -483,6 +548,16 @@ export default function ModerationBox({ onOpenProfile, defaultExpanded = false, 
                       </a>
                     );
                   })}
+                  {loadingMorePapers && (
+                    <div className="flex items-center justify-center py-3">
+                      <div className="animate-spin w-4 h-4 border-2 border-purple-500 border-t-transparent rounded-full" />
+                    </div>
+                  )}
+                  {!hasMorePapers && trendingPapers.length > 0 && (
+                    <div className="py-2 text-center text-xs text-gray-400">
+                      No more papers
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -503,7 +578,11 @@ export default function ModerationBox({ onOpenProfile, defaultExpanded = false, 
                   <p className="text-[10px] text-gray-400 mt-1">Articles shared on Bluesky will appear here</p>
                 </div>
               ) : (
-                <div className={`overflow-y-auto divide-y divide-gray-100 dark:divide-gray-800 ${embedded ? 'flex-1' : 'max-h-[280px]'}`}>
+                <div
+                  className={`overflow-y-auto divide-y divide-gray-100 dark:divide-gray-800 ${embedded ? 'flex-1' : 'max-h-[280px]'}`}
+                  onScroll={handleSubstackScroll}
+                  ref={substackScrollRef}
+                >
                   {trendingSubstackPosts.map((post) => {
                     return (
                       <div
@@ -555,6 +634,16 @@ export default function ModerationBox({ onOpenProfile, defaultExpanded = false, 
                       </div>
                     );
                   })}
+                  {loadingMoreSubstack && (
+                    <div className="flex items-center justify-center py-3">
+                      <div className="animate-spin w-4 h-4 border-2 border-orange-500 border-t-transparent rounded-full" />
+                    </div>
+                  )}
+                  {!hasMoreSubstack && trendingSubstackPosts.length > 0 && (
+                    <div className="py-2 text-center text-xs text-gray-400">
+                      No more articles
+                    </div>
+                  )}
                 </div>
               )}
             </div>

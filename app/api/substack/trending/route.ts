@@ -2,12 +2,16 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db, discoveredSubstackPosts, substackMentions, discoveredArticles, articleMentions } from '@/lib/db';
 import { desc, sql } from 'drizzle-orm';
 
-// GET /api/substack/trending?hours=24&limit=50 - Get trending blog posts (Substack + Quanta + MIT Tech Review)
+// GET /api/substack/trending?hours=24&limit=50&offset=0 - Get trending blog posts (Substack + Quanta + MIT Tech Review)
 export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
     const hours = parseInt(searchParams.get('hours') || '24');
     const limit = Math.min(parseInt(searchParams.get('limit') || '50'), 100);
+    const offset = parseInt(searchParams.get('offset') || '0');
+
+    // Fetch more items to handle pagination on combined results
+    const fetchLimit = limit + offset;
 
     const cutoffTime = new Date(Date.now() - hours * 60 * 60 * 1000);
 
@@ -67,7 +71,7 @@ export async function GET(request: NextRequest) {
           WHERE substack_mentions.substack_post_id = discovered_substack_posts.id
         )`)
       )
-      .limit(limit);
+      .limit(fetchLimit);
 
     // Get articles (Quanta, MIT Tech Review, etc.)
     const articles = await db
@@ -122,7 +126,7 @@ export async function GET(request: NextRequest) {
           WHERE article_mentions.article_id = discovered_articles.id
         )`)
       )
-      .limit(limit);
+      .limit(fetchLimit);
 
     // Normalize articles to match Substack post structure
     const normalizedArticles = articles.map(article => ({
@@ -147,7 +151,7 @@ export async function GET(request: NextRequest) {
     }));
 
     // Combine and sort by recentMentions
-    const allPosts = [...substackPosts, ...normalizedArticles]
+    const sortedPosts = [...substackPosts, ...normalizedArticles]
       .sort((a, b) => {
         // Sort by recent mentions first, then by total post count
         const aRecent = Number(a.recentMentions) || 0;
@@ -156,10 +160,13 @@ export async function GET(request: NextRequest) {
         const aCount = Number(a.postCount) || 0;
         const bCount = Number(b.postCount) || 0;
         return bCount - aCount;
-      })
-      .slice(0, limit);
+      });
 
-    return NextResponse.json({ posts: allPosts }, {
+    // Apply offset and limit
+    const allPosts = sortedPosts.slice(offset, offset + limit);
+    const hasMore = sortedPosts.length > offset + limit;
+
+    return NextResponse.json({ posts: allPosts, hasMore }, {
       headers: {
         // Cache at CDN for 5 minutes, stale-while-revalidate for 10 min
         'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=600',

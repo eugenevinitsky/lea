@@ -2,12 +2,13 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db, discoveredPapers, paperMentions } from '@/lib/db';
 import { desc, sql, gt, isNotNull, notLike } from 'drizzle-orm';
 
-// GET /api/papers/trending?hours=24&limit=50 - Get trending papers
+// GET /api/papers/trending?hours=24&limit=50&offset=0 - Get trending papers
 export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
     const hours = parseInt(searchParams.get('hours') || '24');
     const limit = Math.min(parseInt(searchParams.get('limit') || '50'), 100);
+    const offset = parseInt(searchParams.get('offset') || '0');
 
     const cutoffTime = new Date(Date.now() - hours * 60 * 60 * 1000);
 
@@ -66,9 +67,13 @@ export async function GET(request: NextRequest) {
           WHERE paper_mentions.paper_id = discovered_papers.id
         )`)
       )
-      .limit(limit);
+      .limit(limit)
+      .offset(offset);
 
-    return NextResponse.json({ papers }, {
+    // Check if there are more results
+    const hasMore = papers.length === limit;
+
+    return NextResponse.json({ papers, hasMore }, {
       headers: {
         // Cache at CDN for 5 minutes, stale-while-revalidate for 10 min
         'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=600',

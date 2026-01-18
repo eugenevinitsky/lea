@@ -12,6 +12,13 @@ export { VERIFIED_RESEARCHERS_LIST };
 // Suggested feeds for researchers
 export const SUGGESTED_FEEDS = [
   {
+    uri: 'timeline',
+    displayName: 'Following',
+    description: 'Posts from everyone you follow',
+    avatar: undefined,
+    acceptsInteractions: false,
+  },
+  {
     uri: 'verified-following',
     displayName: 'Verified Researchers',
     description: 'Posts from verified researchers you follow',
