@@ -430,29 +430,18 @@ function AppContent() {
             Access Restricted
           </h2>
           <p className="text-gray-600 dark:text-gray-400 mb-6">
-            Lea is currently only available to verified researchers. To get access, you need to verify your researcher status through our ORCID verification process.
+            Lea is currently in testing and only available to verified researchers.
           </p>
-          <div className="space-y-3">
-            <a
-              href="/verify"
-              className="block w-full py-3 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-semibold rounded-xl transition-all shadow-lg shadow-blue-500/25"
-            >
-              Verify Your Researcher Status
-            </a>
-            <button
-              onClick={() => {
-                logout();
-                setAccessDenied(false);
-                setIsLoggedIn(false);
-              }}
-              className="block w-full py-3 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 font-medium transition-colors"
-            >
-              Sign out and use a different account
-            </button>
-          </div>
-          <p className="mt-6 text-sm text-gray-500">
-            Already verified? It may take a few minutes for your verification to sync. Try refreshing the page.
-          </p>
+          <button
+            onClick={() => {
+              logout();
+              setAccessDenied(false);
+              setIsLoggedIn(false);
+            }}
+            className="w-full py-3 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 font-medium transition-colors border border-gray-200 dark:border-gray-700 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-800"
+          >
+            Sign out
+          </button>
         </div>
       </div>
     );
