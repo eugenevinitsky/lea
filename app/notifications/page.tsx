@@ -897,23 +897,24 @@ function RepostsRollupRow({
   );
 }
 
-// Row for a single post with its activity
+// Time-grouped activity entry for a post within a specific time period
+interface TimeGroupedPostEntry {
+  post: AppBskyFeedDefs.PostView;
+  activity: PostActivity[]; // Only activity within this time period
+  isNew: boolean;
+}
+
+// Row for a single post with its activity (always expanded, no collapse)
 function PostActivityRow({
-  postWithActivity,
+  entry,
   onOpenProfile,
   onOpenPost,
-  isNew,
-  defaultCollapsed,
 }: {
-  postWithActivity: PostWithActivity;
+  entry: TimeGroupedPostEntry;
   onOpenProfile: (did: string) => void;
   onOpenPost: (uri: string) => void;
-  isNew?: boolean;
-  defaultCollapsed?: boolean;
 }) {
-  // New posts should always start expanded
-  const [expanded, setExpanded] = useState(isNew || !defaultCollapsed);
-  const { post, activity, totalEngagement } = postWithActivity;
+  const { post, activity, isNew } = entry;
   const postText = (post.record as { text?: string })?.text || '';
   const isReply = !!(post.record as { reply?: unknown })?.reply;
   
@@ -922,35 +923,21 @@ function PostActivityRow({
   const repostsActivity = activity.filter(a => a.type === 'repost');
   const otherActivity = activity.filter(a => a.type !== 'like' && a.type !== 'repost');
   
-  // Show first 3 other activities by default, rest on expand
-  const DEFAULT_SHOW = 3;
-  const visibleOtherActivity = expanded ? otherActivity : otherActivity.slice(0, DEFAULT_SHOW);
-  const hiddenOtherCount = otherActivity.length - DEFAULT_SHOW;
-  
-  // Count by type
-  const counts = useMemo(() => {
-    const c = { like: 0, repost: 0, reply: 0, quote: 0, mention: 0 };
-    for (const a of activity) {
-      c[a.type]++;
-    }
-    return c;
-  }, [activity]);
-  
-  // Is this post "hot"? (more than 10 interactions in the activity window)
-  const isHot = activity.length >= 10;
+  // Activity count for this time period
+  const periodActivityCount = activity.length;
   
   return (
-    <div className={`border-b border-gray-100 dark:border-gray-800 last:border-b-0 ${isNew ? 'bg-blue-50/50 dark:bg-blue-900/10' : ''}`}>
-      {/* Post header */}
+    <div className={`border-b border-gray-100 dark:border-gray-800 last:border-b-0 ${isNew ? 'bg-blue-50/50 dark:bg-blue-900/10 border-l-4 border-l-blue-500' : ''}`}>
+      {/* Post header - clickable to open post */}
       <div
         className="p-3 hover:bg-gray-50 dark:hover:bg-gray-800/30 cursor-pointer"
-        onClick={() => setExpanded(!expanded)}
+        onClick={() => onOpenPost(post.uri)}
       >
         <div className="flex items-start gap-3">
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 mb-1">
               {isNew && (
-                <span className="w-2 h-2 rounded-full bg-blue-500 flex-shrink-0" title="New activity" />
+                <span className="w-2 h-2 rounded-full bg-blue-500 flex-shrink-0 animate-pulse" title="New activity" />
               )}
               {isReply && (
                 <span className="text-xs px-1.5 py-0.5 bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 rounded">
@@ -960,79 +947,32 @@ function PostActivityRow({
               <span className="text-xs text-gray-400">
                 Posted {formatTime(post.indexedAt)}
               </span>
-              {/* Expand/collapse indicator */}
+              {/* Arrow to indicate clickable */}
               <svg
-                className={`w-4 h-4 text-gray-400 ml-auto transition-transform ${expanded ? 'rotate-180' : ''}`}
+                className="w-4 h-4 text-gray-300 ml-auto"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
               >
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
               </svg>
             </div>
             <p className="text-sm text-gray-900 dark:text-gray-100 line-clamp-2">
               {postText || <span className="italic text-gray-400">(no text)</span>}
             </p>
             
-            {/* Engagement summary - total counts from post */}
-            <div className="flex items-center gap-3 mt-2 text-xs text-gray-500">
-              {(post.likeCount ?? 0) > 0 && (
-                <span className="flex items-center gap-1 text-rose-500">
-                  <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24">
-                    <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />
-                  </svg>
-                  {post.likeCount}
-                </span>
-              )}
-              {(post.repostCount ?? 0) > 0 && (
-                <span className="flex items-center gap-1 text-emerald-500">
-                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                  </svg>
-                  {post.repostCount}
-                </span>
-              )}
-              {(post.replyCount ?? 0) > 0 && (
-                <span className="flex items-center gap-1 text-blue-500">
-                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
-                  </svg>
-                  {post.replyCount}
-                </span>
-              )}
-              {(post.quoteCount ?? 0) > 0 && (
-                <span className="flex items-center gap-1 text-purple-500">
-                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
-                  </svg>
-                  {post.quoteCount}
-                </span>
-              )}
-              {counts.mention > 0 && (
-                <span className="flex items-center gap-1 text-amber-500">
-                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 12a4 4 0 10-8 0 4 4 0 008 0zm0 0v1.5a2.5 2.5 0 005 0V12a9 9 0 10-9 9m4.5-1.206a8.959 8.959 0 01-4.5 1.207" />
-                  </svg>
-                  {counts.mention}
-                </span>
-              )}
+            {/* Activity count for this period */}
+            <div className="flex items-center gap-2 mt-2 text-xs">
+              <span className="text-gray-500">
+                {periodActivityCount} {periodActivityCount === 1 ? 'interaction' : 'interactions'} in this period
+              </span>
             </div>
           </div>
-          
-          {/* Total engagement badge */}
-          {totalEngagement > 0 && (
-            <div className="flex-shrink-0 text-right">
-              <div className="text-lg font-bold text-gray-900 dark:text-gray-100">
-                {totalEngagement}
-              </div>
-              <div className="text-xs text-gray-400">this week</div>
-            </div>
-          )}
         </div>
       </div>
       
-      {/* Activity feed - collapsible */}
-      {activity.length > 0 && expanded && (
+      {/* Activity feed - always visible */}
+      {activity.length > 0 && (
         <div className="px-3 pb-3 space-y-1">
           {/* Show rolled-up likes first if there are any */}
           {likesActivity.length > 0 && (
@@ -1051,7 +991,7 @@ function PostActivityRow({
           )}
           
           {/* Show other activities (replies, quotes, mentions) */}
-          {visibleOtherActivity.map((a, i) => (
+          {otherActivity.map((a, i) => (
             <ActivityItem
               key={`${a.type}-${a.author.did}-${i}`}
               activity={a}
@@ -1059,30 +999,6 @@ function PostActivityRow({
               onOpenPost={onOpenPost}
             />
           ))}
-          
-          {hiddenOtherCount > 0 && !expanded && (
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                setExpanded(true);
-              }}
-              className="w-full py-1.5 text-xs text-blue-500 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
-            >
-              Show {hiddenOtherCount} more
-            </button>
-          )}
-          
-          {expanded && hiddenOtherCount > 0 && (
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                setExpanded(false);
-              }}
-              className="w-full py-1.5 text-xs text-gray-400 hover:text-gray-600 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-lg transition-colors"
-            >
-              Show less
-            </button>
-          )}
         </div>
       )}
     </div>
@@ -1168,7 +1084,6 @@ function MyPostsActivityPane({
 }) {
   const [posts, setPosts] = useState<AppBskyFeedDefs.PostView[]>([]);
   const [loading, setLoading] = useState(true);
-  const [sortBy, setSortBy] = useState<PostSortOption>('recent_activity');
   const [lastViewed] = useState(() => getMyPostsLastViewed());
   
   // Mark as viewed when component mounts
@@ -1192,10 +1107,9 @@ function MyPostsActivityPane({
     loadPosts();
   }, []);
   
-  // Build posts with activity data
-  const postsWithActivity = useMemo(() => {
-    // Create a map of post URI -> activity
-    const activityByPost = new Map<string, PostActivity[]>();
+  // Build activity map keyed by post URI
+  const activityByPost = useMemo(() => {
+    const map = new Map<string, PostActivity[]>();
     
     for (const n of notifications) {
       // Determine which post this notification is about
@@ -1204,7 +1118,6 @@ function MyPostsActivityPane({
       if (n.reason === 'like' || n.reason === 'repost') {
         targetUri = n.reasonSubject;
       } else if (n.reason === 'reply' || n.reason === 'quote' || n.reason === 'mention') {
-        // For replies/quotes, the reasonSubject is the post being replied to/quoted
         targetUri = n.reasonSubject;
       }
       
@@ -1218,71 +1131,124 @@ function MyPostsActivityPane({
         indexedAt: n.indexedAt,
       };
       
-      if (!activityByPost.has(targetUri)) {
-        activityByPost.set(targetUri, []);
+      if (!map.has(targetUri)) {
+        map.set(targetUri, []);
       }
-      activityByPost.get(targetUri)!.push(activity);
+      map.get(targetUri)!.push(activity);
     }
     
     // Sort activity within each post by recency
-    for (const activities of activityByPost.values()) {
+    for (const activities of map.values()) {
       activities.sort((a, b) => new Date(b.indexedAt).getTime() - new Date(a.indexedAt).getTime());
     }
     
-    // Combine with posts
-    const result: PostWithActivity[] = [];
-    
+    return map;
+  }, [notifications]);
+  
+  // Create a post lookup map
+  const postByUri = useMemo(() => {
+    const map = new Map<string, AppBskyFeedDefs.PostView>();
     for (const post of posts) {
-      const activity = activityByPost.get(post.uri) || [];
-      const latestActivityAt = activity.length > 0 
-        ? activity[0].indexedAt 
-        : post.indexedAt;
+      map.set(post.uri, post);
+    }
+    return map;
+  }, [posts]);
+  
+  // Group activity by time period, with posts appearing in each period they have activity
+  const groupedByPeriod = useMemo(() => {
+    // Collect all activity with their time periods
+    const periodActivity: {
+      period: 'hour' | 'today' | 'week';
+      postUri: string;
+      activity: PostActivity[];
+    }[] = [];
+    
+    // Group activity by (postUri, period)
+    const activityByPostAndPeriod = new Map<string, Map<'hour' | 'today' | 'week', PostActivity[]>>();
+    
+    for (const [postUri, activities] of activityByPost.entries()) {
+      // Only include posts we have loaded
+      if (!postByUri.has(postUri)) continue;
       
-      result.push({
+      for (const activity of activities) {
+        const period = getTimePeriod(activity.indexedAt);
+        if (period === 'older') continue; // Skip older activity
+        
+        if (!activityByPostAndPeriod.has(postUri)) {
+          activityByPostAndPeriod.set(postUri, new Map());
+        }
+        const postPeriods = activityByPostAndPeriod.get(postUri)!;
+        
+        if (!postPeriods.has(period)) {
+          postPeriods.set(period, []);
+        }
+        postPeriods.get(period)!.push(activity);
+      }
+    }
+    
+    // Convert to array format grouped by period
+    for (const [postUri, periods] of activityByPostAndPeriod.entries()) {
+      for (const [period, activity] of periods.entries()) {
+        periodActivity.push({ period, postUri, activity });
+      }
+    }
+    
+    // Sort by period priority (hour > today > week) then by latest activity time
+    const periodOrder = { hour: 0, today: 1, week: 2 };
+    periodActivity.sort((a, b) => {
+      if (a.period !== b.period) {
+        return periodOrder[a.period] - periodOrder[b.period];
+      }
+      // Within same period, sort by latest activity
+      const aLatest = Math.max(...a.activity.map(act => new Date(act.indexedAt).getTime()));
+      const bLatest = Math.max(...b.activity.map(act => new Date(act.indexedAt).getTime()));
+      return bLatest - aLatest;
+    });
+    
+    // Group into period sections
+    const groups: { period: 'hour' | 'today' | 'week'; entries: TimeGroupedPostEntry[] }[] = [];
+    let currentPeriod: 'hour' | 'today' | 'week' | null = null;
+    
+    for (const item of periodActivity) {
+      const post = postByUri.get(item.postUri);
+      if (!post) continue;
+      
+      if (item.period !== currentPeriod) {
+        currentPeriod = item.period;
+        groups.push({ period: item.period, entries: [] });
+      }
+      
+      // Check if any activity in this period is new (since last viewed)
+      const isNew = item.activity.some(a => new Date(a.indexedAt) > lastViewed);
+      
+      groups[groups.length - 1].entries.push({
         post,
-        activity,
-        latestActivityAt,
-        totalEngagement: activity.length,
+        activity: item.activity,
+        isNew,
       });
     }
     
-    // Sort based on selected option
-    switch (sortBy) {
-      case 'recent_activity':
-        result.sort((a, b) => {
-          // Posts with activity come first, sorted by latest activity
-          if (a.activity.length === 0 && b.activity.length === 0) {
-            return new Date(b.post.indexedAt).getTime() - new Date(a.post.indexedAt).getTime();
-          }
-          if (a.activity.length === 0) return 1;
-          if (b.activity.length === 0) return -1;
-          return new Date(b.latestActivityAt).getTime() - new Date(a.latestActivityAt).getTime();
-        });
-        break;
-      case 'most_engagement':
-        result.sort((a, b) => b.totalEngagement - a.totalEngagement);
-        break;
-      case 'recent_post':
-        result.sort((a, b) => new Date(b.post.indexedAt).getTime() - new Date(a.post.indexedAt).getTime());
-        break;
+    return groups;
+  }, [activityByPost, postByUri, lastViewed]);
+  
+  // Calculate totals
+  const totalActivityCount = useMemo(() => {
+    let count = 0;
+    for (const activities of activityByPost.values()) {
+      for (const a of activities) {
+        const period = getTimePeriod(a.indexedAt);
+        if (period !== 'older') count++;
+      }
     }
-    
-    return result;
-  }, [posts, notifications, sortBy]);
-  
-  // Only show posts with activity, unless sorting by recent post
-  const displayPosts = sortBy === 'recent_post' 
-    ? postsWithActivity.slice(0, 20)
-    : postsWithActivity.filter(p => p.activity.length > 0).slice(0, 20);
-  
-  const totalActivityCount = postsWithActivity.reduce((sum, p) => sum + p.activity.length, 0);
+    return count;
+  }, [activityByPost]);
   
   // Calculate new activity counts (since last viewed)
   const newActivityStats = useMemo(() => {
     let newReplies = 0, newQuotes = 0, newMentions = 0, newLikes = 0, newReposts = 0;
     
-    for (const p of postsWithActivity) {
-      for (const a of p.activity) {
+    for (const activities of activityByPost.values()) {
+      for (const a of activities) {
         if (new Date(a.indexedAt) > lastViewed) {
           switch (a.type) {
             case 'reply': newReplies++; break;
@@ -1303,33 +1269,7 @@ function MyPostsActivityPane({
       newReposts,
       totalNew: newReplies + newQuotes + newMentions + newLikes + newReposts,
     };
-  }, [postsWithActivity, lastViewed]);
-  
-  // Group posts by time period for timeline view
-  const groupedByPeriod = useMemo(() => {
-    if (sortBy !== 'recent_activity') return null;
-    
-    const groups: { period: 'hour' | 'today' | 'week'; posts: PostWithActivity[] }[] = [];
-    let currentPeriod: 'hour' | 'today' | 'week' | null = null;
-    
-    for (const p of displayPosts) {
-      const period = getTimePeriod(p.latestActivityAt);
-      if (period === 'older') continue; // Skip older posts in timeline view
-      
-      if (period !== currentPeriod) {
-        currentPeriod = period;
-        groups.push({ period, posts: [] });
-      }
-      groups[groups.length - 1].posts.push(p);
-    }
-    
-    return groups;
-  }, [displayPosts, sortBy]);
-  
-  // Check if a post has new activity
-  const hasNewActivity = (p: PostWithActivity) => {
-    return p.activity.some(a => new Date(a.indexedAt) > lastViewed);
-  };
+  }, [activityByPost, lastViewed]);
   
   return (
     <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden">
@@ -1341,7 +1281,7 @@ function MyPostsActivityPane({
           </svg>
           My Posts
           {newActivityStats.totalNew > 0 && (
-            <span className="px-1.5 py-0.5 text-xs font-medium bg-blue-500 text-white rounded-full">
+            <span className="px-1.5 py-0.5 text-xs font-medium bg-blue-500 text-white rounded-full animate-pulse">
               {newActivityStats.totalNew} new
             </span>
           )}
@@ -1351,17 +1291,6 @@ function MyPostsActivityPane({
             </span>
           )}
         </h3>
-        
-        {/* Sort dropdown */}
-        <select
-          value={sortBy}
-          onChange={(e) => setSortBy(e.target.value as PostSortOption)}
-          className="text-xs bg-gray-100 dark:bg-gray-800 border-0 rounded-lg px-2 py-1 mr-10 text-gray-600 dark:text-gray-300 focus:ring-2 focus:ring-blue-500"
-        >
-          <option value="recent_activity">Recent activity</option>
-          <option value="most_engagement">Most engagement</option>
-          <option value="recent_post">Recent posts</option>
-        </select>
       </div>
       
       {/* Activity summary */}
@@ -1374,58 +1303,36 @@ function MyPostsActivityPane({
         <div className="flex items-center justify-center py-12">
           <div className="animate-spin w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full" />
         </div>
-      ) : displayPosts.length === 0 ? (
+      ) : groupedByPeriod.length === 0 ? (
         <div className="p-8 text-center">
           <svg className="w-10 h-10 mx-auto text-gray-300 dark:text-gray-600 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
           </svg>
           <p className="text-sm text-gray-500 dark:text-gray-400">
-            {sortBy === 'recent_post' ? 'No posts in the last 48 hours' : 'No recent activity on your posts'}
+            No recent activity on your posts
           </p>
           <p className="text-xs text-gray-400 mt-1">
             Activity from the last 48 hours will appear here
           </p>
         </div>
-      ) : sortBy === 'recent_activity' && groupedByPeriod ? (
-        // Timeline view with section headers
+      ) : (
+        // Timeline view with section headers - always expanded
         <div className="max-h-[600px] overflow-y-auto">
           {groupedByPeriod.map((group) => (
             <div key={group.period}>
               <TimelineSectionHeader period={group.period} />
               <div className="divide-y divide-gray-100 dark:divide-gray-800">
-                {group.posts.map((p) => {
-                  const isNew = hasNewActivity(p);
-                  return (
-                    <PostActivityRow
-                      key={p.post.uri}
-                      postWithActivity={p}
-                      onOpenProfile={onOpenProfile}
-                      onOpenPost={onOpenPost}
-                      isNew={isNew}
-                      defaultCollapsed={!isNew}
-                    />
-                  );
-                })}
+                {group.entries.map((entry, idx) => (
+                  <PostActivityRow
+                    key={`${entry.post.uri}-${group.period}-${idx}`}
+                    entry={entry}
+                    onOpenProfile={onOpenProfile}
+                    onOpenPost={onOpenPost}
+                  />
+                ))}
               </div>
             </div>
           ))}
-        </div>
-      ) : (
-        // Standard list view
-        <div className="max-h-[600px] overflow-y-auto divide-y divide-gray-100 dark:divide-gray-800">
-          {displayPosts.map((p) => {
-            const isNew = hasNewActivity(p);
-            return (
-              <PostActivityRow
-                key={p.post.uri}
-                postWithActivity={p}
-                onOpenProfile={onOpenProfile}
-                onOpenPost={onOpenPost}
-                isNew={isNew}
-                defaultCollapsed={!isNew}
-              />
-            );
-          })}
         </div>
       )}
       
