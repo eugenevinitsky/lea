@@ -385,7 +385,16 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
           setLoading(false);
           return;
         }
-        if (!res.ok) throw new Error('Failed to fetch profile');
+        if (!res.ok) {
+          // For non-verified users, treat server errors as not_verified
+          // This handles cases where the profile API fails but we still have bskyProfile
+          if (bskyData) {
+            setError('not_verified');
+            setLoading(false);
+            return;
+          }
+          throw new Error('Failed to fetch profile');
+        }
         const data = await res.json();
         setResearcher(data.researcher);
         setProfile(data.profile);
