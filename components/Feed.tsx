@@ -460,10 +460,15 @@ export default function Feed({ feedId, feedUri, feedName, acceptsInteractions, r
     for (const item of filteredPosts) {
       // Skip posts that are themselves replies (we only expand from root posts)
       if (isReplyPost(item)) continue;
-      
+
+      // Skip reposts - don't expand threads from non-followed users
+      const isRepost = item.reason && '$type' in item.reason &&
+        (item.reason as { $type: string }).$type === 'app.bsky.feed.defs#reasonRepost';
+      if (isRepost) continue;
+
       // Skip posts we've already checked
       if (checkedUrisRef.current.has(item.post.uri)) continue;
-      
+
       // Check if post has replies (potential for self-thread)
       if (hasReplies(item)) {
         checkedCount++;
