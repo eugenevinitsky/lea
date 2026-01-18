@@ -1,11 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db, polls, pollVotes, pollParticipants } from '@/lib/db';
 import { eq, and } from 'drizzle-orm';
-import { createHash } from 'crypto';
+import { createHash, randomBytes } from 'crypto';
 
 interface PollOption {
   id: string;
   text: string;
+}
+
+// Generate cryptographically secure random ID
+function secureRandomId(prefix: string): string {
+  return `${prefix}_${Date.now()}_${randomBytes(6).toString('hex')}`;
 }
 
 // Hash voter DID with poll ID for anonymous participation tracking
@@ -140,9 +145,9 @@ export async function POST(request: NextRequest) {
           );
         }
 
-        const id = `poll_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        const id = `poll_${Date.now()}_${randomBytes(6).toString('hex')}`;
         const formattedOptions: PollOption[] = options.map((text: string, i: number) => ({
-          id: `opt_${i}_${Math.random().toString(36).substr(2, 6)}`,
+          id: `opt_${i}_${randomBytes(4).toString('hex')}`,
           text: text.trim(),
         }));
 
@@ -216,7 +221,7 @@ export async function POST(request: NextRequest) {
         }
 
         // Record participation (hashed - can't see what they voted for)
-        const participantId = `part_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        const participantId = `part_${Date.now()}_${randomBytes(6).toString('hex')}`;
         await db.insert(pollParticipants).values({
           id: participantId,
           pollId,
@@ -225,7 +230,7 @@ export async function POST(request: NextRequest) {
 
         // Record anonymous votes (no voter info - can't see who voted)
         for (const optionId of optionIds) {
-          const voteId = `vote_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+          const voteId = `vote_${Date.now()}_${randomBytes(6).toString('hex')}`;
           await db.insert(pollVotes).values({
             id: voteId,
             pollId,

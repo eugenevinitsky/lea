@@ -2,6 +2,12 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db, userBookmarks, userBookmarkCollections } from '@/lib/db';
 import { eq, and, asc } from 'drizzle-orm';
 import { verifyUserAccess } from '@/lib/server-auth';
+import { randomBytes } from 'crypto';
+
+// Generate cryptographically secure random ID
+function secureRandomId(prefix: string): string {
+  return `${prefix}_${Date.now()}_${randomBytes(6).toString('hex')}`;
+}
 
 // Safe JSON parse that returns a default value on error
 function safeJsonParse<T>(json: string | null | undefined, defaultValue: T): T {
@@ -65,8 +71,8 @@ export async function GET(request: NextRequest) {
       collections: parsedCollections,
     }, {
       headers: {
-        // Cache at CDN for 1 minute (per user via query param), stale-while-revalidate for 5 min
-        'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=300',
+        // User-specific data - don't cache
+        'Cache-Control': 'private, no-store',
       },
     });
   } catch (error) {
@@ -116,7 +122,7 @@ export async function POST(request: NextRequest) {
             .where(eq(userBookmarks.id, existing.id));
         } else {
           // Create new bookmark
-          const id = `bm_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+          const id = secureRandomId('bm');
           await db.insert(userBookmarks).values({
             id,
             userDid: did,
@@ -176,7 +182,7 @@ export async function POST(request: NextRequest) {
         
         const maxPosition = collections.reduce((max, c) => Math.max(max, c.position), -1);
 
-        const id = `col_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        const id = secureRandomId('col');
         await db.insert(userBookmarkCollections).values({
           id,
           userDid: did,

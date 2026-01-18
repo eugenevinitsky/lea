@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { BskyAgent } from '@atproto/api';
 import { syncUserGraph } from '@/lib/services/graph-sync';
 import { getBotAgent } from '@/lib/services/list-manager';
+import { verifyUserAccess } from '@/lib/server-auth';
 
 export async function POST(request: NextRequest) {
   try {
@@ -12,6 +12,12 @@ export async function POST(request: NextRequest) {
         { error: 'Missing did parameter' },
         { status: 400 }
       );
+    }
+
+    // Verify the user is authenticated and syncing their own data
+    const auth = await verifyUserAccess(request, did);
+    if (!auth.success) {
+      return NextResponse.json({ error: auth.error }, { status: auth.status });
     }
 
     // Get bot agent for API calls

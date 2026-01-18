@@ -2,6 +2,12 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db, userFeeds } from '@/lib/db';
 import { eq, asc } from 'drizzle-orm';
 import { verifyUserAccess } from '@/lib/server-auth';
+import { randomBytes } from 'crypto';
+
+// Generate cryptographically secure random ID
+function secureRandomId(prefix: string): string {
+  return `${prefix}_${Date.now()}_${randomBytes(6).toString('hex')}`;
+}
 
 // GET /api/feeds?did=xxx - Fetch all pinned feeds for a user
 export async function GET(request: NextRequest) {
@@ -34,8 +40,8 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ feeds: parsedFeeds }, {
       headers: {
-        // Cache at CDN for 1 minute (per user via query param), stale-while-revalidate for 5 min
-        'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=300',
+        // User-specific data - don't cache
+        'Cache-Control': 'private, no-store',
       },
     });
   } catch (error) {
@@ -70,7 +76,7 @@ export async function POST(request: NextRequest) {
     // Insert new feeds with positions
     for (let i = 0; i < feeds.length; i++) {
       const feed = feeds[i];
-      const id = `feed_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      const id = secureRandomId('feed');
       await db.insert(userFeeds).values({
         id,
         userDid: did,
