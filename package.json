@@ -13,7 +13,7 @@
     "train:classifier": "npx tsx scripts/train-classifier.ts"
   },
   "dependencies": {
-    "@atproto/api": "^0.18.8",
+    "@atproto/api": "0.18.8",
     "@atproto/oauth-client-browser": "^0.3.37",
     "@google/generative-ai": "^0.24.1",
     "@types/pg": "^8.16.0",
