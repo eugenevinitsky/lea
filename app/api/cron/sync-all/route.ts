@@ -3,13 +3,33 @@ import { db, verifiedResearchers } from '@/lib/db';
 import { eq } from 'drizzle-orm';
 import { syncUserGraph } from '@/lib/services/graph-sync';
 import { syncVerifiedOnlyList, syncAllPersonalLists, getBotAgent } from '@/lib/services/list-manager';
+import crypto from 'crypto';
+
+// Timing-safe secret comparison
+function verifyBearerSecret(authHeader: string | null, expected: string): boolean {
+  if (!authHeader || !authHeader.startsWith('Bearer ')) return false;
+  const provided = authHeader.slice(7);
+  try {
+    const providedBuffer = Buffer.from(provided);
+    const expectedBuffer = Buffer.from(expected);
+    if (providedBuffer.length !== expectedBuffer.length) return false;
+    return crypto.timingSafeEqual(providedBuffer, expectedBuffer);
+  } catch {
+    return false;
+  }
+}
 
 export async function GET(request: NextRequest) {
   // Verify cron secret (Vercel sets this automatically)
   const authHeader = request.headers.get('authorization');
   const cronSecret = process.env.CRON_SECRET;
 
-  if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
+  // Always require authentication - fail if secret is not configured
+  if (!cronSecret) {
+    console.error('CRON_SECRET not configured');
+    return NextResponse.json({ error: 'Server configuration error' }, { status: 500 });
+  }
+  if (!verifyBearerSecret(authHeader, cronSecret)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
@@ -68,10 +88,12 @@ export async function GET(request: NextRequest) {
     const baseUrl = process.env.VERCEL_URL
       ? `https://${process.env.VERCEL_URL}`
       : 'http://localhost:3000';
+    const internalSecret = process.env.INTERNAL_API_SECRET;
 
     try {
       const labelerSyncResponse = await fetch(`${baseUrl}/api/labeler/sync-from-ozone`, {
         method: 'POST',
+        headers: internalSecret ? { 'Authorization': `Bearer ${internalSecret}` } : {},
       });
 
       if (labelerSyncResponse.ok) {
@@ -79,6 +101,11 @@ export async function GET(request: NextRequest) {
         (results.steps as unknown[]).push({
           name: 'labeler_ozone_sync',
           ...labelerSyncResult,
+        });
+      } else {
+        (results.steps as unknown[]).push({
+          name: 'labeler_ozone_sync',
+          error: `HTTP ${labelerSyncResponse.status}`,
         });
       }
     } catch (error) {
@@ -92,6 +119,7 @@ export async function GET(request: NextRequest) {
     try {
       const syncToDbResponse = await fetch(`${baseUrl}/api/labeler/sync-to-db`, {
         method: 'POST',
+        headers: internalSecret ? { 'Authorization': `Bearer ${internalSecret}` } : {},
       });
 
       if (syncToDbResponse.ok) {
@@ -99,6 +127,11 @@ export async function GET(request: NextRequest) {
         (results.steps as unknown[]).push({
           name: 'labeler_db_sync',
           ...syncToDbResult,
+        });
+      } else {
+        (results.steps as unknown[]).push({
+          name: 'labeler_db_sync',
+          error: `HTTP ${syncToDbResponse.status}`,
         });
       }
     } catch (error) {

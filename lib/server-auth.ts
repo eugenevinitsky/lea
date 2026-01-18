@@ -12,8 +12,22 @@
 import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
 
-// Secret for signing session tokens
-const SESSION_SECRET = process.env.INTERNAL_AUTH_SECRET || 'dev-secret-change-in-production';
+// Secret for signing session tokens - MUST be configured in production
+const SESSION_SECRET = process.env.INTERNAL_AUTH_SECRET;
+
+// Fail fast if secret is not configured in production
+if (!SESSION_SECRET && process.env.NODE_ENV === 'production') {
+  throw new Error('INTERNAL_AUTH_SECRET must be configured in production');
+}
+
+// Get the session secret, with dev fallback only for local development
+function getSessionSecret(): string {
+  if (SESSION_SECRET) return SESSION_SECRET;
+  if (process.env.NODE_ENV !== 'production') {
+    return 'dev-secret-do-not-use-in-production';
+  }
+  throw new Error('INTERNAL_AUTH_SECRET not configured');
+}
 
 // Session validity (7 days)
 const SESSION_VALIDITY_MS = 7 * 24 * 60 * 60 * 1000;
@@ -39,7 +53,7 @@ export function generateSessionToken(did: string): string {
   const expiresAt = Date.now() + SESSION_VALIDITY_MS;
   const payload = `${did}:${expiresAt}`;
   const signature = crypto
-    .createHmac('sha256', SESSION_SECRET)
+    .createHmac('sha256', getSessionSecret())
     .update(payload)
     .digest('hex');
 
@@ -68,7 +82,7 @@ export function verifySessionToken(token: string): VerifyResult | VerifyError {
 
     // Verify signature using timing-safe comparison
     const expectedSignature = crypto
-      .createHmac('sha256', SESSION_SECRET)
+      .createHmac('sha256', getSessionSecret())
       .update(`${did}:${expiresAt}`)
       .digest('hex');
 

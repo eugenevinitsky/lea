@@ -2,6 +2,23 @@ import { NextRequest, NextResponse } from 'next/server';
 import { BskyAgent } from '@atproto/api';
 import { db, blueskyLists } from '@/lib/db';
 import { eq } from 'drizzle-orm';
+import crypto from 'crypto';
+
+// Timing-safe secret comparison
+function verifyInternalSecret(request: NextRequest): boolean {
+  const secret = process.env.INTERNAL_API_SECRET;
+  if (!secret) return false;
+  const authHeader = request.headers.get('authorization');
+  if (!authHeader?.startsWith('Bearer ')) return false;
+  try {
+    const providedBuffer = Buffer.from(authHeader.slice(7));
+    const expectedBuffer = Buffer.from(secret);
+    if (providedBuffer.length !== expectedBuffer.length) return false;
+    return crypto.timingSafeEqual(providedBuffer, expectedBuffer);
+  } catch {
+    return false;
+  }
+}
 
 const VERIFIED_RESEARCHER_LABEL = 'verified-researcher';
 const OZONE_URL = process.env.OZONE_URL || 'https://ec2-13-61-190-180.eu-north-1.compute.amazonaws.com';
@@ -147,6 +164,11 @@ function delay(ms: number): Promise<void> {
 }
 
 export async function POST(request: NextRequest) {
+  // Verify internal API secret
+  if (!verifyInternalSecret(request)) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
   try {
     const agent = await getLabelerAgent();
     if (!agent || !agent.session) {
