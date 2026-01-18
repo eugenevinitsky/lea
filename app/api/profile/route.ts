@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db, researcherProfiles, verifiedResearchers } from '@/lib/db';
 import { eq } from 'drizzle-orm';
 import type { ProfileLink, ProfilePaper } from '@/lib/db/schema';
+import { verifyUserAccess } from '@/lib/server-auth';
 
 // GET /api/profile?did=xxx - Fetch a user's profile
 export async function GET(request: NextRequest) {
@@ -70,8 +71,11 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: 'DID required' }, { status: 400 });
     }
 
-    // Note: Authentication is handled client-side via Bluesky session
-    // The client only allows users to update their own profile
+    // Verify the user is authenticated and updating their own profile
+    const auth = await verifyUserAccess(request, did);
+    if (!auth.success) {
+      return NextResponse.json({ error: auth.error }, { status: auth.status });
+    }
 
     // Validate field lengths
     if (shortBio && shortBio.length > 500) {

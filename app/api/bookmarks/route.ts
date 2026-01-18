@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db, userBookmarks, userBookmarkCollections } from '@/lib/db';
 import { eq, and, asc } from 'drizzle-orm';
+import { verifyUserAccess } from '@/lib/server-auth';
 
 // GET /api/bookmarks?did=xxx - Fetch all bookmarks and collections for a user
 export async function GET(request: NextRequest) {
@@ -8,6 +9,12 @@ export async function GET(request: NextRequest) {
 
   if (!did) {
     return NextResponse.json({ error: 'DID required' }, { status: 400 });
+  }
+
+  // Verify the user is authenticated and requesting their own data
+  const auth = await verifyUserAccess(request, did);
+  if (!auth.success) {
+    return NextResponse.json({ error: auth.error }, { status: auth.status });
   }
 
   try {
@@ -60,6 +67,12 @@ export async function POST(request: NextRequest) {
 
     if (!did) {
       return NextResponse.json({ error: 'DID required' }, { status: 400 });
+    }
+
+    // Verify the user is authenticated and modifying their own data
+    const auth = await verifyUserAccess(request, did);
+    if (!auth.success) {
+      return NextResponse.json({ error: auth.error }, { status: auth.status });
     }
 
     switch (action) {
