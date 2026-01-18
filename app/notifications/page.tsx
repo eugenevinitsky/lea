@@ -30,7 +30,7 @@ import ProfileLabels from '@/components/ProfileLabels';
 const PANE_ORDER_KEY = 'lea-dashboard-pane-order';
 
 // Default pane order
-const DEFAULT_LEFT_PANES = ['new-followers', 'my-posts'];
+const DEFAULT_LEFT_PANES = ['new-followers', 'my-posts', 'mentions'];
 const DEFAULT_RIGHT_PANES = ['alerts', 'breakdown', 'top-interactors'];
 
 // Load pane order from localStorage
@@ -557,6 +557,20 @@ function CategoryBreakdown({ grouped }: { grouped: GroupedNotifications }) {
 
 // Storage key for last viewed My Posts timestamp
 const MY_POSTS_LAST_VIEWED_KEY = 'lea-my-posts-last-viewed';
+
+// Storage key for last viewed Mentions timestamp
+const MENTIONS_LAST_VIEWED_KEY = 'lea-mentions-last-viewed';
+
+function getMentionsLastViewed(): Date {
+  if (typeof window === 'undefined') return new Date(0);
+  const saved = localStorage.getItem(MENTIONS_LAST_VIEWED_KEY);
+  return saved ? new Date(saved) : new Date(0);
+}
+
+function setMentionsLastViewed() {
+  if (typeof window === 'undefined') return;
+  localStorage.setItem(MENTIONS_LAST_VIEWED_KEY, new Date().toISOString());
+}
 
 function getMyPostsLastViewed(): Date {
   if (typeof window === 'undefined') return new Date(0);
@@ -1341,6 +1355,241 @@ function MyPostsActivityPane({
         <p className="text-xs text-gray-400 text-center">
           Showing activity from the last 48 hours
         </p>
+      </div>
+    </div>
+  );
+}
+
+// Mentions Pane Component
+function MentionsPane({
+  mentions,
+  onOpenProfile,
+  onOpenPost,
+}: {
+  mentions: NotificationItem[];
+  onOpenProfile: (did: string) => void;
+  onOpenPost: (uri: string) => void;
+}) {
+  const [lastViewed] = useState(() => getMentionsLastViewed());
+  
+  // Mark as viewed when component mounts
+  useEffect(() => {
+    setMentionsLastViewed();
+  }, []);
+  
+  // Group mentions by time period
+  const groupedByPeriod = useMemo(() => {
+    // Filter to mentions with valid indexedAt and group by period
+    const periodMentions: { period: 'hour' | 'today' | 'week'; mention: NotificationItem; isNew: boolean }[] = [];
+    
+    for (const mention of mentions) {
+      const period = getTimePeriod(mention.indexedAt);
+      if (period === 'older') continue;
+      
+      const isNew = new Date(mention.indexedAt) > lastViewed;
+      periodMentions.push({ period, mention, isNew });
+    }
+    
+    // Sort by period priority then by time
+    const periodOrder = { hour: 0, today: 1, week: 2 };
+    periodMentions.sort((a, b) => {
+      if (a.period !== b.period) {
+        return periodOrder[a.period] - periodOrder[b.period];
+      }
+      return new Date(b.mention.indexedAt).getTime() - new Date(a.mention.indexedAt).getTime();
+    });
+    
+    // Group into period sections
+    const groups: { period: 'hour' | 'today' | 'week'; entries: { mention: NotificationItem; isNew: boolean }[] }[] = [];
+    let currentPeriod: 'hour' | 'today' | 'week' | null = null;
+    
+    for (const item of periodMentions) {
+      if (item.period !== currentPeriod) {
+        currentPeriod = item.period;
+        groups.push({ period: item.period, entries: [] });
+      }
+      groups[groups.length - 1].entries.push({ mention: item.mention, isNew: item.isNew });
+    }
+    
+    return groups;
+  }, [mentions, lastViewed]);
+  
+  // Calculate new mentions count
+  const newMentionsCount = useMemo(() => {
+    return mentions.filter(m => new Date(m.indexedAt) > lastViewed && getTimePeriod(m.indexedAt) !== 'older').length;
+  }, [mentions, lastViewed]);
+  
+  // Total count (excluding older)
+  const totalCount = useMemo(() => {
+    return mentions.filter(m => getTimePeriod(m.indexedAt) !== 'older').length;
+  }, [mentions]);
+  
+  return (
+    <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden">
+      {/* Header */}
+      <div className="p-4 border-b border-gray-200 dark:border-gray-800 flex items-center justify-between bg-amber-50 dark:bg-amber-900/20">
+        <h3 className="text-sm font-semibold text-amber-700 dark:text-amber-300 flex items-center gap-2">
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 12a4 4 0 10-8 0 4 4 0 008 0zm0 0v1.5a2.5 2.5 0 005 0V12a9 9 0 10-9 9m4.5-1.206a8.959 8.959 0 01-4.5 1.207" />
+          </svg>
+          Mentions
+          {newMentionsCount > 0 && (
+            <span className="px-1.5 py-0.5 text-xs font-medium bg-amber-500 text-white rounded-full animate-pulse">
+              {newMentionsCount} new
+            </span>
+          )}
+          {totalCount > 0 && newMentionsCount === 0 && (
+            <span className="px-1.5 py-0.5 text-xs font-medium bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 rounded-full">
+              {totalCount} total
+            </span>
+          )}
+        </h3>
+      </div>
+      
+      {/* Content */}
+      {groupedByPeriod.length === 0 ? (
+        <div className="p-8 text-center">
+          <svg className="w-10 h-10 mx-auto text-gray-300 dark:text-gray-600 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 12a4 4 0 10-8 0 4 4 0 008 0zm0 0v1.5a2.5 2.5 0 005 0V12a9 9 0 10-9 9m4.5-1.206a8.959 8.959 0 01-4.5 1.207" />
+          </svg>
+          <p className="text-sm text-gray-500 dark:text-gray-400">
+            No recent mentions
+          </p>
+          <p className="text-xs text-gray-400 mt-1">
+            Mentions from the last 48 hours will appear here
+          </p>
+        </div>
+      ) : (
+        <div className="max-h-[600px] overflow-y-auto">
+          {groupedByPeriod.map((group) => (
+            <div key={group.period}>
+              <TimelineSectionHeader period={group.period} />
+              <div className="divide-y divide-gray-100 dark:divide-gray-800">
+                {group.entries.map((entry, idx) => (
+                  <MentionRow
+                    key={`${entry.mention.uri}-${idx}`}
+                    mention={entry.mention}
+                    isNew={entry.isNew}
+                    onOpenProfile={onOpenProfile}
+                    onOpenPost={onOpenPost}
+                  />
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+      
+      {/* Footer */}
+      <div className="p-3 border-t border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-800/50">
+        <p className="text-xs text-gray-400 text-center">
+          Showing mentions from the last 48 hours
+        </p>
+      </div>
+    </div>
+  );
+}
+
+// Single mention row
+function MentionRow({
+  mention,
+  isNew,
+  onOpenProfile,
+  onOpenPost,
+}: {
+  mention: NotificationItem;
+  isNew: boolean;
+  onOpenProfile: (did: string) => void;
+  onOpenPost: (uri: string) => void;
+}) {
+  const postText = mention.record?.text || '';
+  
+  return (
+    <div
+      className={`p-3 hover:bg-gray-50 dark:hover:bg-gray-800/30 cursor-pointer ${
+        isNew ? 'bg-amber-50/50 dark:bg-amber-900/10 border-l-4 border-l-amber-500' : ''
+      }`}
+      onClick={() => onOpenPost(mention.uri)}
+    >
+      <div className="flex items-start gap-3">
+        {/* Author avatar */}
+        <ProfileHoverCard
+          did={mention.author.did}
+          handle={mention.author.handle}
+          onOpenProfile={() => onOpenProfile(mention.author.did)}
+        >
+          {mention.author.avatar ? (
+            <img
+              src={mention.author.avatar}
+              alt=""
+              className="w-10 h-10 rounded-full cursor-pointer hover:ring-2 hover:ring-amber-400 flex-shrink-0"
+              onClick={(e) => {
+                e.stopPropagation();
+                onOpenProfile(mention.author.did);
+              }}
+            />
+          ) : (
+            <div
+              className="w-10 h-10 rounded-full bg-amber-500 flex items-center justify-center text-white text-sm font-bold flex-shrink-0 cursor-pointer hover:ring-2 hover:ring-amber-400"
+              onClick={(e) => {
+                e.stopPropagation();
+                onOpenProfile(mention.author.did);
+              }}
+            >
+              {(mention.author.displayName || mention.author.handle)[0].toUpperCase()}
+            </div>
+          )}
+        </ProfileHoverCard>
+        
+        {/* Content */}
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 mb-1">
+            {isNew && (
+              <span className="w-2 h-2 rounded-full bg-amber-500 flex-shrink-0 animate-pulse" title="New mention" />
+            )}
+            <span
+              className="text-sm font-medium text-gray-900 dark:text-gray-100 hover:text-amber-600 dark:hover:text-amber-400 cursor-pointer truncate"
+              onClick={(e) => {
+                e.stopPropagation();
+                onOpenProfile(mention.author.did);
+              }}
+            >
+              {mention.author.displayName || `@${mention.author.handle}`}
+            </span>
+            <span className="text-xs text-gray-400 flex-shrink-0">
+              @{mention.author.handle}
+            </span>
+            <span className="text-xs text-gray-400 flex-shrink-0">
+              · {formatTime(mention.indexedAt)}
+            </span>
+          </div>
+          
+          <p className="text-sm text-gray-700 dark:text-gray-300 line-clamp-3">
+            {postText || <span className="italic text-gray-400">(no text)</span>}
+          </p>
+          
+          {/* Indicator that this is a mention */}
+          <div className="flex items-center gap-1.5 mt-2">
+            <span className="text-amber-500">
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 12a4 4 0 10-8 0 4 4 0 008 0zm0 0v1.5a2.5 2.5 0 005 0V12a9 9 0 10-9 9m4.5-1.206a8.959 8.959 0 01-4.5 1.207" />
+              </svg>
+            </span>
+            <span className="text-xs text-amber-600 dark:text-amber-400">
+              mentioned you
+            </span>
+          </div>
+        </div>
+        
+        {/* Arrow indicator */}
+        <svg
+          className="w-4 h-4 text-gray-300 flex-shrink-0 mt-1"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+        </svg>
       </div>
     </div>
   );
@@ -2798,6 +3047,13 @@ function NotificationsExplorerContent() {
                   'my-posts': (
                     <MyPostsActivityPane
                       notifications={allNotifications}
+                      onOpenProfile={handleOpenProfile}
+                      onOpenPost={openThread}
+                    />
+                  ),
+                  'mentions': (
+                    <MentionsPane
+                      mentions={grouped.mentions}
                       onOpenProfile={handleOpenProfile}
                       onOpenPost={openThread}
                     />
