@@ -1931,9 +1931,38 @@ function FollowRow({
 }
 
 // Enhanced follower row with spam indicators, labels, mutual connections, and block
+// Follower categories for the New Followers pane
+type FollowerCategory = 'people_you_may_know' | 'everyone_else' | 'potential_spam';
+
 interface EnhancedFollowerProfile extends BlueskyProfile {
   indexedAt: string; // When they followed
   mutualFollowers?: { did: string; handle: string; displayName?: string; avatar?: string }[];
+  category?: FollowerCategory;
+}
+
+// Categorize a follower into one of three sections
+function categorizeFollower(profile: EnhancedFollowerProfile): FollowerCategory {
+  const isVerified = profile.labels ? isVerifiedResearcher(profile.labels) : false;
+  const hasMutuals = profile.mutualFollowers && profile.mutualFollowers.length > 0;
+  
+  // People You May Know: verified researchers OR has mutual followers
+  if (isVerified || hasMutuals) {
+    return 'people_you_may_know';
+  }
+  
+  // Potential Spam indicators
+  const hasNoAvatar = !profile.avatar;
+  const hasNoBio = !profile.description || profile.description.trim().length < 10;
+  const followsCount = profile.followsCount || 0;
+  const followsManyAccounts = followsCount > 5000;
+  
+  // Potential Spam: has spam indicators AND NOT in People You May Know
+  if (hasNoAvatar || hasNoBio || followsManyAccounts) {
+    return 'potential_spam';
+  }
+  
+  // Everyone Else
+  return 'everyone_else';
 }
 
 function EnhancedFollowerRow({
@@ -2220,6 +2249,57 @@ function EnhancedFollowerRow({
   );
 }
 
+// Collapsible section for follower categories
+function FollowerSection({
+  title,
+  count,
+  icon,
+  iconColor,
+  bgColor,
+  textColor,
+  children,
+  defaultExpanded = true,
+}: {
+  title: string;
+  count: number;
+  icon: React.ReactNode;
+  iconColor: string;
+  bgColor: string;
+  textColor: string;
+  children: React.ReactNode;
+  defaultExpanded?: boolean;
+}) {
+  const [isExpanded, setIsExpanded] = useState(defaultExpanded);
+  
+  if (count === 0) return null;
+  
+  return (
+    <div>
+      <button
+        onClick={() => setIsExpanded(!isExpanded)}
+        className={`w-full px-3 py-2 flex items-center justify-between ${bgColor} border-y border-gray-100 dark:border-gray-800 hover:opacity-90 transition-opacity`}
+      >
+        <div className="flex items-center gap-2">
+          <span className={iconColor}>{icon}</span>
+          <span className={`text-xs font-semibold ${textColor}`}>{title}</span>
+          <span className={`px-1.5 py-0.5 text-xs font-medium rounded-full ${bgColor} ${textColor}`}>
+            {count}
+          </span>
+        </div>
+        <svg
+          className={`w-4 h-4 ${textColor} transition-transform ${isExpanded ? 'rotate-180' : ''}`}
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+        </svg>
+      </button>
+      {isExpanded && children}
+    </div>
+  );
+}
+
 // New Followers Pane - dedicated section for managing new followers
 type FollowerSortOption = 'recent' | 'followers' | 'following';
 
@@ -2255,11 +2335,16 @@ function NewFollowersPane({
             // Ignore errors
           }
 
-          return {
+          const enhancedProfile: EnhancedFollowerProfile = {
             ...profile,
             indexedAt: f.indexedAt,
             mutualFollowers,
-          } as EnhancedFollowerProfile;
+          };
+          
+          // Categorize the follower
+          enhancedProfile.category = categorizeFollower(enhancedProfile);
+          
+          return enhancedProfile;
         });
 
         const results = await Promise.all(profilePromises);
@@ -2278,10 +2363,9 @@ function NewFollowersPane({
     }
   }, [follows]);
 
-  // Sort profiles
-  const sortedProfiles = useMemo(() => {
-    const filtered = profiles.filter((p) => !blockedDids.has(p.did));
-    return [...filtered].sort((a, b) => {
+  // Sort profiles within each category
+  const sortProfiles = useCallback((profileList: EnhancedFollowerProfile[]) => {
+    return [...profileList].sort((a, b) => {
       switch (sortBy) {
         case 'followers':
           return (b.followersCount || 0) - (a.followersCount || 0);
@@ -2292,7 +2376,24 @@ function NewFollowersPane({
           return new Date(b.indexedAt).getTime() - new Date(a.indexedAt).getTime();
       }
     });
-  }, [profiles, sortBy, blockedDids]);
+  }, [sortBy]);
+
+  // Categorize and sort profiles
+  const categorizedProfiles = useMemo(() => {
+    const filtered = profiles.filter((p) => !blockedDids.has(p.did));
+    
+    const peopleYouMayKnow = sortProfiles(filtered.filter(p => p.category === 'people_you_may_know'));
+    const everyoneElse = sortProfiles(filtered.filter(p => p.category === 'everyone_else'));
+    const potentialSpam = sortProfiles(filtered.filter(p => p.category === 'potential_spam'));
+    
+    return { peopleYouMayKnow, everyoneElse, potentialSpam };
+  }, [profiles, blockedDids, sortProfiles]);
+
+  const allProfiles = useMemo(() => [
+    ...categorizedProfiles.peopleYouMayKnow,
+    ...categorizedProfiles.everyoneElse,
+    ...categorizedProfiles.potentialSpam,
+  ], [categorizedProfiles]);
 
   const handleSelect = (did: string, selected: boolean) => {
     setSelectedDids((prev) => {
@@ -2308,7 +2409,7 @@ function NewFollowersPane({
 
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
-      setSelectedDids(new Set(sortedProfiles.map((p) => p.did)));
+      setSelectedDids(new Set(allProfiles.map((p) => p.did)));
     } else {
       setSelectedDids(new Set());
     }
@@ -2342,7 +2443,7 @@ function NewFollowersPane({
     }
   };
 
-  const visibleCount = sortedProfiles.length;
+  const visibleCount = allProfiles.length;
   const allSelected = visibleCount > 0 && selectedDids.size === visibleCount;
   const someSelected = selectedDids.size > 0 && selectedDids.size < visibleCount;
 
@@ -2414,9 +2515,9 @@ function NewFollowersPane({
       <div className="max-h-[600px] overflow-y-auto">
         {loading ? (
           <div className="flex items-center justify-center py-12">
-            <div className="animate-spin w-6 h-6 border-2 border-amber-500 border-t-transparent rounded-full" />
+            <div className="animate-spin w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full" />
           </div>
-        ) : sortedProfiles.length === 0 ? (
+        ) : allProfiles.length === 0 ? (
           <div className="p-8 text-center">
             <svg className="w-10 h-10 mx-auto text-gray-300 dark:text-gray-600 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
@@ -2424,16 +2525,85 @@ function NewFollowersPane({
             <p className="text-sm text-gray-500 dark:text-gray-400">No new followers in the last 48 hours</p>
           </div>
         ) : (
-          sortedProfiles.map((profile) => (
-            <EnhancedFollowerRow
-              key={profile.did}
-              profile={profile}
-              isSelected={selectedDids.has(profile.did)}
-              onSelect={handleSelect}
-              onOpenProfile={onOpenProfile}
-              onBlocked={handleBlocked}
-            />
-          ))
+          <>
+            {/* People You May Know section */}
+            <FollowerSection
+              title="People You May Know"
+              count={categorizedProfiles.peopleYouMayKnow.length}
+              icon={
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+              }
+              iconColor="text-emerald-600 dark:text-emerald-400"
+              bgColor="bg-emerald-50 dark:bg-emerald-900/20"
+              textColor="text-emerald-700 dark:text-emerald-300"
+              defaultExpanded={true}
+            >
+              {categorizedProfiles.peopleYouMayKnow.map((profile) => (
+                <EnhancedFollowerRow
+                  key={profile.did}
+                  profile={profile}
+                  isSelected={selectedDids.has(profile.did)}
+                  onSelect={handleSelect}
+                  onOpenProfile={onOpenProfile}
+                  onBlocked={handleBlocked}
+                />
+              ))}
+            </FollowerSection>
+
+            {/* Everyone Else section */}
+            <FollowerSection
+              title="Everyone Else"
+              count={categorizedProfiles.everyoneElse.length}
+              icon={
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                </svg>
+              }
+              iconColor="text-blue-600 dark:text-blue-400"
+              bgColor="bg-blue-50 dark:bg-blue-900/20"
+              textColor="text-blue-700 dark:text-blue-300"
+              defaultExpanded={true}
+            >
+              {categorizedProfiles.everyoneElse.map((profile) => (
+                <EnhancedFollowerRow
+                  key={profile.did}
+                  profile={profile}
+                  isSelected={selectedDids.has(profile.did)}
+                  onSelect={handleSelect}
+                  onOpenProfile={onOpenProfile}
+                  onBlocked={handleBlocked}
+                />
+              ))}
+            </FollowerSection>
+
+            {/* Potential Spam section - collapsed by default */}
+            <FollowerSection
+              title="Potential Spam"
+              count={categorizedProfiles.potentialSpam.length}
+              icon={
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+              }
+              iconColor="text-amber-600 dark:text-amber-400"
+              bgColor="bg-amber-50 dark:bg-amber-900/20"
+              textColor="text-amber-700 dark:text-amber-300"
+              defaultExpanded={false}
+            >
+              {categorizedProfiles.potentialSpam.map((profile) => (
+                <EnhancedFollowerRow
+                  key={profile.did}
+                  profile={profile}
+                  isSelected={selectedDids.has(profile.did)}
+                  onSelect={handleSelect}
+                  onOpenProfile={onOpenProfile}
+                  onBlocked={handleBlocked}
+                />
+              ))}
+            </FollowerSection>
+          </>
         )}
       </div>
     </div>
