@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { searchFeeds, FeedGeneratorInfo, getFeedGenerators, getSavedFeeds, getSavedFeedUris, saveFeed, unsaveFeed, likeFeed, unlikeFeed } from '@/lib/bluesky';
+import { searchFeeds, FeedGeneratorInfo, getFeedGenerators, getSavedFeeds, getSavedFeedUris, saveFeed, unsaveFeed, likeFeed, unlikeFeed, getMyLists, ListView } from '@/lib/bluesky';
 import { useFeeds, SUGGESTED_FEEDS, PinnedFeed } from '@/lib/feeds';
 
 interface FeedDiscoveryProps {
@@ -47,6 +47,121 @@ function KeywordFeedCreator({ onAdd }: { onAdd: (keyword: string) => void }) {
         Creates a feed showing posts matching your keyword via search
       </p>
     </form>
+  );
+}
+
+function ListFeedCreator({ onAdd, pinnedListUris }: { onAdd: (list: ListView) => void; pinnedListUris: Set<string> }) {
+  const [lists, setLists] = useState<ListView[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(false);
+  const [hasLoaded, setHasLoaded] = useState(false);
+
+  const loadLists = async () => {
+    if (hasLoaded) return;
+    setLoading(true);
+    try {
+      const myLists = await getMyLists();
+      // Filter to only curated lists (not mod lists)
+      const curatedLists = myLists.filter(l => l.purpose === 'app.bsky.graph.defs#curatelist');
+      setLists(curatedLists);
+      setHasLoaded(true);
+    } catch (err) {
+      console.error('Failed to load lists:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleExpand = () => {
+    setIsExpanded(!isExpanded);
+    if (!hasLoaded && !isExpanded) {
+      loadLists();
+    }
+  };
+
+  // Filter out already pinned lists
+  const availableLists = lists.filter(l => !pinnedListUris.has(`list:${l.uri}`));
+
+  return (
+    <div className="border-b border-indigo-200 dark:border-indigo-800">
+      <button
+        onClick={handleExpand}
+        className="w-full p-3 bg-indigo-50 dark:bg-indigo-900/20 flex items-center justify-between hover:bg-indigo-100 dark:hover:bg-indigo-900/30 transition-colors"
+      >
+        <h3 className="text-xs font-medium text-indigo-700 dark:text-indigo-300 flex items-center gap-1.5">
+          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+          </svg>
+          Create Feed from List
+        </h3>
+        <svg
+          className={`w-4 h-4 text-indigo-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+        </svg>
+      </button>
+
+      {isExpanded && (
+        <div className="p-3 bg-indigo-50/50 dark:bg-indigo-900/10">
+          {loading ? (
+            <div className="flex items-center justify-center py-4">
+              <div className="animate-spin w-5 h-5 border-2 border-indigo-500 border-t-transparent rounded-full" />
+            </div>
+          ) : lists.length === 0 ? (
+            <div className="text-center py-3">
+              <p className="text-xs text-indigo-600 dark:text-indigo-400">No lists found</p>
+              <a
+                href="/lists"
+                className="text-xs text-indigo-500 hover:underline mt-1 inline-block"
+              >
+                Create a list first →
+              </a>
+            </div>
+          ) : availableLists.length === 0 ? (
+            <div className="text-center py-3">
+              <p className="text-xs text-indigo-600 dark:text-indigo-400">All your lists are already pinned</p>
+            </div>
+          ) : (
+            <div className="space-y-1.5">
+              {availableLists.map((list) => (
+                <button
+                  key={list.uri}
+                  onClick={() => onAdd(list)}
+                  className="w-full flex items-center gap-2 p-2 bg-white dark:bg-gray-800 border border-indigo-200 dark:border-indigo-700 rounded-lg hover:bg-indigo-50 dark:hover:bg-indigo-900/30 transition-colors text-left"
+                >
+                  {list.avatar ? (
+                    <img src={list.avatar} alt="" className="w-8 h-8 rounded-lg flex-shrink-0" />
+                  ) : (
+                    <div className="w-8 h-8 rounded-lg bg-indigo-100 dark:bg-indigo-800 flex items-center justify-center flex-shrink-0">
+                      <svg className="w-4 h-4 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                      </svg>
+                    </div>
+                  )}
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
+                      {list.name}
+                    </p>
+                    <p className="text-[10px] text-gray-500 truncate">
+                      {list.listItemCount ?? 0} member{(list.listItemCount ?? 0) !== 1 ? 's' : ''}
+                    </p>
+                  </div>
+                  <svg className="w-4 h-4 text-indigo-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                  </svg>
+                </button>
+              ))}
+            </div>
+          )}
+          <p className="text-[10px] text-indigo-600 dark:text-indigo-400 mt-2">
+            Creates a feed showing posts from members of your list
+          </p>
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -404,6 +519,30 @@ export default function FeedDiscovery({ onClose }: FeedDiscoveryProps) {
     addFeed(pinnedFeed);
   };
 
+  const handleAddListFeed = (list: ListView) => {
+    // Create a unique URI for list feeds
+    const uri = `list:${list.uri}`;
+
+    // Don't add if already exists
+    if (isPinned(uri)) return;
+
+    const pinnedFeed: PinnedFeed = {
+      uri,
+      displayName: list.name,
+      avatar: list.avatar,
+      acceptsInteractions: false,
+      type: 'list',
+    };
+    addFeed(pinnedFeed);
+  };
+
+  // Get set of already pinned list URIs
+  const pinnedListUris = new Set(
+    pinnedFeeds
+      .filter(f => f.type === 'list')
+      .map(f => f.uri)
+  );
+
   const isSearching = searchQuery.trim().length > 0;
   const displayFeeds = isSearching 
     ? searchResults 
@@ -450,6 +589,11 @@ export default function FeedDiscovery({ onClose }: FeedDiscoveryProps) {
           <KeywordFeedCreator onAdd={handleAddKeywordFeed} />
         )}
 
+        {/* List feed creator */}
+        {!isSearching && (
+          <ListFeedCreator onAdd={handleAddListFeed} pinnedListUris={pinnedListUris} />
+        )}
+
         {/* Pinned feeds section */}
         {pinnedFeeds.length > 0 && !isSearching && (
           <div className="p-3 bg-gray-50 dark:bg-gray-800/50 border-b border-gray-200 dark:border-gray-800">
@@ -461,12 +605,19 @@ export default function FeedDiscovery({ onClose }: FeedDiscoveryProps) {
                   className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs border ${
                     feed.type === 'keyword'
                       ? 'bg-purple-50 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 border-purple-200 dark:border-purple-700'
+                      : feed.type === 'list'
+                      ? 'bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 border-indigo-200 dark:border-indigo-700'
                       : 'bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-600'
                   }`}
                 >
                   {feed.type === 'keyword' && (
                     <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                    </svg>
+                  )}
+                  {feed.type === 'list' && (
+                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
                     </svg>
                   )}
                   {feed.displayName}

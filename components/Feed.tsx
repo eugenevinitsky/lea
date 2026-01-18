@@ -61,9 +61,11 @@ export default function Feed({ feedId, feedUri, feedName, acceptsInteractions, r
   const isPapersFeed = feedId === 'papers';
   const isVerifiedFeed = feedId === 'verified' || feedType === 'verified' || feedUri === 'verified-following';
   const isKeywordFeed = feedType === 'keyword' || (feedUri?.startsWith('keyword:') ?? false);
-  const isListFeed = (feedType === 'list' || (effectiveFeedUri?.includes('/app.bsky.graph.list/') ?? false)) && !isVerifiedFeed;
+  const isListFeed = (feedType === 'list' || (feedUri?.startsWith('list:') ?? false) || (effectiveFeedUri?.includes('/app.bsky.graph.list/') ?? false)) && !isVerifiedFeed;
   const isRemixFeed = feedType === 'remix' || feedUri === 'remix';
   const effectiveKeyword = keyword || (feedUri?.startsWith('keyword:') ? feedUri.slice(8).replace(/-/g, ' ') : null);
+  // Extract actual list URI from list: prefix
+  const effectiveListUri = feedUri?.startsWith('list:') ? feedUri.slice(5) : effectiveFeedUri;
   
   // Get feeds to remix (all pinned feeds except Remix itself)
   const remixSourceFeeds = useMemo(() => {
@@ -107,8 +109,10 @@ export default function Feed({ feedId, feedUri, feedName, acceptsInteractions, r
     } else if (feed.type === 'verified' || feed.uri === 'verified-following') {
       const response = await getListFeed(VERIFIED_RESEARCHERS_LIST, feedCursor);
       return { posts: response.data.feed, cursor: response.data.cursor };
-    } else if (feed.type === 'list' || feed.uri.includes('/app.bsky.graph.list/')) {
-      const response = await getListFeed(feed.uri, feedCursor);
+    } else if (feed.type === 'list' || feed.uri.startsWith('list:') || feed.uri.includes('/app.bsky.graph.list/')) {
+      // Extract actual list URI from list: prefix if present
+      const listUri = feed.uri.startsWith('list:') ? feed.uri.slice(5) : feed.uri;
+      const response = await getListFeed(listUri, feedCursor);
       return { posts: response.data.feed, cursor: response.data.cursor };
     } else if (feed.uri === 'timeline') {
       const response = await getTimeline(feedCursor);
@@ -240,9 +244,9 @@ export default function Feed({ feedId, feedUri, feedName, acceptsInteractions, r
         const response = await getListFeed(VERIFIED_RESEARCHERS_LIST, loadMore ? (currentCursor || cursor) : undefined);
         feedPosts = response.data.feed;
         newCursor = response.data.cursor;
-      } else if (isListFeed && effectiveFeedUri) {
+      } else if (isListFeed && effectiveListUri) {
         // List feed - posts from list members
-        const response = await getListFeed(effectiveFeedUri, loadMore ? (currentCursor || cursor) : undefined);
+        const response = await getListFeed(effectiveListUri, loadMore ? (currentCursor || cursor) : undefined);
         feedPosts = response.data.feed;
         newCursor = response.data.cursor;
       } else if (effectiveFeedUri && effectiveFeedUri !== 'timeline' && effectiveFeedUri !== 'verified-following') {
