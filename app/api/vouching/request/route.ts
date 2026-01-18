@@ -2,9 +2,19 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db, vouchRequests, verifiedResearchers } from '@/lib/db';
 import { eq, and } from 'drizzle-orm';
 import { nanoid } from 'nanoid';
+import { getAuthenticatedDid } from '@/lib/server-auth';
 
 export async function POST(request: NextRequest) {
   try {
+    // Verify the user is authenticated
+    const authenticatedDid = getAuthenticatedDid(request);
+    if (!authenticatedDid) {
+      return NextResponse.json(
+        { error: 'Authentication required' },
+        { status: 401 }
+      );
+    }
+
     const { requesterDid, requesterHandle, voucherDid, message } =
       await request.json();
 
@@ -12,6 +22,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { error: 'Missing required fields' },
         { status: 400 }
+      );
+    }
+
+    // Ensure the authenticated user is the requester
+    if (requesterDid !== authenticatedDid) {
+      return NextResponse.json(
+        { error: 'Can only request vouches for yourself' },
+        { status: 403 }
       );
     }
 
