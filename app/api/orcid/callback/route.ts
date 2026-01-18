@@ -63,8 +63,8 @@ export async function GET(request: NextRequest) {
     });
 
     if (!tokenResponse.ok) {
-      const errorData = await tokenResponse.text();
-      console.error('ORCID token error:', errorData);
+      // Don't log the full error response as it may contain sensitive debugging info
+      console.error('ORCID token error: status', tokenResponse.status);
       return NextResponse.redirect(
         new URL('/verify?error=Failed+to+authenticate+with+ORCID', request.nextUrl.origin)
       );
