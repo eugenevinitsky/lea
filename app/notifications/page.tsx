@@ -416,6 +416,8 @@ function TopInteractors({
   notifications: NotificationItem[];
   onOpenProfile: (did: string) => void;
 }) {
+  const { settings } = useSettings();
+  
   const interactors = useMemo(() => {
     const counts: Record<string, { author: NotificationItem['author']; count: number; types: Set<string> }> = {};
     
@@ -447,30 +449,32 @@ function TopInteractors({
         <p className="text-sm text-gray-400 text-center py-4">No interactions yet</p>
       ) : (
         <div className="space-y-3">
-          {interactors.map((item, index) => (
-            <div key={item.author.did} className="flex items-center gap-3">
-              <span className="text-xs text-gray-400 w-4">{index + 1}</span>
-              <ProfileHoverCard
-                did={item.author.did}
-                handle={item.author.handle}
-                onOpenProfile={() => onOpenProfile(item.author.did)}
-              >
-                {item.author.avatar ? (
-                  <img
-                    src={item.author.avatar}
-                    alt=""
-                    className="w-8 h-8 rounded-full cursor-pointer hover:ring-2 hover:ring-blue-400 transition-all"
-                    onClick={() => onOpenProfile(item.author.did)}
-                  />
-                ) : (
-                  <div
-                    className="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center text-white text-xs font-bold cursor-pointer hover:ring-2 hover:ring-blue-400 transition-all"
-                    onClick={() => onOpenProfile(item.author.did)}
-                  >
-                    {(item.author.displayName || item.author.handle)[0].toUpperCase()}
-                  </div>
-                )}
-              </ProfileHoverCard>
+          {interactors.map((item, index) => {
+            const avatarRingClass = getAvatarRingClass(item.author.viewer, settings);
+            return (
+              <div key={item.author.did} className="flex items-center gap-3">
+                <span className="text-xs text-gray-400 w-4">{index + 1}</span>
+                <ProfileHoverCard
+                  did={item.author.did}
+                  handle={item.author.handle}
+                  onOpenProfile={() => onOpenProfile(item.author.did)}
+                >
+                  {item.author.avatar ? (
+                    <img
+                      src={item.author.avatar}
+                      alt=""
+                      className={`w-8 h-8 rounded-full cursor-pointer transition-all ${avatarRingClass || 'hover:ring-2 hover:ring-blue-400'}`}
+                      onClick={() => onOpenProfile(item.author.did)}
+                    />
+                  ) : (
+                    <div
+                      className={`w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center text-white text-xs font-bold cursor-pointer transition-all ${avatarRingClass || 'hover:ring-2 hover:ring-blue-400'}`}
+                      onClick={() => onOpenProfile(item.author.did)}
+                    >
+                      {(item.author.displayName || item.author.handle)[0].toUpperCase()}
+                    </div>
+                  )}
+                </ProfileHoverCard>
               <div className="flex-1 min-w-0">
                 <p
                   className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate cursor-pointer hover:text-blue-500"
@@ -493,10 +497,11 @@ function TopInteractors({
                     style={{ width: `${(item.count / maxCount) * 100}%` }}
                   />
                 </div>
-                <span className="text-xs text-gray-500 w-6 text-right">{item.count}</span>
+              <span className="text-xs text-gray-500 w-6 text-right">{item.count}</span>
               </div>
             </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>
