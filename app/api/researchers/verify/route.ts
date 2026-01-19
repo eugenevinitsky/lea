@@ -25,6 +25,15 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Validate ORCID format (0000-0000-0000-0000 or 0000-0000-0000-000X)
+    const orcidRegex = /^\d{4}-\d{4}-\d{4}-\d{3}[\dX]$/;
+    if (!orcidRegex.test(orcid)) {
+      return NextResponse.json(
+        { error: 'Invalid ORCID format. Expected: 0000-0000-0000-0000' },
+        { status: 400 }
+      );
+    }
+
     // Ensure the user can only verify themselves
     if (did !== authenticatedDid) {
       return NextResponse.json(
