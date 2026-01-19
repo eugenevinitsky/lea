@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { fetchWithTimeout } from '@/lib/fetch-with-timeout';
 
 const OPENALEX_BASE = 'https://api.openalex.org';
 
@@ -16,13 +17,14 @@ export async function GET(request: NextRequest) {
   const id = authorId.replace('https://openalex.org/', '');
 
   try {
-    const response = await fetch(
+    const response = await fetchWithTimeout(
       `${OPENALEX_BASE}/works?filter=author.id:${id}&per-page=${perPage}&page=${page}&sort=publication_year:desc`,
       {
         headers: {
           'Accept': 'application/json',
           'User-Agent': 'Lea (mailto:hello@lea.social)',
         },
+        timeout: 15000,
       }
     );
 

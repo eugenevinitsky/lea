@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db, discoveredArticles, articleMentions, verifiedResearchers } from '@/lib/db';
 import { eq, sql } from 'drizzle-orm';
+import { isBot } from '@/lib/bot-blacklist';
 
 // Secret for authenticating requests from the Cloudflare Worker
 const API_SECRET = process.env.PAPER_FIREHOSE_SECRET;
@@ -163,6 +164,11 @@ interface BatchedIngestRequest {
 // Process a single ingest request
 async function processSingleIngest(req: IngestRequest): Promise<{ articleId: number; normalizedId: string }[]> {
   const { articles, postUri, authorDid, postText, createdAt } = req;
+
+  // Skip mentions from known bots
+  if (isBot(authorDid)) {
+    return [];
+  }
 
   if (!articles || !Array.isArray(articles) || articles.length === 0) {
     return [];

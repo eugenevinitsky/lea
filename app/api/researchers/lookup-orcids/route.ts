@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db, verifiedResearchers } from '@/lib/db';
 import { eq, and, or, isNull } from 'drizzle-orm';
+import { fetchWithTimeout } from '@/lib/fetch-with-timeout';
 
 // Search ORCID by name
 async function searchOrcid(name: string): Promise<{ orcid: string; name: string }[]> {
@@ -20,12 +21,13 @@ async function searchOrcid(name: string): Promise<{ orcid: string; name: string 
   const familyName = cleanParts[cleanParts.length - 1];
 
   try {
-    const response = await fetch(
+    const response = await fetchWithTimeout(
       `https://pub.orcid.org/v3.0/search/?q=family-name:${encodeURIComponent(familyName)}+AND+given-names:${encodeURIComponent(givenName)}`,
       {
         headers: {
           'Accept': 'application/json',
         },
+        timeout: 10000,
       }
     );
 
@@ -54,9 +56,9 @@ async function searchOrcid(name: string): Promise<{ orcid: string; name: string 
 async function fetchTopicsForOrcid(orcid: string): Promise<string[]> {
   try {
     // Get author from OpenAlex
-    const authorResponse = await fetch(
+    const authorResponse = await fetchWithTimeout(
       `https://api.openalex.org/authors?filter=orcid:${orcid}`,
-      { headers: { 'User-Agent': 'Lea/1.0 (mailto:contact@lea.app)' } }
+      { headers: { 'User-Agent': 'Lea/1.0 (mailto:contact@lea.app)' }, timeout: 10000 }
     );
 
     if (!authorResponse.ok) return [];
@@ -67,9 +69,9 @@ async function fetchTopicsForOrcid(orcid: string): Promise<string[]> {
     const author = authorData.results[0];
 
     // Fetch works
-    const worksResponse = await fetch(
+    const worksResponse = await fetchWithTimeout(
       `https://api.openalex.org/works?filter=author.id:${author.id}&per_page=100&sort=publication_year:desc`,
-      { headers: { 'User-Agent': 'Lea/1.0 (mailto:contact@lea.app)' } }
+      { headers: { 'User-Agent': 'Lea/1.0 (mailto:contact@lea.app)' }, timeout: 15000 }
     );
 
     if (!worksResponse.ok) return [];

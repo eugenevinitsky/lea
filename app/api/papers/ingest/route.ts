@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db, discoveredPapers, paperMentions, verifiedResearchers } from '@/lib/db';
 import { eq, sql } from 'drizzle-orm';
+import { isBot } from '@/lib/bot-blacklist';
+import { fetchWithTimeout } from '@/lib/fetch-with-timeout';
 
 // Secret for authenticating requests from the Cloudflare Worker
 const API_SECRET = process.env.PAPER_FIREHOSE_SECRET;
@@ -11,7 +13,7 @@ async function fetchPaperMetadata(normalizedId: string, source: string): Promise
     if (source === 'arxiv') {
       // Extract arxiv ID (e.g., "2401.12345" from "arxiv:2401.12345")
       const arxivId = normalizedId.replace('arxiv:', '');
-      const response = await fetch(`https://export.arxiv.org/api/query?id_list=${arxivId}`);
+      const response = await fetchWithTimeout(`https://export.arxiv.org/api/query?id_list=${arxivId}`, { timeout: 10000 });
       if (!response.ok) return null;
 
       const xml = await response.text();
@@ -43,18 +45,20 @@ async function fetchPaperMetadata(normalizedId: string, source: string): Promise
       }
 
       // Use DOI content negotiation (works for all DOI sources including preprints)
-      const response = await fetch(`https://doi.org/${doi}`, {
+      const response = await fetchWithTimeout(`https://doi.org/${doi}`, {
         headers: {
           'Accept': 'application/vnd.citationstyles.csl+json',
           'User-Agent': 'Lea/1.0 (mailto:support@lea.community)'
         },
-        redirect: 'follow'
+        redirect: 'follow',
+        timeout: 10000,
       });
 
       if (!response.ok) {
         // Fallback to CrossRef API
-        const crossrefResponse = await fetch(`https://api.crossref.org/works/${encodeURIComponent(doi)}`, {
-          headers: { 'User-Agent': 'Lea/1.0 (mailto:support@lea.community)' }
+        const crossrefResponse = await fetchWithTimeout(`https://api.crossref.org/works/${encodeURIComponent(doi)}`, {
+          headers: { 'User-Agent': 'Lea/1.0 (mailto:support@lea.community)' },
+          timeout: 10000,
         });
         if (!crossrefResponse.ok) return null;
 
@@ -78,8 +82,9 @@ async function fetchPaperMetadata(normalizedId: string, source: string): Promise
 
     if (source === 'pubmed') {
       const pmid = normalizedId.replace('pubmed:', '');
-      const response = await fetch(
-        `https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esummary.fcgi?db=pubmed&id=${pmid}&retmode=json`
+      const response = await fetchWithTimeout(
+        `https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esummary.fcgi?db=pubmed&id=${pmid}&retmode=json`,
+        { timeout: 10000 }
       );
       if (!response.ok) return null;
 
@@ -96,8 +101,9 @@ async function fetchPaperMetadata(normalizedId: string, source: string): Promise
       const articleId = normalizedId.replace('nature:', '');
       const doi = `10.1038/${articleId}`;
 
-      const response = await fetch(`https://api.crossref.org/works/${encodeURIComponent(doi)}`, {
-        headers: { 'User-Agent': 'Lea/1.0 (mailto:support@lea.community)' }
+      const response = await fetchWithTimeout(`https://api.crossref.org/works/${encodeURIComponent(doi)}`, {
+        headers: { 'User-Agent': 'Lea/1.0 (mailto:support@lea.community)' },
+        timeout: 10000,
       });
       if (!response.ok) return null;
 
@@ -117,14 +123,16 @@ async function fetchPaperMetadata(normalizedId: string, source: string): Promise
 
       try {
         // OpenReview API v2
-        const response = await fetch(`https://api2.openreview.net/notes?id=${forumId}`, {
-          headers: { 'User-Agent': 'Lea/1.0 (mailto:support@lea.community)' }
+        const response = await fetchWithTimeout(`https://api2.openreview.net/notes?id=${forumId}`, {
+          headers: { 'User-Agent': 'Lea/1.0 (mailto:support@lea.community)' },
+          timeout: 10000,
         });
 
         if (!response.ok) {
           // Try API v1 as fallback
-          const v1Response = await fetch(`https://api.openreview.net/notes?id=${forumId}`, {
-            headers: { 'User-Agent': 'Lea/1.0 (mailto:support@lea.community)' }
+          const v1Response = await fetchWithTimeout(`https://api.openreview.net/notes?id=${forumId}`, {
+            headers: { 'User-Agent': 'Lea/1.0 (mailto:support@lea.community)' },
+            timeout: 10000,
           });
           if (!v1Response.ok) return null;
 
@@ -182,6 +190,11 @@ interface BatchedIngestRequest {
 // Process a single ingest request
 async function processSingleIngest(req: IngestRequest): Promise<{ paperId: number; normalizedId: string }[]> {
   const { papers, postUri, authorDid, postText, createdAt, quotedPostUri } = req;
+
+  // Skip mentions from known bots
+  if (isBot(authorDid)) {
+    return [];
+  }
 
   // Handle quote posts - if no direct paper links, check if quoted post mentions papers
   if ((!papers || !Array.isArray(papers) || papers.length === 0) && quotedPostUri) {

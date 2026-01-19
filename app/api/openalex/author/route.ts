@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { fetchWithTimeout } from '@/lib/fetch-with-timeout';
 
 const OPENALEX_BASE = 'https://api.openalex.org';
 
@@ -14,13 +15,14 @@ export async function GET(request: NextRequest) {
   const normalizedOrcid = orcid.replace('https://orcid.org/', '');
 
   try {
-    const response = await fetch(
+    const response = await fetchWithTimeout(
       `${OPENALEX_BASE}/authors?filter=orcid:https://orcid.org/${normalizedOrcid}`,
       {
         headers: {
           'Accept': 'application/json',
           'User-Agent': 'Lea (mailto:hello@lea.social)',
         },
+        timeout: 15000, // 15 second timeout for external APIs
       }
     );
 

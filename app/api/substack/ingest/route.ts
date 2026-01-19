@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db, discoveredSubstackPosts, substackMentions, verifiedResearchers } from '@/lib/db';
 import { eq, sql } from 'drizzle-orm';
 import { initEmbeddingClassifier, classifyContentAsync, isEmbeddingClassifierReady } from '@/lib/substack-classifier';
+import { isBot } from '@/lib/bot-blacklist';
 
 // Secret for authenticating requests from the Cloudflare Worker
 const API_SECRET = process.env.PAPER_FIREHOSE_SECRET;
@@ -185,6 +186,11 @@ interface BatchedIngestRequest {
 // Process a single ingest request
 async function processSingleIngest(req: IngestRequest): Promise<{ substackPostId: number; normalizedId: string }[]> {
   const { substackPosts, postUri, authorDid, postText, createdAt, quotedPostUri } = req;
+
+  // Skip mentions from known bots
+  if (isBot(authorDid)) {
+    return [];
+  }
 
   // Handle quote posts - if no direct Substack links, check if quoted post mentions Substack
   if ((!substackPosts || !Array.isArray(substackPosts) || substackPosts.length === 0) && quotedPostUri) {

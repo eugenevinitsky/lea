@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db, verifiedResearchers } from '@/lib/db';
 import { inArray } from 'drizzle-orm';
+import { fetchWithTimeout } from '@/lib/fetch-with-timeout';
 
 const OPENALEX_BASE = 'https://api.openalex.org';
 
@@ -28,13 +29,14 @@ export async function GET(request: NextRequest) {
 
   try {
     // Fetch recent works to find co-authors
-    const response = await fetch(
+    const response = await fetchWithTimeout(
       `${OPENALEX_BASE}/works?filter=author.id:${id}&per-page=100&sort=publication_year:desc`,
       {
         headers: {
           'Accept': 'application/json',
           'User-Agent': 'Lea (mailto:hello@lea.social)',
         },
+        timeout: 15000,
       }
     );
 
@@ -85,13 +87,14 @@ export async function GET(request: NextRequest) {
       
       try {
         // Fetch co-author details from OpenAlex to get their ORCID
-        const authorResponse = await fetch(
+        const authorResponse = await fetchWithTimeout(
           `${OPENALEX_BASE}/authors/${coAuthor.openAlexId.replace('https://openalex.org/', '')}`,
           {
             headers: {
               'Accept': 'application/json',
               'User-Agent': 'Lea (mailto:hello@lea.social)',
             },
+            timeout: 10000,
           }
         );
         
