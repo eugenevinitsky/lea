@@ -24,13 +24,18 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'Author ID is required' }, { status: 400 });
   }
 
-  // Extract OpenAlex ID from full URL if needed
-  const id = authorId.replace('https://openalex.org/', '');
+  // Extract OpenAlex ID from full URL if needed and normalize
+  const id = authorId.replace('https://openalex.org/', '').replace('authors/', '');
+
+  // Validate OpenAlex author ID format (A followed by digits)
+  if (!/^A\d+$/i.test(id)) {
+    return NextResponse.json({ error: 'Invalid OpenAlex author ID format' }, { status: 400 });
+  }
 
   try {
     // Fetch recent works to find co-authors
     const response = await fetchWithTimeout(
-      `${OPENALEX_BASE}/works?filter=author.id:${id}&per-page=100&sort=publication_year:desc`,
+      `${OPENALEX_BASE}/works?filter=author.id:${id.toUpperCase()}&per-page=100&sort=publication_year:desc`,
       {
         headers: {
           'Accept': 'application/json',
@@ -56,7 +61,7 @@ export async function GET(request: NextRequest) {
         const coAuthorName = authorship.author?.display_name;
         
         // Skip the author themselves
-        if (!coAuthorId || coAuthorId === `https://openalex.org/${id}`) continue;
+        if (!coAuthorId || coAuthorId === `https://openalex.org/${id.toUpperCase()}`) continue;
         
         const existing = coAuthorCounts.get(coAuthorId);
         if (existing) {
