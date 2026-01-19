@@ -9,6 +9,16 @@ interface PollOption {
   text: string;
 }
 
+// Safe JSON parse that returns default value on error
+function safeJsonParse<T>(json: string | null | undefined, defaultValue: T): T {
+  if (!json) return defaultValue;
+  try {
+    return JSON.parse(json) as T;
+  } catch {
+    return defaultValue;
+  }
+}
+
 // Generate cryptographically secure random ID
 function secureRandomId(prefix: string): string {
   return `${prefix}_${Date.now()}_${randomBytes(6).toString('hex')}`;
@@ -56,8 +66,11 @@ export async function GET(request: NextRequest) {
       .from(pollVotes)
       .where(eq(pollVotes.pollId, poll.id));
 
-    // Calculate vote counts per option
-    const options: PollOption[] = JSON.parse(poll.options);
+    // Calculate vote counts per option (use safe parse to handle corrupted data)
+    const options: PollOption[] = safeJsonParse<PollOption[]>(poll.options, []);
+    if (options.length === 0) {
+      return NextResponse.json({ error: 'Poll has invalid options' }, { status: 500 });
+    }
     const voteCounts: Record<string, number> = {};
     options.forEach(opt => { voteCounts[opt.id] = 0; });
     votes.forEach(vote => {
@@ -199,8 +212,11 @@ export async function POST(request: NextRequest) {
           return NextResponse.json({ error: 'Poll has ended' }, { status: 400 });
         }
 
-        // Validate options exist
-        const options: PollOption[] = JSON.parse(poll.options);
+        // Validate options exist (use safe parse to handle corrupted data)
+        const options: PollOption[] = safeJsonParse<PollOption[]>(poll.options, []);
+        if (options.length === 0) {
+          return NextResponse.json({ error: 'Poll has invalid options' }, { status: 500 });
+        }
         const validOptionIds = options.map(opt => opt.id);
         for (const optionId of optionIds) {
           if (!validOptionIds.includes(optionId)) {

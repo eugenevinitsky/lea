@@ -11,8 +11,15 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'ORCID is required' }, { status: 400 });
   }
 
-  // Normalize ORCID format
+  // Normalize ORCID format (strip URL prefix if present)
   const normalizedOrcid = orcid.replace('https://orcid.org/', '');
+
+  // Validate ORCID format to prevent filter injection
+  // Valid format: 0000-0000-0000-0000 or 0000-0000-0000-000X
+  const orcidRegex = /^\d{4}-\d{4}-\d{4}-\d{3}[\dX]$/;
+  if (!orcidRegex.test(normalizedOrcid)) {
+    return NextResponse.json({ error: 'Invalid ORCID format' }, { status: 400 });
+  }
 
   try {
     const response = await fetchWithTimeout(
