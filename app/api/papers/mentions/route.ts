@@ -4,11 +4,20 @@ import { eq, desc, count } from 'drizzle-orm';
 
 // GET /api/papers/mentions?id=arxiv:2401.12345
 // Fetches all post URIs that mention a paper
+// Validation constants
+const MAX_LIMIT = 500;
+const MAX_OFFSET = 10000;
+
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
   const normalizedId = searchParams.get('id');
-  const limit = parseInt(searchParams.get('limit') || '100', 10);
-  const offset = parseInt(searchParams.get('offset') || '0', 10);
+
+  // Parse and validate limit/offset to prevent resource exhaustion
+  const rawLimit = parseInt(searchParams.get('limit') || '100', 10);
+  const rawOffset = parseInt(searchParams.get('offset') || '0', 10);
+
+  const limit = Number.isNaN(rawLimit) || rawLimit < 1 ? 100 : Math.min(rawLimit, MAX_LIMIT);
+  const offset = Number.isNaN(rawOffset) || rawOffset < 0 ? 0 : Math.min(rawOffset, MAX_OFFSET);
 
   if (!normalizedId) {
     return NextResponse.json({ error: 'Missing id parameter' }, { status: 400 });

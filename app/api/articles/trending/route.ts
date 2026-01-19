@@ -2,13 +2,25 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db, discoveredArticles, articleMentions } from '@/lib/db';
 import { desc, sql, eq, and } from 'drizzle-orm';
 
+// Validation constants
+const MAX_HOURS = 168; // 1 week max
+const MAX_LIMIT = 100;
+const ALLOWED_SOURCES = ['quanta', 'mittechreview'];
+
 // GET /api/articles/trending?hours=24&limit=50&source=quanta - Get trending articles
 export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
-    const hours = parseInt(searchParams.get('hours') || '24');
-    const limit = Math.min(parseInt(searchParams.get('limit') || '50'), 100);
-    const source = searchParams.get('source'); // Optional filter by source
+
+    // Parse and validate query params
+    const rawHours = parseInt(searchParams.get('hours') || '24');
+    const rawLimit = parseInt(searchParams.get('limit') || '50');
+    const rawSource = searchParams.get('source');
+
+    const hours = Number.isNaN(rawHours) || rawHours < 1 ? 24 : Math.min(rawHours, MAX_HOURS);
+    const limit = Number.isNaN(rawLimit) || rawLimit < 1 ? 50 : Math.min(rawLimit, MAX_LIMIT);
+    // Validate source is an allowed value or null
+    const source = rawSource && ALLOWED_SOURCES.includes(rawSource) ? rawSource : null;
 
     const cutoffTime = new Date(Date.now() - hours * 60 * 60 * 1000);
 

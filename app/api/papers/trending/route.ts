@@ -2,13 +2,24 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db, discoveredPapers, paperMentions } from '@/lib/db';
 import { desc, sql, gt, isNotNull, notLike } from 'drizzle-orm';
 
+// Validation constants
+const MAX_HOURS = 168; // 1 week max
+const MAX_LIMIT = 100;
+const MAX_OFFSET = 10000;
+
 // GET /api/papers/trending?hours=24&limit=50&offset=0 - Get trending papers
 export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
-    const hours = parseInt(searchParams.get('hours') || '24');
-    const limit = Math.min(parseInt(searchParams.get('limit') || '50'), 100);
-    const offset = parseInt(searchParams.get('offset') || '0');
+
+    // Parse and validate all query params
+    const rawHours = parseInt(searchParams.get('hours') || '24');
+    const rawLimit = parseInt(searchParams.get('limit') || '50');
+    const rawOffset = parseInt(searchParams.get('offset') || '0');
+
+    const hours = Number.isNaN(rawHours) || rawHours < 1 ? 24 : Math.min(rawHours, MAX_HOURS);
+    const limit = Number.isNaN(rawLimit) || rawLimit < 1 ? 50 : Math.min(rawLimit, MAX_LIMIT);
+    const offset = Number.isNaN(rawOffset) || rawOffset < 0 ? 0 : Math.min(rawOffset, MAX_OFFSET);
 
     const cutoffTime = new Date(Date.now() - hours * 60 * 60 * 1000);
 

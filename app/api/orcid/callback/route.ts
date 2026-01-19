@@ -5,6 +5,20 @@ const ORCID_BASE = process.env.ORCID_SANDBOX === 'true'
   ? 'https://sandbox.orcid.org'
   : 'https://orcid.org';
 
+// Validate ORCID format: xxxx-xxxx-xxxx-xxxx (16 digits with hyphens)
+function isValidOrcidFormat(orcid: string): boolean {
+  return /^\d{4}-\d{4}-\d{4}-\d{3}[\dX]$/.test(orcid);
+}
+
+// Sanitize string to prevent XSS - only allow alphanumeric, spaces, and basic punctuation
+function sanitizeForRedirect(str: string, maxLength: number = 200): string {
+  return str
+    .slice(0, maxLength)
+    .replace(/[<>"'&]/g, '') // Remove HTML-dangerous characters
+    .replace(/[^\w\s.,!?@()-]/g, '') // Only allow safe characters
+    .trim();
+}
+
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
   const code = searchParams.get('code');
@@ -13,9 +27,11 @@ export async function GET(request: NextRequest) {
 
   // Check for errors from ORCID
   if (error) {
-    const errorDescription = searchParams.get('error_description') || 'Unknown error';
+    const rawError = searchParams.get('error_description') || 'Unknown error';
+    // Sanitize error to prevent XSS when rendered on verify page
+    const errorDescription = sanitizeForRedirect(rawError, 100);
     return NextResponse.redirect(
-      new URL(`/verify?error=${encodeURIComponent(errorDescription)}`, request.nextUrl.origin)
+      new URL(`/verify?error=${encodeURIComponent(errorDescription || 'Authentication error')}`, request.nextUrl.origin)
     );
   }
 
@@ -82,9 +98,19 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    // Validate ORCID format to prevent injection
+    if (!isValidOrcidFormat(orcid)) {
+      return NextResponse.redirect(
+        new URL('/verify?error=Invalid+ORCID+format+received', request.nextUrl.origin)
+      );
+    }
+
+    // Sanitize name to prevent XSS when rendered on verify page
+    const sanitizedName = sanitizeForRedirect(name || '', 100);
+
     // Redirect to verify page with the authenticated ORCID
     const response = NextResponse.redirect(
-      new URL(`/verify?orcid=${encodeURIComponent(orcid)}&name=${encodeURIComponent(name || '')}&authenticated=true`, request.nextUrl.origin)
+      new URL(`/verify?orcid=${encodeURIComponent(orcid)}&name=${encodeURIComponent(sanitizedName)}&authenticated=true`, request.nextUrl.origin)
     );
 
     // Clear the state cookie

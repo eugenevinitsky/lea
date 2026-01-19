@@ -217,30 +217,33 @@ export async function POST(request: NextRequest) {
           return NextResponse.json({ error: 'Collection ID required' }, { status: 400 });
         }
 
-        // Remove collection from all bookmarks first
-        const bookmarks = await db
-          .select()
-          .from(userBookmarks)
-          .where(eq(userBookmarks.userDid, did));
+        // Use transaction to ensure atomicity
+        await db.transaction(async (tx) => {
+          // Remove collection from all bookmarks first
+          const bookmarks = await tx
+            .select()
+            .from(userBookmarks)
+            .where(eq(userBookmarks.userDid, did));
 
-        for (const bookmark of bookmarks) {
-          const collectionIds = safeJsonParse<string[]>(bookmark.collectionIds, []);
-          if (collectionIds.includes(id)) {
-            const newIds = collectionIds.filter((cid: string) => cid !== id);
-            await db
-              .update(userBookmarks)
-              .set({ collectionIds: JSON.stringify(newIds) })
-              .where(eq(userBookmarks.id, bookmark.id));
+          for (const bookmark of bookmarks) {
+            const collectionIds = safeJsonParse<string[]>(bookmark.collectionIds, []);
+            if (collectionIds.includes(id)) {
+              const newIds = collectionIds.filter((cid: string) => cid !== id);
+              await tx
+                .update(userBookmarks)
+                .set({ collectionIds: JSON.stringify(newIds) })
+                .where(eq(userBookmarks.id, bookmark.id));
+            }
           }
-        }
 
-        // Delete the collection
-        await db
-          .delete(userBookmarkCollections)
-          .where(and(
-            eq(userBookmarkCollections.id, id),
-            eq(userBookmarkCollections.userDid, did)
-          ));
+          // Delete the collection
+          await tx
+            .delete(userBookmarkCollections)
+            .where(and(
+              eq(userBookmarkCollections.id, id),
+              eq(userBookmarkCollections.userDid, did)
+            ));
+        });
 
         return NextResponse.json({ success: true });
       }
@@ -251,25 +254,38 @@ export async function POST(request: NextRequest) {
           return NextResponse.json({ error: 'fromIndex and toIndex required' }, { status: 400 });
         }
 
-        // Get all collections ordered by position
-        const collections = await db
-          .select()
-          .from(userBookmarkCollections)
-          .where(eq(userBookmarkCollections.userDid, did))
-          .orderBy(asc(userBookmarkCollections.position));
-
-        // Reorder
-        const reordered = [...collections];
-        const [moved] = reordered.splice(fromIndex, 1);
-        reordered.splice(toIndex, 0, moved);
-
-        // Update positions
-        for (let i = 0; i < reordered.length; i++) {
-          await db
-            .update(userBookmarkCollections)
-            .set({ position: i })
-            .where(eq(userBookmarkCollections.id, reordered[i].id));
+        // Validate indices are non-negative integers
+        if (!Number.isInteger(fromIndex) || !Number.isInteger(toIndex) || fromIndex < 0 || toIndex < 0) {
+          return NextResponse.json({ error: 'Invalid indices' }, { status: 400 });
         }
+
+        // Use transaction to prevent race conditions
+        await db.transaction(async (tx) => {
+          // Get all collections ordered by position
+          const collections = await tx
+            .select()
+            .from(userBookmarkCollections)
+            .where(eq(userBookmarkCollections.userDid, did))
+            .orderBy(asc(userBookmarkCollections.position));
+
+          // Validate indices against actual collection count
+          if (fromIndex >= collections.length || toIndex >= collections.length) {
+            throw new Error('Index out of bounds');
+          }
+
+          // Reorder
+          const reordered = [...collections];
+          const [moved] = reordered.splice(fromIndex, 1);
+          reordered.splice(toIndex, 0, moved);
+
+          // Update positions
+          for (let i = 0; i < reordered.length; i++) {
+            await tx
+              .update(userBookmarkCollections)
+              .set({ position: i })
+              .where(eq(userBookmarkCollections.id, reordered[i].id));
+          }
+        });
 
         return NextResponse.json({ success: true });
       }
