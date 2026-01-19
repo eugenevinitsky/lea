@@ -691,18 +691,34 @@ function ActivityItem({
         }
       }}
     >
-      {/* Avatar */}
-      {activity.author.avatar ? (
-        <img
-          src={activity.author.avatar}
-          alt=""
-          className="w-5 h-5 rounded-full flex-shrink-0"
-        />
-      ) : (
-        <div className="w-5 h-5 rounded-full bg-gray-400 flex items-center justify-center text-white text-[10px] font-bold flex-shrink-0">
-          {(activity.author.displayName || activity.author.handle)[0].toUpperCase()}
-        </div>
-      )}
+      {/* Avatar with hover card */}
+      <ProfileHoverCard
+        did={activity.author.did}
+        handle={activity.author.handle}
+        onOpenProfile={() => onOpenProfile(activity.author.did)}
+      >
+        {activity.author.avatar ? (
+          <img
+            src={activity.author.avatar}
+            alt=""
+            className="w-5 h-5 rounded-full flex-shrink-0 cursor-pointer"
+            onClick={(e) => {
+              e.stopPropagation();
+              onOpenProfile(activity.author.did);
+            }}
+          />
+        ) : (
+          <div
+            className="w-5 h-5 rounded-full bg-gray-400 flex items-center justify-center text-white text-[10px] font-bold flex-shrink-0 cursor-pointer"
+            onClick={(e) => {
+              e.stopPropagation();
+              onOpenProfile(activity.author.did);
+            }}
+          >
+            {(activity.author.displayName || activity.author.handle)[0].toUpperCase()}
+          </div>
+        )}
+      </ProfileHoverCard>
       <span className={`flex-shrink-0 mt-0.5 ${style.color}`}>
         {style.icon}
       </span>
@@ -769,34 +785,39 @@ function LikesRollupRow({
   
   return (
     <div className="flex items-center gap-2 py-1.5 px-2 rounded-lg">
-      {/* Stacked avatars */}
+      {/* Stacked avatars with hover cards */}
       <div className="flex -space-x-1.5 flex-shrink-0">
         {avatarsToShow.map((liker, i) => (
-          liker.author.avatar ? (
-            <img
-              key={liker.author.did}
-              src={liker.author.avatar}
-              alt=""
-              className="w-5 h-5 rounded-full border border-white dark:border-gray-900 cursor-pointer hover:z-10 hover:scale-110 transition-transform"
-              style={{ zIndex: MAX_AVATARS - i }}
-              onClick={(e) => {
-                e.stopPropagation();
-                onOpenProfile(liker.author.did);
-              }}
-            />
-          ) : (
-            <div
-              key={liker.author.did}
-              className="w-5 h-5 rounded-full bg-gray-400 flex items-center justify-center text-white text-[10px] font-bold border border-white dark:border-gray-900 cursor-pointer hover:z-10 hover:scale-110 transition-transform"
-              style={{ zIndex: MAX_AVATARS - i }}
-              onClick={(e) => {
-                e.stopPropagation();
-                onOpenProfile(liker.author.did);
-              }}
-            >
-              {(liker.author.displayName || liker.author.handle)[0].toUpperCase()}
-            </div>
-          )
+          <ProfileHoverCard
+            key={liker.author.did}
+            did={liker.author.did}
+            handle={liker.author.handle}
+            onOpenProfile={() => onOpenProfile(liker.author.did)}
+          >
+            {liker.author.avatar ? (
+              <img
+                src={liker.author.avatar}
+                alt=""
+                className="w-5 h-5 rounded-full border border-white dark:border-gray-900 cursor-pointer hover:z-10 hover:scale-110 transition-transform"
+                style={{ zIndex: MAX_AVATARS - i }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onOpenProfile(liker.author.did);
+                }}
+              />
+            ) : (
+              <div
+                className="w-5 h-5 rounded-full bg-gray-400 flex items-center justify-center text-white text-[10px] font-bold border border-white dark:border-gray-900 cursor-pointer hover:z-10 hover:scale-110 transition-transform"
+                style={{ zIndex: MAX_AVATARS - i }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onOpenProfile(liker.author.did);
+                }}
+              >
+                {(liker.author.displayName || liker.author.handle)[0].toUpperCase()}
+              </div>
+            )}
+          </ProfileHoverCard>
         ))}
       </div>
       
@@ -857,34 +878,39 @@ function RepostsRollupRow({
   
   return (
     <div className="flex items-center gap-2 py-1.5 px-2 rounded-lg">
-      {/* Stacked avatars */}
+      {/* Stacked avatars with hover cards */}
       <div className="flex -space-x-1.5 flex-shrink-0">
         {avatarsToShow.map((reposter, i) => (
-          reposter.author.avatar ? (
-            <img
-              key={reposter.author.did}
-              src={reposter.author.avatar}
-              alt=""
-              className="w-5 h-5 rounded-full border border-white dark:border-gray-900 cursor-pointer hover:z-10 hover:scale-110 transition-transform"
-              style={{ zIndex: MAX_AVATARS - i }}
-              onClick={(e) => {
-                e.stopPropagation();
-                onOpenProfile(reposter.author.did);
-              }}
-            />
-          ) : (
-            <div
-              key={reposter.author.did}
-              className="w-5 h-5 rounded-full bg-gray-400 flex items-center justify-center text-white text-[10px] font-bold border border-white dark:border-gray-900 cursor-pointer hover:z-10 hover:scale-110 transition-transform"
-              style={{ zIndex: MAX_AVATARS - i }}
-              onClick={(e) => {
-                e.stopPropagation();
-                onOpenProfile(reposter.author.did);
-              }}
-            >
-              {(reposter.author.displayName || reposter.author.handle)[0].toUpperCase()}
-            </div>
-          )
+          <ProfileHoverCard
+            key={reposter.author.did}
+            did={reposter.author.did}
+            handle={reposter.author.handle}
+            onOpenProfile={() => onOpenProfile(reposter.author.did)}
+          >
+            {reposter.author.avatar ? (
+              <img
+                src={reposter.author.avatar}
+                alt=""
+                className="w-5 h-5 rounded-full border border-white dark:border-gray-900 cursor-pointer hover:z-10 hover:scale-110 transition-transform"
+                style={{ zIndex: MAX_AVATARS - i }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onOpenProfile(reposter.author.did);
+                }}
+              />
+            ) : (
+              <div
+                className="w-5 h-5 rounded-full bg-gray-400 flex items-center justify-center text-white text-[10px] font-bold border border-white dark:border-gray-900 cursor-pointer hover:z-10 hover:scale-110 transition-transform"
+                style={{ zIndex: MAX_AVATARS - i }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onOpenProfile(reposter.author.did);
+                }}
+              >
+                {(reposter.author.displayName || reposter.author.handle)[0].toUpperCase()}
+              </div>
+            )}
+          </ProfileHoverCard>
         ))}
       </div>
       
