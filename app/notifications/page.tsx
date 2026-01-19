@@ -31,7 +31,7 @@ const PANE_ORDER_KEY = 'lea-dashboard-pane-order';
 
 // Default pane order
 const DEFAULT_LEFT_PANES = ['new-followers', 'my-posts', 'mentions'];
-const DEFAULT_RIGHT_PANES = ['alerts', 'breakdown', 'top-interactors'];
+const DEFAULT_RIGHT_PANES = ['messages', 'alerts', 'breakdown', 'top-interactors'];
 
 // Load pane order from localStorage
 function loadPaneOrder(): { left: string[]; right: string[] } {
@@ -3405,6 +3405,7 @@ function NotificationsExplorerContent() {
             <div className="space-y-6">
               {paneOrder.right.map((paneId) => {
                 const paneContent = {
+                  'messages': <DMSidebar embedded defaultExpanded />,
                   'alerts': (
                     <AlertsSection
                       onOpenPost={openThread}
