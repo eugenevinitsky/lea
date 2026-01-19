@@ -3,9 +3,18 @@ import { db, discoveredSubstackPosts, substackMentions, verifiedResearchers } fr
 import { eq, sql } from 'drizzle-orm';
 import { initEmbeddingClassifier, classifyContentAsync, isEmbeddingClassifierReady } from '@/lib/substack-classifier';
 import { isBot } from '@/lib/bot-blacklist';
+import { timingSafeEqual } from 'crypto';
 
 // Secret for authenticating requests from the Cloudflare Worker
 const API_SECRET = process.env.PAPER_FIREHOSE_SECRET;
+
+// Timing-safe comparison to prevent timing attacks on secret verification
+function secureCompare(a: string, b: string): boolean {
+  const bufA = Buffer.from(a);
+  const bufB = Buffer.from(b);
+  if (bufA.length !== bufB.length) return false;
+  return timingSafeEqual(bufA, bufB);
+}
 
 // Initialize embedding classifier on first request
 let classifierInitialized = false;
@@ -360,9 +369,10 @@ async function processSingleIngest(req: IngestRequest): Promise<{ substackPostId
 
 // POST /api/substack/ingest - Ingest Substack mentions from firehose worker
 export async function POST(request: NextRequest) {
-  // Verify API secret
+  // Verify API secret (timing-safe to prevent timing attacks)
   const authHeader = request.headers.get('Authorization');
-  if (!API_SECRET || authHeader !== `Bearer ${API_SECRET}`) {
+  const expectedAuth = `Bearer ${API_SECRET}`;
+  if (!API_SECRET || !authHeader || !secureCompare(authHeader, expectedAuth)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 

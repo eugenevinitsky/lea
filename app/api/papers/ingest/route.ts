@@ -3,9 +3,18 @@ import { db, discoveredPapers, paperMentions, verifiedResearchers } from '@/lib/
 import { eq, sql } from 'drizzle-orm';
 import { isBot } from '@/lib/bot-blacklist';
 import { fetchWithTimeout } from '@/lib/fetch-with-timeout';
+import { timingSafeEqual } from 'crypto';
 
 // Secret for authenticating requests from the Cloudflare Worker
 const API_SECRET = process.env.PAPER_FIREHOSE_SECRET;
+
+// Timing-safe comparison to prevent timing attacks on secret verification
+function secureCompare(a: string, b: string): boolean {
+  const bufA = Buffer.from(a);
+  const bufB = Buffer.from(b);
+  if (bufA.length !== bufB.length) return false;
+  return timingSafeEqual(bufA, bufB);
+}
 
 // Fetch paper metadata from various sources
 async function fetchPaperMetadata(normalizedId: string, source: string): Promise<{ title?: string; authors?: string[] } | null> {
@@ -341,9 +350,10 @@ async function processSingleIngest(req: IngestRequest): Promise<{ paperId: numbe
 
 // POST /api/papers/ingest - Ingest paper mentions from firehose worker
 export async function POST(request: NextRequest) {
-  // Verify API secret
+  // Verify API secret (timing-safe to prevent timing attacks)
   const authHeader = request.headers.get('Authorization');
-  if (!API_SECRET || authHeader !== `Bearer ${API_SECRET}`) {
+  const expectedAuth = `Bearer ${API_SECRET}`;
+  if (!API_SECRET || !authHeader || !secureCompare(authHeader, expectedAuth)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 

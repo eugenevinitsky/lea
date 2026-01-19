@@ -197,6 +197,15 @@ export async function POST(request: NextRequest) {
           );
         }
 
+        // Verify the user is authenticated and voting as themselves
+        const authenticatedDid = getAuthenticatedDid(request);
+        if (!authenticatedDid) {
+          return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
+        }
+        if (authenticatedDid !== voterDid) {
+          return NextResponse.json({ error: 'Cannot vote as another user' }, { status: 403 });
+        }
+
         // Fetch poll to check if it exists and isn't expired
         const [poll] = await db
           .select()
