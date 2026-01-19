@@ -609,7 +609,7 @@ export default function ModerationBox({ onOpenProfile, defaultExpanded = false, 
                                 {post.recentPostCount ?? post.postCount ?? post.mentionCount} sharing
                               </span>
                             </div>
-                            <p className="text-xs text-gray-900 dark:text-gray-100 font-medium truncate">
+                            <p className="text-xs text-gray-900 dark:text-gray-100 font-medium line-clamp-2">
                               {post.title || post.slug}
                             </p>
                             {post.author && (
