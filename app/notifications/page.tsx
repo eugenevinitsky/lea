@@ -6,7 +6,7 @@ import { initOAuth } from '@/lib/oauth';
 import { refreshAgent } from '@/lib/bluesky';
 import { AppBskyFeedDefs } from '@atproto/api';
 import { useFollowing } from '@/lib/following-context';
-import { SettingsProvider } from '@/lib/settings';
+import { SettingsProvider, useSettings, LeaSettings } from '@/lib/settings';
 import { BookmarksProvider, useBookmarks } from '@/lib/bookmarks';
 import { FeedsProvider } from '@/lib/feeds';
 import { FollowingProvider } from '@/lib/following-context';
@@ -597,6 +597,28 @@ function getTimePeriod(dateString: string): 'hour' | 'today' | 'week' | 'older' 
   return 'older';
 }
 
+// Helper to compute avatar ring class based on relationship
+function getAvatarRingClass(
+  viewer: { following?: string; followedBy?: string } | undefined,
+  settings: LeaSettings
+): string {
+  if (!viewer) return '';
+  const isMutual = viewer.following && viewer.followedBy;
+  const following = !!viewer.following;
+  const followedBy = !!viewer.followedBy;
+
+  if (isMutual && settings.showMutualRing) {
+    return 'ring-[3px] ring-purple-400 dark:ring-purple-400/60 shadow-[0_0_8px_rgba(192,132,252,0.5)] dark:shadow-[0_0_8px_rgba(167,139,250,0.4)]';
+  }
+  if (following && settings.showFollowingRing) {
+    return 'ring-[3px] ring-blue-300 dark:ring-blue-400/60 shadow-[0_0_8px_rgba(147,197,253,0.5)] dark:shadow-[0_0_8px_rgba(96,165,250,0.4)]';
+  }
+  if (followedBy && settings.showFollowerRing) {
+    return 'ring-[3px] ring-yellow-400 dark:ring-yellow-400/60 shadow-[0_0_8px_rgba(250,204,21,0.5)] dark:shadow-[0_0_8px_rgba(250,204,21,0.4)]';
+  }
+  return '';
+}
+
 // Activity item for a single interaction on a post
 interface PostActivity {
   type: 'like' | 'repost' | 'reply' | 'quote' | 'mention';
@@ -605,6 +627,10 @@ interface PostActivity {
     handle: string;
     displayName?: string;
     avatar?: string;
+    viewer?: {
+      following?: string;
+      followedBy?: string;
+    };
   };
   text?: string; // For replies/quotes
   uri?: string; // URI of the reply/quote post
@@ -679,6 +705,8 @@ function ActivityItem({
   onOpenPost: (uri: string) => void;
 }) {
   const style = ACTIVITY_STYLES[activity.type];
+  const { settings } = useSettings();
+  const avatarRingClass = getAvatarRingClass(activity.author.viewer, settings);
   
   return (
     <div
@@ -701,7 +729,7 @@ function ActivityItem({
           <img
             src={activity.author.avatar}
             alt=""
-            className="w-5 h-5 rounded-full flex-shrink-0 cursor-pointer"
+            className={`w-5 h-5 rounded-full flex-shrink-0 cursor-pointer ${avatarRingClass}`}
             onClick={(e) => {
               e.stopPropagation();
               onOpenProfile(activity.author.did);
@@ -709,7 +737,7 @@ function ActivityItem({
           />
         ) : (
           <div
-            className="w-5 h-5 rounded-full bg-gray-400 flex items-center justify-center text-white text-[10px] font-bold flex-shrink-0 cursor-pointer"
+            className={`w-5 h-5 rounded-full bg-gray-400 flex items-center justify-center text-white text-[10px] font-bold flex-shrink-0 cursor-pointer ${avatarRingClass}`}
             onClick={(e) => {
               e.stopPropagation();
               onOpenProfile(activity.author.did);
@@ -754,6 +782,8 @@ function LikesRollupRow({
   likes: PostActivity[];
   onOpenProfile: (did: string) => void;
 }) {
+  const { settings } = useSettings();
+  
   if (likes.length === 0) return null;
   
   const style = ACTIVITY_STYLES.like;
@@ -787,38 +817,41 @@ function LikesRollupRow({
     <div className="flex items-center gap-2 py-1.5 px-2 rounded-lg">
       {/* Stacked avatars with hover cards */}
       <div className="flex -space-x-1.5 flex-shrink-0">
-        {avatarsToShow.map((liker, i) => (
-          <ProfileHoverCard
-            key={liker.author.did}
-            did={liker.author.did}
-            handle={liker.author.handle}
-            onOpenProfile={() => onOpenProfile(liker.author.did)}
-          >
-            {liker.author.avatar ? (
-              <img
-                src={liker.author.avatar}
-                alt=""
-                className="w-5 h-5 rounded-full border border-white dark:border-gray-900 cursor-pointer hover:z-10 hover:scale-110 transition-transform"
-                style={{ zIndex: MAX_AVATARS - i }}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onOpenProfile(liker.author.did);
-                }}
-              />
-            ) : (
-              <div
-                className="w-5 h-5 rounded-full bg-gray-400 flex items-center justify-center text-white text-[10px] font-bold border border-white dark:border-gray-900 cursor-pointer hover:z-10 hover:scale-110 transition-transform"
-                style={{ zIndex: MAX_AVATARS - i }}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onOpenProfile(liker.author.did);
-                }}
-              >
-                {(liker.author.displayName || liker.author.handle)[0].toUpperCase()}
-              </div>
-            )}
-          </ProfileHoverCard>
-        ))}
+        {avatarsToShow.map((liker, i) => {
+          const avatarRingClass = getAvatarRingClass(liker.author.viewer, settings);
+          return (
+            <ProfileHoverCard
+              key={liker.author.did}
+              did={liker.author.did}
+              handle={liker.author.handle}
+              onOpenProfile={() => onOpenProfile(liker.author.did)}
+            >
+              {liker.author.avatar ? (
+                <img
+                  src={liker.author.avatar}
+                  alt=""
+                  className={`w-5 h-5 rounded-full border border-white dark:border-gray-900 cursor-pointer hover:z-10 hover:scale-110 transition-transform ${avatarRingClass}`}
+                  style={{ zIndex: MAX_AVATARS - i }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onOpenProfile(liker.author.did);
+                  }}
+                />
+              ) : (
+                <div
+                  className={`w-5 h-5 rounded-full bg-gray-400 flex items-center justify-center text-white text-[10px] font-bold border border-white dark:border-gray-900 cursor-pointer hover:z-10 hover:scale-110 transition-transform ${avatarRingClass}`}
+                  style={{ zIndex: MAX_AVATARS - i }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onOpenProfile(liker.author.did);
+                  }}
+                >
+                  {(liker.author.displayName || liker.author.handle)[0].toUpperCase()}
+                </div>
+              )}
+            </ProfileHoverCard>
+          );
+        })}
       </div>
       
       {/* Heart icon */}
@@ -847,6 +880,8 @@ function RepostsRollupRow({
   reposts: PostActivity[];
   onOpenProfile: (did: string) => void;
 }) {
+  const { settings } = useSettings();
+  
   if (reposts.length === 0) return null;
   
   const style = ACTIVITY_STYLES.repost;
@@ -880,38 +915,41 @@ function RepostsRollupRow({
     <div className="flex items-center gap-2 py-1.5 px-2 rounded-lg">
       {/* Stacked avatars with hover cards */}
       <div className="flex -space-x-1.5 flex-shrink-0">
-        {avatarsToShow.map((reposter, i) => (
-          <ProfileHoverCard
-            key={reposter.author.did}
-            did={reposter.author.did}
-            handle={reposter.author.handle}
-            onOpenProfile={() => onOpenProfile(reposter.author.did)}
-          >
-            {reposter.author.avatar ? (
-              <img
-                src={reposter.author.avatar}
-                alt=""
-                className="w-5 h-5 rounded-full border border-white dark:border-gray-900 cursor-pointer hover:z-10 hover:scale-110 transition-transform"
-                style={{ zIndex: MAX_AVATARS - i }}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onOpenProfile(reposter.author.did);
-                }}
-              />
-            ) : (
-              <div
-                className="w-5 h-5 rounded-full bg-gray-400 flex items-center justify-center text-white text-[10px] font-bold border border-white dark:border-gray-900 cursor-pointer hover:z-10 hover:scale-110 transition-transform"
-                style={{ zIndex: MAX_AVATARS - i }}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onOpenProfile(reposter.author.did);
-                }}
-              >
-                {(reposter.author.displayName || reposter.author.handle)[0].toUpperCase()}
-              </div>
-            )}
-          </ProfileHoverCard>
-        ))}
+        {avatarsToShow.map((reposter, i) => {
+          const avatarRingClass = getAvatarRingClass(reposter.author.viewer, settings);
+          return (
+            <ProfileHoverCard
+              key={reposter.author.did}
+              did={reposter.author.did}
+              handle={reposter.author.handle}
+              onOpenProfile={() => onOpenProfile(reposter.author.did)}
+            >
+              {reposter.author.avatar ? (
+                <img
+                  src={reposter.author.avatar}
+                  alt=""
+                  className={`w-5 h-5 rounded-full border border-white dark:border-gray-900 cursor-pointer hover:z-10 hover:scale-110 transition-transform ${avatarRingClass}`}
+                  style={{ zIndex: MAX_AVATARS - i }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onOpenProfile(reposter.author.did);
+                  }}
+                />
+              ) : (
+                <div
+                  className={`w-5 h-5 rounded-full bg-gray-400 flex items-center justify-center text-white text-[10px] font-bold border border-white dark:border-gray-900 cursor-pointer hover:z-10 hover:scale-110 transition-transform ${avatarRingClass}`}
+                  style={{ zIndex: MAX_AVATARS - i }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onOpenProfile(reposter.author.did);
+                  }}
+                >
+                  {(reposter.author.displayName || reposter.author.handle)[0].toUpperCase()}
+                </div>
+              )}
+            </ProfileHoverCard>
+          );
+        })}
       </div>
       
       {/* Repost icon */}
@@ -1563,6 +1601,8 @@ function MentionRow({
 }) {
   const { mention, postData, isNew } = entry;
   const postText = mention.record?.text || '';
+  const { settings } = useSettings();
+  const avatarRingClass = getAvatarRingClass(mention.author.viewer, settings);
   
   // Get engagement stats from post data
   const likeCount = postData?.likeCount ?? 0;
@@ -1589,7 +1629,7 @@ function MentionRow({
               <img
                 src={mention.author.avatar}
                 alt=""
-                className="w-10 h-10 rounded-full cursor-pointer hover:ring-2 hover:ring-amber-400 flex-shrink-0"
+                className={`w-10 h-10 rounded-full cursor-pointer flex-shrink-0 ${avatarRingClass || 'hover:ring-2 hover:ring-amber-400'}`}
                 onClick={(e) => {
                   e.stopPropagation();
                   onOpenProfile(mention.author.did);
@@ -1597,7 +1637,7 @@ function MentionRow({
               />
             ) : (
               <div
-                className="w-10 h-10 rounded-full bg-amber-500 flex items-center justify-center text-white text-sm font-bold flex-shrink-0 cursor-pointer hover:ring-2 hover:ring-amber-400"
+                className={`w-10 h-10 rounded-full bg-amber-500 flex items-center justify-center text-white text-sm font-bold flex-shrink-0 cursor-pointer ${avatarRingClass || 'hover:ring-2 hover:ring-amber-400'}`}
                 onClick={(e) => {
                   e.stopPropagation();
                   onOpenProfile(mention.author.did);
@@ -3253,20 +3293,20 @@ function NotificationsExplorerContent() {
             />
             <button
               onClick={() => window.location.href = `/u/${session?.handle}`}
-              className="px-3 py-1.5 text-sm font-medium text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30 hover:bg-blue-100 dark:hover:bg-blue-900/50 rounded-full transition-colors"
+              className={`px-3 py-1.5 text-sm font-medium rounded-full transition-colors flex items-center gap-1.5 ${
+                isVerified
+                  ? 'text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/30 hover:bg-emerald-100 dark:hover:bg-emerald-900/50'
+                  : 'text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30 hover:bg-blue-100 dark:hover:bg-blue-900/50'
+              }`}
+              title={isVerified ? 'Verified researcher' : undefined}
             >
               @{session?.handle}
-            </button>
-            {isVerified && (
-              <span
-                className="flex items-center justify-center w-7 h-7 text-emerald-500"
-                title="You are a verified researcher"
-              >
-                <svg className="w-7 h-7" fill="currentColor" viewBox="0 0 24 24">
+              {isVerified && (
+                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
                   <path fillRule="evenodd" d="M8.603 3.799A4.49 4.49 0 0112 2.25c1.357 0 2.573.6 3.397 1.549a4.49 4.49 0 013.498 1.307 4.491 4.491 0 011.307 3.497A4.49 4.49 0 0121.75 12a4.49 4.49 0 01-1.549 3.397 4.491 4.491 0 01-1.307 3.497 4.491 4.491 0 01-3.497 1.307A4.49 4.49 0 0112 21.75a4.49 4.49 0 01-3.397-1.549 4.49 4.49 0 01-3.498-1.306 4.491 4.491 0 01-1.307-3.498A4.49 4.49 0 012.25 12c0-1.357.6-2.573 1.549-3.397a4.49 4.49 0 011.307-3.497 4.49 4.49 0 013.497-1.307zm7.007 6.387a.75.75 0 10-1.22-.872l-3.236 4.53L9.53 12.22a.75.75 0 00-1.06 1.06l2.25 2.25a.75.75 0 001.14-.094l3.75-5.25z" clipRule="evenodd" />
                 </svg>
-              </span>
-            )}
+              )}
+            </button>
           </div>
         </div>
       </header>
