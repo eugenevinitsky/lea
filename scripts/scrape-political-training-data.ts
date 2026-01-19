@@ -379,6 +379,172 @@ const POLITICAL_SUBDOMAINS = [
   'brookings',             // Brookings
   'heritage',              // Heritage Foundation
   'aei',                   // AEI
+
+  // ===== NON-ENGLISH POLITICAL/NEWS =====
+
+  // French political/news
+  'legrandcontinent',      // Le Grand Continent - French geopolitics
+  'lalettredelexpansion',  // French business/politics
+  'arretsurimages',        // French media criticism
+  'mediapart',             // French investigative journalism
+  'lepoint',               // Le Point - French news
+  'lexpress',              // L'Express - French news
+  'marianne',              // Marianne - French politics
+  'liberation',            // Libération
+  'lemonde',               // Le Monde
+  'lefigaro',              // Le Figaro
+  'franceinter',           // France Inter
+  'franceinfo',            // France Info
+  'lobs',                  // L'Obs
+  'challenges',            // Challenges - French business
+  'latribune',             // La Tribune
+  'lesechos',              // Les Echos
+  'courrierinternational', // Courrier International
+  'philomag',              // Philosophie Magazine
+  'lavidesidees',          // La Vie des Idées
+  'aabordes',              // French political commentary
+  'nicolasbaverez',        // French economics/politics
+  'alaingresh',            // French Middle East politics
+
+  // German political/news
+  'derspiegel',            // Der Spiegel
+  'zeit',                  // Die Zeit
+  'faz',                   // FAZ
+  'sueddeutsche',          // Süddeutsche Zeitung
+  'welt',                  // Die Welt
+  'taz',                   // TAZ
+  'handelsblatt',          // Handelsblatt
+  'nzz',                   // NZZ (Swiss German)
+  'derstandard',           // Der Standard (Austrian)
+  'profil',                // Profil (Austrian)
+  'falter',                // Falter (Austrian)
+  'republik',              // Republik (Swiss)
+  'krautreporter',         // Krautreporter
+  'uebermedien',           // Übermedien
+  'netzpolitik',           // Netzpolitik
+  'correctiv',             // Correctiv
+  'katapult',              // Katapult Magazine
+
+  // Spanish political/news
+  'elpais',                // El País
+  'elmundo',               // El Mundo
+  'larazon',               // La Razón
+  'abc',                   // ABC
+  'elconfidencial',        // El Confidencial
+  'eldiario',              // elDiario.es
+  'publico',               // Público
+  'infolibre',             // InfoLibre
+  'ctxt',                  // CTXT
+  'lamarearevista',        // La Marea
+  'elespanol',             // El Español
+  'vozpopuli',             // Vozpópuli
+  'onda',                  // Onda Cero
+  'elperiodico',           // El Periódico
+  'lavanguardia',          // La Vanguardia
+  'ara',                   // Ara (Catalan)
+  'vilaweb',               // VilaWeb (Catalan)
+  'naciodigital',          // NacióDigital (Catalan)
+
+  // Dutch political/news
+  'nrc',                   // NRC
+  'volkskrant',            // De Volkskrant
+  'trouw',                 // Trouw
+  'parool',                // Het Parool
+  'telegraaf',             // De Telegraaf
+  'ad',                    // AD
+  'nos',                   // NOS
+  'rtv',                   // RTV
+  'decorrespondent',       // De Correspondent
+  'followthemoney',        // Follow the Money
+  'joop',                  // Joop
+  'geenstijl',             // GeenStijl
+  'sargasso',              // Sargasso
+
+  // Italian political/news
+  'repubblica',            // La Repubblica
+  'corriere',              // Corriere della Sera
+  'lastampa',              // La Stampa
+  'ilsole24ore',           // Il Sole 24 Ore
+  'ilfoglio',              // Il Foglio
+  'ilfattoquotidiano',     // Il Fatto Quotidiano
+  'ilpost',                // Il Post
+  'internazionale',        // Internazionale
+  'espresso',              // L'Espresso
+  'linkiesta',             // Linkiesta
+  'agi',                   // AGI
+
+  // Portuguese political/news
+  'publico',               // Público (PT)
+  'expresso',              // Expresso
+  'observador',            // Observador
+  'rtp',                   // RTP
+  'dn',                    // Diário de Notícias
+  'jn',                    // Jornal de Notícias
+  'sol',                   // Sol
+  'sabado',                // Sábado
+  'visao',                 // Visão
+  'folhadesaopaulo',       // Folha de São Paulo (BR)
+  'estadao',               // Estadão (BR)
+  'oglobo',                // O Globo (BR)
+  'uol',                   // UOL (BR)
+  'g1',                    // G1 (BR)
+
+  // Polish political/news
+  'gazetawyborcza',        // Gazeta Wyborcza
+  'rzeczpospolita',        // Rzeczpospolita
+  'wprost',                // Wprost
+  'newsweekpl',            // Newsweek Polska
+  'polityka',              // Polityka
+  'tygodnikpowszechny',    // Tygodnik Powszechny
+  'krytykapolityczna',     // Krytyka Polityczna
+  'okopress',              // OKO.press
+  'tokfm',                 // TOK FM
+  'tvn24',                 // TVN24
+
+  // Nordic political/news (Swedish, Norwegian, Danish)
+  'dn',                    // Dagens Nyheter (SE)
+  'svd',                   // Svenska Dagbladet (SE)
+  'aftonbladet',           // Aftonbladet (SE)
+  'expressen',             // Expressen (SE)
+  'dagensarena',           // Dagens Arena (SE)
+  'etc',                   // ETC (SE)
+  'vg',                    // VG (NO)
+  'aftenposten',           // Aftenposten (NO)
+  'dagbladet',             // Dagbladet (NO)
+  'nrk',                   // NRK (NO)
+  'politiken',             // Politiken (DK)
+  'berlingske',            // Berlingske (DK)
+  'information',           // Information (DK)
+  'weekendavisen',         // Weekendavisen (DK)
+  'zetland',               // Zetland (DK)
+
+  // Other European
+  'kathimerini',           // Kathimerini (Greek)
+  'tovima',                // To Vima (Greek)
+  'hvg',                   // HVG (Hungarian)
+  'index',                 // Index.hu (Hungarian)
+  '444',                   // 444.hu (Hungarian)
+  'denik',                 // Deník (Czech)
+  'respekt',               // Respekt (Czech)
+  'aktualne',              // Aktuálně.cz (Czech)
+  'pravda',                // Pravda (Slovak)
+  'sme',                   // SME (Slovak)
+  'delfi',                 // Delfi (Baltic)
+
+  // Non-English lifestyle/culture
+  'madamefigaro',          // Madame Figaro (French lifestyle)
+  'grazia',                // Grazia (various languages)
+  'elle',                  // Elle (various languages)
+  'vogue',                 // Vogue (various languages)
+  'gala',                  // Gala (German celebrity)
+  'bunte',                 // Bunte (German celebrity)
+  'stern',                 // Stern (German)
+  'brigitte',              // Brigitte (German women's)
+  'hola',                  // Hola (Spanish celebrity)
+  'pronto',                // Pronto (Spanish celebrity)
+  'chi',                   // Chi (Italian celebrity)
+  'oggi',                  // Oggi (Italian)
+  'vanityitalia',          // Vanity Fair Italia
 ];
 
 // Political search terms
