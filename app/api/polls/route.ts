@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db, polls, pollVotes, pollParticipants } from '@/lib/db';
 import { eq, and } from 'drizzle-orm';
 import { createHash, randomBytes } from 'crypto';
+import { getAuthenticatedDid } from '@/lib/server-auth';
 
 interface PollOption {
   id: string;
@@ -122,6 +123,15 @@ export async function POST(request: NextRequest) {
             { error: 'postUri, creatorDid, and at least 2 options required' },
             { status: 400 }
           );
+        }
+
+        // Verify the user is authenticated and creating a poll as themselves
+        const authenticatedDid = getAuthenticatedDid(request);
+        if (!authenticatedDid) {
+          return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
+        }
+        if (authenticatedDid !== creatorDid) {
+          return NextResponse.json({ error: 'Cannot create polls for other users' }, { status: 403 });
         }
 
         if (options.length > 4) {

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db, vouchRequests } from '@/lib/db';
 import { eq, and } from 'drizzle-orm';
+import { verifyUserAccess } from '@/lib/server-auth';
 
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
@@ -11,6 +12,12 @@ export async function GET(request: NextRequest) {
       { error: 'Missing voucherDid parameter' },
       { status: 400 }
     );
+  }
+
+  // Verify the user is authenticated and requesting their own pending vouches
+  const auth = await verifyUserAccess(request, voucherDid);
+  if (!auth.success) {
+    return NextResponse.json({ error: auth.error }, { status: auth.status });
   }
 
   try {

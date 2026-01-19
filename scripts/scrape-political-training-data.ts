@@ -531,6 +531,106 @@ const POLITICAL_SUBDOMAINS = [
   'sme',                   // SME (Slovak)
   'delfi',                 // Delfi (Baltic)
 
+  // More Czech sources
+  'seznamzpravy',          // Seznam Zprávy (Czech)
+  'idnes',                 // iDNES (Czech)
+  'novinky',               // Novinky.cz (Czech)
+  'lidovky',               // Lidové noviny (Czech)
+  'echo24',                // Echo24 (Czech)
+  'forum24',               // Forum24 (Czech)
+  'hlidacipes',            // Hlídací pes (Czech)
+  'denikn',                // Deník N (Czech)
+  'refresher',             // Refresher (Czech)
+  'heroine',               // Heroine.cz (Czech women's)
+
+  // More Slovak sources
+  'dennikn',               // Denník N (Slovak)
+  'aktuality',             // Aktuality.sk (Slovak)
+  'hnonline',              // HN Online (Slovak)
+
+  // More Portuguese/Brazilian sources
+  'nexo',                  // Nexo Jornal (BR)
+  'intercept',             // The Intercept Brasil
+  'piauirevista',          // Piauí (BR)
+  'brasil247',             // Brasil 247
+  'cartacapital',          // Carta Capital (BR)
+  'brasildefato',          // Brasil de Fato
+  'correio',               // Correio Braziliense
+  'gazetadopovo',          // Gazeta do Povo (BR)
+  'sapo',                  // SAPO (PT)
+  'tsf',                   // TSF (PT radio)
+  'sicnoticias',           // SIC Notícias (PT)
+
+  // More Spanish/Latin American sources
+  'infobae',               // Infobae (Argentina)
+  'clarin',                // Clarín (Argentina)
+  'lanacion',              // La Nación (Argentina)
+  'pagina12',              // Página 12 (Argentina)
+  'perfil',                // Perfil (Argentina)
+  'eluniversal',           // El Universal (Mexico)
+  'reforma',               // Reforma (Mexico)
+  'milenio',               // Milenio (Mexico)
+  'animalpolitico',        // Animal Político (Mexico)
+  'proceso',               // Proceso (Mexico)
+  'latercera',             // La Tercera (Chile)
+  'elmostrador',           // El Mostrador (Chile)
+  'cooperativa',           // Cooperativa (Chile)
+  'semana',                // Semana (Colombia)
+  'eltiempo',              // El Tiempo (Colombia)
+  'elespectador',          // El Espectador (Colombia)
+
+  // More Dutch/Flemish sources
+  'nieuwsblad',            // Het Nieuwsblad (Belgian)
+  'standaard',             // De Standaard (Belgian)
+  'morgen',                // De Morgen (Belgian)
+  'knack',                 // Knack (Belgian)
+  'vrtnws',                // VRT NWS (Belgian)
+
+  // More German sources
+  'bild',                  // Bild
+  'focus',                 // Focus
+  'merkur',                // Merkur
+  'tagesspiegel',          // Tagesspiegel
+  'rnd',                   // RedaktionsNetzwerk Deutschland
+  'mdr',                   // MDR
+  'br24',                  // BR24
+  'watson',                // Watson.de
+
+  // Russian (for Russian-speaking communities)
+  'meduza',                // Meduza
+  'novayagazeta',          // Novaya Gazeta
+  'thebell',               // The Bell
+  'currenttime',           // Current Time
+
+  // Turkish
+  'hurriyet',              // Hürriyet
+  'sabah',                 // Sabah
+  'cumhuriyet',            // Cumhuriyet
+  'sozcu',                 // Sözcü
+  't24',                   // T24
+  'bianet',                // Bianet
+
+  // Arabic
+  'alarabiya',             // Al Arabiya
+  'aljazeera',             // Al Jazeera
+  'alhurra',               // Alhurra
+
+  // Japanese
+  'asahi',                 // Asahi Shimbun
+  'mainichi',              // Mainichi
+  'yomiuri',               // Yomiuri
+  'nikkei',                // Nikkei
+
+  // Korean
+  'chosun',                // Chosun Ilbo
+  'joongang',              // JoongAng Ilbo
+  'hankyoreh',             // Hankyoreh
+
+  // Chinese (traditional/simplified)
+  'mingpao',               // Ming Pao
+  'appledaily',            // Apple Daily
+  'initium',               // Initium Media
+
   // Non-English lifestyle/culture
   'madamefigaro',          // Madame Figaro (French lifestyle)
   'grazia',                // Grazia (various languages)

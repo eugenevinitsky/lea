@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db, verifiedResearchers } from '@/lib/db';
 import { eq } from 'drizzle-orm';
+import { verifyUserAccess } from '@/lib/server-auth';
 
 // PUT /api/profile/ids - Update researcher IDs (ORCID, OpenAlex)
 export async function PUT(request: NextRequest) {
@@ -10,6 +11,12 @@ export async function PUT(request: NextRequest) {
 
     if (!did) {
       return NextResponse.json({ error: 'DID required' }, { status: 400 });
+    }
+
+    // Verify the user is authenticated and updating their own profile
+    const auth = await verifyUserAccess(request, did);
+    if (!auth.success) {
+      return NextResponse.json({ error: auth.error }, { status: auth.status });
     }
 
     // Verify this is a verified researcher
