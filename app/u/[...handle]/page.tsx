@@ -2,7 +2,7 @@
 
 import { useParams, useRouter } from 'next/navigation';
 import { useState, useEffect, useCallback } from 'react';
-import { getSession, getBlueskyProfile, logout, buildProfileUrl, buildPostUrl, checkVerificationStatus } from '@/lib/bluesky';
+import { getSession, getBlueskyProfile, logout, buildProfileUrl, buildPostUrl, checkVerificationStatus, setCachedHandle } from '@/lib/bluesky';
 import { initOAuth } from '@/lib/oauth';
 import { refreshAgent } from '@/lib/bluesky';
 import { SettingsProvider } from '@/lib/settings';
@@ -46,7 +46,7 @@ function ProfilePageContent() {
 
   // Restore session on mount
   useEffect(() => {
-    initOAuth().then((result) => { refreshAgent(); const restored = !!result?.session;
+    initOAuth().then(async (result) => { refreshAgent(); const restored = !!result?.session;
       if (restored) {
         setIsLoggedIn(true);
         const session = getSession();
@@ -54,6 +54,18 @@ function ProfilePageContent() {
           setUserDid(session.did);
           // Check verification status
           checkVerificationStatus(session.did).then(setIsVerified);
+          
+          // Fetch and cache the user's handle if not already cached
+          if (session.handle === session.did) {
+            try {
+              const profile = await getBlueskyProfile(session.did);
+              if (profile?.handle) {
+                setCachedHandle(profile.handle);
+              }
+            } catch {
+              // Ignore errors
+            }
+          }
         }
       }
       setIsLoading(false);

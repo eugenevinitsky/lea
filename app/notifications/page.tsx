@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { getSession, getBlueskyProfile, checkSafetyAlerts, dismissSafetyAlert, SafetyAlert, AlertThresholds, followUser, unfollowUser, isVerifiedResearcher, Label, buildProfileUrl, checkVerificationStatus, blockUser, getKnownFollowers, BlueskyProfile, getMyRecentPostsAndReplies, getPostsByUris } from '@/lib/bluesky';
+import { getSession, getBlueskyProfile, checkSafetyAlerts, dismissSafetyAlert, SafetyAlert, AlertThresholds, followUser, unfollowUser, isVerifiedResearcher, Label, buildProfileUrl, checkVerificationStatus, blockUser, getKnownFollowers, BlueskyProfile, getMyRecentPostsAndReplies, getPostsByUris, setCachedHandle } from '@/lib/bluesky';
 import { initOAuth } from '@/lib/oauth';
 import { refreshAgent } from '@/lib/bluesky';
 import { AppBskyFeedDefs } from '@atproto/api';
@@ -3091,13 +3091,25 @@ function NotificationsExplorerContent() {
 
   // Restore session on mount
   useEffect(() => {
-    initOAuth().then((result) => { refreshAgent(); const restored = !!result?.session;
+    initOAuth().then(async (result) => { refreshAgent(); const restored = !!result?.session;
       if (restored) {
         setIsLoggedIn(true);
         const session = getSession();
         if (session?.did) {
           setUserDid(session.did);
           checkVerificationStatus(session.did).then(setIsVerified);
+          
+          // Fetch and cache the user's handle if not already cached
+          if (session.handle === session.did) {
+            try {
+              const profile = await getBlueskyProfile(session.did);
+              if (profile?.handle) {
+                setCachedHandle(profile.handle);
+              }
+            } catch {
+              // Ignore errors
+            }
+          }
         }
       }
       setIsLoading(false);

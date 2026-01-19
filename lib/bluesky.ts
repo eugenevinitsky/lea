@@ -1216,11 +1216,45 @@ export async function createPost(
 }
 
 // Cached handle for the current session (fetched once after login)
+// Uses both in-memory cache and sessionStorage for persistence across page navigations
+const HANDLE_CACHE_KEY = 'lea-session-handle';
 let cachedHandle: string | null = null;
+
+// Initialize in-memory cache from sessionStorage on module load
+if (typeof window !== 'undefined') {
+  try {
+    const stored = sessionStorage.getItem(HANDLE_CACHE_KEY);
+    if (stored) {
+      const { did: storedDid, handle: storedHandle } = JSON.parse(stored);
+      // Verify it's for the current session before using
+      const oauthSession = getOAuthSession();
+      if (oauthSession && oauthSession.sub === storedDid) {
+        cachedHandle = storedHandle;
+      }
+    }
+  } catch {
+    // Ignore errors
+  }
+}
 
 export function getSession(): { did: string; handle: string } | null {
   const oauthSession = getOAuthSession();
   if (!oauthSession) return null;
+  
+  // If we don't have the handle cached yet, try to load from sessionStorage
+  if (!cachedHandle && typeof window !== 'undefined') {
+    try {
+      const stored = sessionStorage.getItem(HANDLE_CACHE_KEY);
+      if (stored) {
+        const { did: storedDid, handle: storedHandle } = JSON.parse(stored);
+        if (storedDid === oauthSession.sub) {
+          cachedHandle = storedHandle;
+        }
+      }
+    } catch {
+      // Ignore errors
+    }
+  }
   
   return {
     did: oauthSession.sub,
@@ -1231,11 +1265,33 @@ export function getSession(): { did: string; handle: string } | null {
 // Set the cached handle after fetching the user's profile
 export function setCachedHandle(handle: string): void {
   cachedHandle = handle;
+  
+  // Also persist to sessionStorage for cross-page persistence
+  if (typeof window !== 'undefined') {
+    const oauthSession = getOAuthSession();
+    if (oauthSession) {
+      try {
+        sessionStorage.setItem(HANDLE_CACHE_KEY, JSON.stringify({
+          did: oauthSession.sub,
+          handle,
+        }));
+      } catch {
+        // Ignore storage errors
+      }
+    }
+  }
 }
 
 // Clear the cached handle on logout
 export function clearCachedHandle(): void {
   cachedHandle = null;
+  if (typeof window !== 'undefined') {
+    try {
+      sessionStorage.removeItem(HANDLE_CACHE_KEY);
+    } catch {
+      // Ignore errors
+    }
+  }
 }
 
 const VERIFIED_CACHE_KEY = 'lea-verified-status';
