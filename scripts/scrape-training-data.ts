@@ -9,9 +9,9 @@ interface TrainingExample {
   label: "technical" | "non-technical";
 }
 
-// Technical Substacks (AI, ML, science, research)
+// Technical Substacks (AI, ML, science, research, programming)
 const TECHNICAL_SOURCES = [
-  "simonwillison",           // AI/tech
+  // AI/ML
   "astralcodexten",          // rationalism/science
   "oneusefulthing",          // AI education (Ethan Mollick)
   "aisnakeoil",              // AI analysis
@@ -19,17 +19,163 @@ const TECHNICAL_SOURCES = [
   "importai",                // AI newsletter
   "lastweekinai",            // AI news
   "thesequence",             // ML/AI
-  "alignmentforum",          // AI safety
   "machinelearnings",        // ML
   "datascienceweekly",       // Data science
   "deeplearningweekly",      // Deep learning
   "nlpnews",                 // NLP
-  "quantamagazine",          // Science journalism (may not be substack)
-  "noahpinion",              // Economics/policy (academic style)
   "strangeloopcanon",        // Tech/ideas
   "dynomight",               // Science/analysis
   "experimental-history",    // Science/psychology
-  "constructionist",         // Tech/science
+  "aiweirdness",             // AI humor/tech
+  "aisupremacy",             // AI analysis
+  "latent-space",            // AI/ML engineering
+  "semianalysis",            // Semiconductors/AI hardware
+  "chinatalk",               // China tech policy
+  "interconnects",           // Tech/AI analysis
+  "transformernews",         // Transformer models
+  "generativeai",            // Generative AI
+  "promptengineering",       // Prompt engineering
+  "llmnews",                 // LLM news
+  "aimodels",                // AI models
+
+  // Programming/Software Engineering
+  "pragmaticengineer",       // Software engineering
+  "bytebytego",              // System design
+  "theengineeringmanager",   // Engineering management
+  "lethain",                 // Engineering leadership (Will Larson)
+  "softwareleadweekly",      // Software leadership
+  "architecturenotes",       // Software architecture
+  "levelupsoftware",         // Software development
+  "highgrowthengineer",      // Engineering career
+  "refactoring",             // Code quality
+  "thecodist",               // Programming
+  "programmingdigest",       // Programming digest
+  "codinghorror",            // Programming (Jeff Atwood)
+  "martinfowler",            // Software patterns
+  "devopsish",               // DevOps
+  "kubernetesweekly",        // Kubernetes
+  "dockerweekly",            // Docker
+  "cloudnative",             // Cloud native
+  "serverlessland",          // Serverless
+  "awsweekly",               // AWS
+  "gcpweekly",               // Google Cloud
+  "azureweekly",             // Azure
+
+  // Web Development
+  "javascriptweekly",        // JavaScript
+  "reactnewsletter",         // React
+  "vuenewsletter",           // Vue
+  "angularweekly",           // Angular
+  "typescriptweekly",        // TypeScript
+  "nodeweekly",              // Node.js
+  "frontendfoc",             // Frontend
+  "cssweekly",               // CSS
+  "webdesignweekly",         // Web design
+  "a11yweekly",              // Accessibility
+  "tailwindweekly",          // Tailwind CSS
+  "sveltesociety",           // Svelte
+  "solidjs",                 // SolidJS
+
+  // Data/Analytics
+  "dataeng",                 // Data engineering
+  "dataengineeringweekly",   // Data engineering
+  "analyticsweekly",         // Analytics
+  "sqlweekly",               // SQL
+  "dbtcloud",                // dbt
+  "snowflakeweekly",         // Snowflake
+  "databricks",              // Databricks
+  "sparkweekly",             // Apache Spark
+  "kafkaweekly",             // Apache Kafka
+  "airflowweekly",           // Airflow
+
+  // Security/Crypto
+  "tldrsec",                 // Security
+  "securityweekly",          // Security news
+  "cryptographyeng",         // Cryptography
+  "bugbountyweekly",         // Bug bounty
+  "pentestweekly",           // Penetration testing
+  "zerodayweekly",           // Zero day news
+  "blockchainweekly",        // Blockchain
+
+  // Mobile
+  "androidweekly",           // Android
+  "iosdevweekly",            // iOS
+  "swiftweekly",             // Swift
+  "kotlinweekly",            // Kotlin
+  "flutterweekly",           // Flutter
+  "reactnativeweekly",       // React Native
+
+  // Languages
+  "pythonweekly",            // Python
+  "goweekly",                // Go
+  "rustweekly",              // Rust
+  "rubyweekly",              // Ruby
+  "phpweekly",               // PHP
+  "elixirweekly",            // Elixir
+  "scalaweekly",             // Scala
+  "haskellweekly",           // Haskell
+  "clojureweekly",           // Clojure
+  "julialang",               // Julia
+  "cppweekly",               // C++
+  "dotnetweekly",            // .NET
+
+  // Hardware/Systems
+  "embeddedfm",              // Embedded systems
+  "lowlevelprogramming",     // Low level programming
+  "systemsprogramming",      // Systems programming
+  "computerarchitecture",    // Computer architecture
+  "fpgaweekly",              // FPGA
+  "iotweekly",               // IoT
+  "roboticsweekly",          // Robotics
+
+  // Science/Math
+  "mathweekly",              // Mathematics
+  "physicstoday",            // Physics
+  "chemistryworld",          // Chemistry
+  "biologyweekly",           // Biology
+  "neuroscienceweekly",      // Neuroscience
+  "climateweekly",           // Climate science
+  "astronomyweekly",         // Astronomy
+  "quantumweekly",           // Quantum computing
+
+  // Research/Academia
+  "arxivdaily",              // arXiv papers
+  "paperswithcode",          // ML papers
+  "researchhighlights",      // Research highlights
+  "academicwriting",         // Academic writing
+  "phdlife",                 // PhD research
+  "gradschool",              // Graduate school research
+
+  // Tech Business/Industry
+  "stratechery",             // Tech strategy (Ben Thompson)
+  "platformer",              // Tech platforms
+  "bigtech",                 // Big tech analysis
+  "techmeme",                // Tech news
+  "hackernewsletter",        // Hacker News digest
+  "morningbrew",             // Tech business
+  "theprofile",              // Tech profiles
+
+  // Specific Tech Topics
+  "gamedevweekly",           // Game development
+  "graphicsweekly",          // Computer graphics
+  "audioweekly",             // Audio engineering
+  "videoweekly",             // Video technology
+  "3dweekly",                // 3D graphics
+  "vrweekly",                // VR/AR
+  "webglweekly",             // WebGL
+  "openglweekly",            // OpenGL
+  "vulkanweekly",            // Vulkan
+  "unityweekly",             // Unity
+  "unrealweekly",            // Unreal Engine
+
+  // DevTools
+  "gitweekly",               // Git
+  "vscodeweekly",            // VS Code
+  "neovimweekly",            // Neovim
+  "terminalweekly",          // Terminal tools
+  "linuxweekly",             // Linux
+  "bashweekly",              // Bash/Shell
+  "cliweekly",               // CLI tools
 ];
 
 // Political/news Substacks (non-technical)
@@ -172,11 +318,9 @@ async function main() {
 
   console.log(`\nTotal: ${combined.length} examples (${techCount} technical, ${nonTechCount} non-technical)`);
 
-  // Save to new file first for review
-  const outputPath = "data/training-data-expanded.json";
-  fs.writeFileSync(outputPath, JSON.stringify(combined, null, 2));
-  console.log(`\nSaved to ${outputPath}`);
-  console.log("Review the data, then rename to training-data.json and run the training script.");
+  // Save directly to training-data.json
+  fs.writeFileSync(existingPath, JSON.stringify(combined, null, 2));
+  console.log(`\nSaved to ${existingPath}`);
 }
 
 main();
