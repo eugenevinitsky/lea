@@ -26,13 +26,17 @@ export async function POST(request: NextRequest) {
     }
 
     // Validate ORCID format (0000-0000-0000-0000 or 0000-0000-0000-000X)
-    const orcidRegex = /^\d{4}-\d{4}-\d{4}-\d{3}[\dX]$/;
+    // Allow lowercase x in input but normalize to uppercase for storage
+    const orcidRegex = /^\d{4}-\d{4}-\d{4}-\d{3}[\dXx]$/;
     if (!orcidRegex.test(orcid)) {
       return NextResponse.json(
         { error: 'Invalid ORCID format. Expected: 0000-0000-0000-0000' },
         { status: 400 }
       );
     }
+
+    // Normalize ORCID to uppercase for consistent storage and comparison
+    const normalizedOrcid = orcid.toUpperCase();
 
     // Ensure the user can only verify themselves
     if (did !== authenticatedDid) {
@@ -56,11 +60,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Check if ORCID is already used by another account
+    // Check if ORCID is already used by another account (case-insensitive)
     const existingOrcid = await db
       .select()
       .from(verifiedResearchers)
-      .where(eq(verifiedResearchers.orcid, orcid))
+      .where(eq(verifiedResearchers.orcid, normalizedOrcid))
       .limit(1);
 
     if (existingOrcid.length > 0) {
@@ -72,12 +76,12 @@ export async function POST(request: NextRequest) {
 
     const researcherId = nanoid();
 
-    // Insert verified researcher
+    // Insert verified researcher (use normalized ORCID for consistency)
     await db.insert(verifiedResearchers).values({
       id: researcherId,
       did,
       handle,
-      orcid,
+      orcid: normalizedOrcid,
       name,
       institution,
       researchTopics: researchTopics ? JSON.stringify(researchTopics) : null,

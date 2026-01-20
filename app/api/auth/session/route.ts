@@ -1,5 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { setSessionCookie, clearSessionCookie, verifySessionToken, SESSION_COOKIE_NAME } from '@/lib/server-auth';
+import { verifyAndConsumeNonce } from '../nonce/route';
+
+// Nonce cookie name - must match nonce/route.ts
+const NONCE_COOKIE_NAME = 'lea_auth_nonce';
 
 /**
  * POST /api/auth/session - Create a new session
@@ -7,10 +11,9 @@ import { setSessionCookie, clearSessionCookie, verifySessionToken, SESSION_COOKI
  *
  * Body: { did: string }
  *
- * Note: This endpoint trusts the client-provided DID. The security model relies on:
- * 1. The client only calling this after successful OAuth authentication
- * 2. The session cookie being httpOnly (can't be read by JS)
- * 3. Rate limiting to prevent abuse (TODO)
+ * Security: Requires a valid nonce cookie from /api/auth/nonce to prevent
+ * session fixation attacks. The nonce ensures the request originated from
+ * a legitimate OAuth flow started on this browser.
  */
 export async function POST(request: NextRequest) {
   try {
@@ -26,9 +29,23 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid DID format' }, { status: 400 });
     }
 
+    // Verify nonce cookie to prevent session fixation attacks
+    // This ensures the session creation request came from a browser that
+    // started the OAuth flow (got a nonce) and completed it (has the cookie)
+    const nonceCookie = request.cookies.get(NONCE_COOKIE_NAME);
+    if (!verifyAndConsumeNonce(nonceCookie?.value)) {
+      return NextResponse.json(
+        { error: 'Invalid or expired authentication flow. Please try logging in again.' },
+        { status: 401 }
+      );
+    }
+
     // Create response and set session cookie
     const response = NextResponse.json({ success: true });
     setSessionCookie(response, did);
+
+    // Clear the nonce cookie - it's single-use
+    response.cookies.delete(NONCE_COOKIE_NAME);
 
     return response;
   } catch (error) {

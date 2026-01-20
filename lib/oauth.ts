@@ -149,8 +149,21 @@ export async function initOAuth(): Promise<{ session: OAuthSession; isCallback: 
  * This will redirect the user to their PDS for authentication
  */
 export async function startLogin(handle: string): Promise<void> {
+  // First, get a nonce from the server to prevent session fixation attacks
+  // The nonce is stored in an httpOnly cookie and will be verified when
+  // creating the session after OAuth completes
+  try {
+    const nonceResponse = await fetch('/api/auth/nonce');
+    if (!nonceResponse.ok) {
+      throw new Error('Failed to initialize authentication');
+    }
+  } catch (err) {
+    console.error('Failed to get auth nonce:', err);
+    throw new Error('Failed to initialize authentication. Please try again.');
+  }
+
   const client = await getOAuthClient();
-  
+
   // signIn will redirect to the PDS - this function won't return normally
   // The user will be redirected back to our app after authenticating
   await client.signIn(handle, {
