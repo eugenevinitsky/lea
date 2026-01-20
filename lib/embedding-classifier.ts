@@ -93,7 +93,12 @@ export async function classifyWithEmbedding(
   similarities.sort((a, b) => b.sim - a.sim);
   const topK = similarities.slice(0, k);
 
-  // Count votes weighted by similarity
+  // Count votes weighted by similarity and class priors
+  // Training data: ~28% tech, ~72% non-tech
+  // Real world: ~5% tech, ~95% non-tech
+  // Adjust non-tech weight: (0.95/0.72) / (0.05/0.28) = 7.4x
+  const NON_TECH_WEIGHT = 7.4;
+
   let techScore = 0;
   let nonTechScore = 0;
 
@@ -103,7 +108,7 @@ export async function classifyWithEmbedding(
     if (trainLabels[idx] === 1) {
       techScore += weight;
     } else {
-      nonTechScore += weight;
+      nonTechScore += weight * NON_TECH_WEIGHT;
     }
   }
 
@@ -157,6 +162,8 @@ export async function batchClassifyWithEmbedding(
     similarities.sort((a, b) => b.sim - a.sim);
     const topK = similarities.slice(0, k);
 
+    // Same class weighting as single classify
+    const NON_TECH_WEIGHT = 7.4;
     let techScore = 0;
     let nonTechScore = 0;
 
@@ -165,7 +172,7 @@ export async function batchClassifyWithEmbedding(
       if (trainLabels![idx] === 1) {
         techScore += weight;
       } else {
-        nonTechScore += weight;
+        nonTechScore += weight * NON_TECH_WEIGHT;
       }
     }
 
