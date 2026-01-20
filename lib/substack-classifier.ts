@@ -9,8 +9,8 @@ let trainEmbeddings: number[][] | null = null;
 let trainLabels: number[] | null = null;
 let embeddingClassifierInitialized = false;
 
-// Classification threshold - posts need >= 0.75 probability to be considered technical
-const TECHNICAL_THRESHOLD = 0.75;
+// Classification threshold - with class weighting, 0.5 is the natural decision boundary
+const TECHNICAL_THRESHOLD = 0.5;
 
 function cosineSimilarity(a: number[], b: number[]): number {
   let dot = 0, normA = 0, normB = 0;
@@ -70,6 +70,10 @@ export function isEmbeddingClassifierReady(): boolean {
 
 /**
  * Compute k-NN probability for a single embedding
+ * Applies class weighting to account for real-world distribution
+ * Training data: ~30% tech, ~70% non-tech
+ * Real world: ~5% tech, ~95% non-tech
+ * Adjust non-tech weight: (0.95/0.70) / (0.05/0.30) = 8.14x
  */
 function computeKnnProbability(embedding: number[], k: number = 15): number {
   if (!trainEmbeddings || !trainLabels) return 0;
@@ -82,6 +86,9 @@ function computeKnnProbability(embedding: number[], k: number = 15): number {
   similarities.sort((a, b) => b.sim - a.sim);
   const topK = similarities.slice(0, k);
 
+  // Class weighting to account for real-world distribution imbalance
+  const NON_TECH_WEIGHT = 7.4;
+
   let techScore = 0;
   let nonTechScore = 0;
 
@@ -89,7 +96,7 @@ function computeKnnProbability(embedding: number[], k: number = 15): number {
     if (trainLabels[idx] === 1) {
       techScore += sim;
     } else {
-      nonTechScore += sim;
+      nonTechScore += sim * NON_TECH_WEIGHT;
     }
   }
 
