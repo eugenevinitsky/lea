@@ -314,6 +314,27 @@ export default function Login({ onLogin }: LoginProps) {
               </svg>
               No Bluesky account? Get started here
             </button>
+
+            {/* OAuth security info */}
+            <details className="mt-4 text-xs text-gray-500 dark:text-gray-400">
+              <summary className="cursor-pointer hover:text-gray-700 dark:hover:text-gray-300 flex items-center gap-1">
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                </svg>
+                Why OAuth instead of App Passwords?
+              </summary>
+              <div className="mt-2 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg space-y-2">
+                <p>
+                  <strong className="text-gray-700 dark:text-gray-300">OAuth is more secure:</strong> Access is automatically revoked when you sign out of Lea, and tokens expire after a set time limit.
+                </p>
+                <p>
+                  <strong className="text-gray-700 dark:text-gray-300">App Passwords are riskier:</strong> They never expire, give full account access at the PDS level, and will eventually be deprecated by Bluesky.
+                </p>
+                <p>
+                  With OAuth, you stay in control — Lea can only access what you authorize, and you can revoke access at any time.
+                </p>
+              </div>
+            </details>
           </div>
 
           {/* Footer info */}
