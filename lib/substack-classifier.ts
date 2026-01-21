@@ -10,7 +10,31 @@ let trainLabels: number[] | null = null;
 let embeddingClassifierInitialized = false;
 
 // Classification threshold - with class weighting, 0.5 is the natural decision boundary
-const TECHNICAL_THRESHOLD = 0.5;
+// IMPORTANT: This threshold is used by both ingestion and cleanup - keep them in sync!
+export const TECHNICAL_THRESHOLD = 0.5;
+
+// Classification stats for monitoring
+let classificationStats = {
+  total: 0,
+  accepted: 0,
+  rejected: 0,
+  errors: 0,
+  lastReset: new Date(),
+};
+
+export function getClassificationStats() {
+  return { ...classificationStats };
+}
+
+export function resetClassificationStats() {
+  classificationStats = {
+    total: 0,
+    accepted: 0,
+    rejected: 0,
+    errors: 0,
+    lastReset: new Date(),
+  };
+}
 
 function cosineSimilarity(a: number[], b: number[]): number {
   let dot = 0, normA = 0, normB = 0;
@@ -107,26 +131,43 @@ function computeKnnProbability(embedding: number[], k: number = 15): number {
  * Classify content using embedding k-NN
  * Uses minimum probability between title+description and body text
  * Returns non-technical if classifier is not initialized (fail-safe)
+ *
+ * @param options.logDecision - If true, logs the classification decision (default: false)
+ * @param options.context - Additional context for logging (e.g., 'ingestion', 'cleanup')
  */
 export async function classifyContentAsync(
   title: string,
   description?: string,
   bodyText?: string,
-  k: number = 15
+  k: number = 15,
+  options?: { logDecision?: boolean; context?: string }
 ): Promise<{
   isTechnical: boolean;
   probability: number;
+  titleDescProb: number;
+  bodyProb: number | null;
   prediction: 'technical' | 'non-technical';
   modelType: 'embedding-knn';
+  classifierReady: boolean;
 }> {
+  const logDecision = options?.logDecision ?? false;
+  const context = options?.context ?? 'unknown';
+  const shortTitle = title?.slice(0, 60) || '(no title)';
+
+  classificationStats.total++;
+
   // If embedding classifier not ready, reject content (fail-safe)
   if (!embeddingClassifierInitialized || !embeddingModel || !trainEmbeddings || !trainLabels) {
-    console.warn('Embedding classifier not initialized - rejecting content');
+    classificationStats.errors++;
+    console.error(`[CLASSIFIER ERROR] [${context}] Classifier not initialized - rejecting: "${shortTitle}"`);
     return {
       isTechnical: false,
       probability: 0,
+      titleDescProb: 0,
+      bodyProb: null,
       prediction: 'non-technical',
       modelType: 'embedding-knn',
+      classifierReady: false,
     };
   }
 
@@ -137,18 +178,36 @@ export async function classifyContentAsync(
 
   // If body text available, also classify it and take minimum
   let probability = titleDescProb;
+  let bodyProb: number | null = null;
   if (bodyText && bodyText.length > 100) {
     const bodyResult = await embeddingModel.embedContent(bodyText.slice(0, 500));
-    const bodyProb = computeKnnProbability(bodyResult.embedding.values, k);
+    bodyProb = computeKnnProbability(bodyResult.embedding.values, k);
     // Take minimum - if either looks non-technical, classify as non-technical
     probability = Math.min(titleDescProb, bodyProb);
   }
 
+  const isTechnical = probability >= TECHNICAL_THRESHOLD;
+
+  if (isTechnical) {
+    classificationStats.accepted++;
+  } else {
+    classificationStats.rejected++;
+  }
+
+  if (logDecision) {
+    const decision = isTechnical ? 'ACCEPTED' : 'REJECTED';
+    const bodyInfo = bodyProb !== null ? `, body=${bodyProb.toFixed(3)}` : ', body=N/A';
+    console.log(`[CLASSIFIER] [${context}] ${decision} prob=${probability.toFixed(3)} (title=${titleDescProb.toFixed(3)}${bodyInfo}) "${shortTitle}"`);
+  }
+
   return {
-    isTechnical: probability >= TECHNICAL_THRESHOLD,
+    isTechnical,
     probability,
-    prediction: probability >= TECHNICAL_THRESHOLD ? 'technical' : 'non-technical',
+    titleDescProb,
+    bodyProb,
+    prediction: isTechnical ? 'technical' : 'non-technical',
     modelType: 'embedding-knn',
+    classifierReady: true,
   };
 }
 

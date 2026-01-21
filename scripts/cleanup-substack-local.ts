@@ -10,7 +10,7 @@ dotenv.config({ path: '.env.local' });
 
 import { db, discoveredSubstackPosts, substackMentions } from '@/lib/db';
 import { inArray } from 'drizzle-orm';
-import { initEmbeddingClassifier, classifyContentAsync, isEmbeddingClassifierReady } from '@/lib/substack-classifier';
+import { initEmbeddingClassifier, classifyContentAsync, isEmbeddingClassifierReady, TECHNICAL_THRESHOLD } from '@/lib/substack-classifier';
 
 // Strip HTML tags and decode entities to get plain text
 function stripHtml(html: string): string {
@@ -123,6 +123,8 @@ async function main() {
 
   console.log(`Substack Cleanup Script ${dryRun ? '(DRY RUN)' : ''} ${limit ? `(limit: ${limit})` : ''}`);
   console.log('='.repeat(50));
+  console.log(`Using TECHNICAL_THRESHOLD = ${TECHNICAL_THRESHOLD} (same as ingestion)`);
+  console.log('');
 
   // Initialize embedding classifier
   console.log('Initializing embedding classifier...');
@@ -137,14 +139,13 @@ async function main() {
 
   // Fetch posts from database
   console.log('Fetching Substack posts from database...');
-  let query = db.select().from(discoveredSubstackPosts);
   const allPosts = limit > 0
     ? await db.select().from(discoveredSubstackPosts).limit(limit)
     : await db.select().from(discoveredSubstackPosts);
   console.log(`Found ${allPosts.length} posts.\n`);
 
-  const kept: { id: number; title: string | null; probability: number }[] = [];
-  const removed: { id: number; title: string | null; probability: number; reason: string }[] = [];
+  const kept: { id: number; title: string | null; probability: number; titleDescProb: number; bodyProb: number | null }[] = [];
+  const removed: { id: number; title: string | null; probability: number; titleDescProb: number; bodyProb: number | null; reason: string }[] = [];
 
   for (let i = 0; i < allPosts.length; i++) {
     const post = allPosts[i];
@@ -156,21 +157,31 @@ async function main() {
       bodyText = await fetchBodyText(post.subdomain, post.slug, post.url);
     }
 
-    // Classify using embedding k-NN
+    // Classify using embedding k-NN (same params as ingestion)
     const result = await classifyContentAsync(
       post.title || '',
       post.description || '',
-      bodyText || undefined
+      bodyText || undefined,
+      15, // k neighbors (same as ingestion)
+      { logDecision: false, context: 'cleanup' } // Don't log each one, we summarize at end
     );
 
     if (result.isTechnical) {
-      kept.push({ id: post.id, title: post.title, probability: result.probability });
+      kept.push({
+        id: post.id,
+        title: post.title,
+        probability: result.probability,
+        titleDescProb: result.titleDescProb,
+        bodyProb: result.bodyProb,
+      });
     } else {
       removed.push({
         id: post.id,
         title: post.title,
         probability: result.probability,
-        reason: `prob=${result.probability.toFixed(3)} body=${bodyText ? 'yes' : 'no'}`,
+        titleDescProb: result.titleDescProb,
+        bodyProb: result.bodyProb,
+        reason: `prob=${result.probability.toFixed(3)} (title=${result.titleDescProb.toFixed(3)}, body=${result.bodyProb?.toFixed(3) ?? 'N/A'})`,
       });
     }
   }

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db, discoveredSubstackPosts, substackMentions, verifiedResearchers } from '@/lib/db';
 import { eq, sql } from 'drizzle-orm';
-import { initEmbeddingClassifier, classifyContentAsync, isEmbeddingClassifierReady } from '@/lib/substack-classifier';
+import { initEmbeddingClassifier, classifyContentAsync, isEmbeddingClassifierReady, getClassificationStats, TECHNICAL_THRESHOLD } from '@/lib/substack-classifier';
 import { isBot } from '@/lib/bot-blacklist';
 import { timingSafeEqual } from 'crypto';
 
@@ -310,14 +310,23 @@ async function processSingleIngest(req: IngestRequest): Promise<{ substackPostId
 
       // Filter for technical/intellectual content using embedding classifier
       // Use body text for classification (more accurate than title+description)
+      // IMPORTANT: Uses same threshold as cleanup (TECHNICAL_THRESHOLD = 0.5)
       const result = await classifyContentAsync(
         metadata?.title || '',
         metadata?.description || '',
-        metadata?.bodyText
+        metadata?.bodyText,
+        15, // k neighbors
+        { logDecision: true, context: 'ingestion' }
       );
 
+      // Double-check classifier was ready (should always be true due to hard fail above)
+      if (!result.classifierReady) {
+        console.error(`[INGEST ERROR] Classifier became unavailable mid-request for: ${post.url}`);
+        continue;
+      }
+
       if (!result.isTechnical) {
-        console.log(`Skipping non-technical Substack post: ${post.url} (title: ${metadata?.title}, prob: ${result.probability.toFixed(3)})`);
+        // Already logged by classifier with logDecision: true
         continue;
       }
 
@@ -379,6 +388,16 @@ export async function POST(request: NextRequest) {
   try {
     // Initialize embedding classifier if needed
     await ensureClassifierInitialized();
+
+    // HARD FAIL: Classifier MUST be ready before processing any posts
+    // This prevents posts from slipping through when classifier fails to initialize
+    if (!isEmbeddingClassifierReady()) {
+      console.error('[INGEST ERROR] Classifier not ready after initialization attempt - refusing to process posts');
+      return NextResponse.json(
+        { error: 'Classifier not initialized - cannot process posts', classifierReady: false },
+        { status: 503 }
+      );
+    }
 
     const body = await request.json();
 
@@ -510,14 +529,23 @@ export async function POST(request: NextRequest) {
 
         // Filter for technical/intellectual content using embedding classifier
         // Use body text for classification (more accurate than title+description)
+        // IMPORTANT: Uses same threshold as cleanup (TECHNICAL_THRESHOLD = 0.5)
         const result = await classifyContentAsync(
           metadata?.title || '',
           metadata?.description || '',
-          metadata?.bodyText
+          metadata?.bodyText,
+          15, // k neighbors
+          { logDecision: true, context: 'ingestion' }
         );
 
+        // Double-check classifier was ready (should always be true due to hard fail above)
+        if (!result.classifierReady) {
+          console.error(`[INGEST ERROR] Classifier became unavailable mid-request for: ${post.url}`);
+          continue;
+        }
+
         if (!result.isTechnical) {
-          console.log(`Skipping non-technical Substack post: ${post.url} (title: ${metadata?.title}, prob: ${result.probability.toFixed(3)})`);
+          // Already logged by classifier with logDecision: true
           continue;
         }
 
@@ -563,6 +591,10 @@ export async function POST(request: NextRequest) {
 
       results.push({ substackPostId, normalizedId: post.normalizedId });
     }
+
+    // Log classification stats summary at end of request
+    const stats = getClassificationStats();
+    console.log(`[INGEST STATS] total=${stats.total} accepted=${stats.accepted} rejected=${stats.rejected} errors=${stats.errors}`);
 
     return NextResponse.json({ success: true, substackPosts: results });
   } catch (error) {
