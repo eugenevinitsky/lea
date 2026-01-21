@@ -36,62 +36,80 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Get the vouch request
-    const vouchRequest = await db
-      .select()
-      .from(vouchRequests)
-      .where(
-        and(
-          eq(vouchRequests.id, requestId),
-          eq(vouchRequests.voucherDid, voucherDid),
-          eq(vouchRequests.status, 'pending')
-        )
-      )
-      .limit(1);
+    // Use a transaction to prevent race conditions
+    // This ensures the check, researcher creation, and status update are atomic
+    let researcherId: string | null = null;
 
-    if (vouchRequest.length === 0) {
-      return NextResponse.json(
-        { error: 'Vouch request not found or not pending' },
-        { status: 404 }
-      );
+    try {
+      await db.transaction(async (tx) => {
+        // Get the vouch request (inside transaction)
+        const vouchRequest = await tx
+          .select()
+          .from(vouchRequests)
+          .where(
+            and(
+              eq(vouchRequests.id, requestId),
+              eq(vouchRequests.voucherDid, voucherDid),
+              eq(vouchRequests.status, 'pending')
+            )
+          )
+          .limit(1);
+
+        if (vouchRequest.length === 0) {
+          throw new Error('NOT_FOUND');
+        }
+
+        const req = vouchRequest[0];
+
+        // Get voucher's researcher record to link
+        const voucher = await tx
+          .select()
+          .from(verifiedResearchers)
+          .where(eq(verifiedResearchers.did, voucherDid))
+          .limit(1);
+
+        if (voucher.length === 0) {
+          throw new Error('VOUCHER_NOT_FOUND');
+        }
+
+        // Create verified researcher entry for the vouched person
+        researcherId = nanoid();
+
+        await tx.insert(verifiedResearchers).values({
+          id: researcherId,
+          did: req.requesterDid,
+          handle: req.requesterHandle,
+          orcid: '', // No ORCID for vouched users
+          verificationMethod: 'vouched',
+          vouchedBy: voucher[0].id,
+        });
+
+        // Update vouch request status
+        await tx
+          .update(vouchRequests)
+          .set({
+            status: 'approved',
+            resolvedAt: new Date(),
+          })
+          .where(eq(vouchRequests.id, requestId));
+      });
+    } catch (txError) {
+      if (txError instanceof Error) {
+        if (txError.message === 'NOT_FOUND') {
+          return NextResponse.json(
+            { error: 'Vouch request not found or not pending' },
+            { status: 404 }
+          );
+        }
+        if (txError.message === 'VOUCHER_NOT_FOUND') {
+          return NextResponse.json(
+            { error: 'Voucher not found' },
+            { status: 404 }
+          );
+        }
+      }
+      throw txError;
     }
-
-    const req = vouchRequest[0];
-
-    // Get voucher's researcher record to link
-    const voucher = await db
-      .select()
-      .from(verifiedResearchers)
-      .where(eq(verifiedResearchers.did, voucherDid))
-      .limit(1);
-
-    if (voucher.length === 0) {
-      return NextResponse.json(
-        { error: 'Voucher not found' },
-        { status: 404 }
-      );
-    }
-
-    // Create verified researcher entry for the vouched person
-    const researcherId = nanoid();
-
-    await db.insert(verifiedResearchers).values({
-      id: researcherId,
-      did: req.requesterDid,
-      handle: req.requesterHandle,
-      orcid: '', // No ORCID for vouched users
-      verificationMethod: 'vouched',
-      vouchedBy: voucher[0].id,
-    });
-
-    // Update vouch request status
-    await db
-      .update(vouchRequests)
-      .set({
-        status: 'approved',
-        resolvedAt: new Date(),
-      })
-      .where(eq(vouchRequests.id, requestId));
 
     return NextResponse.json({
       success: true,

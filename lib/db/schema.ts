@@ -7,6 +7,7 @@ import {
   text,
   primaryKey,
   index,
+  uniqueIndex,
 } from 'drizzle-orm/pg-core';
 
 // Verified researchers
@@ -409,6 +410,8 @@ export const pollParticipants = pgTable(
   (table) => [
     index('poll_participants_poll_idx').on(table.pollId),
     index('poll_participants_hash_idx').on(table.voterHash),
+    // Unique constraint to prevent double-voting at database level
+    uniqueIndex('poll_participants_unique_vote').on(table.pollId, table.voterHash),
   ]
 );
 

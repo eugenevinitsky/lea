@@ -241,36 +241,47 @@ export async function POST(request: NextRequest) {
         // Hash the voter DID for anonymous participation tracking
         const voterHash = hashVoter(pollId, voterDid);
 
-        // Check if user has already voted
-        const [existingParticipant] = await db
-          .select()
-          .from(pollParticipants)
-          .where(and(
-            eq(pollParticipants.pollId, pollId),
-            eq(pollParticipants.voterHash, voterHash)
-          ))
-          .limit(1);
+        // Use a transaction to prevent race condition double-voting
+        // The transaction ensures the check and insert are atomic
+        try {
+          await db.transaction(async (tx) => {
+            // Check if user has already voted (inside transaction)
+            const [existingParticipant] = await tx
+              .select()
+              .from(pollParticipants)
+              .where(and(
+                eq(pollParticipants.pollId, pollId),
+                eq(pollParticipants.voterHash, voterHash)
+              ))
+              .limit(1);
 
-        if (existingParticipant) {
-          return NextResponse.json({ error: 'Already voted' }, { status: 400 });
-        }
+            if (existingParticipant) {
+              throw new Error('ALREADY_VOTED');
+            }
 
-        // Record participation (hashed - can't see what they voted for)
-        const participantId = `part_${Date.now()}_${randomBytes(6).toString('hex')}`;
-        await db.insert(pollParticipants).values({
-          id: participantId,
-          pollId,
-          voterHash,
-        });
+            // Record participation (hashed - can't see what they voted for)
+            const participantId = `part_${Date.now()}_${randomBytes(6).toString('hex')}`;
+            await tx.insert(pollParticipants).values({
+              id: participantId,
+              pollId,
+              voterHash,
+            });
 
-        // Record anonymous votes (no voter info - can't see who voted)
-        for (const optionId of optionIds) {
-          const voteId = `vote_${Date.now()}_${randomBytes(6).toString('hex')}`;
-          await db.insert(pollVotes).values({
-            id: voteId,
-            pollId,
-            optionId,
+            // Record anonymous votes (no voter info - can't see who voted)
+            for (const optionId of optionIds) {
+              const voteId = `vote_${Date.now()}_${randomBytes(6).toString('hex')}`;
+              await tx.insert(pollVotes).values({
+                id: voteId,
+                pollId,
+                optionId,
+              });
+            }
           });
+        } catch (txError) {
+          if (txError instanceof Error && txError.message === 'ALREADY_VOTED') {
+            return NextResponse.json({ error: 'Already voted' }, { status: 400 });
+          }
+          throw txError;
         }
 
         return NextResponse.json({ success: true });
