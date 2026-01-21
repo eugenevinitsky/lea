@@ -354,6 +354,35 @@ scripts/
 
 ---
 
+## Admin Dashboard
+
+Lea includes an admin verification system for moderators to verify researchers and organizations.
+
+### Features
+
+- **Quick Verify**: Verify researchers by Bluesky handle with OpenAlex author search
+- **Organization Verification**: Verify venues, labs, and institutions
+- **Bulk Import**: CSV upload for batch verification
+- **Label Management**: Configure Bluesky labeler badges
+- **Ozone Sync**: Import existing labeled accounts
+
+### Setup
+
+The admin service runs separately from the main app:
+
+```bash
+# Run admin service
+cd services/verify-admin
+npm install
+npm run dev  # Runs on port 3001
+```
+
+Access the admin dashboard at `/admin` in the main app. Requires an API key configured in the verify-admin service.
+
+See `services/verify-admin/README.md` for full documentation.
+
+---
+
 ## Limitations
 
 - **Vouching UI**: API routes exist but no frontend yet

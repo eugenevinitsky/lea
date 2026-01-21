@@ -1,0 +1,30 @@
+version: '3.8'
+
+services:
+  verify-admin:
+    build: .
+    ports:
+      - "3001:3001"
+    environment:
+      - NODE_ENV=production
+      - PORT=3001
+      - POSTGRES_URL=${POSTGRES_URL}
+      - ADMIN_API_KEY=${ADMIN_API_KEY}
+      - BLUESKY_SERVICE_URL=${BLUESKY_SERVICE_URL:-https://bsky.social}
+      - BLUESKY_LABELER_DID=${BLUESKY_LABELER_DID}
+      - BLUESKY_LABELER_HANDLE=${BLUESKY_LABELER_HANDLE}
+      - BLUESKY_LABELER_PASSWORD=${BLUESKY_LABELER_PASSWORD}
+      - OZONE_SERVICE_URL=${OZONE_SERVICE_URL}
+      - OZONE_ADMIN_DID=${OZONE_ADMIN_DID}
+      - OZONE_ADMIN_PASSWORD=${OZONE_ADMIN_PASSWORD}
+      - OPENALEX_API_URL=${OPENALEX_API_URL:-https://api.openalex.org}
+      - OPENALEX_EMAIL=${OPENALEX_EMAIL}
+      - FRONTEND_URL=${FRONTEND_URL:-http://localhost:3000}
+      - VERIFIED_RESEARCHER_LABEL=${VERIFIED_RESEARCHER_LABEL:-verified-researcher}
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3001/health"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 5s

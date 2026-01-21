@@ -29,6 +29,13 @@
       "when": 1769019999844,
       "tag": "0003_bouncy_captain_marvel",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1769026929771,
+      "tag": "0004_add_verification_admin_tables",
+      "breakpoints": true
     }
   ]
 }

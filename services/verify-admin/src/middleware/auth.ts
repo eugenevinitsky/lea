@@ -1,0 +1,43 @@
+import { Request, Response, NextFunction } from 'express';
+import { config } from '../config.js';
+
+// Extend Request type to include admin info
+declare global {
+  namespace Express {
+    interface Request {
+      adminDid?: string;
+    }
+  }
+}
+
+/**
+ * Simple API key authentication for admin routes
+ * In production, this should be replaced with proper OAuth or JWT auth
+ */
+export function adminAuth(req: Request, res: Response, next: NextFunction): void {
+  const apiKey = req.headers['x-api-key'] || req.headers['authorization']?.replace('Bearer ', '');
+
+  if (!apiKey) {
+    res.status(401).json({ error: 'Missing API key' });
+    return;
+  }
+
+  if (apiKey !== config.adminApiKey) {
+    res.status(403).json({ error: 'Invalid API key' });
+    return;
+  }
+
+  // In a real implementation, you'd decode the token to get the admin's DID
+  req.adminDid = config.ozone.adminDid || 'admin';
+  
+  next();
+}
+
+/**
+ * Rate limiting middleware for public endpoints
+ * Uses express-rate-limit in the main server setup
+ */
+export function createRateLimiter(windowMs: number, max: number) {
+  // This is a placeholder - actual rate limiter is set up in index.ts
+  return { windowMs, max };
+}

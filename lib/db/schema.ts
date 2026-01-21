@@ -17,15 +17,17 @@ export const verifiedResearchers = pgTable(
     id: varchar('id', { length: 36 }).primaryKey(),
     did: varchar('did', { length: 255 }).notNull().unique(),
     handle: varchar('handle', { length: 255 }),
-    orcid: varchar('orcid', { length: 19 }).notNull(),
+    orcid: varchar('orcid', { length: 19 }),
     openAlexId: varchar('open_alex_id', { length: 100 }), // e.g., "A5023888391"
+    website: varchar('website', { length: 500 }), // Researcher's website URL for verification
     name: varchar('name', { length: 255 }),
     institution: varchar('institution', { length: 500 }),
     // Research topics extracted from OpenAlex (JSON array of strings)
     researchTopics: text('research_topics'), // JSON array: ["Machine Learning", "Computer Vision", ...]
     verifiedAt: timestamp('verified_at').defaultNow().notNull(),
     verificationMethod: varchar('verification_method', { length: 50 }).notNull(), // 'auto' | 'vouched' | 'manual'
-    vouchedBy: varchar('vouched_by', { length: 36 }), // FK to verified_researchers.id
+    verifiedBy: varchar('verified_by', { length: 255 }), // Admin/moderator DID who verified
+    vouchedBy: varchar('vouched_by', { length: 36 }), // FK to verified_researchers.id (for vouched verification)
     isActive: boolean('is_active').default(true).notNull(),
     // Personal community list for this researcher's connections
     personalListUri: varchar('personal_list_uri', { length: 500 }),
@@ -421,6 +423,77 @@ export type PollVote = typeof pollVotes.$inferSelect;
 export type NewPollVote = typeof pollVotes.$inferInsert;
 export type PollParticipant = typeof pollParticipants.$inferSelect;
 export type NewPollParticipant = typeof pollParticipants.$inferInsert;
+
+// ==================== VERIFICATION ADMIN TABLES ====================
+
+// Organization type enum values
+export const ORGANIZATION_TYPES = ['VENUE', 'LAB', 'ACADEMIC_INSTITUTION', 'INDUSTRY_INSTITUTION'] as const;
+export type OrganizationType = typeof ORGANIZATION_TYPES[number];
+
+// Verified organizations - venues, institutions, labs verified by moderators
+export const verifiedOrganizations = pgTable(
+  'verified_organizations',
+  {
+    id: varchar('id', { length: 36 }).primaryKey(),
+    did: varchar('did', { length: 255 }).notNull().unique(),
+    handle: varchar('handle', { length: 255 }),
+    organizationType: varchar('organization_type', { length: 50 }).notNull(), // VENUE, LAB, ACADEMIC_INSTITUTION, INDUSTRY_INSTITUTION
+    organizationName: varchar('organization_name', { length: 255 }).notNull(),
+    website: varchar('website', { length: 500 }),
+    labelApplied: boolean('label_applied').default(false).notNull(),
+    verifiedAt: timestamp('verified_at').defaultNow().notNull(),
+    verifiedBy: varchar('verified_by', { length: 255 }), // Admin/moderator DID who verified
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+    updatedAt: timestamp('updated_at').defaultNow().notNull(),
+  },
+  (table) => [
+    index('verified_organizations_type_idx').on(table.organizationType),
+  ]
+);
+
+// Established venues for OpenAlex publication matching (reference data)
+export const establishedVenues = pgTable(
+  'established_venues',
+  {
+    id: varchar('id', { length: 36 }).primaryKey(),
+    name: varchar('name', { length: 500 }).notNull(),
+    openalexSourceId: varchar('openalex_source_id', { length: 100 }).unique(),
+    issn: varchar('issn', { length: 20 }),
+    venueType: varchar('venue_type', { length: 50 }).notNull(), // journal, conference, repository
+    isActive: boolean('is_active').default(true).notNull(),
+    addedAt: timestamp('added_at').defaultNow().notNull(),
+  },
+  (table) => [
+    index('established_venues_openalex_idx').on(table.openalexSourceId),
+    index('established_venues_name_idx').on(table.name),
+  ]
+);
+
+// Audit log for tracking admin verification actions
+export const auditLogs = pgTable(
+  'audit_logs',
+  {
+    id: varchar('id', { length: 36 }).primaryKey(),
+    action: varchar('action', { length: 100 }).notNull(), // e.g., "researcher_verified", "organization_verified"
+    actorId: varchar('actor_id', { length: 255 }), // DID of admin performing action
+    targetId: varchar('target_id', { length: 255 }), // ID of affected entity
+    targetType: varchar('target_type', { length: 50 }), // "researcher", "organization"
+    metadata: text('metadata'), // JSON additional context
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+  },
+  (table) => [
+    index('audit_logs_action_idx').on(table.action),
+    index('audit_logs_target_idx').on(table.targetId),
+    index('audit_logs_created_idx').on(table.createdAt),
+  ]
+);
+
+export type VerifiedOrganization = typeof verifiedOrganizations.$inferSelect;
+export type NewVerifiedOrganization = typeof verifiedOrganizations.$inferInsert;
+export type EstablishedVenue = typeof establishedVenues.$inferSelect;
+export type NewEstablishedVenue = typeof establishedVenues.$inferInsert;
+export type AuditLog = typeof auditLogs.$inferSelect;
+export type NewAuditLog = typeof auditLogs.$inferInsert;
 
 export interface PollOption {
   id: string;
