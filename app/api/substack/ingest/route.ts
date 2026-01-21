@@ -85,6 +85,57 @@ async function fetchBodyFromRss(subdomain: string, slug: string): Promise<string
   }
 }
 
+// Fetch body text directly from article page (fallback when RSS doesn't have it)
+// IMPORTANT: This must match cleanup-substack-local.ts exactly!
+async function fetchBodyFromPage(url: string): Promise<string | null> {
+  try {
+    const response = await fetch(url, {
+      headers: {
+        'User-Agent': 'Lea/1.0 (mailto:support@lea.community)',
+        'Accept': 'text/html',
+      },
+    });
+
+    if (!response.ok) return null;
+
+    const html = await response.text();
+
+    // Find content between available-content and end of article
+    const start = html.indexOf('class="available-content"');
+    const end = html.indexOf('</article>');
+
+    if (start > 0 && end > start) {
+      const content = html.slice(start, end);
+      const paragraphs = content.match(/<p[^>]*>([^<]+)<\/p>/g) || [];
+      const text = paragraphs.map(p => stripHtml(p)).join(' ');
+      if (text.length > 100) {
+        return text.slice(0, 2000);
+      }
+    }
+
+    // Fallback: try to get text from article body
+    const articleMatch = html.match(/<article[^>]*>([\s\S]*?)<\/article>/);
+    if (articleMatch) {
+      const bodyText = stripHtml(articleMatch[1]);
+      if (bodyText.length > 100) {
+        return bodyText.slice(0, 2000);
+      }
+    }
+
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+// Fetch body text - try RSS first, then fall back to page scraping
+// IMPORTANT: This must match cleanup-substack-local.ts exactly!
+async function fetchBodyText(subdomain: string, slug: string, url: string): Promise<string | null> {
+  const rssBody = await fetchBodyFromRss(subdomain, slug);
+  if (rssBody) return rssBody;
+  return fetchBodyFromPage(url);
+}
+
 // Fetch metadata from Substack post via Open Graph tags and RSS feed
 async function fetchSubstackMetadata(url: string, subdomain?: string, slug?: string): Promise<{
   title?: string;
@@ -95,10 +146,11 @@ async function fetchSubstackMetadata(url: string, subdomain?: string, slug?: str
   bodyText?: string;
 } | null> {
   try {
-    // Try to fetch body text from RSS feed (more text for better classification)
+    // Try to fetch body text from RSS feed, with page scraping fallback
+    // IMPORTANT: Uses same fetchBodyText as cleanup for consistency!
     let bodyText: string | null = null;
     if (subdomain && slug) {
-      bodyText = await fetchBodyFromRss(subdomain, slug);
+      bodyText = await fetchBodyText(subdomain, slug, url);
     }
 
     const response = await fetch(url, {
