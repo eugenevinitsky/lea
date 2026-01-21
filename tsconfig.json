@@ -30,5 +30,5 @@
     ".next/dev/types/**/*.ts",
     "**/*.mts"
   ],
-  "exclude": ["node_modules", "paper-firehose", "vitest.config.ts", "__tests__"]
+  "exclude": ["node_modules", "paper-firehose", "vitest.config.ts", "__tests__", "services"]
 }

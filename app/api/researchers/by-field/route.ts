@@ -34,7 +34,7 @@ export async function GET(request: NextRequest) {
       did: string;
       handle: string | null;
       name: string | null;
-      orcid: string;
+      orcid: string | null;
       institution: string | null;
       researchTopics: string | null;
       affiliation: string | null;
