@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db, verifiedResearchers } from '@/lib/db';
+import { db, verifiedResearchers, authorizedUsers } from '@/lib/db';
 import { eq, and } from 'drizzle-orm';
 
 // GET /api/auth/check-access?did=xxx or ?handle=xxx - Check if a user is authorized
-// Currently restricted to verified researchers only
+// Users are authorized if they:
+// 1. Are in the authorized_users table (used an invite code), OR
+// 2. Are a verified researcher (grandfathered in)
 export async function GET(request: NextRequest) {
   let did = request.nextUrl.searchParams.get('did');
   const handle = request.nextUrl.searchParams.get('handle');
@@ -35,7 +37,23 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    // Check if user is a verified researcher
+    // First check if user is already authorized (used an invite code)
+    const [existingUser] = await db
+      .select()
+      .from(authorizedUsers)
+      .where(eq(authorizedUsers.did, did))
+      .limit(1);
+
+    if (existingUser) {
+      return NextResponse.json({
+        authorized: true,
+        did,
+        authorizedAt: existingUser.authorizedAt,
+        method: 'invite_code',
+      });
+    }
+
+    // Fall back to checking if user is a verified researcher (grandfathered)
     const [researcher] = await db
       .select()
       .from(verifiedResearchers)
@@ -49,6 +67,7 @@ export async function GET(request: NextRequest) {
       authorized: !!researcher,
       did,
       verifiedAt: researcher?.verifiedAt || null,
+      method: researcher ? 'verified_researcher' : null,
     });
   } catch (error) {
     console.error('Failed to check access:', error);

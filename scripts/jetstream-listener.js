@@ -13,6 +13,7 @@
  * Environment variables:
  *   LEA_APP_URL - Your Vercel app URL (default: https://client-kappa-weld-68.vercel.app)
  *   LEA_LABELER_DID - The labeler's DID (default: did:plc:7c7tx56n64jhzezlwox5dja6)
+ *   INTERNAL_API_SECRET - Secret for authenticating with the sync endpoint (required)
  *
  * Run with pm2 for production:
  *   pm2 start jetstream-listener.js --name lea-labels
@@ -25,9 +26,16 @@ const cbor = require('cbor');
 const CONFIG = {
   labelerDid: process.env.LEA_LABELER_DID || 'did:plc:7c7tx56n64jhzezlwox5dja6',
   appUrl: process.env.LEA_APP_URL || 'https://client-kappa-weld-68.vercel.app',
+  internalSecret: process.env.INTERNAL_API_SECRET,
   reconnectDelay: 5000,
   labelValue: 'verified-researcher',
 };
+
+// Validate required config
+if (!CONFIG.internalSecret) {
+  console.error('ERROR: INTERNAL_API_SECRET environment variable is required');
+  process.exit(1);
+}
 
 let ws = null;
 let reconnectTimeout = null;
@@ -67,6 +75,7 @@ async function notifySync(subjectDid, action) {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        'Authorization': `Bearer ${CONFIG.internalSecret}`,
       },
       body: JSON.stringify({
         did: subjectDid,

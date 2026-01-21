@@ -29,10 +29,13 @@ function FeatureCard({ icon, title, description, color }: {
 
 export default function Login({ onLogin }: LoginProps) {
   const [handle, setHandle] = useState('');
+  const [inviteCode, setInviteCode] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [forceOnboarding, setForceOnboarding] = useState(false);
   const [showNewUserGuide, setShowNewUserGuide] = useState(false);
+  const [needsInviteCode, setNeedsInviteCode] = useState(false);
+  const [resolvedDid, setResolvedDid] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -42,12 +45,15 @@ export default function Login({ onLogin }: LoginProps) {
       setLoading(true);
       setError(null);
       
-      // Check if user is authorized (verified researcher) before OAuth
+      // Check if user is authorized before OAuth
       const accessResponse = await fetch(`/api/auth/check-access?handle=${encodeURIComponent(handle)}`);
       const accessData = await accessResponse.json();
       
       if (!accessData.authorized) {
-        setError('Lea is currently in testing and only available to verified researchers.');
+        // User not authorized - show invite code field
+        setResolvedDid(accessData.did);
+        setNeedsInviteCode(true);
+        setError('You need an invite code to access Lea.');
         setLoading(false);
         return;
       }
@@ -62,6 +68,49 @@ export default function Login({ onLogin }: LoginProps) {
       // Note: startLogin redirects, so code below won't run
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Login failed');
+      setLoading(false);
+    }
+  };
+
+  const handleRedeemInvite = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!inviteCode || !resolvedDid) return;
+
+    try {
+      setLoading(true);
+      setError(null);
+
+      // Redeem the invite code
+      const redeemResponse = await fetch('/api/auth/redeem-invite', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          code: inviteCode,
+          did: resolvedDid,
+          handle,
+        }),
+      });
+
+      const redeemData = await redeemResponse.json();
+
+      if (!redeemResponse.ok) {
+        setError(redeemData.error || 'Failed to redeem invite code');
+        setLoading(false);
+        return;
+      }
+
+      // Success! Now proceed with login
+      setNeedsInviteCode(false);
+      
+      // Store forceOnboarding preference for after redirect
+      if (forceOnboarding) {
+        sessionStorage.setItem('lea-force-onboarding', 'true');
+      }
+      
+      // Start OAuth flow
+      await startLogin(handle);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to redeem invite code');
       setLoading(false);
     }
   };
@@ -247,62 +296,124 @@ export default function Login({ onLogin }: LoginProps) {
               </div>
             )}
 
-            {/* OAuth login form */}
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
-                  Bluesky Handle
-                </label>
-                <input
-                  type="text"
-                  value={handle}
-                  onChange={(e) => setHandle(e.target.value)}
-                  placeholder="yourhandle.bsky.social"
-                  className="w-full px-4 py-3 border border-gray-200 dark:border-gray-700 rounded-xl bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white dark:focus:bg-gray-800 transition-colors"
-                  disabled={loading}
-                  autoComplete="username"
-                />
-                <p className="mt-2 text-xs text-gray-500">
-                  Enter your Bluesky handle or custom domain
-                </p>
-              </div>
-              
-              {/* Test checkbox for forcing onboarding */}
-              <label className="flex items-center gap-2 p-3 bg-amber-50 dark:bg-amber-900/20 rounded-lg border border-amber-200 dark:border-amber-800 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={forceOnboarding}
-                  onChange={(e) => setForceOnboarding(e.target.checked)}
-                  className="w-4 h-4 text-amber-500 border-gray-300 rounded focus:ring-amber-500"
-                />
-                <span className="text-sm text-amber-700 dark:text-amber-300">
-                  Show onboarding flow (testing)
-                </span>
-              </label>
+            {needsInviteCode ? (
+              /* Invite code form */
+              <form onSubmit={handleRedeemInvite} className="space-y-4">
+                <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+                  <p className="text-sm text-blue-700 dark:text-blue-300">
+                    Lea is currently invite-only. Enter your invite code below to get access.
+                  </p>
+                </div>
 
-              <button
-                type="submit"
-                disabled={!handle || loading}
-                className="w-full py-3.5 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-semibold rounded-xl disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg shadow-blue-500/25 disabled:shadow-none flex items-center justify-center gap-2"
-              >
-                {loading ? (
-                  <>
-                    <svg className="animate-spin w-5 h-5" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                    </svg>
-                    Redirecting...
-                  </>
-                ) : (
-                  <>
-                    <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
-                      <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
-                    </svg>
-                    Sign in with Bluesky
-                  </>
-                )}
-              </button>
-            </form>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
+                    Invite Code
+                  </label>
+                  <input
+                    type="text"
+                    value={inviteCode}
+                    onChange={(e) => setInviteCode(e.target.value.toUpperCase())}
+                    placeholder="ABCD1234"
+                    className="w-full px-4 py-3 border border-gray-200 dark:border-gray-700 rounded-xl bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white dark:focus:bg-gray-800 transition-colors font-mono tracking-wider text-center text-lg"
+                    disabled={loading}
+                    autoComplete="off"
+                    autoFocus
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={!inviteCode || loading}
+                  className="w-full py-3.5 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-semibold rounded-xl disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg shadow-blue-500/25 disabled:shadow-none flex items-center justify-center gap-2"
+                >
+                  {loading ? (
+                    <>
+                      <svg className="animate-spin w-5 h-5" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                      </svg>
+                      Verifying...
+                    </>
+                  ) : (
+                    <>
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
+                      </svg>
+                      Redeem Invite Code
+                    </>
+                  )}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setNeedsInviteCode(false);
+                    setInviteCode('');
+                    setError(null);
+                  }}
+                  className="w-full py-2 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 text-sm transition-colors"
+                >
+                  ← Back to login
+                </button>
+              </form>
+            ) : (
+              /* OAuth login form */
+              <form onSubmit={handleSubmit} className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
+                    Bluesky Handle
+                  </label>
+                  <input
+                    type="text"
+                    value={handle}
+                    onChange={(e) => setHandle(e.target.value)}
+                    placeholder="yourhandle.bsky.social"
+                    className="w-full px-4 py-3 border border-gray-200 dark:border-gray-700 rounded-xl bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white dark:focus:bg-gray-800 transition-colors"
+                    disabled={loading}
+                    autoComplete="username"
+                  />
+                  <p className="mt-2 text-xs text-gray-500">
+                    Enter your Bluesky handle or custom domain
+                  </p>
+                </div>
+                
+                {/* Test checkbox for forcing onboarding */}
+                <label className="flex items-center gap-2 p-3 bg-amber-50 dark:bg-amber-900/20 rounded-lg border border-amber-200 dark:border-amber-800 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={forceOnboarding}
+                    onChange={(e) => setForceOnboarding(e.target.checked)}
+                    className="w-4 h-4 text-amber-500 border-gray-300 rounded focus:ring-amber-500"
+                  />
+                  <span className="text-sm text-amber-700 dark:text-amber-300">
+                    Show onboarding flow (testing)
+                  </span>
+                </label>
+
+                <button
+                  type="submit"
+                  disabled={!handle || loading}
+                  className="w-full py-3.5 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-semibold rounded-xl disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg shadow-blue-500/25 disabled:shadow-none flex items-center justify-center gap-2"
+                >
+                  {loading ? (
+                    <>
+                      <svg className="animate-spin w-5 h-5" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                      </svg>
+                      Redirecting...
+                    </>
+                  ) : (
+                    <>
+                      <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+                      </svg>
+                      Sign in with Bluesky
+                    </>
+                  )}
+                </button>
+              </form>
+            )}
 
             {/* New to Bluesky link */}
             <button
