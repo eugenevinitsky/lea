@@ -12,6 +12,23 @@ import { db, verifiedResearchers, verifiedOrganizations, auditLogs } from '../db
 
 const router = Router();
 
+// Pagination constants and validation
+const MAX_LIMIT = 200;
+const MAX_OFFSET = 100000;
+const DEFAULT_LIMIT = 50;
+const DEFAULT_OFFSET = 0;
+
+// Validate and sanitize pagination parameters to prevent DoS attacks
+function validatePagination(limitStr: string | undefined, offsetStr: string | undefined): { limit: number; offset: number } {
+  const limit = limitStr ? parseInt(limitStr, 10) : DEFAULT_LIMIT;
+  const offset = offsetStr ? parseInt(offsetStr, 10) : DEFAULT_OFFSET;
+
+  return {
+    limit: isNaN(limit) || limit < 1 ? DEFAULT_LIMIT : Math.min(limit, MAX_LIMIT),
+    offset: isNaN(offset) || offset < 0 ? DEFAULT_OFFSET : Math.min(offset, MAX_OFFSET),
+  };
+}
+
 // Apply admin authentication to all routes
 router.use(adminAuth);
 
@@ -309,12 +326,10 @@ router.post('/bulk-verify', async (req: Request, res: Response) => {
  */
 router.get('/members', async (req: Request, res: Response) => {
   try {
-    const { limit = '50', offset = '0' } = req.query;
+    const { limit: limitStr, offset: offsetStr } = req.query;
+    const { limit, offset } = validatePagination(limitStr as string, offsetStr as string);
 
-    const result = await verificationService.getVerifiedMembers(
-      parseInt(limit as string, 10),
-      parseInt(offset as string, 10)
-    );
+    const result = await verificationService.getVerifiedMembers(limit, offset);
 
     return res.json(result);
   } catch (error) {
@@ -477,47 +492,41 @@ router.post('/quick-verify-org', async (req: Request, res: Response) => {
  */
 router.get('/organizations', async (req: Request, res: Response) => {
   try {
-    const { type, limit = '50', offset = '0' } = req.query;
-    const limitNum = parseInt(limit as string, 10);
-    const offsetNum = parseInt(offset as string, 10);
+    const { type, limit: limitStr, offset: offsetStr } = req.query;
+    const { limit, offset } = validatePagination(limitStr as string, offsetStr as string);
 
-    // Build query based on whether type filter is provided
-    let organizations;
-    let total;
+    let query = db
+      .select()
+      .from(verifiedOrganizations)
+      .orderBy(desc(verifiedOrganizations.verifiedAt))
+      .limit(limit)
+      .offset(offset);
 
     if (type && typeof type === 'string') {
-      organizations = await db
+      query = db
         .select()
         .from(verifiedOrganizations)
         .where(eq(verifiedOrganizations.organizationType, type.toUpperCase()))
         .orderBy(desc(verifiedOrganizations.verifiedAt))
-        .limit(limitNum)
-        .offset(offsetNum);
-      
-      const countResult = await db
-        .select({ id: verifiedOrganizations.id })
-        .from(verifiedOrganizations)
-        .where(eq(verifiedOrganizations.organizationType, type.toUpperCase()));
-      total = countResult.length;
-    } else {
-      organizations = await db
-        .select()
-        .from(verifiedOrganizations)
-        .orderBy(desc(verifiedOrganizations.verifiedAt))
-        .limit(limitNum)
-        .offset(offsetNum);
-      
-      const countResult = await db
-        .select({ id: verifiedOrganizations.id })
-        .from(verifiedOrganizations);
-      total = countResult.length;
+        .limit(limit)
+        .offset(offset);
     }
+
+    const organizations = await query;
+
+    // Count total
+    const countResult = await db
+      .select({ id: verifiedOrganizations.id })
+      .from(verifiedOrganizations)
+      .where(type ? eq(verifiedOrganizations.organizationType, (type as string).toUpperCase()) : undefined);
+
+    const total = countResult.length;
 
     return res.json({
       organizations,
       total,
-      limit: parseInt(limit as string, 10),
-      offset: parseInt(offset as string, 10),
+      limit,
+      offset,
     });
   } catch (error) {
     console.error('Admin list organizations error:', error);
@@ -627,27 +636,27 @@ router.get('/stats', async (_req: Request, res: Response) => {
  */
 router.get('/audit', async (req: Request, res: Response) => {
   try {
-    const { action, limit = '100', offset = '0' } = req.query;
-    const limitNum = parseInt(limit as string, 10);
-    const offsetNum = parseInt(offset as string, 10);
+    const { action, limit: limitStr, offset: offsetStr } = req.query;
+    const { limit, offset } = validatePagination(limitStr as string, offsetStr as string);
 
-    let logs;
+    let query = db
+      .select()
+      .from(auditLogs)
+      .orderBy(desc(auditLogs.createdAt))
+      .limit(limit)
+      .offset(offset);
+
     if (action && typeof action === 'string') {
-      logs = await db
+      query = db
         .select()
         .from(auditLogs)
         .where(eq(auditLogs.action, action))
         .orderBy(desc(auditLogs.createdAt))
-        .limit(limitNum)
-        .offset(offsetNum);
-    } else {
-      logs = await db
-        .select()
-        .from(auditLogs)
-        .orderBy(desc(auditLogs.createdAt))
-        .limit(limitNum)
-        .offset(offsetNum);
+        .limit(limit)
+        .offset(offset);
     }
+
+    const logs = await query;
 
     return res.json({ logs });
   } catch (error) {
