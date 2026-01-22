@@ -3,13 +3,13 @@ import pg from 'pg';
 import * as schema from './schema.js';
 
 // Supabase pooler uses certificates that may not be in the default CA chain.
-// Replace sslmode=require with sslmode=no-verify to skip certificate validation
+// Use ssl.rejectUnauthorized = false to skip certificate validation
 // while still using encrypted connections.
-const connectionString = (process.env.POSTGRES_URL || '')
-  .replace(/sslmode=require/g, 'sslmode=no-verify');
-
 const pool = new pg.Pool({
-  connectionString,
+  connectionString: process.env.POSTGRES_URL,
+  ssl: {
+    rejectUnauthorized: false,
+  },
 });
 
 // Log connection status on startup
