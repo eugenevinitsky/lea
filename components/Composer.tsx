@@ -86,6 +86,8 @@ export default function Composer({ onPost, quotePost }: ComposerProps) {
   const [threadLinkPreviews, setThreadLinkPreviews] = useState<(ExternalEmbed | null)[]>([null]);
   const [loadingLinkPreview, setLoadingLinkPreview] = useState<number | null>(null);
   const [lastCheckedUrls, setLastCheckedUrls] = useState<string[]>(['']);
+  // Track which previews should persist even after URL is removed from text
+  const [stickyPreviews, setStickyPreviews] = useState<boolean[]>([false]);
 
   // Poll state
   const [showPoll, setShowPoll] = useState(false);
@@ -99,6 +101,7 @@ export default function Composer({ onPost, quotePost }: ComposerProps) {
     setThreadImages([...threadImages, []]);
     setThreadLinkPreviews([...threadLinkPreviews, null]);
     setLastCheckedUrls([...lastCheckedUrls, '']);
+    setStickyPreviews([...stickyPreviews, false]);
     // Focus the new textarea after render
     setTimeout(() => {
       const newIndex = threadPosts.length;
@@ -114,12 +117,17 @@ export default function Composer({ onPost, quotePost }: ComposerProps) {
     setThreadImages(threadImages.filter((_, i) => i !== index));
     setThreadLinkPreviews(threadLinkPreviews.filter((_, i) => i !== index));
     setLastCheckedUrls(lastCheckedUrls.filter((_, i) => i !== index));
+    setStickyPreviews(stickyPreviews.filter((_, i) => i !== index));
   };
 
   const removeLinkPreview = (index: number) => {
     const updated = [...threadLinkPreviews];
     updated[index] = null;
     setThreadLinkPreviews(updated);
+    // Also clear sticky flag so a new URL can generate a new preview
+    const updatedSticky = [...stickyPreviews];
+    updatedSticky[index] = false;
+    setStickyPreviews(updatedSticky);
   };
 
   const updateThreadPost = (index: number, text: string) => {
@@ -295,23 +303,28 @@ export default function Composer({ onPost, quotePost }: ComposerProps) {
         updatedLastUrls[i] = url || '';
         setLastCheckedUrls(updatedLastUrls);
 
-        // If no URL, clear preview
+        // If no URL, keep preview if it's sticky (user deleted link but preview should persist)
         if (!url) {
-          if (threadLinkPreviews[i]) {
-            const updated = [...threadLinkPreviews];
-            updated[i] = null;
-            setThreadLinkPreviews(updated);
+          // If there's a preview and we just lost the URL, mark it as sticky
+          if (threadLinkPreviews[i] && !stickyPreviews[i]) {
+            const updatedSticky = [...stickyPreviews];
+            updatedSticky[i] = true;
+            setStickyPreviews(updatedSticky);
           }
           continue;
         }
 
-        // Fetch link preview
+        // Fetch link preview for new URL
         setLoadingLinkPreview(i);
         try {
           const preview = await fetchLinkCard(url);
           const updated = [...threadLinkPreviews];
           updated[i] = preview;
           setThreadLinkPreviews(updated);
+          // New preview from new URL, not sticky yet
+          const updatedSticky = [...stickyPreviews];
+          updatedSticky[i] = false;
+          setStickyPreviews(updatedSticky);
         } catch (e) {
           console.error('Failed to fetch link preview:', e);
         } finally {
@@ -322,7 +335,7 @@ export default function Composer({ onPost, quotePost }: ComposerProps) {
 
     const debounce = setTimeout(checkForLinks, 500);
     return () => clearTimeout(debounce);
-  }, [threadPosts, threadImages, lastCheckedUrls, threadLinkPreviews]);
+  }, [threadPosts, threadImages, lastCheckedUrls, threadLinkPreviews, stickyPreviews]);
 
   // Detect @ mentions while typing
   const handleTextChange = (index: number, e: React.ChangeEvent<HTMLTextAreaElement>) => {
@@ -583,6 +596,7 @@ export default function Composer({ onPost, quotePost }: ComposerProps) {
       setThreadImages([[]]);
       setThreadLinkPreviews([null]);
       setLastCheckedUrls(['']);
+      setStickyPreviews([false]);
       setDisableQuotes(false);
       setShowPoll(false);
       setPollOptions(['', '']);
