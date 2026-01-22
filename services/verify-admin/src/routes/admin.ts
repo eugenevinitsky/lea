@@ -478,34 +478,40 @@ router.post('/quick-verify-org', async (req: Request, res: Response) => {
 router.get('/organizations', async (req: Request, res: Response) => {
   try {
     const { type, limit = '50', offset = '0' } = req.query;
+    const limitNum = parseInt(limit as string, 10);
+    const offsetNum = parseInt(offset as string, 10);
 
-    let query = db
-      .select()
-      .from(verifiedOrganizations)
-      .orderBy(desc(verifiedOrganizations.verifiedAt))
-      .limit(parseInt(limit as string, 10))
-      .offset(parseInt(offset as string, 10));
+    // Build query based on whether type filter is provided
+    let organizations;
+    let total;
 
-    // Add type filter if provided
     if (type && typeof type === 'string') {
-      query = db
+      organizations = await db
         .select()
         .from(verifiedOrganizations)
         .where(eq(verifiedOrganizations.organizationType, type.toUpperCase()))
         .orderBy(desc(verifiedOrganizations.verifiedAt))
-        .limit(parseInt(limit as string, 10))
-        .offset(parseInt(offset as string, 10));
+        .limit(limitNum)
+        .offset(offsetNum);
+      
+      const countResult = await db
+        .select({ id: verifiedOrganizations.id })
+        .from(verifiedOrganizations)
+        .where(eq(verifiedOrganizations.organizationType, type.toUpperCase()));
+      total = countResult.length;
+    } else {
+      organizations = await db
+        .select()
+        .from(verifiedOrganizations)
+        .orderBy(desc(verifiedOrganizations.verifiedAt))
+        .limit(limitNum)
+        .offset(offsetNum);
+      
+      const countResult = await db
+        .select({ id: verifiedOrganizations.id })
+        .from(verifiedOrganizations);
+      total = countResult.length;
     }
-
-    const organizations = await query;
-
-    // Count total
-    const countResult = await db
-      .select({ id: verifiedOrganizations.id })
-      .from(verifiedOrganizations)
-      .where(type ? eq(verifiedOrganizations.organizationType, (type as string).toUpperCase()) : undefined);
-    
-    const total = countResult.length;
 
     return res.json({
       organizations,
@@ -622,25 +628,26 @@ router.get('/stats', async (_req: Request, res: Response) => {
 router.get('/audit', async (req: Request, res: Response) => {
   try {
     const { action, limit = '100', offset = '0' } = req.query;
+    const limitNum = parseInt(limit as string, 10);
+    const offsetNum = parseInt(offset as string, 10);
 
-    let query = db
-      .select()
-      .from(auditLogs)
-      .orderBy(desc(auditLogs.createdAt))
-      .limit(parseInt(limit as string, 10))
-      .offset(parseInt(offset as string, 10));
-
+    let logs;
     if (action && typeof action === 'string') {
-      query = db
+      logs = await db
         .select()
         .from(auditLogs)
         .where(eq(auditLogs.action, action))
         .orderBy(desc(auditLogs.createdAt))
-        .limit(parseInt(limit as string, 10))
-        .offset(parseInt(offset as string, 10));
+        .limit(limitNum)
+        .offset(offsetNum);
+    } else {
+      logs = await db
+        .select()
+        .from(auditLogs)
+        .orderBy(desc(auditLogs.createdAt))
+        .limit(limitNum)
+        .offset(offsetNum);
     }
-
-    const logs = await query;
 
     return res.json({ logs });
   } catch (error) {
