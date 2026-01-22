@@ -3,11 +3,10 @@ import pg from 'pg';
 import * as schema from './schema.js';
 
 // Supabase requires SSL but has self-signed certs in some environments
+// Always use SSL with rejectUnauthorized: false for Supabase pooler compatibility
 const pool = new pg.Pool({
   connectionString: process.env.POSTGRES_URL,
-  ssl: process.env.NODE_ENV === 'production' 
-    ? { rejectUnauthorized: false }
-    : false,
+  ssl: { rejectUnauthorized: false },
 });
 
 // Log connection status on startup
