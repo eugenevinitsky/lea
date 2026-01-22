@@ -1,14 +1,21 @@
 import { drizzle } from 'drizzle-orm/node-postgres';
 import pg from 'pg';
+import tls from 'tls';
 import * as schema from './schema.js';
 
 // Supabase pooler uses certificates that may not be in the default CA chain.
-// Use ssl.rejectUnauthorized = false to skip certificate validation
-// while still using encrypted connections.
+// We configure SSL to not reject unauthorized certificates.
+const connectionString = process.env.POSTGRES_URL || '';
+
+console.log('Database connection string (masked):', connectionString.replace(/:[^@]+@/, ':***@'));
+console.log('SSL config: { rejectUnauthorized: false }');
+
 const pool = new pg.Pool({
-  connectionString: process.env.POSTGRES_URL,
+  connectionString,
   ssl: {
     rejectUnauthorized: false,
+    // Explicitly set checkServerIdentity to skip hostname verification
+    checkServerIdentity: () => undefined,
   },
 });
 
