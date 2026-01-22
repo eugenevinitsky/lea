@@ -2,11 +2,16 @@ import { drizzle } from 'drizzle-orm/node-postgres';
 import pg from 'pg';
 import * as schema from './schema.js';
 
-// Supabase requires SSL but has self-signed certs in some environments
-// Always use SSL with rejectUnauthorized: false for Supabase pooler compatibility
+// Supabase pooler uses certificates that may not be in the default CA chain.
+// We need to explicitly configure SSL to accept them.
+// Remove sslmode from connection string since we're configuring SSL via the ssl option.
+const connectionString = (process.env.POSTGRES_URL || '').replace(/[?&]sslmode=[^&]*/g, '');
+
 const pool = new pg.Pool({
-  connectionString: process.env.POSTGRES_URL,
-  ssl: { rejectUnauthorized: false },
+  connectionString,
+  ssl: {
+    rejectUnauthorized: false,
+  },
 });
 
 // Log connection status on startup
