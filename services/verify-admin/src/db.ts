@@ -5,7 +5,8 @@ import * as schema from './schema.js';
 
 // Supabase pooler uses certificates that may not be in the default CA chain.
 // We configure SSL to not reject unauthorized certificates.
-const connectionString = process.env.POSTGRES_URL || '';
+// Strip sslmode from connection string since we configure SSL manually below.
+const connectionString = (process.env.POSTGRES_URL || '').replace(/[?&]sslmode=[^&]*/g, '');
 
 console.log('Database connection string (masked):', connectionString.replace(/:[^@]+@/, ':***@'));
 console.log('SSL config: { rejectUnauthorized: false }');
