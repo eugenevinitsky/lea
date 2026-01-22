@@ -495,32 +495,36 @@ router.get('/organizations', async (req: Request, res: Response) => {
     const { type, limit: limitStr, offset: offsetStr } = req.query;
     const { limit, offset } = validatePagination(limitStr as string, offsetStr as string);
 
-    let query = db
-      .select()
-      .from(verifiedOrganizations)
-      .orderBy(desc(verifiedOrganizations.verifiedAt))
-      .limit(limit)
-      .offset(offset);
+    let organizations;
+    let total;
 
     if (type && typeof type === 'string') {
-      query = db
+      organizations = await db
         .select()
         .from(verifiedOrganizations)
         .where(eq(verifiedOrganizations.organizationType, type.toUpperCase()))
         .orderBy(desc(verifiedOrganizations.verifiedAt))
         .limit(limit)
         .offset(offset);
+      
+      const countResult = await db
+        .select({ id: verifiedOrganizations.id })
+        .from(verifiedOrganizations)
+        .where(eq(verifiedOrganizations.organizationType, type.toUpperCase()));
+      total = countResult.length;
+    } else {
+      organizations = await db
+        .select()
+        .from(verifiedOrganizations)
+        .orderBy(desc(verifiedOrganizations.verifiedAt))
+        .limit(limit)
+        .offset(offset);
+      
+      const countResult = await db
+        .select({ id: verifiedOrganizations.id })
+        .from(verifiedOrganizations);
+      total = countResult.length;
     }
-
-    const organizations = await query;
-
-    // Count total
-    const countResult = await db
-      .select({ id: verifiedOrganizations.id })
-      .from(verifiedOrganizations)
-      .where(type ? eq(verifiedOrganizations.organizationType, (type as string).toUpperCase()) : undefined);
-
-    const total = countResult.length;
 
     return res.json({
       organizations,
@@ -591,10 +595,14 @@ router.delete('/organizations/:id', async (req: Request, res: Response) => {
  */
 router.get('/stats', async (_req: Request, res: Response) => {
   try {
+    console.log('Stats endpoint called, attempting database query...');
+    console.log('POSTGRES_URL set:', !!process.env.POSTGRES_URL);
+    
     // Count researchers
     const researchersResult = await db
       .select({ id: verifiedResearchers.id })
       .from(verifiedResearchers);
+    console.log('Researchers query succeeded:', researchersResult.length);
     const totalMembers = researchersResult.length;
 
     // Count organizations
@@ -626,7 +634,9 @@ router.get('/stats', async (_req: Request, res: Response) => {
     });
   } catch (error) {
     console.error('Admin stats error:', error);
-    return res.status(500).json({ error: 'Internal server error' });
+    // Return actual error in development for debugging
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    return res.status(500).json({ error: 'Internal server error', details: errorMessage });
   }
 });
 
@@ -639,24 +649,23 @@ router.get('/audit', async (req: Request, res: Response) => {
     const { action, limit: limitStr, offset: offsetStr } = req.query;
     const { limit, offset } = validatePagination(limitStr as string, offsetStr as string);
 
-    let query = db
-      .select()
-      .from(auditLogs)
-      .orderBy(desc(auditLogs.createdAt))
-      .limit(limit)
-      .offset(offset);
-
+    let logs;
     if (action && typeof action === 'string') {
-      query = db
+      logs = await db
         .select()
         .from(auditLogs)
         .where(eq(auditLogs.action, action))
         .orderBy(desc(auditLogs.createdAt))
         .limit(limit)
         .offset(offset);
+    } else {
+      logs = await db
+        .select()
+        .from(auditLogs)
+        .orderBy(desc(auditLogs.createdAt))
+        .limit(limit)
+        .offset(offset);
     }
-
-    const logs = await query;
 
     return res.json({ logs });
   } catch (error) {
