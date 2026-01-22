@@ -5,7 +5,7 @@ import { AppBskyFeedDefs, AppBskyFeedPost, AppBskyEmbedExternal } from '@atproto
 import { getTimeline, getFeed, getListFeed, searchPosts, FEEDS, FeedId, isVerifiedResearcher, Label, hasReplies, isReplyPost, getSelfThread, SelfThreadResult, getModerationOpts, moderatePost, ModerationOpts } from '@/lib/bluesky';
 import { VERIFIED_RESEARCHERS_LIST } from '@/lib/constants';
 import { useSettings } from '@/lib/settings';
-import { useFeeds, PinnedFeed } from '@/lib/feeds';
+import { useFeeds, PinnedFeed, RemixSettings } from '@/lib/feeds';
 import { detectPaperLink } from '@/lib/papers';
 import { recordResearcherSighting } from '@/lib/feed-tracking';
 import { getModerationUI, ModerationUIInfo } from '@/lib/moderation';
@@ -29,10 +29,26 @@ interface FeedProps {
   onOpenThread?: (uri: string) => void;
 }
 
+// Extended post type for remix feed with source attribution
+export interface RemixFeedViewPost extends AppBskyFeedDefs.FeedViewPost {
+  sourceFeed?: {
+    uri: string;
+    displayName: string;
+  };
+}
+
+// Remix stats tracking
+export interface RemixStats {
+  // Number of posts from each feed
+  postCounts: Map<string, number>;
+  // Total posts loaded
+  totalPosts: number;
+}
+
 export default function Feed({ feedId, feedUri, feedName, acceptsInteractions, refreshKey, feedType, keyword, onOpenProfile, onOpenThread }: FeedProps) {
   const { settings } = useSettings();
-  const { pinnedFeeds } = useFeeds();
-  const [posts, setPosts] = useState<AppBskyFeedDefs.FeedViewPost[]>([]);
+  const { pinnedFeeds, getRemixWeight, isRemixExcluded, remixSettings } = useFeeds();
+  const [posts, setPosts] = useState<RemixFeedViewPost[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [cursor, setCursor] = useState<string | undefined>();
@@ -42,6 +58,7 @@ export default function Feed({ feedId, feedUri, feedName, acceptsInteractions, r
   // Remix feed state - track cursors for each source feed
   const [remixCursors, setRemixCursors] = useState<Map<string, string | undefined>>(new Map());
   const [remixSourceIndex, setRemixSourceIndex] = useState(0);
+  const [remixStats, setRemixStats] = useState<RemixStats>({ postCounts: new Map(), totalPosts: 0 });
   
   // Self-thread expansion state
   const [expandedThreads, setExpandedThreads] = useState<Map<string, SelfThreadResult>>(new Map());
@@ -67,11 +84,15 @@ export default function Feed({ feedId, feedUri, feedName, acceptsInteractions, r
   // Extract actual list URI from list: prefix
   const effectiveListUri = feedUri?.startsWith('list:') ? feedUri.slice(5) : effectiveFeedUri;
   
-  // Get feeds to remix (all pinned feeds except Remix itself)
+  // Get feeds to remix (all pinned feeds except Remix itself, filtered by exclusions)
   const remixSourceFeeds = useMemo(() => {
     if (!isRemixFeed) return [];
-    return pinnedFeeds.filter(f => f.uri !== 'remix' && f.type !== 'remix');
-  }, [isRemixFeed, pinnedFeeds]);
+    return pinnedFeeds.filter(f => 
+      f.uri !== 'remix' && 
+      f.type !== 'remix' && 
+      !isRemixExcluded(f.uri)
+    );
+  }, [isRemixFeed, pinnedFeeds, isRemixExcluded]);
   
   // Check if this is a feed generator that has a detail page
   const isCustomFeedGenerator = effectiveFeedUri?.includes('/app.bsky.feed.generator/') ?? false;
@@ -140,10 +161,11 @@ export default function Feed({ feedId, feedUri, feedName, acceptsInteractions, r
     return reason?.$type === 'app.bsky.feed.defs#reasonPin';
   };
 
-  // Load remix feed - fetch from all pinned feeds and interleave
+  // Load remix feed - fetch from all pinned feeds with weighted sampling
   const loadRemixFeed = async (loadMore = false): Promise<string | undefined> => {
     if (remixSourceFeeds.length === 0) {
       setPosts([]);
+      setRemixStats({ postCounts: new Map(), totalPosts: 0 });
       setLoading(false);
       return undefined;
     }
@@ -152,25 +174,39 @@ export default function Feed({ feedId, feedUri, feedName, acceptsInteractions, r
       setLoading(true);
       setError(null);
 
-      const POSTS_PER_FEED = 10;
-      const allPosts: AppBskyFeedDefs.FeedViewPost[] = [];
+      const TOTAL_POSTS_TARGET = 50; // Total posts to fetch across all feeds
+      const allPosts: RemixFeedViewPost[] = [];
       const newCursors = new Map(remixCursors);
       const seenUris = new Set<string>();
+      const postCountsByFeed = new Map<string, number>(loadMore ? remixStats.postCounts : undefined);
       
       // If loading more, add existing post URIs to seen set for deduplication
       if (loadMore) {
         posts.forEach(p => seenUris.add(p.post.uri));
       }
 
+      // Calculate weighted posts per feed
+      const totalWeight = remixSourceFeeds.reduce((sum, feed) => sum + getRemixWeight(feed.uri), 0);
+      const postsPerFeed = new Map<string, number>();
+      
+      for (const feed of remixSourceFeeds) {
+        const weight = getRemixWeight(feed.uri);
+        // Calculate proportional posts, minimum 1 per feed to ensure variety
+        const proportion = totalWeight > 0 ? weight / totalWeight : 1 / remixSourceFeeds.length;
+        const targetPosts = Math.max(1, Math.round(TOTAL_POSTS_TARGET * proportion));
+        postsPerFeed.set(feed.uri, targetPosts);
+      }
+
       // Fetch from each source feed in parallel
       const fetchPromises = remixSourceFeeds.map(async (feed) => {
         try {
           const feedCursor = loadMore ? remixCursors.get(feed.uri) : undefined;
+          const targetCount = postsPerFeed.get(feed.uri) || 10;
           const result = await fetchFromSource(feed, feedCursor);
           newCursors.set(feed.uri, result.cursor);
           // Filter out pinned posts from feeds
           const filteredPosts = result.posts.filter(p => !isPinnedInFeed(p));
-          return { feed, posts: filteredPosts.slice(0, POSTS_PER_FEED) };
+          return { feed, posts: filteredPosts.slice(0, targetCount) };
         } catch (err) {
           console.error(`Failed to fetch from ${feed.displayName}:`, err);
           return { feed, posts: [] };
@@ -179,7 +215,7 @@ export default function Feed({ feedId, feedUri, feedName, acceptsInteractions, r
 
       const results = await Promise.all(fetchPromises);
 
-      // Round-robin interleave posts from all feeds
+      // Round-robin interleave posts from all feeds, with source attribution
       const maxLen = Math.max(...results.map(r => r.posts.length));
       for (let i = 0; i < maxLen; i++) {
         for (const result of results) {
@@ -188,7 +224,18 @@ export default function Feed({ feedId, feedUri, feedName, acceptsInteractions, r
             // Deduplicate posts that appear in multiple feeds
             if (!seenUris.has(post.post.uri)) {
               seenUris.add(post.post.uri);
-              allPosts.push(post);
+              // Attach source feed info
+              const remixPost: RemixFeedViewPost = {
+                ...post,
+                sourceFeed: {
+                  uri: result.feed.uri,
+                  displayName: result.feed.displayName,
+                },
+              };
+              allPosts.push(remixPost);
+              // Track post count for this feed
+              const currentCount = postCountsByFeed.get(result.feed.uri) || 0;
+              postCountsByFeed.set(result.feed.uri, currentCount + 1);
             }
           }
         }
@@ -198,6 +245,15 @@ export default function Feed({ feedId, feedUri, feedName, acceptsInteractions, r
       const finalPosts = loadMore ? allPosts : shuffleArray(allPosts);
 
       setRemixCursors(newCursors);
+      
+      // Update remix stats
+      const totalPostsLoaded = loadMore 
+        ? remixStats.totalPosts + finalPosts.length 
+        : finalPosts.length;
+      setRemixStats({
+        postCounts: postCountsByFeed,
+        totalPosts: totalPostsLoaded,
+      });
       
       // Check if any feed has more posts
       const hasMore = Array.from(newCursors.values()).some(c => c !== undefined);
@@ -289,6 +345,7 @@ export default function Feed({ feedId, feedUri, feedName, acceptsInteractions, r
     // Reset remix state
     setRemixCursors(new Map());
     setRemixSourceIndex(0);
+    setRemixStats({ postCounts: new Map(), totalPosts: 0 });
 
     // For papers feed or verified feed, scan multiple pages
     if (isPapersFeed || isVerifiedFeed) {
@@ -306,7 +363,8 @@ export default function Feed({ feedId, feedUri, feedName, acceptsInteractions, r
     } else {
       loadFeed();
     }
-  }, [feedId, feedUri, refreshKey, isKeywordFeed, effectiveKeyword, isRemixFeed, remixSourceFeeds.length]);
+  // Include remixSettings in deps so remix feed reloads when weights change
+  }, [feedId, feedUri, refreshKey, isKeywordFeed, effectiveKeyword, isRemixFeed, remixSourceFeeds.length, remixSettings]);
 
   // Track values in refs for IntersectionObserver callback (avoids stale closures)
   const loadingRef = useRef(loading);
@@ -647,6 +705,7 @@ export default function Feed({ feedId, feedUri, feedName, acceptsInteractions, r
               onOpenProfile={onOpenProfile}
               reason={item.reason as AppBskyFeedDefs.ReasonRepost | undefined}
               replyParent={replyParent}
+              sourceFeed={(item as RemixFeedViewPost).sourceFeed}
             />
           </ModerationWrapper>
         );

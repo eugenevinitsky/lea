@@ -67,6 +67,11 @@ interface PostProps {
   isLastInThread?: boolean;
   // Thread view styling - removes bottom border when in thread
   isInThread?: boolean;
+  // Source feed attribution - shown in remix feed
+  sourceFeed?: {
+    uri: string;
+    displayName: string;
+  };
 }
 
 // Format large numbers with k/m suffix (e.g., 1071 -> "1.1k", 14838 -> "15k")
@@ -1519,7 +1524,7 @@ function PostEmbed({ embed, onOpenThread }: {
   return null;
 }
 
-export default function Post({ post, onReply, onOpenThread, feedContext, reqId, supportsInteractions, feedUri, onOpenProfile, reason, replyParent, isInSelfThread, isFirstInThread, isLastInThread, isInThread }: PostProps & { onReply?: () => void; onOpenThread?: (uri: string) => void; onOpenProfile?: (did: string) => void }) {
+export default function Post({ post, onReply, onOpenThread, feedContext, reqId, supportsInteractions, feedUri, onOpenProfile, reason, replyParent, isInSelfThread, isFirstInThread, isLastInThread, isInThread, sourceFeed }: PostProps & { onReply?: () => void; onOpenThread?: (uri: string) => void; onOpenProfile?: (did: string) => void }) {
   const { settings } = useSettings();
   const { openComposer } = useComposer();
   
@@ -2478,6 +2483,14 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
 
   return (
     <ArticleWrapper {...articleProps as React.HTMLAttributes<HTMLElement>}>
+      {/* Source feed attribution (for remix feed) */}
+      {sourceFeed && !repostedBy && (
+        <div className="px-4 pt-2 pb-0">
+          <span className="text-xs text-gray-400 dark:text-gray-500">
+            via {sourceFeed.displayName}
+          </span>
+        </div>
+      )}
       {/* Repost header */}
       {repostedBy && (
         <div className="flex items-center gap-2 px-4 pt-3 pb-1 text-sm text-gray-500">

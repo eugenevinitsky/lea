@@ -5,6 +5,7 @@ import { VERIFIED_RESEARCHERS_LIST } from './constants';
 
 const FEEDS_STORAGE_KEY = 'lea-pinned-feeds';
 const FEEDS_SYNCED_KEY = 'lea-feeds-synced';
+const REMIX_SETTINGS_KEY = 'lea-remix-settings';
 
 // Re-export for backwards compatibility
 export { VERIFIED_RESEARCHERS_LIST };
@@ -122,6 +123,16 @@ export interface PinnedFeed {
   keyword?: string;
 }
 
+// Remix feed settings - weights and exclusions
+export interface RemixSettings {
+  // Weight per feed (0-100), defaults to 50 for all feeds
+  weights: Record<string, number>;
+  // Set of feed URIs to exclude from remix
+  excluded: string[];
+}
+
+const DEFAULT_REMIX_WEIGHT = 50;
+
 interface FeedsContextType {
   pinnedFeeds: PinnedFeed[];
   isLoaded: boolean;
@@ -131,6 +142,13 @@ interface FeedsContextType {
   reorderFeeds: (fromIndex: number, toIndex: number) => void;
   isPinned: (uri: string) => boolean;
   setUserDid: (did: string | null) => void;
+  // Remix settings
+  remixSettings: RemixSettings;
+  setRemixWeight: (uri: string, weight: number) => void;
+  toggleRemixExclude: (uri: string) => void;
+  resetRemixSettings: () => void;
+  getRemixWeight: (uri: string) => number;
+  isRemixExcluded: (uri: string) => boolean;
 }
 
 const FeedsContext = createContext<FeedsContextType | null>(null);
@@ -139,6 +157,7 @@ export function FeedsProvider({ children }: { children: ReactNode }) {
   const [pinnedFeeds, setPinnedFeeds] = useState<PinnedFeed[]>(DEFAULT_FEEDS);
   const [isLoaded, setIsLoaded] = useState(false);
   const [userDid, setUserDid] = useState<string | null>(null);
+  const [remixSettings, setRemixSettings] = useState<RemixSettings>({ weights: {}, excluded: [] });
   const isSyncing = useRef(false);
   const pendingSync = useRef(false);
   const hasFetchedFromServer = useRef(false); // Track if we've fetched for current user
@@ -323,8 +342,84 @@ export function FeedsProvider({ children }: { children: ReactNode }) {
     return pinnedFeeds.some(f => f.uri === uri);
   };
 
+  // Load remix settings from localStorage on mount
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem(REMIX_SETTINGS_KEY);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (parsed && typeof parsed === 'object') {
+          setRemixSettings({
+            weights: parsed.weights || {},
+            excluded: parsed.excluded || [],
+          });
+        }
+      }
+    } catch {
+      // localStorage may fail in private browsing
+    }
+  }, []);
+
+  // Save remix settings to localStorage when they change
+  useEffect(() => {
+    try {
+      localStorage.setItem(REMIX_SETTINGS_KEY, JSON.stringify(remixSettings));
+    } catch {
+      // localStorage may fail in private browsing
+    }
+  }, [remixSettings]);
+
+  const setRemixWeight = useCallback((uri: string, weight: number) => {
+    setRemixSettings(prev => ({
+      ...prev,
+      weights: {
+        ...prev.weights,
+        [uri]: Math.max(0, Math.min(100, weight)),
+      },
+    }));
+  }, []);
+
+  const toggleRemixExclude = useCallback((uri: string) => {
+    setRemixSettings(prev => {
+      const isCurrentlyExcluded = prev.excluded.includes(uri);
+      return {
+        ...prev,
+        excluded: isCurrentlyExcluded
+          ? prev.excluded.filter(u => u !== uri)
+          : [...prev.excluded, uri],
+      };
+    });
+  }, []);
+
+  const resetRemixSettings = useCallback(() => {
+    setRemixSettings({ weights: {}, excluded: [] });
+  }, []);
+
+  const getRemixWeight = useCallback((uri: string) => {
+    return remixSettings.weights[uri] ?? DEFAULT_REMIX_WEIGHT;
+  }, [remixSettings.weights]);
+
+  const isRemixExcluded = useCallback((uri: string) => {
+    return remixSettings.excluded.includes(uri);
+  }, [remixSettings.excluded]);
+
   return (
-    <FeedsContext.Provider value={{ pinnedFeeds, isLoaded, addFeed, removeFeed, moveFeed, reorderFeeds, isPinned, setUserDid }}>
+    <FeedsContext.Provider value={{
+      pinnedFeeds,
+      isLoaded,
+      addFeed,
+      removeFeed,
+      moveFeed,
+      reorderFeeds,
+      isPinned,
+      setUserDid,
+      remixSettings,
+      setRemixWeight,
+      toggleRemixExclude,
+      resetRemixSettings,
+      getRemixWeight,
+      isRemixExcluded,
+    }}>
       {children}
     </FeedsContext.Provider>
   );

@@ -25,6 +25,7 @@ import Onboarding from '@/components/Onboarding';
 import ProfileEditor from '@/components/ProfileEditor';
 import ResearcherSearch from '@/components/ResearcherSearch';
 import ErrorBoundary from '@/components/ErrorBoundary';
+import RemixSettings from '@/components/RemixSettings';
 
 function AppContent() {
   const router = useRouter();
@@ -50,6 +51,7 @@ function AppContent() {
   const [showMobileModeration, setShowMobileModeration] = useState(false);
   const [showMobileDMs, setShowMobileDMs] = useState(false);
   const [showMobileDiscoverPapers, setShowMobileDiscoverPapers] = useState(false);
+  const [showRemixSettings, setShowRemixSettings] = useState(false);
 
   // Pull-to-refresh state
   const [pullDistance, setPullDistance] = useState(0);
@@ -866,6 +868,21 @@ function AppContent() {
                       </svg>
                     )}
                     <span className="truncate flex-1 text-left">{feed.displayName}</span>
+                    {/* Settings button for Remix feed */}
+                    {isRemix && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setShowRemixSettings(true);
+                        }}
+                        className="p-0.5 text-gray-400 hover:text-emerald-500 transition-colors opacity-0 group-hover:opacity-100"
+                        title="Remix settings"
+                      >
+                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
+                        </svg>
+                      </button>
+                    )}
                     {/* Info button for custom feed generators */}
                     {feed.uri.includes('/app.bsky.feed.generator/') && (() => {
                       const match = feed.uri.match(/^at:\/\/([^/]+)\/app\.bsky\.feed\.generator\/([^/]+)$/);
@@ -919,6 +936,12 @@ function AppContent() {
 
       {/* Profile Editor modal */}
       {showProfileEditor && <ProfileEditor onClose={() => setShowProfileEditor(false)} />}
+
+      {/* Remix Settings modal */}
+      <RemixSettings
+        isOpen={showRemixSettings}
+        onClose={() => setShowRemixSettings(false)}
+      />
 
       {/* Mobile Bottom Navigation Bar */}
       <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-white dark:bg-gray-950 border-t border-gray-200 dark:border-gray-800 z-30 safe-area-inset-bottom">
