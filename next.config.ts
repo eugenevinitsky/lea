@@ -35,7 +35,7 @@ const securityHeaders = [
       "style-src 'self' 'unsafe-inline'", // For inline styles
       "img-src 'self' data: https: blob:",
       "font-src 'self' data:",
-      "connect-src 'self' https://bsky.social https://public.api.bsky.app https://*.bsky.network https://plc.directory wss://*.bsky.network",
+      "connect-src 'self' https://bsky.social https://public.api.bsky.app https://*.bsky.network https://plc.directory wss://*.bsky.network https://lea-moderation-production.up.railway.app",
       "frame-ancestors 'none'",
       "base-uri 'self'",
       "form-action 'self'",
