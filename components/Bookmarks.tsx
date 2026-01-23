@@ -38,11 +38,12 @@ function getCollectionColors(color: string) {
   return colorMap[color] || COLLECTION_COLORS[0];
 }
 
-function BookmarkItem({ bookmark, onRemove, onOpen, onOpenProfile }: {
+function BookmarkItem({ bookmark, onRemove, onOpen, onOpenProfile, onTogglePin }: {
   bookmark: BookmarkedPost;
   onRemove: () => void;
   onOpen?: () => void;
   onOpenProfile?: () => void;
+  onTogglePin?: () => void;
 }) {
   return (
     <div
@@ -92,18 +93,34 @@ function BookmarkItem({ bookmark, onRemove, onOpen, onOpenProfile }: {
             {bookmark.text}
           </p>
         </div>
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            onRemove();
-          }}
-          className="opacity-0 group-hover:opacity-100 p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded transition-opacity"
-          title="Remove bookmark"
-        >
-          <svg className="w-3 h-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-          </svg>
-        </button>
+        <div className="flex items-center gap-0.5">
+          {onTogglePin && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onTogglePin();
+              }}
+              className={`p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded transition-opacity ${bookmark.pinned ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}
+              title={bookmark.pinned ? 'Unpin bookmark' : 'Pin bookmark'}
+            >
+              <svg className={`w-3 h-3 ${bookmark.pinned ? 'text-blue-500' : 'text-gray-400'}`} fill={bookmark.pinned ? 'currentColor' : 'none'} stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
+              </svg>
+            </button>
+          )}
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onRemove();
+            }}
+            className="opacity-0 group-hover:opacity-100 p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded transition-opacity"
+            title="Remove bookmark"
+          >
+            <svg className="w-3 h-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -119,6 +136,8 @@ export default function Bookmarks({ onOpenPost, onOpenProfile, embedded = false 
     deleteCollection,
     reorderCollections,
     removeBookmarkFromCollection,
+    pinBookmark,
+    unpinBookmark,
   } = useBookmarks();
   const [showExportMenu, setShowExportMenu] = useState(false);
   const [mounted, setMounted] = useState(false);
@@ -168,6 +187,14 @@ export default function Bookmarks({ onOpenPost, onOpenProfile, embedded = false 
     
     return grouped;
   }, [bookmarks, collections]);
+
+  // Get bookmarks to display for a collection: pinned first, then fill with recent up to 4 total
+  const getDisplayBookmarks = (collectionBookmarks: BookmarkedPost[]) => {
+    const pinned = collectionBookmarks.filter(b => b.pinned);
+    const unpinned = collectionBookmarks.filter(b => !b.pinned);
+    const remainingSlots = Math.max(0, 4 - pinned.length);
+    return [...pinned, ...unpinned.slice(0, remainingSlots)];
+  };
 
   const toggleCollectionCollapse = (collectionId: string) => {
     setCollapsedCollections(prev => {
@@ -523,13 +550,14 @@ export default function Bookmarks({ onOpenPost, onOpenProfile, embedded = false 
                   </button>
                   {!isCollectionCollapsed && collectionBookmarks.length > 0 && (
                     <div>
-                      {collectionBookmarks.slice(-4).map((bookmark) => (
+                      {getDisplayBookmarks(collectionBookmarks).map((bookmark) => (
                         <BookmarkItem
                           key={`${collection.id}-${bookmark.uri}`}
                           bookmark={bookmark}
                           onRemove={() => removeBookmarkFromCollection(bookmark.uri, collection.id)}
                           onOpen={() => onOpenPost?.(bookmark.uri)}
                           onOpenProfile={() => onOpenProfile?.(bookmark.authorDid)}
+                          onTogglePin={() => bookmark.pinned ? unpinBookmark(bookmark.uri) : pinBookmark(bookmark.uri)}
                         />
                       ))}
                     </div>
@@ -567,13 +595,14 @@ export default function Bookmarks({ onOpenPost, onOpenProfile, embedded = false 
                 </button>
                 {!collapsedCollections.has('uncategorized') && (
                   <div>
-                    {bookmarksByCollection['uncategorized'].slice(-4).map((bookmark) => (
+                    {getDisplayBookmarks(bookmarksByCollection['uncategorized']).map((bookmark) => (
                       <BookmarkItem
                         key={`uncategorized-${bookmark.uri}`}
                         bookmark={bookmark}
                         onRemove={() => removeBookmark(bookmark.uri)}
                         onOpen={() => onOpenPost?.(bookmark.uri)}
                         onOpenProfile={() => onOpenProfile?.(bookmark.authorDid)}
+                        onTogglePin={() => bookmark.pinned ? unpinBookmark(bookmark.uri) : pinBookmark(bookmark.uri)}
                       />
                     ))}
                   </div>

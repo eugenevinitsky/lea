@@ -290,6 +290,38 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ success: true });
       }
 
+      case 'pinBookmark': {
+        const { uri, pinned } = data;
+        if (!uri) {
+          return NextResponse.json({ error: 'URI required' }, { status: 400 });
+        }
+
+        // Get the bookmark
+        const [bookmark] = await db
+          .select()
+          .from(userBookmarks)
+          .where(and(
+            eq(userBookmarks.userDid, did),
+            eq(userBookmarks.postUri, uri)
+          ))
+          .limit(1);
+
+        if (!bookmark) {
+          return NextResponse.json({ error: 'Bookmark not found' }, { status: 404 });
+        }
+
+        // Update the postData to include pinned status
+        const postData = safeJsonParse<Record<string, unknown>>(bookmark.postData, {});
+        postData.pinned = !!pinned;
+
+        await db
+          .update(userBookmarks)
+          .set({ postData: JSON.stringify(postData) })
+          .where(eq(userBookmarks.id, bookmark.id));
+
+        return NextResponse.json({ success: true });
+      }
+
       default:
         return NextResponse.json({ error: 'Unknown action' }, { status: 400 });
     }

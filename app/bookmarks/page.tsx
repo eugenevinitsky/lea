@@ -58,12 +58,14 @@ function BookmarkTile({
   onOpen,
   onOpenProfile,
   onRemove,
+  onTogglePin,
   collectionColor,
 }: {
   bookmark: BookmarkedPost;
   onOpen: () => void;
   onOpenProfile: () => void;
   onRemove: () => void;
+  onTogglePin?: () => void;
   collectionColor?: string;
 }) {
   const borderClass = collectionColor 
@@ -123,18 +125,34 @@ function BookmarkTile({
             </div>
           )}
         </div>
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            onRemove();
-          }}
-          className="opacity-0 group-hover:opacity-100 p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded transition-opacity flex-shrink-0"
-          title="Remove bookmark"
-        >
-          <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-          </svg>
-        </button>
+        <div className="flex items-center gap-0.5 flex-shrink-0">
+          {onTogglePin && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onTogglePin();
+              }}
+              className={`p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded transition-opacity ${bookmark.pinned ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}
+              title={bookmark.pinned ? 'Unpin bookmark' : 'Pin bookmark'}
+            >
+              <svg className={`w-4 h-4 ${bookmark.pinned ? 'text-blue-500' : 'text-gray-400'}`} fill={bookmark.pinned ? 'currentColor' : 'none'} stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
+              </svg>
+            </button>
+          )}
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onRemove();
+            }}
+            className="opacity-0 group-hover:opacity-100 p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded transition-opacity"
+            title="Remove bookmark"
+          >
+            <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -147,12 +165,14 @@ function CollectionPane({
   onOpenPost,
   onOpenProfile,
   onRemoveFromCollection,
+  onTogglePin,
 }: {
   collection: BookmarkCollection | null; // null = uncategorized
   bookmarks: BookmarkedPost[];
   onOpenPost: (uri: string) => void;
   onOpenProfile: (did: string) => void;
   onRemoveFromCollection: (uri: string) => void;
+  onTogglePin?: (uri: string, pinned: boolean) => void;
 }) {
   const [isExpanded, setIsExpanded] = useState(true);
   const colors = collection ? getCollectionColors(collection.color) : {
@@ -202,6 +222,7 @@ function CollectionPane({
                   onOpen={() => onOpenPost(bookmark.uri)}
                   onOpenProfile={() => onOpenProfile(bookmark.authorDid)}
                   onRemove={() => onRemoveFromCollection(bookmark.uri)}
+                  onTogglePin={onTogglePin ? () => onTogglePin(bookmark.uri, !!bookmark.pinned) : undefined}
                   collectionColor={collection?.color}
                 />
               ))}
@@ -222,6 +243,8 @@ function BookmarksDashboardContent() {
     removeBookmark,
     removeBookmarkFromCollection,
     setUserDid,
+    pinBookmark,
+    unpinBookmark,
   } = useBookmarks();
 
   const [searchQuery, setSearchQuery] = useState('');
@@ -525,13 +548,14 @@ function BookmarksDashboardContent() {
               const collectionBookmarks = bookmarksByCollection[collection.id] || [];
               if (filterCollection !== 'all' && filterCollection !== collection.id) return null;
               return (
-                <CollectionPane
+              <CollectionPane
                   key={collection.id}
                   collection={collection}
                   bookmarks={collectionBookmarks}
                   onOpenPost={handleOpenPost}
                   onOpenProfile={handleOpenProfile}
                   onRemoveFromCollection={(uri) => removeBookmarkFromCollection(uri, collection.id)}
+                  onTogglePin={(uri, isPinned) => isPinned ? unpinBookmark(uri) : pinBookmark(uri)}
                 />
               );
             })}
@@ -544,6 +568,7 @@ function BookmarksDashboardContent() {
                 onOpenPost={handleOpenPost}
                 onOpenProfile={handleOpenProfile}
                 onRemoveFromCollection={removeBookmark}
+                onTogglePin={(uri, isPinned) => isPinned ? unpinBookmark(uri) : pinBookmark(uri)}
               />
             )}
           </div>
@@ -578,6 +603,7 @@ function BookmarksDashboardContent() {
                       onOpen={() => handleOpenPost(bookmark.uri)}
                       onOpenProfile={() => handleOpenProfile(bookmark.authorDid)}
                       onRemove={() => removeBookmark(bookmark.uri)}
+                      onTogglePin={() => bookmark.pinned ? unpinBookmark(bookmark.uri) : pinBookmark(bookmark.uri)}
                       collectionColor={bookmarkCollection?.color}
                     />
                   );

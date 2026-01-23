@@ -18,6 +18,8 @@ export interface BookmarkedPost {
   paperTitle?: string;
   // Collection membership
   collectionIds?: string[];
+  // Pin status - pinned bookmarks always show in side panel
+  pinned?: boolean;
 }
 
 export interface BookmarkCollection {
@@ -51,6 +53,10 @@ interface BookmarksContextType {
   deleteCollection: (id: string) => void;
   reorderCollections: (fromIndex: number, toIndex: number) => void;
   setUserDid: (did: string | null) => void;
+  // Pin functions
+  pinBookmark: (uri: string) => void;
+  unpinBookmark: (uri: string) => void;
+  isBookmarkPinned: (uri: string) => boolean;
 }
 
 const BookmarksContext = createContext<BookmarksContextType | null>(null);
@@ -230,6 +236,29 @@ export function BookmarksProvider({ children }: { children: ReactNode }) {
     apiCall('reorderCollections', { fromIndex, toIndex });
   }, [apiCall]);
 
+  const pinBookmark = useCallback((uri: string) => {
+    // Optimistic update
+    setBookmarks(prev => prev.map(b => 
+      b.uri === uri ? { ...b, pinned: true } : b
+    ));
+    // API call
+    apiCall('pinBookmark', { uri, pinned: true });
+  }, [apiCall]);
+
+  const unpinBookmark = useCallback((uri: string) => {
+    // Optimistic update
+    setBookmarks(prev => prev.map(b => 
+      b.uri === uri ? { ...b, pinned: false } : b
+    ));
+    // API call
+    apiCall('pinBookmark', { uri, pinned: false });
+  }, [apiCall]);
+
+  const isBookmarkPinned = useCallback((uri: string): boolean => {
+    const bookmark = bookmarks.find(b => b.uri === uri);
+    return bookmark?.pinned || false;
+  }, [bookmarks]);
+
   const value = {
     bookmarks,
     collections,
@@ -245,6 +274,9 @@ export function BookmarksProvider({ children }: { children: ReactNode }) {
     deleteCollection,
     reorderCollections,
     setUserDid,
+    pinBookmark,
+    unpinBookmark,
+    isBookmarkPinned,
   };
 
   return (
