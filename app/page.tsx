@@ -663,9 +663,9 @@ function AppContent() {
       </header>
 
       {/* Main layout with sidebar */}
-      <div className="max-w-5xl mx-auto flex gap-4 px-0 lg:px-4 overflow-hidden">
+      <div className="max-w-5xl mx-auto flex gap-4 px-0 lg:px-4">
         {/* Left Sidebar - Bookmarks & Messages */}
-        <aside className="hidden lg:block w-64 flex-shrink-0 sticky top-16 max-h-[calc(100vh-5rem)] overflow-y-auto pt-4 pb-4 space-y-4 scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-gray-700">
+        <aside className="hidden lg:block w-64 flex-shrink-0 sticky top-16 self-start h-[calc(100vh-5rem)] overflow-y-auto pt-4 pb-4 space-y-4 scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-gray-700">
           <Bookmarks onOpenPost={openThread} onOpenProfile={navigateToProfile} />
           <DMSidebar />
           <Notifications onOpenPost={openThread} onOpenProfile={navigateToProfile} />
@@ -777,7 +777,7 @@ function AppContent() {
           </main>
 
           {/* Right Sidebar - Vertical Feed Tabs (desktop only) */}
-          <aside className="hidden lg:flex flex-col w-[180px] flex-shrink-0 sticky top-14 max-h-[calc(100vh-3.5rem)] bg-gray-50 dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800">
+          <aside className="hidden lg:flex flex-col w-[180px] flex-shrink-0 sticky top-14 self-start h-[calc(100vh-3.5rem)] bg-gray-50 dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800">
             {/* Top buttons: Refresh and Scroll to top */}
             <div className="flex border-b border-gray-200 dark:border-gray-800">
               <button
