@@ -5,6 +5,46 @@ import { Agent } from '@atproto/api';
 let oauthClient: BrowserOAuthClient | null = null;
 let currentSession: OAuthSession | null = null;
 
+/**
+ * Custom fetch that proxies OAuth metadata requests through our server
+ * This helps avoid CORS issues when fetching from self-hosted PDSes
+ */
+function createProxiedFetch(): typeof fetch {
+  return async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
+    const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
+    
+    // Check if this is an OAuth metadata request that might have CORS issues
+    const isOAuthMetadata = url.includes('/.well-known/oauth-protected-resource') ||
+                            url.includes('/.well-known/oauth-authorization-server');
+    
+    // Don't proxy requests to bsky.social or known Bluesky hosts (they have proper CORS)
+    const isBskyHost = url.includes('bsky.social') || 
+                       url.includes('bsky.network') ||
+                       url.includes('bsky.app');
+    
+    if (isOAuthMetadata && !isBskyHost) {
+      // Proxy through our server to avoid CORS issues with self-hosted PDSes
+      const proxyUrl = `/api/oauth-proxy?url=${encodeURIComponent(url)}`;
+      try {
+        const response = await window.fetch(proxyUrl, {
+          method: 'GET',
+          headers: {
+            'Accept': 'application/json',
+          },
+        });
+        return response;
+      } catch (error) {
+        // If proxy fails, fall back to direct fetch
+        console.warn('OAuth proxy failed, falling back to direct fetch:', error);
+        return window.fetch(input, init);
+      }
+    }
+    
+    // For all other requests, use regular fetch
+    return window.fetch(input, init);
+  };
+}
+
 // Get the client ID based on environment
 // For local development, use loopback client; for production, use the metadata URL
 function getClientId(): string {
@@ -41,6 +81,8 @@ async function getOAuthClient(): Promise<BrowserOAuthClient> {
     const loopbackOrigin = window.location.origin.replace('localhost', '127.0.0.1');
     oauthClient = new BrowserOAuthClient({
       handleResolver: 'https://bsky.social',
+      // Use proxied fetch to handle self-hosted PDS CORS issues
+      fetch: createProxiedFetch(),
       clientMetadata: {
         client_id: clientId,
         redirect_uris: [loopbackOrigin + '/'],
@@ -57,6 +99,8 @@ async function getOAuthClient(): Promise<BrowserOAuthClient> {
     oauthClient = await BrowserOAuthClient.load({
       clientId,
       handleResolver: 'https://bsky.social',
+      // Use proxied fetch to handle self-hosted PDS CORS issues
+      fetch: createProxiedFetch(),
       // Use fragment response mode to keep tokens out of server logs
       responseMode: 'fragment',
     });
