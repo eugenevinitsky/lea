@@ -1635,7 +1635,7 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
 
   // Bookmark collection dropdown state
   const [showBookmarkMenu, setShowBookmarkMenu] = useState(false);
-  const [bookmarkMenuPosition, setBookmarkMenuPosition] = useState<'above' | 'below'>('above');
+  const [bookmarkMenuStyle, setBookmarkMenuStyle] = useState<{ top: number; left: number } | null>(null);
   const bookmarkMenuRef = useRef<HTMLDivElement>(null);
   const bookmarkButtonRef = useRef<HTMLButtonElement>(null);
 
@@ -1827,12 +1827,33 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
     // If collections exist, show menu for both adding and managing
     if (collections.length > 0) {
       if (!showBookmarkMenu && bookmarkButtonRef.current) {
-        // Calculate if there's enough space above the button for the menu
+        // Calculate position for the portal-rendered menu
         const rect = bookmarkButtonRef.current.getBoundingClientRect();
         // Estimate menu height: ~200px for a typical menu with a few collections
         const estimatedMenuHeight = 200;
-        // If not enough space above, show below
-        setBookmarkMenuPosition(rect.top < estimatedMenuHeight ? 'below' : 'above');
+        const menuWidth = 192; // w-48 = 12rem = 192px
+        
+        // Determine if menu should appear above or below
+        const spaceAbove = rect.top;
+        const spaceBelow = window.innerHeight - rect.bottom;
+        const showAbove = spaceAbove > estimatedMenuHeight || spaceAbove > spaceBelow;
+        
+        // Calculate position
+        let top = showAbove ? rect.top - estimatedMenuHeight - 8 : rect.bottom + 8;
+        let left = rect.left;
+        
+        // Ensure menu doesn't go off-screen horizontally
+        if (left + menuWidth > window.innerWidth - 16) {
+          left = window.innerWidth - menuWidth - 16;
+        }
+        
+        // Ensure menu doesn't go off-screen vertically
+        if (top < 8) top = 8;
+        if (top + estimatedMenuHeight > window.innerHeight - 8) {
+          top = window.innerHeight - estimatedMenuHeight - 8;
+        }
+        
+        setBookmarkMenuStyle({ top, left });
       }
       setShowBookmarkMenu(!showBookmarkMenu);
     } else {
@@ -2877,15 +2898,18 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
                 </svg>
               </button>
 
-              {/* Collection dropdown menu */}
-              {showBookmarkMenu && collections.length > 0 && (
-                <div className={`absolute left-0 w-48 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-1 z-50 ${
-                  bookmarkMenuPosition === 'above' ? 'bottom-full mb-2' : 'top-full mt-2'
-                }`}>
+              {/* Collection dropdown menu - rendered via portal to escape overflow clipping */}
+              {showBookmarkMenu && collections.length > 0 && bookmarkMenuStyle && typeof document !== 'undefined' && createPortal(
+                <div 
+                  ref={bookmarkMenuRef}
+                  className="fixed w-48 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-1 z-[9999]"
+                  style={{ top: bookmarkMenuStyle.top, left: bookmarkMenuStyle.left }}
+                  onClick={(e) => e.stopPropagation()}
+                >
                   <div className="px-3 py-1.5 text-xs font-medium text-gray-500 dark:text-gray-400 border-b border-gray-100 dark:border-gray-700">
                     Add to collection
                   </div>
-              {collections.map((collection) => {
+                  {collections.map((collection) => {
                     const isInCollection = bookmarked && getBookmarkCollections(post.uri).includes(collection.id);
                     // Get color class based on collection's stored color
                     const colorBgClass = {
@@ -2944,7 +2968,8 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
                       <span>Remove bookmark</span>
                     </button>
                   )}
-                </div>
+                </div>,
+                document.body
               )}
             </div>
 
