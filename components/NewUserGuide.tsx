@@ -197,19 +197,6 @@ export default function NewUserGuide({ onBack }: NewUserGuideProps) {
           >
             Go to Sign In
           </button>
-
-          <p className="text-sm text-gray-500 dark:text-gray-400">
-            After signing in, you can also{' '}
-            <a
-              href="https://lea-verify.vercel.app/"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-emerald-600 dark:text-emerald-400 hover:underline"
-            >
-              get verified as a researcher
-            </a>
-            {' '}with your ORCID.
-          </p>
         </div>
       ),
     },

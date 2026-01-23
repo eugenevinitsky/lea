@@ -293,19 +293,8 @@ export default function ProfileEditor({ onClose }: ProfileEditorProps) {
                 Verification Required
               </p>
               <p className="text-sm text-gray-500 mb-4">
-                Only verified researchers can create profiles.
+                Only verified researchers can create profiles. Contact a moderator to get verified.
               </p>
-              <a
-                href="https://lea-verify.vercel.app/"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600 transition-colors"
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                Get Verified
-              </a>
             </div>
           ) : (
             <div className="space-y-6">
