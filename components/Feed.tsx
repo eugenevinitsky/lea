@@ -582,7 +582,7 @@ export default function Feed({ feedId, feedUri, feedName, acceptsInteractions, r
   }
 
   return (
-    <div>
+    <div className="w-full max-w-full overflow-hidden">
       {/* Hidden posts indicator */}
       {hiddenCount > 0 && (
         <div className="px-4 py-2 bg-amber-50 dark:bg-amber-900/20 border-b border-amber-200 dark:border-amber-800">

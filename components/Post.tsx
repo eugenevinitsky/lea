@@ -810,7 +810,7 @@ function PaperEmbed({ external }: { external: AppBskyEmbedExternal.ViewExternal 
       href={external.uri}
       target="_blank"
       rel="noopener noreferrer"
-      className="mt-2 block border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors"
+      className="mt-2 block w-full border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors"
       onClick={(e) => e.stopPropagation()}
     >
       <div className="p-3">
@@ -868,7 +868,7 @@ function EmbedExternal({ external }: { external: AppBskyEmbedExternal.ViewExtern
       href={external.uri}
       target="_blank"
       rel="noopener noreferrer"
-      className="mt-2 block border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors"
+      className="mt-2 block w-full border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors"
       onClick={(e) => e.stopPropagation()}
     >
       {external.thumb && (
@@ -2370,8 +2370,8 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
 
   // Build article class based on context
   const articleClass = isInSelfThread || isInThread
-    ? `hover:bg-gray-50 dark:hover:bg-gray-900/50 transition-colors ${dimmed ? 'opacity-60' : ''}`
-    : `border-b border-gray-200 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-900/50 transition-colors ${dimmed ? 'opacity-60' : ''}`;
+    ? `hover:bg-gray-50 dark:hover:bg-gray-900/50 transition-colors overflow-hidden ${dimmed ? 'opacity-60' : ''}`
+    : `border-b border-gray-200 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-900/50 transition-colors overflow-hidden ${dimmed ? 'opacity-60' : ''}`;
 
   // Determine reply target - prefer feed-provided parent, fall back to extracting from record.reply
   const replyTarget = replyParent || (record.reply ? {
@@ -2536,7 +2536,7 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
           </button>
         </div>
       )}
-      <div className={`flex gap-3 p-4 ${repostedBy || hasReplyInfo ? 'pt-2' : ''}`}>
+      <div className={`flex gap-3 p-4 w-full max-w-full ${repostedBy || hasReplyInfo ? 'pt-2' : ''}`}>
         {/* Avatar */}
         <ProfileHoverCard
           did={author.did}
@@ -2598,7 +2598,7 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
         </ProfileHoverCard>
 
         {/* Content */}
-        <div className="flex-1 min-w-0 relative">
+        <div className="flex-1 min-w-0 max-w-full overflow-hidden relative">
           {/* Detach Quote button - shown if this post quotes one of our posts */}
           {canDetachQuote && (
             <div className="absolute top-0 right-0">

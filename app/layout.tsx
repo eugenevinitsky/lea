@@ -16,7 +16,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "Lea - A calmer Bluesky for researchers",
-  description: "Protected social space for researchers on the AT Protocol",
+  description: "A curated garden for researchers on the AT Protocol",
   icons: {
     icon: [
       { url: '/favicon.ico', sizes: 'any' },

@@ -18,7 +18,9 @@ function getClientId(): string {
   if (origin.includes('127.0.0.1') || origin.includes('localhost')) {
     // Use loopback client for local development
     // This tells the OAuth server this is a development client
-    return `http://localhost?redirect_uri=${encodeURIComponent(origin + '/')}&scope=${encodeURIComponent('atproto transition:generic transition:chat.bsky')}`;
+    // RFC 8252 requires 127.0.0.1 (not localhost) for loopback redirect URIs
+    const loopbackOrigin = origin.replace('localhost', '127.0.0.1');
+    return `http://localhost?redirect_uri=${encodeURIComponent(loopbackOrigin + '/')}&scope=${encodeURIComponent('atproto transition:generic transition:chat.bsky')}`;
   }
   
   // Production: use the client metadata URL
@@ -35,11 +37,13 @@ async function getOAuthClient(): Promise<BrowserOAuthClient> {
   
 // For loopback/localhost, we need to pass clientMetadata directly
   if (clientId.startsWith('http://localhost?')) {
+    // RFC 8252 requires 127.0.0.1 (not localhost) for loopback redirect URIs
+    const loopbackOrigin = window.location.origin.replace('localhost', '127.0.0.1');
     oauthClient = new BrowserOAuthClient({
       handleResolver: 'https://bsky.social',
       clientMetadata: {
         client_id: clientId,
-        redirect_uris: [window.location.origin + '/'],
+        redirect_uris: [loopbackOrigin + '/'],
         scope: 'atproto transition:generic transition:chat.bsky',
         grant_types: ['authorization_code', 'refresh_token'],
         response_types: ['code'],
