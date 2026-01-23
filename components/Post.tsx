@@ -1414,6 +1414,7 @@ function EmbedRecord({ record, onOpenThread }: {
 function EmbedVideo({ video }: { video: AppBskyEmbedVideo.View }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const hlsRef = useRef<Hls | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const playlist = video.playlist;
   const thumbnail = video.thumbnail;
   const aspectRatio = video.aspectRatio;
@@ -1436,8 +1437,33 @@ function EmbedVideo({ video }: { video: AppBskyEmbedVideo.View }) {
         lowLatencyMode: true,
       });
       hlsRef.current = hls;
+
+      // Add error handling
+      hls.on(Hls.Events.ERROR, (_event, data) => {
+        console.error('HLS error:', data);
+        if (data.fatal) {
+          setError('Video failed to load');
+          switch (data.type) {
+            case Hls.ErrorTypes.NETWORK_ERROR:
+              console.error('Network error - trying to recover');
+              hls.startLoad();
+              break;
+            case Hls.ErrorTypes.MEDIA_ERROR:
+              console.error('Media error - trying to recover');
+              hls.recoverMediaError();
+              break;
+            default:
+              console.error('Unrecoverable error');
+              hls.destroy();
+              break;
+          }
+        }
+      });
+
       hls.loadSource(playlist);
       hls.attachMedia(videoElement);
+    } else {
+      setError('Video playback not supported');
     }
 
     return () => {
@@ -1449,7 +1475,10 @@ function EmbedVideo({ video }: { video: AppBskyEmbedVideo.View }) {
   }, [playlist]);
 
   return (
-    <div className="mt-2 rounded-xl overflow-hidden bg-black">
+    <div
+      className="mt-2 rounded-xl overflow-hidden bg-black"
+      onClick={(e) => e.stopPropagation()}
+    >
       <div className="relative" style={{ paddingBottom }}>
         <video
           ref={videoRef}
@@ -1458,9 +1487,18 @@ function EmbedVideo({ video }: { video: AppBskyEmbedVideo.View }) {
           controls
           preload="metadata"
           playsInline
+          onError={(e) => {
+            console.error('Video element error:', e);
+            setError('Video failed to load');
+          }}
         >
           Your browser does not support the video tag.
         </video>
+        {error && (
+          <div className="absolute inset-0 flex items-center justify-center bg-black/80 text-white text-sm">
+            {error}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -2435,8 +2473,8 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
       return;
     }
 
-    // Don't trigger if clicking on other interactive elements (buttons, inputs)
-    const interactiveElement = target.closest('button, input, textarea, [role="button"]');
+    // Don't trigger if clicking on other interactive elements (buttons, inputs, images, videos)
+    const interactiveElement = target.closest('button, input, textarea, [role="button"], img, video');
     if (interactiveElement) {
       // Prevent the wrapper anchor from navigating
       e.preventDefault();
@@ -2493,8 +2531,8 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
       return;
     }
 
-    // For non-link interactive elements (buttons, images, inputs), prevent the wrapper anchor navigation
-    const interactiveElement = target.closest('button, input, textarea, [role="button"], img');
+    // For non-link interactive elements (buttons, images, inputs, videos), prevent the wrapper anchor navigation
+    const interactiveElement = target.closest('button, input, textarea, [role="button"], img, video');
     if (interactiveElement) {
       // For external links (target="_blank"), let them open naturally
       // Only prevent default for other interactive elements to stop the wrapper anchor from navigating
