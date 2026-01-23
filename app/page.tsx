@@ -926,6 +926,7 @@ function AppContent() {
           </aside>
         </div>
       </div>
+      </div>
 
       {/* Thread View Modal */}
       {threadUri && (
