@@ -107,6 +107,12 @@ const DEFAULT_FEEDS: PinnedFeed[] = [
     acceptsInteractions: true,
   },
   {
+    uri: 'remix',
+    displayName: 'Remix 🎲',
+    acceptsInteractions: false,
+    type: 'remix',
+  },
+  {
     uri: 'timeline',
     displayName: 'Following',
     acceptsInteractions: false,
