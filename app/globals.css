@@ -20,8 +20,14 @@
 }
 
 html, body {
-  overflow-x: hidden;
   max-width: 100vw;
+}
+
+/* Only apply overflow-x hidden on mobile to preserve sticky positioning on desktop */
+@media (max-width: 1023px) {
+  html, body {
+    overflow-x: hidden;
+  }
 }
 
 body {
