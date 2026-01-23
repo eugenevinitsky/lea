@@ -515,7 +515,7 @@ export default function Bookmarks({ onOpenPost, onOpenProfile, embedded = false 
                   </button>
                   {!isCollectionCollapsed && collectionBookmarks.length > 0 && (
                     <div>
-                      {collectionBookmarks.map((bookmark) => (
+                      {collectionBookmarks.slice(-4).map((bookmark) => (
                         <BookmarkItem
                           key={`${collection.id}-${bookmark.uri}`}
                           bookmark={bookmark}
@@ -559,7 +559,7 @@ export default function Bookmarks({ onOpenPost, onOpenProfile, embedded = false 
                 </button>
                 {!collapsedCollections.has('uncategorized') && (
                   <div>
-                    {bookmarksByCollection['uncategorized'].map((bookmark) => (
+                    {bookmarksByCollection['uncategorized'].slice(-4).map((bookmark) => (
                       <BookmarkItem
                         key={`uncategorized-${bookmark.uri}`}
                         bookmark={bookmark}
