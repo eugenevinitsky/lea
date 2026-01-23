@@ -41,6 +41,12 @@ export default function Login({ onLogin }: LoginProps) {
     e.preventDefault();
     if (!handle) return;
 
+    // Validate handle format - must contain a dot (e.g., user.bsky.social or custom domain)
+    if (!handle.includes('.')) {
+      setError('Please enter your full handle (e.g., yourname.bsky.social)');
+      return;
+    }
+
     try {
       setLoading(true);
       setError(null);
