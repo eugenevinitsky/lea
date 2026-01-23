@@ -2439,8 +2439,8 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
 
   // Build article class based on context
   const articleClass = isInSelfThread || isInThread
-    ? `hover:bg-gray-50 dark:hover:bg-gray-900/50 transition-colors ${dimmed ? 'opacity-60' : ''}`
-    : `border-b border-gray-200 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-900/50 transition-colors ${dimmed ? 'opacity-60' : ''}`;
+    ? `hover:bg-gray-50 dark:hover:bg-gray-900/50 transition-colors`
+    : `border-b border-gray-200 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-900/50 transition-colors`;
 
   // Determine reply target - prefer feed-provided parent, fall back to extracting from record.reply
   const replyTarget = replyParent || (record.reply ? {
