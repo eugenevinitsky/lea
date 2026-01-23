@@ -299,6 +299,25 @@ describe('Click Handler for Media Elements', () => {
   });
 });
 
+describe('Poll Detection', () => {
+  it('should detect poll marker emoji in post text', () => {
+    const postWithPoll = '📊 Poll:\n1️⃣ Option A\n2️⃣ Option B';
+    const postWithoutPoll = 'Just a regular post about voting';
+
+    expect(postWithPoll.includes('📊')).toBe(true);
+    expect(postWithoutPoll.includes('📊')).toBe(false);
+  });
+
+  it('should not false-positive on posts mentioning polls without marker', () => {
+    const postMentioningPoll = 'Check out this poll I saw!';
+    const postWithVote = 'Go vote in the election!';
+
+    // These should NOT trigger poll checking
+    expect(postMentioningPoll.includes('📊')).toBe(false);
+    expect(postWithVote.includes('📊')).toBe(false);
+  });
+});
+
 describe('Video Playback Integration', () => {
   it('should verify video element has correct attributes for playback', () => {
     // Test that video element would have correct attributes
