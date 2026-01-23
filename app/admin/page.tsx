@@ -137,21 +137,30 @@ export default function AdminPage() {
     errors: string[];
   } | null>(null);
 
-  // Load API key from localStorage on mount
+  // Load and validate API key from localStorage on mount
   useEffect(() => {
     const savedKey = localStorage.getItem('lea-admin-key');
     if (savedKey) {
       setApiKey(savedKey);
-      setIsAuthenticated(true);
+      // Validate the saved key before granting access
+      fetch(`${API_URL}/api/admin/stats`, {
+        headers: { 'X-API-Key': savedKey },
+      }).then(res => {
+        if (res.ok) {
+          setIsAuthenticated(true);
+          res.json().then(setStats);
+        } else {
+          // Invalid key - clear it
+          localStorage.removeItem('lea-admin-key');
+          setApiKey('');
+        }
+      }).catch(() => {
+        // Network error - don't auto-login
+        localStorage.removeItem('lea-admin-key');
+        setApiKey('');
+      });
     }
   }, []);
-
-  // Fetch stats when authenticated
-  useEffect(() => {
-    if (isAuthenticated) {
-      fetchStats();
-    }
-  }, [isAuthenticated]);
 
   // Debounced OpenAlex author search
   useEffect(() => {
@@ -238,10 +247,30 @@ export default function AdminPage() {
     };
   }, [showAuthorDropdown]);
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    localStorage.setItem('lea-admin-key', apiKey);
-    setIsAuthenticated(true);
+    setError(null);
+    
+    // Validate the API key with the server before granting access
+    try {
+      const res = await fetch(`${API_URL}/api/admin/stats`, {
+        headers: { 'X-API-Key': apiKey },
+      });
+      if (res.status === 401) {
+        setError('Invalid API key');
+        return;
+      }
+      if (!res.ok) {
+        setError('Failed to authenticate');
+        return;
+      }
+      // Key is valid - save it and grant access
+      localStorage.setItem('lea-admin-key', apiKey);
+      setIsAuthenticated(true);
+      setStats(await res.json());
+    } catch (err) {
+      setError('Failed to connect to server');
+    }
   };
 
   const handleLogout = () => {
