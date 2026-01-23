@@ -666,7 +666,7 @@ function AppContent() {
       <div className="max-w-5xl mx-auto px-0 lg:px-4">
         <div className="flex lg:gap-4 lg:items-start">
           {/* Left Sidebar - Bookmarks & Messages */}
-          <aside className="hidden lg:block w-64 flex-shrink-0 sticky top-16 h-[calc(100vh-4rem)] overflow-y-auto pt-4 pb-4 space-y-4 scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-gray-700">
+          <aside className="hidden lg:block w-64 flex-shrink-0 sticky top-14 self-start max-h-[calc(100vh-3.5rem)] overflow-y-auto pt-4 pb-4 space-y-4 scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-gray-700">
             <Bookmarks onOpenPost={openThread} onOpenProfile={navigateToProfile} />
             <DMSidebar />
             <Notifications onOpenPost={openThread} onOpenProfile={navigateToProfile} />
@@ -687,7 +687,7 @@ function AppContent() {
           </aside>
 
           {/* Main content area with feed and vertical tabs */}
-          <div className="flex-1 flex min-w-0 max-w-full lg:max-w-[calc(576px+180px)]">
+          <div className="flex-1 flex items-start min-w-0 max-w-full lg:max-w-[calc(576px+180px)]">
           {/* Main content - full width on mobile, constrained on desktop */}
           <main
             ref={mainContentRef}
@@ -778,7 +778,7 @@ function AppContent() {
           </main>
 
           {/* Right Sidebar - Vertical Feed Tabs (desktop only) */}
-          <aside className="hidden lg:flex flex-col w-[180px] flex-shrink-0 sticky top-14 h-[calc(100vh-3.5rem)] bg-gray-50 dark:bg-gray-900 border-r border-l border-gray-200 dark:border-gray-800">
+          <aside className="hidden lg:flex flex-col w-[180px] flex-shrink-0 sticky top-14 self-start max-h-[calc(100vh-3.5rem)] bg-gray-50 dark:bg-gray-900 border-r border-l border-gray-200 dark:border-gray-800">
             {/* Top buttons: Refresh and Scroll to top */}
             <div className="flex border-b border-gray-200 dark:border-gray-800">
               <button
@@ -926,6 +926,7 @@ function AppContent() {
           </aside>
         </div>
         </div>
+      </div>
       </div>
 
       {/* Thread View Modal */}
