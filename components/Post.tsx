@@ -1635,7 +1635,9 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
 
   // Bookmark collection dropdown state
   const [showBookmarkMenu, setShowBookmarkMenu] = useState(false);
+  const [bookmarkMenuPosition, setBookmarkMenuPosition] = useState<'above' | 'below'>('above');
   const bookmarkMenuRef = useRef<HTMLDivElement>(null);
+  const bookmarkButtonRef = useRef<HTMLButtonElement>(null);
 
   // Repost menu dropdown state
   const [showRepostMenu, setShowRepostMenu] = useState(false);
@@ -1824,6 +1826,14 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
     e.preventDefault();
     // If collections exist, show menu for both adding and managing
     if (collections.length > 0) {
+      if (!showBookmarkMenu && bookmarkButtonRef.current) {
+        // Calculate if there's enough space above the button for the menu
+        const rect = bookmarkButtonRef.current.getBoundingClientRect();
+        // Estimate menu height: ~200px for a typical menu with a few collections
+        const estimatedMenuHeight = 200;
+        // If not enough space above, show below
+        setBookmarkMenuPosition(rect.top < estimatedMenuHeight ? 'below' : 'above');
+      }
       setShowBookmarkMenu(!showBookmarkMenu);
     } else {
       // No collections - simple toggle
@@ -2847,6 +2857,7 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
             {/* Bookmark button */}
             <div className="relative" ref={bookmarkMenuRef}>
               <button
+                ref={bookmarkButtonRef}
                 type="button"
                 onClick={handleBookmarkClick}
                 className={`flex items-center gap-1.5 lg:gap-1 transition-colors py-1 ${
@@ -2868,7 +2879,9 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
 
               {/* Collection dropdown menu */}
               {showBookmarkMenu && collections.length > 0 && (
-                <div className="absolute bottom-full left-0 mb-2 w-48 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-1 z-50">
+                <div className={`absolute left-0 w-48 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-1 z-50 ${
+                  bookmarkMenuPosition === 'above' ? 'bottom-full mb-2' : 'top-full mt-2'
+                }`}>
                   <div className="px-3 py-1.5 text-xs font-medium text-gray-500 dark:text-gray-400 border-b border-gray-100 dark:border-gray-700">
                     Add to collection
                   </div>
