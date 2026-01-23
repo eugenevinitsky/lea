@@ -103,8 +103,8 @@ function BookmarkItem({ bookmark, onRemove, onOpen, onOpenProfile, onTogglePin }
               className={`p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded transition-opacity ${bookmark.pinned ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}
               title={bookmark.pinned ? 'Unpin bookmark' : 'Pin bookmark'}
             >
-              <svg className={`w-3 h-3 ${bookmark.pinned ? 'text-blue-500' : 'text-gray-400'}`} fill={bookmark.pinned ? 'currentColor' : 'none'} stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 5a2 2 0 00-2 2v2a2 2 0 002 2h2v5a1 1 0 001 1h1v4l2-2 2 2v-4h1a1 1 0 001-1v-5h2a2 2 0 002-2V7a2 2 0 00-2-2H5z" />
+              <svg className={`w-3 h-3 ${bookmark.pinned ? 'text-blue-500' : 'text-gray-400'}`} viewBox="0 0 24 24" fill={bookmark.pinned ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth={2}>
+                <path d="M12 17v5M9 3h6l1 7h1a2 2 0 010 4H7a2 2 0 010-4h1l1-7z" />
               </svg>
             </button>
           )}
