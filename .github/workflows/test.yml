@@ -31,3 +31,4 @@ jobs:
         env:
           # Add any required env vars for build
           NEXT_PUBLIC_APP_URL: https://example.com
+          INTERNAL_AUTH_SECRET: ci-build-secret-not-used-in-production
