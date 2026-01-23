@@ -17,9 +17,13 @@ export async function GET(request: NextRequest) {
         `https://bsky.social/xrpc/com.atproto.identity.resolveHandle?handle=${encodeURIComponent(handle)}`
       );
       if (!resolveResponse.ok) {
+        // Provide a more helpful error if the handle doesn't contain a dot
+        const hint = !handle.includes('.')
+          ? ' Make sure to include your full handle (e.g., yourname.bsky.social).'
+          : '';
         return NextResponse.json({ 
           authorized: false, 
-          error: 'Could not resolve handle' 
+          error: `Could not resolve handle.${hint}` 
         });
       }
       const data = await resolveResponse.json();
