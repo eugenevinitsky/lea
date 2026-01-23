@@ -663,7 +663,7 @@ function AppContent() {
       </header>
 
       {/* Main layout with sidebar */}
-      <div className="max-w-5xl mx-auto flex gap-4 px-0 lg:px-4 overflow-hidden">
+      <div className="max-w-5xl mx-auto flex lg:gap-4 px-0 lg:px-4 overflow-hidden -mt-12 lg:mt-0 pt-0">
         {/* Left Sidebar - Bookmarks & Messages */}
         <aside className="hidden lg:block w-64 flex-shrink-0 sticky top-16 max-h-[calc(100vh-5rem)] overflow-y-auto pt-4 pb-4 space-y-4 scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-gray-700">
           <Bookmarks onOpenPost={openThread} onOpenProfile={navigateToProfile} />
@@ -686,14 +686,14 @@ function AppContent() {
         </aside>
 
         {/* Main content area with feed and vertical tabs */}
-        <div className="flex-1 flex min-w-0 max-w-full lg:max-w-[calc(576px+180px)]">
+        <div className="flex-1 flex min-w-0 max-w-full lg:max-w-[calc(576px+180px)] pt-0 mt-0">
           {/* Main content - full width on mobile, constrained on desktop */}
           <main
             ref={mainContentRef}
             onTouchStart={handleTouchStart}
             onTouchMove={handleTouchMove}
             onTouchEnd={handleTouchEnd}
-            className="flex-1 w-full min-w-0 max-w-full lg:max-w-xl bg-white dark:bg-gray-950 min-h-screen border-l border-gray-200 dark:border-gray-800 lg:border-r-0 border-r pb-16 lg:pb-0 overflow-hidden"
+            className="flex-1 w-full min-w-0 max-w-full lg:max-w-xl bg-white dark:bg-gray-950 min-h-screen lg:border-l border-gray-200 dark:border-gray-800 lg:border-r pb-16 lg:pb-0 overflow-hidden pt-0 mt-0"
             style={{ transform: `translateY(${pullDistance}px)`, transition: isPulling ? 'none' : 'transform 0.2s ease-out' }}
           >
             {/* Pull-to-refresh indicator */}
@@ -709,7 +709,7 @@ function AppContent() {
             )}
 
             {/* Mobile Feed Tabs - horizontal, sticky below header */}
-            <div className="lg:hidden relative border-b border-gray-200 dark:border-gray-800 sticky top-14 z-10 bg-white dark:bg-gray-950">
+            <div className="lg:hidden relative border-b border-gray-200 dark:border-gray-800 sticky top-14 z-10 bg-white dark:bg-gray-950 mt-0 pt-0">
               <div
                 ref={feedsContainerRef}
                 className="flex overflow-x-auto scrollbar-hide"
@@ -758,22 +758,24 @@ function AppContent() {
             </div>
 
             {/* Feed Content */}
-            {activeFeedUri && (() => {
-              const activeFeed = pinnedFeeds.find(f => f.uri === activeFeedUri);
-              return (
-                <Feed
-                  key={activeFeedUri}
-                  feedUri={activeFeedUri}
-                  feedName={activeFeed?.displayName}
-                  acceptsInteractions={activeFeed?.acceptsInteractions}
-                  feedType={activeFeed?.type}
-                  keyword={activeFeed?.keyword}
-                  refreshKey={refreshKey}
-                  onOpenProfile={navigateToProfile}
-                  onOpenThread={openThread}
-                />
-              );
-            })()}
+            <div className="pt-12 lg:pt-0">
+              {activeFeedUri && (() => {
+                const activeFeed = pinnedFeeds.find(f => f.uri === activeFeedUri);
+                return (
+                  <Feed
+                    key={activeFeedUri}
+                    feedUri={activeFeedUri}
+                    feedName={activeFeed?.displayName}
+                    acceptsInteractions={activeFeed?.acceptsInteractions}
+                    feedType={activeFeed?.type}
+                    keyword={activeFeed?.keyword}
+                    refreshKey={refreshKey}
+                    onOpenProfile={navigateToProfile}
+                    onOpenThread={openThread}
+                  />
+                );
+              })()}
+            </div>
           </main>
 
           {/* Right Sidebar - Vertical Feed Tabs (desktop only) */}
