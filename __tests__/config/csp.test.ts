@@ -72,7 +72,8 @@ describe('Content Security Policy Configuration', () => {
 
   describe('Required Bluesky domains', () => {
     const requiredDomains = [
-      'video.bsky.app',      // Video streaming (HLS)
+      'video.bsky.app',      // Video streaming (HLS playlist)
+      'video.cdn.bsky.app',  // Video streaming (HLS segments)
       'bsky.social',         // Main API
       'public.api.bsky.app', // Public API
       'plc.directory',       // DID resolution

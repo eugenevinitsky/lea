@@ -2801,8 +2801,12 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
           {/* Embedded content (images, links, etc.) */}
           <PostEmbed embed={post.embed} onOpenThread={onOpenThread} />
 
-          {/* Poll (if any) */}
-          <PollDisplay postUri={post.uri} />
+          {/* Poll (if any) - only check for posts that might have polls to reduce 404 requests */}
+          {(() => {
+            const text = (record?.text || '').toLowerCase();
+            const mightHavePoll = text.includes('poll') || text.includes('vote') || text.includes('📊') || text.includes('🗳');
+            return mightHavePoll ? <PollDisplay postUri={post.uri} /> : null;
+          })()}
 
           {/* Engagement actions */}
           <div className="flex gap-6 lg:gap-4 mt-3 text-base lg:text-sm text-gray-500">
