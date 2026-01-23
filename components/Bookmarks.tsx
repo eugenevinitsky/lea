@@ -139,7 +139,7 @@ export default function Bookmarks({ onOpenPost, onOpenProfile, embedded = false 
   const [exportingCollectionId, setExportingCollectionId] = useState<string | null>(null);
   const [showCollectionExportMenu, setShowCollectionExportMenu] = useState<{ id: string; name: string } | null>(null);
 
-  // Group bookmarks by collection
+  // Group bookmarks by collection, sorted by bookmarkedAt (newest first)
   const bookmarksByCollection = useMemo(() => {
     const grouped: Record<string, BookmarkedPost[]> = {};
     // Initialize with empty arrays for each collection
@@ -158,6 +158,14 @@ export default function Bookmarks({ onOpenPost, onOpenProfile, embedded = false 
         });
       }
     });
+    
+    // Sort each collection by bookmarkedAt descending (newest first)
+    Object.keys(grouped).forEach(key => {
+      grouped[key].sort((a, b) => 
+        new Date(b.bookmarkedAt).getTime() - new Date(a.bookmarkedAt).getTime()
+      );
+    });
+    
     return grouped;
   }, [bookmarks, collections]);
 
