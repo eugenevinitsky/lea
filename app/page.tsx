@@ -663,37 +663,38 @@ function AppContent() {
       </header>
 
       {/* Main layout with sidebar */}
-      <div className="max-w-5xl mx-auto flex lg:gap-4 px-0 lg:px-4 overflow-hidden -mt-12 lg:mt-0 pt-0">
-        {/* Left Sidebar - Bookmarks & Messages */}
-        <aside className="hidden lg:block w-64 flex-shrink-0 sticky top-16 self-start h-[calc(100vh-5rem)] overflow-y-auto pt-4 pb-4 space-y-4 scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-gray-700">
-          <Bookmarks onOpenPost={openThread} onOpenProfile={navigateToProfile} />
-          <DMSidebar />
-          <Notifications onOpenPost={openThread} onOpenProfile={navigateToProfile} />
-          <ModerationBox onOpenProfile={navigateToProfile} />
-          <SafetyPanel onOpenProfile={navigateToProfile} onOpenThread={openThread} />
-          <SettingsPanel />
+      <div className="max-w-5xl mx-auto px-0 lg:px-4">
+        <div className="flex lg:gap-4 lg:items-start">
+          {/* Left Sidebar - Bookmarks & Messages */}
+          <aside className="hidden lg:block w-64 flex-shrink-0 sticky top-16 h-[calc(100vh-4rem)] overflow-y-auto pt-4 pb-4 space-y-4 scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-gray-700">
+            <Bookmarks onOpenPost={openThread} onOpenProfile={navigateToProfile} />
+            <DMSidebar />
+            <Notifications onOpenPost={openThread} onOpenProfile={navigateToProfile} />
+            <ModerationBox onOpenProfile={navigateToProfile} />
+            <SafetyPanel onOpenProfile={navigateToProfile} onOpenThread={openThread} />
+            <SettingsPanel />
 
-          {/* Compose Button */}
-          <button
-            onClick={() => openComposer()}
-            className="w-full py-2 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white text-sm font-medium rounded-full flex items-center justify-center gap-1.5 transition-all shadow-sm"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-            </svg>
-            New Post
-          </button>
-        </aside>
+            {/* Compose Button */}
+            <button
+              onClick={() => openComposer()}
+              className="w-full py-2 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white text-sm font-medium rounded-full flex items-center justify-center gap-1.5 transition-all shadow-sm"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+              </svg>
+              New Post
+            </button>
+          </aside>
 
-        {/* Main content area with feed and vertical tabs */}
-        <div className="flex-1 flex min-w-0 max-w-full lg:max-w-[calc(576px+180px)] pt-0 mt-0">
+          {/* Main content area with feed and vertical tabs */}
+          <div className="flex-1 flex min-w-0 max-w-full lg:max-w-[calc(576px+180px)]">
           {/* Main content - full width on mobile, constrained on desktop */}
           <main
             ref={mainContentRef}
             onTouchStart={handleTouchStart}
             onTouchMove={handleTouchMove}
             onTouchEnd={handleTouchEnd}
-            className="flex-1 w-full min-w-0 max-w-full lg:max-w-xl bg-white dark:bg-gray-950 min-h-screen lg:border-l border-gray-200 dark:border-gray-800 lg:border-r pb-16 lg:pb-0 overflow-hidden pt-0 mt-0"
+            className="flex-1 w-full min-w-0 max-w-full lg:max-w-xl bg-white dark:bg-gray-950 min-h-screen lg:border-l border-gray-200 dark:border-gray-800 lg:border-r pb-16 lg:pb-0"
             style={{ transform: `translateY(${pullDistance}px)`, transition: isPulling ? 'none' : 'transform 0.2s ease-out' }}
           >
             {/* Pull-to-refresh indicator */}
@@ -709,7 +710,7 @@ function AppContent() {
             )}
 
             {/* Mobile Feed Tabs - horizontal, sticky below header */}
-            <div className="lg:hidden relative border-b border-gray-200 dark:border-gray-800 sticky top-14 z-10 bg-white dark:bg-gray-950 mt-0 pt-0">
+            <div className="lg:hidden relative border-b border-gray-200 dark:border-gray-800 sticky top-14 z-10 bg-white dark:bg-gray-950">
               <div
                 ref={feedsContainerRef}
                 className="flex overflow-x-auto scrollbar-hide"
@@ -758,28 +759,26 @@ function AppContent() {
             </div>
 
             {/* Feed Content */}
-            <div className="pt-12 lg:pt-0">
-              {activeFeedUri && (() => {
-                const activeFeed = pinnedFeeds.find(f => f.uri === activeFeedUri);
-                return (
-                  <Feed
-                    key={activeFeedUri}
-                    feedUri={activeFeedUri}
-                    feedName={activeFeed?.displayName}
-                    acceptsInteractions={activeFeed?.acceptsInteractions}
-                    feedType={activeFeed?.type}
-                    keyword={activeFeed?.keyword}
-                    refreshKey={refreshKey}
-                    onOpenProfile={navigateToProfile}
-                    onOpenThread={openThread}
-                  />
-                );
-              })()}
-            </div>
+            {activeFeedUri && (() => {
+              const activeFeed = pinnedFeeds.find(f => f.uri === activeFeedUri);
+              return (
+                <Feed
+                  key={activeFeedUri}
+                  feedUri={activeFeedUri}
+                  feedName={activeFeed?.displayName}
+                  acceptsInteractions={activeFeed?.acceptsInteractions}
+                  feedType={activeFeed?.type}
+                  keyword={activeFeed?.keyword}
+                  refreshKey={refreshKey}
+                  onOpenProfile={navigateToProfile}
+                  onOpenThread={openThread}
+                />
+              );
+            })()}
           </main>
 
           {/* Right Sidebar - Vertical Feed Tabs (desktop only) */}
-          <aside className="hidden lg:flex flex-col w-[180px] flex-shrink-0 sticky top-14 self-start h-[calc(100vh-3.5rem)] bg-gray-50 dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800">
+          <aside className="hidden lg:flex flex-col w-[180px] flex-shrink-0 sticky top-14 h-[calc(100vh-3.5rem)] bg-gray-50 dark:bg-gray-900 border-r border-l border-gray-200 dark:border-gray-800">
             {/* Top buttons: Refresh and Scroll to top */}
             <div className="flex border-b border-gray-200 dark:border-gray-800">
               <button
