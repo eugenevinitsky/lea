@@ -2,6 +2,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db, verifiedResearchers } from '@/lib/db';
 import { eq, and, isNotNull } from 'drizzle-orm';
 
+// Validation constants
+const MAX_TOPICS = 20;
+const MAX_TOPIC_LENGTH = 100;
+const MAX_RESULTS = 50;
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
@@ -13,6 +18,34 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
+
+    // Validate topics array to prevent DoS
+    if (topics.length > MAX_TOPICS) {
+      return NextResponse.json(
+        { error: `Too many topics (max ${MAX_TOPICS})` },
+        { status: 400 }
+      );
+    }
+
+    // Validate each topic and sanitize
+    const validatedTopics: string[] = [];
+    for (const topic of topics) {
+      if (typeof topic !== 'string') continue;
+      const trimmed = topic.trim().slice(0, MAX_TOPIC_LENGTH);
+      if (trimmed.length > 0) {
+        validatedTopics.push(trimmed);
+      }
+    }
+
+    if (validatedTopics.length === 0) {
+      return NextResponse.json(
+        { error: 'No valid topics provided' },
+        { status: 400 }
+      );
+    }
+
+    // Validate limit
+    const safeLimit = Math.min(Math.max(limit || 10, 1), MAX_RESULTS);
 
     // Get all active verified researchers with topics
     const researchers = await db
@@ -40,7 +73,7 @@ export async function POST(request: NextRequest) {
           : [];
 
         // Calculate overlap score
-        const inputTopicsLower = topics.map((t: string) => t.toLowerCase());
+        const inputTopicsLower = validatedTopics.map((t: string) => t.toLowerCase());
         const researcherTopicsLower = researcherTopics.map(t => t.toLowerCase());
 
         let matchScore = 0;
@@ -77,7 +110,7 @@ export async function POST(request: NextRequest) {
       })
       .filter(r => r.matchScore > 0) // Only return researchers with at least one match
       .sort((a, b) => b.matchScore - a.matchScore)
-      .slice(0, limit || undefined);
+      .slice(0, safeLimit);
 
     return NextResponse.json({
       suggestions: scoredResearchers,
