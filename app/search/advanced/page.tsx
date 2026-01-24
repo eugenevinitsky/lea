@@ -169,13 +169,13 @@ function AdvancedSearchPageContent() {
       try {
         const profile = await getBlueskyProfile(did);
         if (profile?.handle) {
-          window.location.href = `/post/${profile.handle}/${rkey}`;
+          window.location.href = `/profile/${profile.handle}/post/${rkey}`;
           return;
         }
       } catch {
         // Fall through
       }
-      window.location.href = `/post/${did}/${rkey}`;
+      window.location.href = `/profile/${did}/post/${rkey}`;
     }
   }, []);
 

@@ -322,7 +322,7 @@ function BlogPageContent() {
           >Lea</h1>
           <div className="flex items-center gap-3">
             <button
-              onClick={() => window.location.href = `/u/${session?.handle}`}
+              onClick={() => window.location.href = `/profile/${session?.handle}`}
               className="px-3 py-1.5 text-sm font-medium text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30 hover:bg-blue-100 dark:hover:bg-blue-900/50 rounded-full transition-colors"
             >
               @{session?.handle}

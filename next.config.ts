@@ -57,6 +57,36 @@ const nextConfig: NextConfig = {
       },
     ];
   },
+
+  // Redirects for old URL formats to maintain backwards compatibility
+  async redirects() {
+    return [
+      {
+        // Old profile URL: /u/:handle -> /profile/:handle
+        source: '/u/:handle',
+        destination: '/profile/:handle',
+        permanent: true,
+      },
+      {
+        // Old profile URL with trailing slash
+        source: '/u/:handle/',
+        destination: '/profile/:handle/',
+        permanent: true,
+      },
+      {
+        // Old post URL: /post/:handle/:rkey -> /profile/:handle/post/:rkey
+        source: '/post/:handle/:rkey',
+        destination: '/profile/:handle/post/:rkey',
+        permanent: true,
+      },
+      {
+        // Old post URL with trailing slash
+        source: '/post/:handle/:rkey/',
+        destination: '/profile/:handle/post/:rkey/',
+        permanent: true,
+      },
+    ];
+  },
 };
 
 export default nextConfig;

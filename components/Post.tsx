@@ -494,11 +494,11 @@ function RichText({ text, facets }: { text: string; facets?: AppBskyFeedPost.Rec
           did={did}
           handle={mentionHandle}
           onOpenProfile={() => {
-            window.location.href = `/u/${did}`;
+            window.location.href = `/profile/${did}`;
           }}
         >
           <a
-            href={`/u/${did}`}
+            href={`/profile/${did}`}
             className="text-blue-500 hover:underline"
             onClick={(e) => e.stopPropagation()}
           >
@@ -2021,15 +2021,15 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
     // Parse AT URI to extract DID and rkey
     // Format: at://did:plc:xxx/app.bsky.feed.post/rkey
     const match = post.uri.match(/^at:\/\/(did:[^/]+)\/app\.bsky\.feed\.post\/([^/]+)$/);
-    
+
     let url: string;
     if (match) {
-      const [, , rkey] = match;
-      // Use author handle for cleaner URLs
-      url = `${window.location.origin}/post/${author.handle}/${rkey}`;
+      const [, did, rkey] = match;
+      // Use buildPostUrl to properly handle handles with dots (uses DID when needed)
+      url = `${window.location.origin}${buildPostUrl(author.handle, rkey, did)}`;
     } else {
-      // Fallback: encode the full URI
-      url = `${window.location.origin}/post/${encodeURIComponent(post.uri)}`;
+      // Fallback: use the AT URI directly (won't be a clickable link but user can share it)
+      url = post.uri;
     }
     
     try {
@@ -2570,7 +2570,7 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
             onClick={(e) => {
               e.stopPropagation();
               if (e.shiftKey || e.metaKey || e.ctrlKey) {
-                window.open(`/u/${repostedBy.handle}`, '_blank');
+                window.open(buildProfileUrl(repostedBy.handle, repostedBy.did), '_blank');
               } else if (onOpenProfile) {
                 onOpenProfile(repostedBy.did);
               }
@@ -2593,7 +2593,7 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
               e.stopPropagation();
               if (replyTarget!.author.did && onOpenProfile) {
                 if (e.shiftKey || e.metaKey || e.ctrlKey) {
-                  window.open(`/u/${replyTarget!.author.handle}`, '_blank');
+                  window.open(buildProfileUrl(replyTarget!.author.handle, replyTarget!.author.did), '_blank');
                 } else {
                   onOpenProfile(replyTarget!.author.did);
                 }
@@ -2612,7 +2612,7 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
           handle={author.handle}
           onOpenProfile={(e) => {
             if (e?.shiftKey || e?.metaKey || e?.ctrlKey) {
-              window.open(`/u/${author.handle}`, '_blank');
+              window.open(buildProfileUrl(author.handle, author.did), '_blank');
             } else if (onOpenProfile) {
               onOpenProfile(author.did);
             } else {
@@ -2625,7 +2625,7 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
             onClick={(e) => {
               e.stopPropagation();
               if (e.shiftKey || e.metaKey || e.ctrlKey) {
-                window.open(`/u/${author.handle}`, '_blank');
+                window.open(buildProfileUrl(author.handle, author.did), '_blank');
               } else if (onOpenProfile) {
                 onOpenProfile(author.did);
               } else {
@@ -2706,7 +2706,7 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
               handle={author.handle}
           onOpenProfile={(e) => {
                 if (e?.shiftKey || e?.metaKey || e?.ctrlKey) {
-                  window.open(`/u/${author.handle}`, '_blank');
+                  window.open(buildProfileUrl(author.handle, author.did), '_blank');
                 } else if (onOpenProfile) {
                   onOpenProfile(author.did);
                 } else {
@@ -2719,7 +2719,7 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
                 onClick={(e) => {
                   e.stopPropagation();
                   if (e.shiftKey || e.metaKey || e.ctrlKey) {
-                    window.open(`/u/${author.handle}`, '_blank');
+                    window.open(buildProfileUrl(author.handle, author.did), '_blank');
                   } else if (onOpenProfile) {
                     onOpenProfile(author.did);
                   } else {

@@ -135,13 +135,13 @@ function FeedPageContent() {
       try {
         const profile = await getBlueskyProfile(did);
         if (profile?.handle) {
-          window.location.href = `/post/${profile.handle}/${postRkey}`;
+          window.location.href = `/profile/${profile.handle}/post/${postRkey}`;
           return;
         }
       } catch {
         // Fall through to use DID
       }
-      window.location.href = `/post/${did}/${postRkey}`;
+      window.location.href = `/profile/${did}/post/${postRkey}`;
     } else {
       setThreadUri(uri);
     }

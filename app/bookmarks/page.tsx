@@ -273,9 +273,9 @@ function BookmarksDashboardContent() {
       // Try to get handle from bookmark data
       const bookmark = bookmarks.find(b => b.uri === uri);
       if (bookmark?.authorHandle) {
-        window.location.href = `/post/${bookmark.authorHandle}/${rkey}`;
+        window.location.href = `/profile/${bookmark.authorHandle}/post/${rkey}`;
       } else {
-        window.location.href = `/post/${did}/${rkey}`;
+        window.location.href = `/profile/${did}/post/${rkey}`;
       }
     }
   }, [bookmarks]);
@@ -495,7 +495,7 @@ function BookmarksDashboardContent() {
 
               {/* Profile link */}
               <button
-                onClick={() => window.location.href = `/u/${session?.handle}`}
+                onClick={() => window.location.href = `/profile/${session?.handle}`}
                 className={`px-3 py-1.5 text-sm font-medium rounded-full transition-colors flex items-center gap-1.5 ${
                   isVerified
                     ? 'text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/30 hover:bg-emerald-100 dark:hover:bg-emerald-900/50'

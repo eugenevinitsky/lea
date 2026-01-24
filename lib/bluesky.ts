@@ -121,21 +121,23 @@ export function getCurrentPdsUrl(): string {
 
 // Helper to build profile URLs that handles dots in custom domain handles
 // Next.js interprets .com, .net etc. as file extensions, so we use DIDs for those
+// URL format matches Bluesky: /profile/{handle}
 export function buildProfileUrl(handleOrDid: string, did?: string): string {
   // If handle contains a dot and we have a DID, use the DID to avoid Next.js extension parsing
   if (handleOrDid.includes('.') && did) {
-    return `/u/${did}`;
+    return `/profile/${did}`;
   }
-  return `/u/${handleOrDid}`;
+  return `/profile/${handleOrDid}`;
 }
 
 // Helper to build post URLs
+// URL format matches Bluesky: /profile/{handle}/post/{rkey}
 export function buildPostUrl(handleOrDid: string, rkey: string, did?: string): string {
   // If handle contains a dot and we have a DID, use the DID
   if (handleOrDid.includes('.') && did) {
-    return `/post/${did}/${rkey}`;
+    return `/profile/${did}/post/${rkey}`;
   }
-  return `/post/${handleOrDid}/${rkey}`;
+  return `/profile/${handleOrDid}/post/${rkey}`;
 }
 
 // LEA Labeler DID - needed for receiving verified researcher labels
@@ -316,30 +318,31 @@ export async function getAllReposters(
 
 // Parse a Bluesky or Lea post URL to get the AT URI
 // Supports: https://bsky.app/profile/handle/post/rkey
-//           https://lea.example.com/post/handle/rkey (Lea format)
+//           https://lea.example.com/profile/handle/post/rkey (Lea format - matches Bluesky)
+//           https://lea.example.com/post/handle/rkey (Legacy Lea format)
 // Returns: at://did/app.bsky.feed.post/rkey
 export async function parsePostUrl(url: string): Promise<string | null> {
   if (!agent) return null;
-  
+
   // Already an AT URI
   if (url.startsWith('at://')) {
     return url;
   }
-  
+
   let handleOrDid: string | null = null;
   let rkey: string | null = null;
-  
-  // Parse bsky.app URL: /profile/handle/post/rkey
-  const bskyMatch = url.match(/bsky\.app\/profile\/([^/]+)\/post\/([^/?]+)/);
-  if (bskyMatch) {
-    [, handleOrDid, rkey] = bskyMatch;
+
+  // Parse /profile/handle/post/rkey format (works for both bsky.app and Lea)
+  const profileMatch = url.match(/\/profile\/([^/]+)\/post\/([^/?]+)/);
+  if (profileMatch) {
+    [, handleOrDid, rkey] = profileMatch;
   }
-  
-  // Parse Lea URL: /post/handle/rkey
+
+  // Parse legacy Lea URL: /post/handle/rkey (for backwards compatibility)
   if (!handleOrDid) {
-    const leaMatch = url.match(/\/post\/([^/]+)\/([^/?]+)/);
-    if (leaMatch) {
-      [, handleOrDid, rkey] = leaMatch;
+    const legacyMatch = url.match(/\/post\/([^/]+)\/([^/?]+)/);
+    if (legacyMatch) {
+      [, handleOrDid, rkey] = legacyMatch;
     }
   }
   

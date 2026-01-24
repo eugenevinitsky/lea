@@ -189,13 +189,13 @@ function SearchPageContent() {
       try {
         const profile = await getBlueskyProfile(did);
         if (profile?.handle) {
-          window.location.href = `/post/${profile.handle}/${rkey}`;
+          window.location.href = `/profile/${profile.handle}/post/${rkey}`;
           return;
         }
       } catch {
         // Fall through
       }
-      window.location.href = `/post/${did}/${rkey}`;
+      window.location.href = `/profile/${did}/post/${rkey}`;
     }
   }, []);
 
@@ -251,7 +251,7 @@ function SearchPageContent() {
               </svg>
             </button>
             <button
-              onClick={() => window.location.href = `/u/${session?.handle}`}
+              onClick={() => window.location.href = `/profile/${session?.handle}`}
               className={`px-3 py-1.5 text-sm font-medium rounded-full transition-colors flex items-center gap-1.5 ${
                 isVerified
                   ? 'text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/30 hover:bg-emerald-100 dark:hover:bg-emerald-900/50'

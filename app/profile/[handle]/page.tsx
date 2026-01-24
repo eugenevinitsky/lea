@@ -27,10 +27,8 @@ import Composer from '@/components/Composer';
 function ProfilePageContent() {
   const params = useParams();
   const router = useRouter();
-  // With catch-all route [...handle], params.handle is an array
-  // Next.js URL-encodes the params, so we need to decode them
-  const handleSegments = params.handle as string[];
-  const handle = decodeURIComponent(handleSegments?.join('/') || '');
+  // Next.js URL-encodes the params, so we need to decode them (e.g., colons in DIDs)
+  const handle = decodeURIComponent(params.handle as string || '');
   
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -197,7 +195,7 @@ function ProfilePageContent() {
               </svg>
             </button>
             <button
-              onClick={() => window.location.href = `/u/${session?.handle}`}
+              onClick={() => window.location.href = `/profile/${session?.handle}`}
               className={`px-3 py-1.5 text-sm font-medium rounded-full transition-colors flex items-center gap-1.5 ${
                 isVerified
                   ? 'text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/30 hover:bg-emerald-100 dark:hover:bg-emerald-900/50'

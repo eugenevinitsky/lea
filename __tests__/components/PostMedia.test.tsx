@@ -51,8 +51,8 @@ vi.mock('@/lib/bluesky', () => ({
   FEEDS: {},
   searchActors: vi.fn(),
   detachQuote: vi.fn(),
-  buildProfileUrl: vi.fn((handle) => `/u/${handle}`),
-  buildPostUrl: vi.fn((handle, rkey) => `/post/${handle}/${rkey}`),
+  buildProfileUrl: vi.fn((handle) => `/profile/${handle}`),
+  buildPostUrl: vi.fn((handle, rkey) => `/profile/${handle}/post/${rkey}`),
 }));
 
 // Mock moderation context

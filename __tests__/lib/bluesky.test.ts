@@ -205,25 +205,30 @@ describe('Bluesky API Wrappers', () => {
   describe('buildProfileUrl', () => {
     it('builds URL with handle', () => {
       const url = buildProfileUrl('user.bsky.social');
-      expect(url).toBe('/u/user.bsky.social');
+      expect(url).toBe('/profile/user.bsky.social');
     });
 
-    it('builds URL with handle and DID', () => {
+    it('builds URL with handle and DID (uses DID for handles with dots)', () => {
       const url = buildProfileUrl('user.bsky.social', 'did:plc:abc123');
-      // Function builds URL, should contain handle or DID
-      expect(url).toMatch(/user\.bsky\.social|did:plc:abc123/);
+      // When handle has dots and DID is provided, use DID to avoid Next.js extension issues
+      expect(url).toBe('/profile/did:plc:abc123');
     });
 
     it('builds URL with DID when no handle provided', () => {
       const url = buildProfileUrl('did:plc:abc123');
-      expect(url).toBe('/u/did:plc:abc123');
+      expect(url).toBe('/profile/did:plc:abc123');
     });
   });
 
   describe('buildPostUrl', () => {
     it('builds URL from handle and rkey', () => {
       const url = buildPostUrl('user.bsky.social', 'abc123');
-      expect(url).toBe('/post/user.bsky.social/abc123');
+      expect(url).toBe('/profile/user.bsky.social/post/abc123');
+    });
+
+    it('builds URL with DID when handle has dots', () => {
+      const url = buildPostUrl('user.bsky.social', 'abc123', 'did:plc:xyz');
+      expect(url).toBe('/profile/did:plc:xyz/post/abc123');
     });
   });
 });

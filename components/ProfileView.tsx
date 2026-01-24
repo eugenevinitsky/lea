@@ -222,13 +222,13 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
       try {
         const profile = await getBlueskyProfile(postDid);
         if (profile?.handle) {
-          window.location.href = `/post/${profile.handle}/${rkey}`;
+          window.location.href = `/profile/${profile.handle}/post/${rkey}`;
           return;
         }
       } catch {
         // Fall through to use DID
       }
-      window.location.href = `/post/${postDid}/${rkey}`;
+      window.location.href = `/profile/${postDid}/post/${rkey}`;
     }
   }, []);
 
