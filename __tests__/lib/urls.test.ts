@@ -238,3 +238,83 @@ describe('Edge Cases', () => {
   });
 });
 
+describe('Handles with dots (Next.js file extension issue)', () => {
+  // Handles like user.bsky.social contain dots which Next.js might interpret as file extensions
+  // The solution is to use DIDs when available for handles with dots
+
+  describe('buildProfileUrl with dotted handles', () => {
+    it('should use DID for .bsky.social handles when DID is provided', () => {
+      const url = buildProfileUrl('alice.bsky.social', 'did:plc:alice123');
+      expect(url).toBe('/profile/did:plc:alice123');
+      // NOT /profile/alice.bsky.social which could cause Next.js issues
+    });
+
+    it('should use DID for custom domain handles when DID is provided', () => {
+      const url = buildProfileUrl('jay.bsky.team', 'did:plc:jay456');
+      expect(url).toBe('/profile/did:plc:jay456');
+    });
+
+    it('should use DID for handles with multiple dots when DID is provided', () => {
+      const url = buildProfileUrl('user.custom.domain.com', 'did:plc:custom');
+      expect(url).toBe('/profile/did:plc:custom');
+    });
+
+    it('should fallback to handle when no DID is provided (even with dots)', () => {
+      // This is not ideal but necessary when DID is unavailable
+      const url = buildProfileUrl('alice.bsky.social');
+      expect(url).toBe('/profile/alice.bsky.social');
+    });
+
+    it('should use handle directly when it has no dots', () => {
+      const url = buildProfileUrl('alice', 'did:plc:alice123');
+      // No dots in handle, so use handle directly (cleaner URL)
+      expect(url).toBe('/profile/alice');
+    });
+  });
+
+  describe('buildPostUrl with dotted handles', () => {
+    it('should use DID for .bsky.social handles when DID is provided', () => {
+      const url = buildPostUrl('alice.bsky.social', 'abc123', 'did:plc:alice123');
+      expect(url).toBe('/profile/did:plc:alice123/post/abc123');
+    });
+
+    it('should use DID for custom domain handles when DID is provided', () => {
+      const url = buildPostUrl('jay.bsky.team', 'xyz789', 'did:plc:jay456');
+      expect(url).toBe('/profile/did:plc:jay456/post/xyz789');
+    });
+
+    it('should fallback to handle when no DID is provided (even with dots)', () => {
+      const url = buildPostUrl('alice.bsky.social', 'abc123');
+      expect(url).toBe('/profile/alice.bsky.social/post/abc123');
+    });
+
+    it('should use handle directly when it has no dots', () => {
+      const url = buildPostUrl('alice', 'abc123', 'did:plc:alice123');
+      expect(url).toBe('/profile/alice/post/abc123');
+    });
+  });
+
+  describe('Common Bluesky handle patterns', () => {
+    const testCases = [
+      { handle: 'user.bsky.social', did: 'did:plc:test1' },
+      { handle: 'researcher.bsky.social', did: 'did:plc:test2' },
+      { handle: 'jay.bsky.team', did: 'did:plc:test3' },
+      { handle: 'alice.test.bsky.network', did: 'did:plc:test4' },
+    ];
+
+    testCases.forEach(({ handle, did }) => {
+      it(`should use DID for profile: ${handle}`, () => {
+        const url = buildProfileUrl(handle, did);
+        expect(url).toBe(`/profile/${did}`);
+        expect(url).not.toContain('.bsky');
+      });
+
+      it(`should use DID for post: ${handle}`, () => {
+        const url = buildPostUrl(handle, 'rkey123', did);
+        expect(url).toBe(`/profile/${did}/post/rkey123`);
+        expect(url).not.toContain('.bsky');
+      });
+    });
+  });
+});
+
