@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { getSession, getBlueskyProfile, checkSafetyAlerts, dismissSafetyAlert, SafetyAlert, AlertThresholds, followUser, unfollowUser, isVerifiedResearcher, Label, buildProfileUrl, checkVerificationStatus, blockUser, getKnownFollowers, BlueskyProfile, getMyRecentPostsAndReplies, getPostsByUris, setCachedHandle } from '@/lib/bluesky';
+import { getSession, getBlueskyProfile, checkSafetyAlerts, dismissSafetyAlert, SafetyAlert, AlertThresholds, followUser, unfollowUser, isVerifiedResearcher, Label, buildProfileUrl, buildPostUrl, checkVerificationStatus, blockUser, getKnownFollowers, BlueskyProfile, getMyRecentPostsAndReplies, getPostsByUris, setCachedHandle } from '@/lib/bluesky';
 import { initOAuth } from '@/lib/oauth';
 import { refreshAgent } from '@/lib/bluesky';
 import { AppBskyFeedDefs } from '@atproto/api';
@@ -3255,13 +3255,13 @@ function NotificationsExplorerContent() {
       try {
         const profile = await getBlueskyProfile(did);
         if (profile?.handle) {
-          window.location.href = `/profile/${profile.handle}/post/${rkey}`;
+          window.location.href = buildPostUrl(profile.handle, rkey, profile.did);
           return;
         }
       } catch {
         // Fall through
       }
-      window.location.href = `/profile/${did}/post/${rkey}`;
+      window.location.href = buildPostUrl(did, rkey);
     }
   }, []);
 

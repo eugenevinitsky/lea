@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { getSession, getBlueskyProfile, getPreferences, getLabelerInfo, LabelerInfo, buildProfileUrl, checkVerificationStatus } from '@/lib/bluesky';
+import { getSession, getBlueskyProfile, getPreferences, getLabelerInfo, LabelerInfo, buildProfileUrl, buildPostUrl, checkVerificationStatus } from '@/lib/bluesky';
 import { initOAuth } from '@/lib/oauth';
 import { refreshAgent } from '@/lib/bluesky';
 import { SettingsProvider } from '@/lib/settings';
@@ -131,13 +131,13 @@ function LabelersContent() {
       try {
         const profile = await getBlueskyProfile(did);
         if (profile?.handle) {
-          window.location.href = `/profile/${profile.handle}/post/${rkey}`;
+          window.location.href = buildPostUrl(profile.handle, rkey, profile.did);
           return;
         }
       } catch {
         // Fall through
       }
-      window.location.href = `/profile/${did}/post/${rkey}`;
+      window.location.href = buildPostUrl(did, rkey);
     }
   }, []);
 

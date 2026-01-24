@@ -2,7 +2,7 @@
 
 import React, { useState, useCallback, useEffect, Suspense, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { getSession, logout, getBlueskyProfile, buildProfileUrl, checkVerificationStatus, refreshAgent, configureAgentLabelers, setCachedHandle } from '@/lib/bluesky';
+import { getSession, logout, getBlueskyProfile, buildProfileUrl, buildPostUrl, checkVerificationStatus, refreshAgent, configureAgentLabelers, setCachedHandle } from '@/lib/bluesky';
 import { initOAuth } from '@/lib/oauth';
 import { SettingsProvider } from '@/lib/settings';
 import { BookmarksProvider, useBookmarks } from '@/lib/bookmarks';
@@ -84,13 +84,13 @@ function AppContent() {
       try {
         const profile = await getBlueskyProfile(did);
         if (profile?.handle) {
-          window.location.href = `/profile/${profile.handle}/post/${rkey}`;
+          window.location.href = buildPostUrl(profile.handle, rkey, profile.did);
           return;
         }
       } catch {
         // Fall through to use DID
       }
-      window.location.href = `/profile/${did}/post/${rkey}`;
+      window.location.href = buildPostUrl(did, rkey);
     } else {
       // Fallback: open in modal if URI format doesn't match
       setThreadUri(uri);

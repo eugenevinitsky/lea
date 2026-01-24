@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import { getSession, getBlueskyProfile, buildProfileUrl, checkVerificationStatus } from '@/lib/bluesky';
+import { getSession, getBlueskyProfile, buildProfileUrl, buildPostUrl, checkVerificationStatus } from '@/lib/bluesky';
 import { initOAuth } from '@/lib/oauth';
 import { refreshAgent } from '@/lib/bluesky';
 import { SettingsProvider } from '@/lib/settings';
@@ -273,9 +273,9 @@ function BookmarksDashboardContent() {
       // Try to get handle from bookmark data
       const bookmark = bookmarks.find(b => b.uri === uri);
       if (bookmark?.authorHandle) {
-        window.location.href = `/profile/${bookmark.authorHandle}/post/${rkey}`;
+        window.location.href = buildPostUrl(bookmark.authorHandle, rkey, did);
       } else {
-        window.location.href = `/profile/${did}/post/${rkey}`;
+        window.location.href = buildPostUrl(did, rkey);
       }
     }
   }, [bookmarks]);

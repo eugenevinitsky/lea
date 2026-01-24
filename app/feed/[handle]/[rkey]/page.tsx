@@ -2,7 +2,7 @@
 
 import { useParams } from 'next/navigation';
 import { useState, useEffect, useCallback } from 'react';
-import { getSession, getBlueskyProfile, logout, getFeedGenerator, likeFeed, unlikeFeed, saveFeed, unsaveFeed, getSavedFeedUris, FeedGeneratorInfo, buildProfileUrl, checkVerificationStatus } from '@/lib/bluesky';
+import { getSession, getBlueskyProfile, logout, getFeedGenerator, likeFeed, unlikeFeed, saveFeed, unsaveFeed, getSavedFeedUris, FeedGeneratorInfo, buildProfileUrl, buildPostUrl, checkVerificationStatus } from '@/lib/bluesky';
 import { initOAuth } from '@/lib/oauth';
 import { refreshAgent } from '@/lib/bluesky';
 import { SettingsProvider } from '@/lib/settings';
@@ -135,13 +135,13 @@ function FeedPageContent() {
       try {
         const profile = await getBlueskyProfile(did);
         if (profile?.handle) {
-          window.location.href = `/profile/${profile.handle}/post/${postRkey}`;
+          window.location.href = buildPostUrl(profile.handle, postRkey, profile.did);
           return;
         }
       } catch {
         // Fall through to use DID
       }
-      window.location.href = `/profile/${did}/post/${postRkey}`;
+      window.location.href = buildPostUrl(did, postRkey);
     } else {
       setThreadUri(uri);
     }

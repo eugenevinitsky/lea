@@ -2,7 +2,7 @@
 
 import { useSearchParams } from 'next/navigation';
 import { useState, useEffect, useCallback, Suspense } from 'react';
-import { getSession, getBlueskyProfile, searchPosts, isVerifiedResearcher, Label, SearchPostsFilters, buildProfileUrl, checkVerificationStatus } from '@/lib/bluesky';
+import { getSession, getBlueskyProfile, searchPosts, isVerifiedResearcher, Label, SearchPostsFilters, buildProfileUrl, buildPostUrl, checkVerificationStatus } from '@/lib/bluesky';
 import { initOAuth } from '@/lib/oauth';
 import { refreshAgent } from '@/lib/bluesky';
 import { SettingsProvider } from '@/lib/settings';
@@ -169,13 +169,13 @@ function AdvancedSearchPageContent() {
       try {
         const profile = await getBlueskyProfile(did);
         if (profile?.handle) {
-          window.location.href = `/profile/${profile.handle}/post/${rkey}`;
+          window.location.href = buildPostUrl(profile.handle, rkey, profile.did);
           return;
         }
       } catch {
         // Fall through
       }
-      window.location.href = `/profile/${did}/post/${rkey}`;
+      window.location.href = buildPostUrl(did, rkey);
     }
   }, []);
 
