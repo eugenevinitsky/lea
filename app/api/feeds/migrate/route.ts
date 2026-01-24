@@ -50,6 +50,6 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ success: true, message: 'Table created successfully' });
   } catch (error) {
     console.error('Migration error:', error);
-    return NextResponse.json({ error: 'Migration failed', details: String(error) }, { status: 500 });
+    return NextResponse.json({ error: 'Migration failed' }, { status: 500 });
   }
 }
