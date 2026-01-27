@@ -7,12 +7,19 @@
  *
  * Uses a balanced sample of 100 examples each for fast CI runs.
  * The full dataset is in data/classifier-test-data.json for manual testing.
+ *
+ * NOTE: This test requires GOOGLE_AI_API_KEY to be set. It will be skipped in CI
+ * if the key is not available.
  */
 
 import * as dotenv from 'dotenv';
 dotenv.config({ path: '.env.local' });
 
 import { describe, it, expect, beforeAll } from 'vitest';
+
+// Skip tests if API key is not available (e.g., in CI without secrets)
+const GOOGLE_AI_API_KEY = process.env.GOOGLE_AI_API_KEY;
+const describeIfApiKey = GOOGLE_AI_API_KEY ? describe : describe.skip;
 import * as fs from 'fs';
 import * as path from 'path';
 import { initEmbeddingClassifier, classifyContentAsync, isEmbeddingClassifierReady } from '@/lib/substack-classifier';
@@ -58,7 +65,7 @@ interface TestData {
   technical: string[];
 }
 
-describe('Classifier FPR Validation', () => {
+describeIfApiKey('Classifier FPR Validation', () => {
   let testData: TestData;
   let nonTechSample: string[];
   let techSample: string[];
