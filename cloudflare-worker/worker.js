@@ -8,18 +8,24 @@
 
 const LEA_APP_URL = 'https://client-kappa-weld-68.vercel.app';
 
-async function syncToDb() {
+async function syncToDb(apiSecret) {
   const response = await fetch(`${LEA_APP_URL}/api/labeler/sync-to-db`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${apiSecret}`,
+    },
   });
   return response.json();
 }
 
-async function syncList() {
+async function syncList(apiSecret) {
   const response = await fetch(`${LEA_APP_URL}/api/labeler/sync-from-labels`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${apiSecret}`,
+    },
   });
   return response.json();
 }
@@ -29,13 +35,19 @@ export default {
   async scheduled(event, env, ctx) {
     console.log('Running label sync...');
 
+    const apiSecret = env.INTERNAL_API_SECRET;
+    if (!apiSecret) {
+      console.error('INTERNAL_API_SECRET not configured');
+      return;
+    }
+
     try {
       // Sync to database
-      const dbResult = await syncToDb();
+      const dbResult = await syncToDb(apiSecret);
       console.log('DB sync:', dbResult.message || 'complete');
 
       // Sync to Bluesky list
-      const listResult = await syncList();
+      const listResult = await syncList(apiSecret);
       console.log('List sync:', `${listResult.added} added, ${listResult.removed} removed`);
     } catch (error) {
       console.error('Sync error:', error.message);
@@ -47,9 +59,17 @@ export default {
     const url = new URL(request.url);
 
     if (url.pathname === '/sync') {
+      const apiSecret = env.INTERNAL_API_SECRET;
+      if (!apiSecret) {
+        return new Response(JSON.stringify({ error: 'INTERNAL_API_SECRET not configured' }), {
+          status: 500,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+
       try {
-        const dbResult = await syncToDb();
-        const listResult = await syncList();
+        const dbResult = await syncToDb(apiSecret);
+        const listResult = await syncList(apiSecret);
 
         return new Response(JSON.stringify({
           database: dbResult,
