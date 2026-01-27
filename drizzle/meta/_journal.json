@@ -36,6 +36,13 @@
       "when": 1769026929771,
       "tag": "0004_add_verification_admin_tables",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1769539738871,
+      "tag": "0005_medical_firebrand",
+      "breakpoints": true
     }
   ]
 }

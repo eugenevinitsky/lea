@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db, discoveredPapers, paperMentions, verifiedResearchers } from '@/lib/db';
-import { eq, sql } from 'drizzle-orm';
+import { eq, sql, and } from 'drizzle-orm';
 import { isBot } from '@/lib/bot-blacklist';
 import { fetchWithTimeout } from '@/lib/fetch-with-timeout';
 import { timingSafeEqual } from 'crypto';
@@ -233,7 +233,17 @@ async function processSingleIngest(req: IngestRequest): Promise<{ paperId: numbe
     const results: { paperId: number; normalizedId: string }[] = [];
 
     for (const mention of quotedMentions) {
-      // Check if mention already exists
+      // Check if this author has already mentioned this paper
+      const [priorMention] = await db
+        .select({ id: paperMentions.id })
+        .from(paperMentions)
+        .where(and(
+          eq(paperMentions.paperId, mention.paperId),
+          eq(paperMentions.authorDid, authorDid)
+        ))
+        .limit(1);
+
+      // Check if this exact post mention already exists
       const [existingMention] = await db
         .select()
         .from(paperMentions)
@@ -249,6 +259,18 @@ async function processSingleIngest(req: IngestRequest): Promise<{ paperId: numbe
             mentionCount: sql`${discoveredPapers.mentionCount} + ${mentionWeight}`,
           })
           .where(eq(discoveredPapers.id, mention.paperId));
+
+        // If this is a new unique author, increment trending scores
+        if (!priorMention) {
+          const scoreIncrement = isVerified ? 3 : 1;
+          await db.update(discoveredPapers).set({
+            trendingScore1h: sql`trending_score_1h + ${scoreIncrement}`,
+            trendingScore6h: sql`trending_score_6h + ${scoreIncrement}`,
+            trendingScore24h: sql`trending_score_24h + ${scoreIncrement}`,
+            trendingScore7d: sql`trending_score_7d + ${scoreIncrement}`,
+            trendingScoreAllTime: sql`trending_score_all_time + ${scoreIncrement}`,
+          }).where(eq(discoveredPapers.id, mention.paperId));
+        }
 
         // Insert mention
         await db.insert(paperMentions).values({
@@ -291,6 +313,7 @@ async function processSingleIngest(req: IngestRequest): Promise<{ paperId: numbe
       .limit(1);
 
     let paperId: number;
+    let isNewPaper = false;
 
     if (existingPaper) {
       // Update existing paper (verified researchers count 3x)
@@ -305,6 +328,7 @@ async function processSingleIngest(req: IngestRequest): Promise<{ paperId: numbe
     } else {
       // Fetch metadata for new paper
       const metadata = await fetchPaperMetadata(paper.normalizedId, paper.source);
+      const scoreIncrement = isVerified ? 3 : 1;
 
       // Insert new paper with metadata (verified researchers count 3x)
       const [inserted] = await db
@@ -318,12 +342,29 @@ async function processSingleIngest(req: IngestRequest): Promise<{ paperId: numbe
           firstSeenAt: new Date(),
           lastSeenAt: new Date(),
           mentionCount: mentionWeight,
+          // Initialize trending scores for new paper
+          trendingScore1h: scoreIncrement,
+          trendingScore6h: scoreIncrement,
+          trendingScore24h: scoreIncrement,
+          trendingScore7d: scoreIncrement,
+          trendingScoreAllTime: scoreIncrement,
         })
         .returning({ id: discoveredPapers.id });
       paperId = inserted.id;
+      isNewPaper = true;
     }
 
-    // Check if mention already exists
+    // Check if this author has already mentioned this paper
+    const [priorMention] = await db
+      .select({ id: paperMentions.id })
+      .from(paperMentions)
+      .where(and(
+        eq(paperMentions.paperId, paperId),
+        eq(paperMentions.authorDid, authorDid)
+      ))
+      .limit(1);
+
+    // Check if this exact post mention already exists
     const [existingMention] = await db
       .select()
       .from(paperMentions)
@@ -331,6 +372,18 @@ async function processSingleIngest(req: IngestRequest): Promise<{ paperId: numbe
       .limit(1);
 
     if (!existingMention) {
+      // If this is a new unique author on an existing paper, increment trending scores
+      if (!isNewPaper && !priorMention) {
+        const scoreIncrement = isVerified ? 3 : 1;
+        await db.update(discoveredPapers).set({
+          trendingScore1h: sql`trending_score_1h + ${scoreIncrement}`,
+          trendingScore6h: sql`trending_score_6h + ${scoreIncrement}`,
+          trendingScore24h: sql`trending_score_24h + ${scoreIncrement}`,
+          trendingScore7d: sql`trending_score_7d + ${scoreIncrement}`,
+          trendingScoreAllTime: sql`trending_score_all_time + ${scoreIncrement}`,
+        }).where(eq(discoveredPapers.id, paperId));
+      }
+
       // Insert mention
       await db.insert(paperMentions).values({
         paperId,
@@ -407,7 +460,17 @@ export async function POST(request: NextRequest) {
       const results: { paperId: number; normalizedId: string }[] = [];
 
       for (const mention of quotedMentions) {
-        // Check if mention already exists
+        // Check if this author has already mentioned this paper
+        const [priorMention] = await db
+          .select({ id: paperMentions.id })
+          .from(paperMentions)
+          .where(and(
+            eq(paperMentions.paperId, mention.paperId),
+            eq(paperMentions.authorDid, authorDid)
+          ))
+          .limit(1);
+
+        // Check if this exact post mention already exists
         const [existingMention] = await db
           .select()
           .from(paperMentions)
@@ -423,6 +486,18 @@ export async function POST(request: NextRequest) {
               mentionCount: sql`${discoveredPapers.mentionCount} + ${mentionWeight}`,
             })
             .where(eq(discoveredPapers.id, mention.paperId));
+
+          // If this is a new unique author, increment trending scores
+          if (!priorMention) {
+            const scoreIncrement = isVerified ? 3 : 1;
+            await db.update(discoveredPapers).set({
+              trendingScore1h: sql`trending_score_1h + ${scoreIncrement}`,
+              trendingScore6h: sql`trending_score_6h + ${scoreIncrement}`,
+              trendingScore24h: sql`trending_score_24h + ${scoreIncrement}`,
+              trendingScore7d: sql`trending_score_7d + ${scoreIncrement}`,
+              trendingScoreAllTime: sql`trending_score_all_time + ${scoreIncrement}`,
+            }).where(eq(discoveredPapers.id, mention.paperId));
+          }
 
           // Insert mention
           await db.insert(paperMentions).values({
@@ -465,6 +540,7 @@ export async function POST(request: NextRequest) {
         .limit(1);
 
       let paperId: number;
+      let isNewPaper = false;
 
       if (existingPaper) {
         // Update existing paper (verified researchers count 3x)
@@ -479,6 +555,7 @@ export async function POST(request: NextRequest) {
       } else {
         // Fetch metadata for new paper
         const metadata = await fetchPaperMetadata(paper.normalizedId, paper.source);
+        const scoreIncrement = isVerified ? 3 : 1;
 
         // Insert new paper with metadata (verified researchers count 3x)
         const [inserted] = await db
@@ -492,12 +569,29 @@ export async function POST(request: NextRequest) {
             firstSeenAt: new Date(),
             lastSeenAt: new Date(),
             mentionCount: mentionWeight,
+            // Initialize trending scores for new paper
+            trendingScore1h: scoreIncrement,
+            trendingScore6h: scoreIncrement,
+            trendingScore24h: scoreIncrement,
+            trendingScore7d: scoreIncrement,
+            trendingScoreAllTime: scoreIncrement,
           })
           .returning({ id: discoveredPapers.id });
         paperId = inserted.id;
+        isNewPaper = true;
       }
 
-      // Check if mention already exists
+      // Check if this author has already mentioned this paper
+      const [priorMention] = await db
+        .select({ id: paperMentions.id })
+        .from(paperMentions)
+        .where(and(
+          eq(paperMentions.paperId, paperId),
+          eq(paperMentions.authorDid, authorDid)
+        ))
+        .limit(1);
+
+      // Check if this exact post mention already exists
       const [existingMention] = await db
         .select()
         .from(paperMentions)
@@ -505,6 +599,18 @@ export async function POST(request: NextRequest) {
         .limit(1);
 
       if (!existingMention) {
+        // If this is a new unique author on an existing paper, increment trending scores
+        if (!isNewPaper && !priorMention) {
+          const scoreIncrement = isVerified ? 3 : 1;
+          await db.update(discoveredPapers).set({
+            trendingScore1h: sql`trending_score_1h + ${scoreIncrement}`,
+            trendingScore6h: sql`trending_score_6h + ${scoreIncrement}`,
+            trendingScore24h: sql`trending_score_24h + ${scoreIncrement}`,
+            trendingScore7d: sql`trending_score_7d + ${scoreIncrement}`,
+            trendingScoreAllTime: sql`trending_score_all_time + ${scoreIncrement}`,
+          }).where(eq(discoveredPapers.id, paperId));
+        }
+
         // Insert mention
         await db.insert(paperMentions).values({
           paperId,

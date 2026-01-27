@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db, discoveredArticles, articleMentions, verifiedResearchers } from '@/lib/db';
-import { eq, sql } from 'drizzle-orm';
+import { eq, sql, and } from 'drizzle-orm';
 import { isBot } from '@/lib/bot-blacklist';
 import { timingSafeEqual } from 'crypto';
 
@@ -203,6 +203,7 @@ async function processSingleIngest(req: IngestRequest): Promise<{ articleId: num
       .limit(1);
 
     let articleId: number;
+    let isNewArticle = false;
 
     if (existingArticle) {
       // Update existing article
@@ -217,6 +218,7 @@ async function processSingleIngest(req: IngestRequest): Promise<{ articleId: num
     } else {
       // Fetch metadata for new article
       const metadata = await fetchArticleMetadata(article.source, article.slug, article.url);
+      const scoreIncrement = isVerified ? 3 : 1;
 
       // Insert new article with metadata
       const [inserted] = await db
@@ -235,14 +237,31 @@ async function processSingleIngest(req: IngestRequest): Promise<{ articleId: num
           firstSeenAt: new Date(),
           lastSeenAt: new Date(),
           mentionCount: mentionWeight,
+          // Initialize trending scores for new article
+          trendingScore1h: scoreIncrement,
+          trendingScore6h: scoreIncrement,
+          trendingScore24h: scoreIncrement,
+          trendingScore7d: scoreIncrement,
+          trendingScoreAllTime: scoreIncrement,
         })
         .returning({ id: discoveredArticles.id });
       articleId = inserted.id;
+      isNewArticle = true;
 
       console.log(`New article discovered: ${article.source} - ${metadata?.title || article.slug}`);
     }
 
-    // Check if mention already exists
+    // Check if this author has already mentioned this article
+    const [priorMention] = await db
+      .select({ id: articleMentions.id })
+      .from(articleMentions)
+      .where(and(
+        eq(articleMentions.articleId, articleId),
+        eq(articleMentions.authorDid, authorDid)
+      ))
+      .limit(1);
+
+    // Check if this exact post mention already exists
     const [existingMention] = await db
       .select()
       .from(articleMentions)
@@ -250,6 +269,18 @@ async function processSingleIngest(req: IngestRequest): Promise<{ articleId: num
       .limit(1);
 
     if (!existingMention) {
+      // If this is a new unique author on an existing article, increment trending scores
+      if (!isNewArticle && !priorMention) {
+        const scoreIncrement = isVerified ? 3 : 1;
+        await db.update(discoveredArticles).set({
+          trendingScore1h: sql`trending_score_1h + ${scoreIncrement}`,
+          trendingScore6h: sql`trending_score_6h + ${scoreIncrement}`,
+          trendingScore24h: sql`trending_score_24h + ${scoreIncrement}`,
+          trendingScore7d: sql`trending_score_7d + ${scoreIncrement}`,
+          trendingScoreAllTime: sql`trending_score_all_time + ${scoreIncrement}`,
+        }).where(eq(discoveredArticles.id, articleId));
+      }
+
       // Insert mention
       await db.insert(articleMentions).values({
         articleId,

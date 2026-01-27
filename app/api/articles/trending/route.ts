@@ -1,11 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db, discoveredArticles, articleMentions } from '@/lib/db';
-import { desc, sql, eq, and } from 'drizzle-orm';
+import { db, discoveredArticles } from '@/lib/db';
+import { desc, sql, eq } from 'drizzle-orm';
 
 // Validation constants
 const MAX_HOURS = 168; // 1 week max
 const MAX_LIMIT = 100;
 const ALLOWED_SOURCES = ['quanta', 'mittechreview'];
+
+// Map hours to the nearest trending score bucket
+function getScoreColumn(hours: number) {
+  if (hours <= 1) return discoveredArticles.trendingScore1h;
+  if (hours <= 6) return discoveredArticles.trendingScore6h;
+  if (hours <= 24) return discoveredArticles.trendingScore24h;
+  if (hours <= 168) return discoveredArticles.trendingScore7d;
+  return discoveredArticles.trendingScoreAllTime;
+}
 
 // GET /api/articles/trending?hours=24&limit=50&source=quanta - Get trending articles
 export async function GET(request: NextRequest) {
@@ -22,14 +31,15 @@ export async function GET(request: NextRequest) {
     // Validate source is an allowed value or null
     const source = rawSource && ALLOWED_SOURCES.includes(rawSource) ? rawSource : null;
 
-    const cutoffTime = new Date(Date.now() - hours * 60 * 60 * 1000);
+    // Get the appropriate score column based on hours
+    const scoreColumn = getScoreColumn(hours);
 
     // Build where condition based on source filter
     const whereCondition = source
       ? eq(discoveredArticles.source, source)
       : sql`${discoveredArticles.title} IS NOT NULL`;
 
-    // Execute query
+    // Execute query using denormalized trending scores (fast column reads)
     const articles = await db
       .select({
         id: discoveredArticles.id,
@@ -46,45 +56,18 @@ export async function GET(request: NextRequest) {
         firstSeenAt: discoveredArticles.firstSeenAt,
         lastSeenAt: discoveredArticles.lastSeenAt,
         mentionCount: discoveredArticles.mentionCount,
-        // Unique author count (not weighted)
-        postCount: sql<number>`(
-          SELECT COUNT(DISTINCT article_mentions.author_did)
-          FROM article_mentions
-          WHERE article_mentions.article_id = discovered_articles.id
-        )`.as('post_count'),
-        // Weighted unique authors: verified researchers count 3x, others 1x
-        recentMentions: sql<number>`(
-          SELECT COUNT(DISTINCT article_mentions.author_did) +
-                 2 * COUNT(DISTINCT CASE WHEN article_mentions.is_verified_researcher THEN article_mentions.author_did END)
-          FROM article_mentions
-          WHERE article_mentions.article_id = discovered_articles.id
-          AND article_mentions.created_at > ${cutoffTime}
-        )`.as('recent_mentions'),
-        // Unique authors in time window - for display
-        recentPostCount: sql<number>`(
-          SELECT COUNT(DISTINCT article_mentions.author_did)
-          FROM article_mentions
-          WHERE article_mentions.article_id = discovered_articles.id
-          AND article_mentions.created_at > ${cutoffTime}
-        )`.as('recent_post_count'),
+        // Use all-time score as total post count proxy
+        postCount: discoveredArticles.trendingScoreAllTime,
+        // Use the appropriate time-bucket score
+        recentMentions: scoreColumn,
+        // For display, use the same score (approximation)
+        recentPostCount: scoreColumn,
       })
       .from(discoveredArticles)
       .where(whereCondition)
       .orderBy(
-        // Order by weighted unique authors in time window
-        desc(sql`(
-          SELECT COUNT(DISTINCT article_mentions.author_did) +
-                 2 * COUNT(DISTINCT CASE WHEN article_mentions.is_verified_researcher THEN article_mentions.author_did END)
-          FROM article_mentions
-          WHERE article_mentions.article_id = discovered_articles.id
-          AND article_mentions.created_at > ${cutoffTime}
-        )`),
-        // Then by total unique authors
-        desc(sql`(
-          SELECT COUNT(DISTINCT article_mentions.author_did)
-          FROM article_mentions
-          WHERE article_mentions.article_id = discovered_articles.id
-        )`)
+        desc(scoreColumn),
+        desc(discoveredArticles.trendingScoreAllTime)
       )
       .limit(limit);
 

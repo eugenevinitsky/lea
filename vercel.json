@@ -1,8 +1,12 @@
 {
   "crons": [
     {
-      "path": "/api/cron/sync-all",
+      "path": "/api/cron/sync-all/",
       "schedule": "0 0 * * *"
+    },
+    {
+      "path": "/api/cron/recalculate-trending/",
+      "schedule": "*/5 * * * *"
     }
   ],
   "trailingSlash": true

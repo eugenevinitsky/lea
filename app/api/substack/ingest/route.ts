@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db, discoveredSubstackPosts, substackMentions, verifiedResearchers } from '@/lib/db';
-import { eq, sql } from 'drizzle-orm';
+import { eq, sql, and } from 'drizzle-orm';
 import { initEmbeddingClassifier, classifyContentAsync, isEmbeddingClassifierReady, getClassificationStats, TECHNICAL_THRESHOLD } from '@/lib/substack-classifier';
 import { isBot } from '@/lib/bot-blacklist';
 import { timingSafeEqual } from 'crypto';
@@ -281,7 +281,17 @@ async function processSingleIngest(req: IngestRequest): Promise<{ substackPostId
     const results: { substackPostId: number; normalizedId: string }[] = [];
 
     for (const mention of quotedMentions) {
-      // Check if mention already exists
+      // Check if this author has already mentioned this post
+      const [priorMention] = await db
+        .select({ id: substackMentions.id })
+        .from(substackMentions)
+        .where(and(
+          eq(substackMentions.substackPostId, mention.substackPostId),
+          eq(substackMentions.authorDid, authorDid)
+        ))
+        .limit(1);
+
+      // Check if this exact post mention already exists
       const [existingMention] = await db
         .select()
         .from(substackMentions)
@@ -297,6 +307,18 @@ async function processSingleIngest(req: IngestRequest): Promise<{ substackPostId
             mentionCount: sql`${discoveredSubstackPosts.mentionCount} + ${mentionWeight}`,
           })
           .where(eq(discoveredSubstackPosts.id, mention.substackPostId));
+
+        // If this is a new unique author, increment trending scores
+        if (!priorMention) {
+          const scoreIncrement = isVerified ? 3 : 1;
+          await db.update(discoveredSubstackPosts).set({
+            trendingScore1h: sql`trending_score_1h + ${scoreIncrement}`,
+            trendingScore6h: sql`trending_score_6h + ${scoreIncrement}`,
+            trendingScore24h: sql`trending_score_24h + ${scoreIncrement}`,
+            trendingScore7d: sql`trending_score_7d + ${scoreIncrement}`,
+            trendingScoreAllTime: sql`trending_score_all_time + ${scoreIncrement}`,
+          }).where(eq(discoveredSubstackPosts.id, mention.substackPostId));
+        }
 
         // Insert mention
         await db.insert(substackMentions).values({
@@ -339,6 +361,7 @@ async function processSingleIngest(req: IngestRequest): Promise<{ substackPostId
       .limit(1);
 
     let substackPostId: number;
+    let isNewPost = false;
 
     if (existingPost) {
       // Update existing post
@@ -382,6 +405,8 @@ async function processSingleIngest(req: IngestRequest): Promise<{ substackPostId
         continue;
       }
 
+      const scoreIncrement = isVerified ? 3 : 1;
+
       // Insert new Substack post with metadata
       const [inserted] = await db
         .insert(discoveredSubstackPosts)
@@ -398,12 +423,29 @@ async function processSingleIngest(req: IngestRequest): Promise<{ substackPostId
           firstSeenAt: new Date(),
           lastSeenAt: new Date(),
           mentionCount: mentionWeight,
+          // Initialize trending scores for new post
+          trendingScore1h: scoreIncrement,
+          trendingScore6h: scoreIncrement,
+          trendingScore24h: scoreIncrement,
+          trendingScore7d: scoreIncrement,
+          trendingScoreAllTime: scoreIncrement,
         })
         .returning({ id: discoveredSubstackPosts.id });
       substackPostId = inserted.id;
+      isNewPost = true;
     }
 
-    // Check if mention already exists
+    // Check if this author has already mentioned this post
+    const [priorMention] = await db
+      .select({ id: substackMentions.id })
+      .from(substackMentions)
+      .where(and(
+        eq(substackMentions.substackPostId, substackPostId),
+        eq(substackMentions.authorDid, authorDid)
+      ))
+      .limit(1);
+
+    // Check if this exact post mention already exists
     const [existingMention] = await db
       .select()
       .from(substackMentions)
@@ -411,6 +453,18 @@ async function processSingleIngest(req: IngestRequest): Promise<{ substackPostId
       .limit(1);
 
     if (!existingMention) {
+      // If this is a new unique author on an existing post, increment trending scores
+      if (!isNewPost && !priorMention) {
+        const scoreIncrement = isVerified ? 3 : 1;
+        await db.update(discoveredSubstackPosts).set({
+          trendingScore1h: sql`trending_score_1h + ${scoreIncrement}`,
+          trendingScore6h: sql`trending_score_6h + ${scoreIncrement}`,
+          trendingScore24h: sql`trending_score_24h + ${scoreIncrement}`,
+          trendingScore7d: sql`trending_score_7d + ${scoreIncrement}`,
+          trendingScoreAllTime: sql`trending_score_all_time + ${scoreIncrement}`,
+        }).where(eq(discoveredSubstackPosts.id, substackPostId));
+      }
+
       // Insert mention
       await db.insert(substackMentions).values({
         substackPostId,
@@ -500,7 +554,17 @@ export async function POST(request: NextRequest) {
       const results: { substackPostId: number; normalizedId: string }[] = [];
 
       for (const mention of quotedMentions) {
-        // Check if mention already exists
+        // Check if this author has already mentioned this post
+        const [priorMention] = await db
+          .select({ id: substackMentions.id })
+          .from(substackMentions)
+          .where(and(
+            eq(substackMentions.substackPostId, mention.substackPostId),
+            eq(substackMentions.authorDid, authorDid)
+          ))
+          .limit(1);
+
+        // Check if this exact post mention already exists
         const [existingMention] = await db
           .select()
           .from(substackMentions)
@@ -516,6 +580,18 @@ export async function POST(request: NextRequest) {
               mentionCount: sql`${discoveredSubstackPosts.mentionCount} + ${mentionWeight}`,
             })
             .where(eq(discoveredSubstackPosts.id, mention.substackPostId));
+
+          // If this is a new unique author, increment trending scores
+          if (!priorMention) {
+            const scoreIncrement = isVerified ? 3 : 1;
+            await db.update(discoveredSubstackPosts).set({
+              trendingScore1h: sql`trending_score_1h + ${scoreIncrement}`,
+              trendingScore6h: sql`trending_score_6h + ${scoreIncrement}`,
+              trendingScore24h: sql`trending_score_24h + ${scoreIncrement}`,
+              trendingScore7d: sql`trending_score_7d + ${scoreIncrement}`,
+              trendingScoreAllTime: sql`trending_score_all_time + ${scoreIncrement}`,
+            }).where(eq(discoveredSubstackPosts.id, mention.substackPostId));
+          }
 
           // Insert mention
           await db.insert(substackMentions).values({
@@ -558,6 +634,7 @@ export async function POST(request: NextRequest) {
         .limit(1);
 
       let substackPostId: number;
+      let isNewPost = false;
 
       if (existingPost) {
         // Update existing post
@@ -601,6 +678,8 @@ export async function POST(request: NextRequest) {
           continue;
         }
 
+        const scoreIncrement = isVerified ? 3 : 1;
+
         // Insert new Substack post with metadata
         const [inserted] = await db
           .insert(discoveredSubstackPosts)
@@ -617,12 +696,29 @@ export async function POST(request: NextRequest) {
             firstSeenAt: new Date(),
             lastSeenAt: new Date(),
             mentionCount: mentionWeight,
+            // Initialize trending scores for new post
+            trendingScore1h: scoreIncrement,
+            trendingScore6h: scoreIncrement,
+            trendingScore24h: scoreIncrement,
+            trendingScore7d: scoreIncrement,
+            trendingScoreAllTime: scoreIncrement,
           })
           .returning({ id: discoveredSubstackPosts.id });
         substackPostId = inserted.id;
+        isNewPost = true;
       }
 
-      // Check if mention already exists
+      // Check if this author has already mentioned this post
+      const [priorMention] = await db
+        .select({ id: substackMentions.id })
+        .from(substackMentions)
+        .where(and(
+          eq(substackMentions.substackPostId, substackPostId),
+          eq(substackMentions.authorDid, authorDid)
+        ))
+        .limit(1);
+
+      // Check if this exact post mention already exists
       const [existingMention] = await db
         .select()
         .from(substackMentions)
@@ -630,6 +726,18 @@ export async function POST(request: NextRequest) {
         .limit(1);
 
       if (!existingMention) {
+        // If this is a new unique author on an existing post, increment trending scores
+        if (!isNewPost && !priorMention) {
+          const scoreIncrement = isVerified ? 3 : 1;
+          await db.update(discoveredSubstackPosts).set({
+            trendingScore1h: sql`trending_score_1h + ${scoreIncrement}`,
+            trendingScore6h: sql`trending_score_6h + ${scoreIncrement}`,
+            trendingScore24h: sql`trending_score_24h + ${scoreIncrement}`,
+            trendingScore7d: sql`trending_score_7d + ${scoreIncrement}`,
+            trendingScoreAllTime: sql`trending_score_all_time + ${scoreIncrement}`,
+          }).where(eq(discoveredSubstackPosts.id, substackPostId));
+        }
+
         // Insert mention
         await db.insert(substackMentions).values({
           substackPostId,
