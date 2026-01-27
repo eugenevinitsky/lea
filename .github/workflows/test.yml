@@ -25,6 +25,8 @@ jobs:
 
       - name: Run tests
         run: npm test
+        env:
+          GOOGLE_AI_API_KEY: ${{ secrets.GOOGLE_AI_API_KEY }}
 
       - name: Build check
         run: npm run build
