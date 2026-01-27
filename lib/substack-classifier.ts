@@ -9,9 +9,9 @@ let trainEmbeddings: number[][] | null = null;
 let trainLabels: number[] | null = null;
 let embeddingClassifierInitialized = false;
 
-// Classification threshold - with class weighting, 0.5 is the natural decision boundary
+// Classification threshold - balance between FPR and recall
 // IMPORTANT: This threshold is used by both ingestion and cleanup - keep them in sync!
-export const TECHNICAL_THRESHOLD = 0.5;
+export const TECHNICAL_THRESHOLD = 0.65;
 
 // Classification stats for monitoring
 let classificationStats = {
@@ -110,8 +110,8 @@ function computeKnnProbability(embedding: number[], k: number = 15): number {
   similarities.sort((a, b) => b.sim - a.sim);
   const topK = similarities.slice(0, k);
 
-  // Class weighting to account for real-world distribution imbalance
-  const NON_TECH_WEIGHT = 7.4;
+  // Class weighting - reduced since training data was cleaned
+  const NON_TECH_WEIGHT = 1.0;
 
   let techScore = 0;
   let nonTechScore = 0;
