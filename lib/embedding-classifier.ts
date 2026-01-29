@@ -58,10 +58,15 @@ export async function loadEmbeddingData(): Promise<{
   labels: number[];
   texts: string[];
 } | null> {
-  const embeddingsPath = path.join(process.cwd(), 'lib', 'classifier-embeddings.json');
+  // Use __dirname for Vercel serverless compatibility
+  let embeddingsPath = path.join(__dirname, 'classifier-embeddings.json');
   if (!fs.existsSync(embeddingsPath)) {
-    console.error('Embeddings file not found:', embeddingsPath);
-    return null;
+    // Fallback to process.cwd() for local development
+    embeddingsPath = path.join(process.cwd(), 'lib', 'classifier-embeddings.json');
+    if (!fs.existsSync(embeddingsPath)) {
+      console.error('Embeddings file not found');
+      return null;
+    }
   }
   const data = JSON.parse(fs.readFileSync(embeddingsPath, 'utf-8'));
   return {

@@ -72,14 +72,23 @@ export async function initEmbeddingClassifier(
       trainLabels = embeddingData.labels;
     } else {
       // Load embeddings from JSON file at runtime (not bundled at build time)
-      const embeddingsPath = path.join(process.cwd(), 'lib', 'classifier-embeddings.json');
+      // Use __dirname for Vercel serverless compatibility
+      const embeddingsPath = path.join(__dirname, 'classifier-embeddings.json');
       if (!fs.existsSync(embeddingsPath)) {
-        console.error('Embeddings file not found:', embeddingsPath);
-        return false;
+        // Fallback to process.cwd() for local development
+        const fallbackPath = path.join(process.cwd(), 'lib', 'classifier-embeddings.json');
+        if (!fs.existsSync(fallbackPath)) {
+          console.error('Embeddings file not found at:', embeddingsPath, 'or', fallbackPath);
+          return false;
+        }
+        const data = JSON.parse(fs.readFileSync(fallbackPath, 'utf-8'));
+        trainEmbeddings = data.embeddings as number[][];
+        trainLabels = data.labels as number[];
+      } else {
+        const data = JSON.parse(fs.readFileSync(embeddingsPath, 'utf-8'));
+        trainEmbeddings = data.embeddings as number[][];
+        trainLabels = data.labels as number[];
       }
-      const data = JSON.parse(fs.readFileSync(embeddingsPath, 'utf-8'));
-      trainEmbeddings = data.embeddings as number[][];
-      trainLabels = data.labels as number[];
     }
     embeddingClassifierInitialized = true;
 
