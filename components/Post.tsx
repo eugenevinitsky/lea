@@ -2079,11 +2079,9 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
     const match = post.uri.match(/^at:\/\/(did:[^/]+)\/app\.bsky\.feed\.post\/([^/]+)$/);
 
     if (match) {
-      const [, did, rkey] = match;
-      // Use buildPostUrl logic for Bluesky URL - handles with dots need DID
-      const handleHasDot = author.handle.includes('.');
-      const identifier = handleHasDot ? did : author.handle;
-      return `https://bsky.app/profile/${identifier}/post/${rkey}`;
+      const [, , rkey] = match;
+      // Bluesky URLs use the full handle (e.g., hannawallach.bsky.social)
+      return `https://bsky.app/profile/${author.handle}/post/${rkey}`;
     } else {
       // Fallback: can't construct Bluesky URL without proper format
       return null;
