@@ -2,6 +2,8 @@
 // Uses Google's gemini-embedding-001 model with pre-computed training embeddings
 
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import * as fs from 'fs';
+import * as path from 'path';
 
 // Embedding classifier state
 let embeddingModel: ReturnType<GoogleGenerativeAI['getGenerativeModel']> | null = null;
@@ -69,9 +71,13 @@ export async function initEmbeddingClassifier(
       trainEmbeddings = embeddingData.embeddings;
       trainLabels = embeddingData.labels;
     } else {
-      // Dynamic import for the JSON file
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
-      const data = require('./classifier-embeddings.json');
+      // Load embeddings from JSON file at runtime (not bundled at build time)
+      const embeddingsPath = path.join(process.cwd(), 'lib', 'classifier-embeddings.json');
+      if (!fs.existsSync(embeddingsPath)) {
+        console.error('Embeddings file not found:', embeddingsPath);
+        return false;
+      }
+      const data = JSON.parse(fs.readFileSync(embeddingsPath, 'utf-8'));
       trainEmbeddings = data.embeddings as number[][];
       trainLabels = data.labels as number[];
     }

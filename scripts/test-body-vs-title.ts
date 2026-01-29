@@ -40,6 +40,7 @@ async function fetchBody(feedUrl: string, slug: string): Promise<string | null> 
 
 async function main() {
   const data = await loadEmbeddingData();
+  if (!data) { console.error("Embeddings file not found"); process.exit(1); }
   initEmbeddingClassifier(process.env.GOOGLE_AI_API_KEY!, data);
 
   const tests = [

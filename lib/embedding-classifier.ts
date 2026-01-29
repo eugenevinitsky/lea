@@ -6,6 +6,8 @@
  */
 
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import * as fs from 'fs';
+import * as path from 'path';
 
 // Pre-computed embeddings and labels
 let trainEmbeddings: number[][] | null = null;
@@ -55,8 +57,13 @@ export async function loadEmbeddingData(): Promise<{
   embeddings: number[][];
   labels: number[];
   texts: string[];
-}> {
-  const data = await import('./classifier-embeddings.json');
+} | null> {
+  const embeddingsPath = path.join(process.cwd(), 'lib', 'classifier-embeddings.json');
+  if (!fs.existsSync(embeddingsPath)) {
+    console.error('Embeddings file not found:', embeddingsPath);
+    return null;
+  }
+  const data = JSON.parse(fs.readFileSync(embeddingsPath, 'utf-8'));
   return {
     embeddings: data.embeddings as number[][],
     labels: data.labels as number[],

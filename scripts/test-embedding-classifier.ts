@@ -17,6 +17,7 @@ if (!process.env.GOOGLE_AI_API_KEY) {
 async function main() {
   console.log('Loading embedding data...');
   const data = await loadEmbeddingData();
+  if (!data) { console.error("Embeddings file not found"); process.exit(1); }
   console.log(`Loaded ${data.embeddings.length} training embeddings (dim=${data.embeddings[0].length})`);
 
   console.log('Initializing classifier...');

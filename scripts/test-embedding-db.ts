@@ -14,6 +14,7 @@ const db = drizzle(pool);
 async function main() {
   console.log('Loading embedding data...');
   const data = await loadEmbeddingData();
+  if (!data) { console.error("Embeddings file not found"); process.exit(1); }
   initEmbeddingClassifier(API_KEY, data);
 
   console.log('Fetching posts from database...');
