@@ -1632,6 +1632,11 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
 
   // Share state
   const [showCopied, setShowCopied] = useState(false);
+  const [showShareMenu, setShowShareMenu] = useState(false);
+  const [shareMenuStyle, setShareMenuStyle] = useState<{ top: number; left: number } | null>(null);
+  const shareMenuRef = useRef<HTMLDivElement>(null);
+  const shareButtonRef = useRef<HTMLButtonElement>(null);
+  const [copiedType, setCopiedType] = useState<'lea' | 'bluesky' | null>(null);
 
   // Bookmark collection dropdown state
   const [showBookmarkMenu, setShowBookmarkMenu] = useState(false);
@@ -1821,6 +1826,22 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [showMobileInteractionMenu]);
 
+  // Close share menu when clicking outside
+  useEffect(() => {
+    if (!showShareMenu) return;
+
+    const handleClickOutside = (e: MouseEvent) => {
+      if (shareMenuRef.current && !shareMenuRef.current.contains(e.target as Node) &&
+          shareButtonRef.current && !shareButtonRef.current.contains(e.target as Node)) {
+        setShowShareMenu(false);
+        setShareMenuStyle(null);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showShareMenu]);
+
   const handleBookmarkClick = (e: React.MouseEvent) => {
     e.stopPropagation();
     e.preventDefault();
@@ -1979,25 +2000,88 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
     }
   };
 
-  const handleShare = async () => {
+  const handleShareClick = (e: React.MouseEvent<HTMLButtonElement>) => {
+    e.stopPropagation();
+    if (showShareMenu) {
+      setShowShareMenu(false);
+      setShareMenuStyle(null);
+      return;
+    }
+    
+    // Position menu above the button
+    const button = shareButtonRef.current;
+    if (button) {
+      const rect = button.getBoundingClientRect();
+      setShareMenuStyle({
+        top: rect.top - 8, // Position above button
+        left: rect.left + rect.width / 2, // Center on button
+      });
+    }
+    setShowShareMenu(true);
+  };
+
+  const getLeaUrl = () => {
     // Parse AT URI to extract DID and rkey
     // Format: at://did:plc:xxx/app.bsky.feed.post/rkey
     const match = post.uri.match(/^at:\/\/(did:[^/]+)\/app\.bsky\.feed\.post\/([^/]+)$/);
     
-    let url: string;
     if (match) {
       const [, , rkey] = match;
       // Use author handle for cleaner URLs
-      url = `${window.location.origin}/post/${author.handle}/${rkey}`;
+      return `${window.location.origin}/post/${author.handle}/${rkey}`;
     } else {
       // Fallback: encode the full URI
-      url = `${window.location.origin}/post/${encodeURIComponent(post.uri)}`;
+      return `${window.location.origin}/post/${encodeURIComponent(post.uri)}`;
     }
+  };
+
+  const getBlueskyUrl = () => {
+    // Parse AT URI to extract DID and rkey
+    // Format: at://did:plc:xxx/app.bsky.feed.post/rkey
+    const match = post.uri.match(/^at:\/\/(did:[^/]+)\/app\.bsky\.feed\.post\/([^/]+)$/);
+    
+    if (match) {
+      const [, , rkey] = match;
+      // Use author handle for Bluesky URL
+      return `https://bsky.app/profile/${author.handle}/post/${rkey}`;
+    } else {
+      // Fallback: can't construct Bluesky URL without proper format
+      return null;
+    }
+  };
+
+  const handleCopyLeaLink = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    try {
+      await navigator.clipboard.writeText(getLeaUrl());
+      setCopiedType('lea');
+      setShowCopied(true);
+      setShowShareMenu(false);
+      setShareMenuStyle(null);
+      setTimeout(() => {
+        setShowCopied(false);
+        setCopiedType(null);
+      }, 2000);
+    } catch (err) {
+      console.error('Failed to copy URL:', err);
+    }
+  };
+
+  const handleCopyBlueskyLink = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const url = getBlueskyUrl();
+    if (!url) return;
     
     try {
       await navigator.clipboard.writeText(url);
+      setCopiedType('bluesky');
       setShowCopied(true);
-      setTimeout(() => setShowCopied(false), 2000);
+      setShowShareMenu(false);
+      setShareMenuStyle(null);
+      setTimeout(() => {
+        setShowCopied(false);
+        setCopiedType(null);
+      }, 2000);
     } catch (err) {
       console.error('Failed to copy URL:', err);
     }
@@ -2974,23 +3058,63 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
             </div>
 
             {/* Share button */}
-            <button
-              onClick={handleShare}
-              className={`flex items-center gap-1.5 lg:gap-1 transition-colors py-1 ${
-                showCopied ? 'text-green-500' : 'hover:text-blue-500'
-              }`}
-              title={showCopied ? 'Copied!' : 'Copy link'}
-            >
-              {showCopied ? (
-                <svg className="w-5 h-5 lg:w-4 lg:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M5 13l4 4L19 7" />
-                </svg>
-              ) : (
-                <svg className="w-5 h-5 lg:w-4 lg:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
-                </svg>
+            <div className="relative">
+              <button
+                ref={shareButtonRef}
+                onClick={handleShareClick}
+                className={`flex items-center gap-1.5 lg:gap-1 transition-colors py-1 ${
+                  showCopied ? 'text-green-500' : 'hover:text-blue-500'
+                }`}
+                title={showCopied ? (copiedType === 'lea' ? 'Lea link copied!' : 'Bluesky link copied!') : 'Copy link'}
+              >
+                {showCopied ? (
+                  <svg className="w-5 h-5 lg:w-4 lg:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M5 13l4 4L19 7" />
+                  </svg>
+                ) : (
+                  <svg className="w-5 h-5 lg:w-4 lg:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+                  </svg>
+                )}
+              </button>
+
+              {/* Share dropdown menu - rendered via portal to escape overflow clipping */}
+              {showShareMenu && shareMenuStyle && typeof document !== 'undefined' && createPortal(
+                <div
+                  ref={shareMenuRef}
+                  className="fixed w-44 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-1 z-[9999]"
+                  style={{ 
+                    top: shareMenuStyle.top, 
+                    left: shareMenuStyle.left,
+                    transform: 'translate(-50%, -100%)'
+                  }}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <div className="px-3 py-1.5 text-xs font-medium text-gray-500 dark:text-gray-400 border-b border-gray-100 dark:border-gray-700">
+                    Copy link
+                  </div>
+                  <button
+                    onClick={handleCopyLeaLink}
+                    className="w-full px-3 py-2 text-left text-sm hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center gap-2 text-gray-700 dark:text-gray-300"
+                  >
+                    <svg className="w-4 h-4 text-emerald-500" fill="currentColor" viewBox="0 0 24 24">
+                      <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z" />
+                    </svg>
+                    <span>Lea link</span>
+                  </button>
+                  <button
+                    onClick={handleCopyBlueskyLink}
+                    className="w-full px-3 py-2 text-left text-sm hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center gap-2 text-gray-700 dark:text-gray-300"
+                  >
+                    <svg className="w-4 h-4 text-blue-500" fill="currentColor" viewBox="0 0 24 24">
+                      <path d="M12 10.8c-1.087-2.114-4.046-6.053-6.798-7.995C2.566.944 1.561 1.266.902 1.565.139 1.908 0 3.08 0 3.768c0 .69.378 5.65.624 6.479.815 2.736 3.713 3.66 6.383 3.364.136-.02.275-.039.415-.056-.138.022-.276.04-.415.056-3.912.58-7.387 2.005-2.83 7.078 5.013 5.19 6.87-1.113 7.823-4.308.953 3.195 2.05 9.271 7.733 4.308 4.267-4.308 1.172-6.498-2.74-7.078a8.741 8.741 0 01-.415-.056c.14.017.279.036.415.056 2.67.297 5.568-.628 6.383-3.364.246-.828.624-5.79.624-6.478 0-.69-.139-1.861-.902-2.206-.659-.298-1.664-.62-4.3 1.24C16.046 4.748 13.087 8.687 12 10.8z" />
+                    </svg>
+                    <span>Bluesky link</span>
+                  </button>
+                </div>,
+                document.body
               )}
-            </button>
+            </div>
 
             {/* Reply settings button - only for own posts */}
             {isOwnPost && (
