@@ -1,5 +1,5 @@
 // Embedding-based k-NN classifier for filtering Substack posts
-// Uses Google's text-embedding-004 model with pre-computed training embeddings
+// Uses Google's gemini-embedding-001 model with pre-computed training embeddings
 
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
@@ -62,7 +62,7 @@ export async function initEmbeddingClassifier(
 
   try {
     const genAI = new GoogleGenerativeAI(key);
-    embeddingModel = genAI.getGenerativeModel({ model: 'text-embedding-004' });
+    embeddingModel = genAI.getGenerativeModel({ model: 'gemini-embedding-001' });
 
     // Use provided data or load from file
     if (embeddingData) {
