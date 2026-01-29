@@ -19,10 +19,17 @@ import { describe, it, expect, beforeAll } from 'vitest';
 
 // Skip tests if API key is not available (e.g., in CI without secrets)
 const GOOGLE_AI_API_KEY = process.env.GOOGLE_AI_API_KEY;
-const describeIfApiKey = GOOGLE_AI_API_KEY ? describe : describe.skip;
 import * as fs from 'fs';
 import * as path from 'path';
 import { initEmbeddingClassifier, classifyContentAsync, isEmbeddingClassifierReady } from '@/lib/substack-classifier';
+
+// Check if embeddings file exists (it's gitignored, so may not be present in CI)
+const embeddingsPath = path.join(__dirname, '../lib/classifier-embeddings.json');
+const hasEmbeddings = fs.existsSync(embeddingsPath);
+
+// Skip if no API key OR no embeddings file
+const canRunTests = GOOGLE_AI_API_KEY && hasEmbeddings;
+const describeIfReady = canRunTests ? describe : describe.skip;
 
 // Sample size for CI (balance speed vs statistical significance)
 const SAMPLE_SIZE = 100;
@@ -65,7 +72,7 @@ interface TestData {
   technical: string[];
 }
 
-describeIfApiKey('Classifier FPR Validation', () => {
+describeIfReady('Classifier FPR Validation', () => {
   let testData: TestData;
   let nonTechSample: string[];
   let techSample: string[];
