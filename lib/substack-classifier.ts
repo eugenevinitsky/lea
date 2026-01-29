@@ -1,7 +1,9 @@
 // Embedding-based k-NN classifier for filtering Substack posts
-// Uses Google's text-embedding-004 model with pre-computed training embeddings
+// Uses Google's gemini-embedding-001 model with pre-computed training embeddings
 
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import * as fs from 'fs';
+import * as path from 'path';
 
 // Embedding classifier state
 let embeddingModel: ReturnType<GoogleGenerativeAI['getGenerativeModel']> | null = null;
@@ -9,9 +11,9 @@ let trainEmbeddings: number[][] | null = null;
 let trainLabels: number[] | null = null;
 let embeddingClassifierInitialized = false;
 
-// Classification threshold - with class weighting, 0.5 is the natural decision boundary
+// Classification threshold - balance between FPR and recall
 // IMPORTANT: This threshold is used by both ingestion and cleanup - keep them in sync!
-export const TECHNICAL_THRESHOLD = 0.5;
+export const TECHNICAL_THRESHOLD = 0.65;
 
 // Classification stats for monitoring
 let classificationStats = {
@@ -62,18 +64,31 @@ export async function initEmbeddingClassifier(
 
   try {
     const genAI = new GoogleGenerativeAI(key);
-    embeddingModel = genAI.getGenerativeModel({ model: 'text-embedding-004' });
+    embeddingModel = genAI.getGenerativeModel({ model: 'gemini-embedding-001' });
 
     // Use provided data or load from file
     if (embeddingData) {
       trainEmbeddings = embeddingData.embeddings;
       trainLabels = embeddingData.labels;
     } else {
-      // Dynamic import for the JSON file
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
-      const data = require('./classifier-embeddings.json');
-      trainEmbeddings = data.embeddings as number[][];
-      trainLabels = data.labels as number[];
+      // Load embeddings from JSON file at runtime (not bundled at build time)
+      // Use __dirname for Vercel serverless compatibility
+      const embeddingsPath = path.join(__dirname, 'classifier-embeddings.json');
+      if (!fs.existsSync(embeddingsPath)) {
+        // Fallback to process.cwd() for local development
+        const fallbackPath = path.join(process.cwd(), 'lib', 'classifier-embeddings.json');
+        if (!fs.existsSync(fallbackPath)) {
+          console.error('Embeddings file not found at:', embeddingsPath, 'or', fallbackPath);
+          return false;
+        }
+        const data = JSON.parse(fs.readFileSync(fallbackPath, 'utf-8'));
+        trainEmbeddings = data.embeddings as number[][];
+        trainLabels = data.labels as number[];
+      } else {
+        const data = JSON.parse(fs.readFileSync(embeddingsPath, 'utf-8'));
+        trainEmbeddings = data.embeddings as number[][];
+        trainLabels = data.labels as number[];
+      }
     }
     embeddingClassifierInitialized = true;
 
@@ -110,8 +125,8 @@ function computeKnnProbability(embedding: number[], k: number = 15): number {
   similarities.sort((a, b) => b.sim - a.sim);
   const topK = similarities.slice(0, k);
 
-  // Class weighting to account for real-world distribution imbalance
-  const NON_TECH_WEIGHT = 7.4;
+  // Class weighting - reduced since training data was cleaned
+  const NON_TECH_WEIGHT = 1.0;
 
   let techScore = 0;
   let nonTechScore = 0;

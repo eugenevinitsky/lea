@@ -25,9 +25,14 @@ jobs:
 
       - name: Run tests
         run: npm test
+        env:
+          GOOGLE_AI_API_KEY: ${{ secrets.GOOGLE_AI_API_KEY }}
 
       - name: Build check
         run: npm run build
         env:
+          # Increase Node.js memory limit for build
+          NODE_OPTIONS: '--max-old-space-size=8192'
           # Add any required env vars for build
           NEXT_PUBLIC_APP_URL: https://example.com
+          INTERNAL_AUTH_SECRET: ${{ secrets.INTERNAL_AUTH_SECRET }}

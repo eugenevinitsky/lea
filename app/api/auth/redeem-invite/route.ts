@@ -36,47 +36,58 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // Find and validate the invite code
-    const [inviteCode] = await db
-      .select()
-      .from(inviteCodes)
-      .where(
-        and(
-          eq(inviteCodes.code, normalizedCode),
-          // Check code hasn't exceeded max uses
-          gt(inviteCodes.maxUses, sql`${inviteCodes.usedCount}`),
-          // Check code hasn't expired (null expiresAt means no expiration)
-          or(
-            isNull(inviteCodes.expiresAt),
-            gt(inviteCodes.expiresAt, new Date())
+    // Redeem the code: validate, insert authorized user, and increment used count
+    // Use a transaction to ensure atomicity and prevent race conditions
+    let redemptionSuccess = false;
+
+    try {
+      await db.transaction(async (tx) => {
+        // Find and validate the invite code INSIDE the transaction
+        const [inviteCode] = await tx
+          .select()
+          .from(inviteCodes)
+          .where(
+            and(
+              eq(inviteCodes.code, normalizedCode),
+              // Check code hasn't exceeded max uses
+              gt(inviteCodes.maxUses, sql`${inviteCodes.usedCount}`),
+              // Check code hasn't expired (null expiresAt means no expiration)
+              or(
+                isNull(inviteCodes.expiresAt),
+                gt(inviteCodes.expiresAt, new Date())
+              )
+            )
           )
-        )
-      )
-      .limit(1);
+          .limit(1);
 
-    if (!inviteCode) {
-      return NextResponse.json(
-        { error: 'Invalid or expired invite code' },
-        { status: 400 }
-      );
-    }
+        if (!inviteCode) {
+          throw new Error('INVALID_CODE');
+        }
 
-    // Redeem the code: insert authorized user and increment used count
-    // Use a transaction to ensure atomicity
-    await db.transaction(async (tx) => {
-      // Insert the authorized user
-      await tx.insert(authorizedUsers).values({
-        did,
-        handle: handle || null,
-        inviteCodeUsed: normalizedCode,
+        // Insert the authorized user
+        await tx.insert(authorizedUsers).values({
+          did,
+          handle: handle || null,
+          inviteCodeUsed: normalizedCode,
+        });
+
+        // Increment the used count
+        await tx
+          .update(inviteCodes)
+          .set({ usedCount: sql`${inviteCodes.usedCount} + 1` })
+          .where(eq(inviteCodes.code, normalizedCode));
+
+        redemptionSuccess = true;
       });
-
-      // Increment the used count
-      await tx
-        .update(inviteCodes)
-        .set({ usedCount: sql`${inviteCodes.usedCount} + 1` })
-        .where(eq(inviteCodes.code, normalizedCode));
-    });
+    } catch (txError) {
+      if (txError instanceof Error && txError.message === 'INVALID_CODE') {
+        return NextResponse.json(
+          { error: 'Invalid or expired invite code' },
+          { status: 400 }
+        );
+      }
+      throw txError;
+    }
 
     return NextResponse.json({
       success: true,

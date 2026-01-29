@@ -1,19 +1,32 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { syncVerifiedOnlyList, getBotAgent } from '@/lib/services/list-manager';
+import crypto from 'crypto';
 
-// Verify admin secret for admin endpoints
-function verifyAdminSecret(request: NextRequest): boolean {
-  const secret = process.env.BACKFILL_SECRET;
-  if (!secret) return false;
-
-  const { searchParams } = new URL(request.url);
-  return searchParams.get('key') === secret;
+// Timing-safe Bearer token verification
+function verifyBearerSecret(authHeader: string | null, expected: string): boolean {
+  if (!authHeader || !authHeader.startsWith('Bearer ')) return false;
+  const provided = authHeader.slice(7);
+  try {
+    const providedBuffer = Buffer.from(provided);
+    const expectedBuffer = Buffer.from(expected);
+    if (providedBuffer.length !== expectedBuffer.length) return false;
+    return crypto.timingSafeEqual(providedBuffer, expectedBuffer);
+  } catch {
+    return false;
+  }
 }
 
 export async function POST(request: NextRequest) {
   try {
-    // Require admin secret
-    if (!verifyAdminSecret(request)) {
+    // Require admin secret via Bearer token (not query params - those get logged)
+    const authHeader = request.headers.get('Authorization');
+    const secret = process.env.BACKFILL_SECRET;
+
+    if (!secret) {
+      console.error('BACKFILL_SECRET not configured');
+      return NextResponse.json({ error: 'Server configuration error' }, { status: 500 });
+    }
+    if (!verifyBearerSecret(authHeader, secret)) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 

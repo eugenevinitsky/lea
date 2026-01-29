@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { AppBskyFeedDefs, AppBskyFeedPost, AppBskyEmbedExternal } from '@atproto/api';
 import type { ProfileLink, ProfilePaper } from '@/lib/db/schema';
-import { getAuthorFeed, getBlueskyProfile, getKnownFollowers, getUnknownFollows, BlueskyProfile, KnownFollowersResult, UnknownFollowsResult, followUser, unfollowUser, blockUser, unblockUser, getSession, searchPosts, Label, getSelfThread, hasReplies, isReplyPost, SelfThreadResult } from '@/lib/bluesky';
+import { getAuthorFeed, getBlueskyProfile, getKnownFollowers, getUnknownFollows, BlueskyProfile, KnownFollowersResult, UnknownFollowsResult, followUser, unfollowUser, blockUser, unblockUser, getSession, searchPosts, Label, getSelfThread, hasReplies, isReplyPost, SelfThreadResult, buildPostUrl } from '@/lib/bluesky';
 import { detectPaperLink, getPaperIdFromUrl } from '@/lib/papers';
 import { useFollowing } from '@/lib/following-context';
 import { useSettings } from '@/lib/settings';
@@ -222,13 +222,13 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
       try {
         const profile = await getBlueskyProfile(postDid);
         if (profile?.handle) {
-          window.location.href = `/post/${profile.handle}/${rkey}`;
+          window.location.href = buildPostUrl(profile.handle, rkey, profile.did);
           return;
         }
       } catch {
         // Fall through to use DID
       }
-      window.location.href = `/post/${postDid}/${rkey}`;
+      window.location.href = buildPostUrl(postDid, rkey);
     }
   }, []);
 

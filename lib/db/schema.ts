@@ -187,11 +187,22 @@ export const discoveredPapers = pgTable(
     firstSeenAt: timestamp('first_seen_at').defaultNow().notNull(),
     lastSeenAt: timestamp('last_seen_at').defaultNow().notNull(),
     mentionCount: integer('mention_count').default(1).notNull(),
+    // Denormalized trending scores (pre-computed for fast queries)
+    trendingScore1h: integer('trending_score_1h').default(0).notNull(),
+    trendingScore6h: integer('trending_score_6h').default(0).notNull(),
+    trendingScore24h: integer('trending_score_24h').default(0).notNull(),
+    trendingScore7d: integer('trending_score_7d').default(0).notNull(),
+    trendingScoreAllTime: integer('trending_score_all_time').default(0).notNull(),
+    lastScoreUpdate: timestamp('last_score_update'),
   },
   (table) => [
     index('discovered_papers_source_idx').on(table.source),
     index('discovered_papers_last_seen_idx').on(table.lastSeenAt),
     index('discovered_papers_mention_count_idx').on(table.mentionCount),
+    index('idx_papers_trending_1h').on(table.trendingScore1h),
+    index('idx_papers_trending_6h').on(table.trendingScore6h),
+    index('idx_papers_trending_24h').on(table.trendingScore24h),
+    index('idx_papers_trending_7d').on(table.trendingScore7d),
   ]
 );
 
@@ -234,11 +245,22 @@ export const discoveredSubstackPosts = pgTable(
     firstSeenAt: timestamp('first_seen_at').defaultNow().notNull(),
     lastSeenAt: timestamp('last_seen_at').defaultNow().notNull(),
     mentionCount: integer('mention_count').default(1).notNull(),
+    // Denormalized trending scores (pre-computed for fast queries)
+    trendingScore1h: integer('trending_score_1h').default(0).notNull(),
+    trendingScore6h: integer('trending_score_6h').default(0).notNull(),
+    trendingScore24h: integer('trending_score_24h').default(0).notNull(),
+    trendingScore7d: integer('trending_score_7d').default(0).notNull(),
+    trendingScoreAllTime: integer('trending_score_all_time').default(0).notNull(),
+    lastScoreUpdate: timestamp('last_score_update'),
   },
   (table) => [
     index('discovered_substack_posts_subdomain_idx').on(table.subdomain),
     index('discovered_substack_posts_last_seen_idx').on(table.lastSeenAt),
     index('discovered_substack_posts_mention_count_idx').on(table.mentionCount),
+    index('idx_substack_trending_1h').on(table.trendingScore1h),
+    index('idx_substack_trending_6h').on(table.trendingScore6h),
+    index('idx_substack_trending_24h').on(table.trendingScore24h),
+    index('idx_substack_trending_7d').on(table.trendingScore7d),
   ]
 );
 
@@ -282,11 +304,22 @@ export const discoveredArticles = pgTable(
     firstSeenAt: timestamp('first_seen_at').defaultNow().notNull(),
     lastSeenAt: timestamp('last_seen_at').defaultNow().notNull(),
     mentionCount: integer('mention_count').default(1).notNull(),
+    // Denormalized trending scores (pre-computed for fast queries)
+    trendingScore1h: integer('trending_score_1h').default(0).notNull(),
+    trendingScore6h: integer('trending_score_6h').default(0).notNull(),
+    trendingScore24h: integer('trending_score_24h').default(0).notNull(),
+    trendingScore7d: integer('trending_score_7d').default(0).notNull(),
+    trendingScoreAllTime: integer('trending_score_all_time').default(0).notNull(),
+    lastScoreUpdate: timestamp('last_score_update'),
   },
   (table) => [
     index('discovered_articles_source_idx').on(table.source),
     index('discovered_articles_last_seen_idx').on(table.lastSeenAt),
     index('discovered_articles_mention_count_idx').on(table.mentionCount),
+    index('idx_articles_trending_1h').on(table.trendingScore1h),
+    index('idx_articles_trending_6h').on(table.trendingScore6h),
+    index('idx_articles_trending_24h').on(table.trendingScore24h),
+    index('idx_articles_trending_7d').on(table.trendingScore7d),
   ]
 );
 

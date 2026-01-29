@@ -129,9 +129,8 @@ async function fetchPaperMetadata(normalizedId: string, source: string): Promise
 // POST /api/papers/backfill-titles - Backfill titles for papers without them
 export async function POST(request: NextRequest) {
   try {
-    // Require secret key for admin endpoints
-    const { searchParams } = new URL(request.url);
-    const key = searchParams.get('key');
+    // Require secret via Bearer token (not query params - those get logged)
+    const authHeader = request.headers.get('Authorization');
     const secret = process.env.BACKFILL_SECRET;
 
     // Always require authentication - fail if secret is not configured
@@ -139,7 +138,13 @@ export async function POST(request: NextRequest) {
       console.error('BACKFILL_SECRET not configured');
       return NextResponse.json({ error: 'Server configuration error' }, { status: 500 });
     }
-    if (!verifySecret(key, secret)) {
+
+    // Extract Bearer token
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    const token = authHeader.slice(7);
+    if (!verifySecret(token, secret)) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 

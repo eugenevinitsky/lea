@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { getSession, getBlueskyProfile, getBlockedAccounts, unblockUser, BlockedAccount, MassBlockUser, parsePostUrl, getAllLikers, getAllReposters, blockMultipleUsers, buildProfileUrl, checkVerificationStatus } from '@/lib/bluesky';
+import { getSession, getBlueskyProfile, getBlockedAccounts, unblockUser, BlockedAccount, MassBlockUser, parsePostUrl, getAllLikers, getAllReposters, blockMultipleUsers, buildProfileUrl, buildPostUrl, checkVerificationStatus } from '@/lib/bluesky';
 import { initOAuth } from '@/lib/oauth';
 import { refreshAgent } from '@/lib/bluesky';
 import { SettingsProvider } from '@/lib/settings';
@@ -267,13 +267,13 @@ function BlockedAccountsContent() {
       try {
         const profile = await getBlueskyProfile(did);
         if (profile?.handle) {
-          window.location.href = `/post/${profile.handle}/${rkey}`;
+          window.location.href = buildPostUrl(profile.handle, rkey, profile.did);
           return;
         }
       } catch {
         // Fall through
       }
-      window.location.href = `/post/${did}/${rkey}`;
+      window.location.href = buildPostUrl(did, rkey);
     }
   }, []);
 

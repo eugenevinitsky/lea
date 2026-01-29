@@ -410,22 +410,20 @@ export default function ThreadView({ uri, onClose, onOpenThread, onOpenProfile, 
                   <div
                     className="absolute left-[34px] top-0 bottom-0 w-0.5 bg-gray-300 dark:bg-gray-600"
                   />
-                  <div className="opacity-75">
-                    <Post
-                      post={post}
-                      onOpenThread={navigateToThread}
-                      onOpenProfile={navigateToProfile}
-                      onReply={refreshThread}
-                      isInThread={true}
-                    />
-                  </div>
+                  <Post
+                    post={post}
+                    onOpenThread={navigateToThread}
+                    onOpenProfile={navigateToProfile}
+                    onReply={refreshThread}
+                    isInThread={true}
+                  />
                 </div>
               ))}
             </div>
           )}
 
-          {/* Main post (highlighted) */}
-          <div className="relative bg-blue-50 dark:bg-blue-900/20 border-l-4 border-blue-500">
+          {/* Main post */}
+          <div className="relative">
             {/* Thread line connecting from parents */}
             {parents.length > 0 && (
               <div className="absolute left-[34px] top-0 h-4 w-0.5 bg-gray-300 dark:bg-gray-600" />

@@ -15,18 +15,16 @@ import crypto from 'crypto';
 // Secret for signing session tokens - MUST be configured in production
 const SESSION_SECRET = process.env.INTERNAL_AUTH_SECRET;
 
-// Fail fast if secret is not configured in production
-if (!SESSION_SECRET && process.env.NODE_ENV === 'production') {
-  throw new Error('INTERNAL_AUTH_SECRET must be configured in production');
-}
-
-// Get the session secret, with dev fallback only for local development
+// Get the session secret, with dev fallback ONLY for explicit development mode
+// This prevents accidental use of dev secret if NODE_ENV is undefined or misconfigured
 function getSessionSecret(): string {
   if (SESSION_SECRET) return SESSION_SECRET;
-  if (process.env.NODE_ENV !== 'production') {
+  // Only allow fallback when NODE_ENV is explicitly 'development'
+  // If NODE_ENV is undefined or anything other than 'development', require the secret
+  if (process.env.NODE_ENV === 'development') {
     return 'dev-secret-do-not-use-in-production';
   }
-  throw new Error('INTERNAL_AUTH_SECRET not configured');
+  throw new Error('INTERNAL_AUTH_SECRET must be configured (set NODE_ENV=development for local dev)');
 }
 
 // Session validity (7 days)

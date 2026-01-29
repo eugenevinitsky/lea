@@ -1,5 +1,7 @@
 # Lea
 
+[![Tests](https://github.com/eugenevinitsky/lea/actions/workflows/test.yml/badge.svg)](https://github.com/eugenevinitsky/lea/actions/workflows/test.yml)
+
 A Bluesky client with protective defaults for researchers. Currently developed by Maria Antoniak and Eugene Vinitsky.
 
 ## TL;DR

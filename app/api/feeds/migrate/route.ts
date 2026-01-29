@@ -1,9 +1,36 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { sql } from 'drizzle-orm';
+import crypto from 'crypto';
+
+// Timing-safe secret comparison
+function verifyBearerSecret(authHeader: string | null, expected: string): boolean {
+  if (!authHeader || !authHeader.startsWith('Bearer ')) return false;
+  const provided = authHeader.slice(7);
+  try {
+    const providedBuffer = Buffer.from(provided);
+    const expectedBuffer = Buffer.from(expected);
+    if (providedBuffer.length !== expectedBuffer.length) return false;
+    return crypto.timingSafeEqual(providedBuffer, expectedBuffer);
+  } catch {
+    return false;
+  }
+}
 
 // GET /api/feeds/migrate - Create the user_feeds table
-export async function GET() {
+// Requires PAPER_FIREHOSE_SECRET for authentication
+export async function GET(request: NextRequest) {
+  const authHeader = request.headers.get('Authorization');
+  const secret = process.env.PAPER_FIREHOSE_SECRET;
+
+  if (!secret) {
+    console.error('PAPER_FIREHOSE_SECRET not configured');
+    return NextResponse.json({ error: 'Server configuration error' }, { status: 500 });
+  }
+  if (!verifyBearerSecret(authHeader, secret)) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
   try {
     await db.execute(sql`
       CREATE TABLE IF NOT EXISTS user_feeds (
@@ -23,6 +50,6 @@ export async function GET() {
     return NextResponse.json({ success: true, message: 'Table created successfully' });
   } catch (error) {
     console.error('Migration error:', error);
-    return NextResponse.json({ error: 'Migration failed', details: String(error) }, { status: 500 });
+    return NextResponse.json({ error: 'Migration failed' }, { status: 500 });
   }
 }

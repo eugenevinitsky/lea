@@ -178,7 +178,7 @@ function ListsContent() {
   };
 
   const handleOpenProfile = (did: string) => {
-    window.location.href = `/u/${did}`;
+    window.location.href = `/profile/${did}`;
   };
 
   if (isLoading) {

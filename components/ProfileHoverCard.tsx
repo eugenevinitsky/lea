@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, ReactNode } from 'react';
 import { createPortal } from 'react-dom';
-import { getBlueskyProfile, followUser, unfollowUser, isVerifiedResearcher, Label, BlueskyProfile, blockUser, unblockUser } from '@/lib/bluesky';
+import { getBlueskyProfile, followUser, unfollowUser, isVerifiedResearcher, Label, BlueskyProfile, blockUser, unblockUser, buildProfileUrl } from '@/lib/bluesky';
 import { useFollowing } from '@/lib/following-context';
 import { useSettings } from '@/lib/settings';
 import ProfileLabels from './ProfileLabels';
@@ -222,7 +222,7 @@ export default function ProfileHoverCard({ did, handle, children, onOpenProfile 
               <button
                 onClick={(e) => {
                   if ((e.shiftKey || e.metaKey || e.ctrlKey) && (handle || profile.handle)) {
-                    window.open(`/u/${handle || profile.handle}`, '_blank');
+                    window.open(buildProfileUrl(handle || profile.handle, profile.did), '_blank');
                   } else {
                     onOpenProfile?.(e);
                   }
@@ -245,7 +245,7 @@ export default function ProfileHoverCard({ did, handle, children, onOpenProfile 
                 <button
                   onClick={(e) => {
                     if ((e.shiftKey || e.metaKey || e.ctrlKey) && (handle || profile.handle)) {
-                      window.open(`/u/${handle || profile.handle}`, '_blank');
+                      window.open(buildProfileUrl(handle || profile.handle, profile.did), '_blank');
                     } else {
                       onOpenProfile?.(e);
                     }

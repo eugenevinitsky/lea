@@ -1,4 +1,6 @@
 import { describe, it, expect, beforeAll } from 'vitest';
+import * as fs from 'fs';
+import * as path from 'path';
 import {
   initEmbeddingClassifier,
   classifyContentAsync,
@@ -6,32 +8,35 @@ import {
   batchClassifyContentAsync
 } from '@/lib/substack-classifier';
 
-// These tests require GOOGLE_AI_API_KEY to be set
-// Skip if running in CI without API key
+// These tests require GOOGLE_AI_API_KEY and embeddings file to be present
+// Skip if running in CI without proper setup
 const hasApiKey = !!process.env.GOOGLE_AI_API_KEY;
+const embeddingsPath = path.join(__dirname, '../../lib/classifier-embeddings.json');
+const hasEmbeddings = fs.existsSync(embeddingsPath);
+let classifierReady = false;
 
 describe('Substack Embedding Classifier', () => {
   beforeAll(async () => {
-    if (hasApiKey) {
-      await initEmbeddingClassifier();
+    if (hasApiKey && hasEmbeddings) {
+      classifierReady = await initEmbeddingClassifier();
     }
   });
 
   describe('isEmbeddingClassifierReady', () => {
-    it.skipIf(!hasApiKey)('reports classifier is ready after initialization', () => {
+    it.skipIf(!classifierReady)('reports classifier is ready after initialization', () => {
       expect(isEmbeddingClassifierReady()).toBe(true);
     });
 
-    it('returns false when not initialized (no API key)', () => {
+    it('returns false when not initialized (no API key or embeddings)', () => {
       // This test only makes sense if we hadn't initialized
-      if (!hasApiKey) {
+      if (!classifierReady) {
         expect(isEmbeddingClassifierReady()).toBe(false);
       }
     });
   });
 
   describe('classifyContentAsync', () => {
-    it.skipIf(!hasApiKey)('classifies technical content as technical', async () => {
+    it.skipIf(!classifierReady)('classifies technical content as technical', async () => {
       const result = await classifyContentAsync('Neural Network Architecture Design');
       expect(result.modelType).toBe('embedding-knn');
       expect(result.probability).toBeGreaterThan(0);
@@ -40,7 +45,7 @@ describe('Substack Embedding Classifier', () => {
       expect(['technical', 'non-technical']).toContain(result.prediction);
     });
 
-    it.skipIf(!hasApiKey)('returns structure with required fields', async () => {
+    it.skipIf(!classifierReady)('returns structure with required fields', async () => {
       const result = await classifyContentAsync(
         'Machine Learning Optimization',
         'A deep dive into gradient descent algorithms'
@@ -53,7 +58,7 @@ describe('Substack Embedding Classifier', () => {
       expect(result.modelType).toBe('embedding-knn');
     });
 
-    it.skipIf(!hasApiKey)('uses body text when provided', async () => {
+    it.skipIf(!classifierReady)('uses body text when provided', async () => {
       const result = await classifyContentAsync(
         'Weekly Newsletter',
         'Updates from this week',
@@ -66,7 +71,7 @@ describe('Substack Embedding Classifier', () => {
 
     it('rejects content when classifier not initialized', async () => {
       // If no API key, classifier won't be initialized
-      if (!hasApiKey) {
+      if (!classifierReady) {
         const result = await classifyContentAsync('Any content');
         expect(result.isTechnical).toBe(false);
         expect(result.probability).toBe(0);
@@ -76,7 +81,7 @@ describe('Substack Embedding Classifier', () => {
   });
 
   describe('batchClassifyContentAsync', () => {
-    it.skipIf(!hasApiKey)('classifies multiple items', async () => {
+    it.skipIf(!classifierReady)('classifies multiple items', async () => {
       const items = [
         { title: 'Neural Networks', description: 'Deep learning fundamentals' },
         { title: 'Recipe Collection', description: 'Best pasta dishes' },
@@ -92,7 +97,7 @@ describe('Substack Embedding Classifier', () => {
     });
 
     it('returns non-technical for all when classifier not initialized', async () => {
-      if (!hasApiKey) {
+      if (!classifierReady) {
         const items = [
           { title: 'Test 1' },
           { title: 'Test 2' },

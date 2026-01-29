@@ -6,6 +6,8 @@
  */
 
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import * as fs from 'fs';
+import * as path from 'path';
 
 // Pre-computed embeddings and labels
 let trainEmbeddings: number[][] | null = null;
@@ -55,8 +57,18 @@ export async function loadEmbeddingData(): Promise<{
   embeddings: number[][];
   labels: number[];
   texts: string[];
-}> {
-  const data = await import('./classifier-embeddings.json');
+} | null> {
+  // Use __dirname for Vercel serverless compatibility
+  let embeddingsPath = path.join(__dirname, 'classifier-embeddings.json');
+  if (!fs.existsSync(embeddingsPath)) {
+    // Fallback to process.cwd() for local development
+    embeddingsPath = path.join(process.cwd(), 'lib', 'classifier-embeddings.json');
+    if (!fs.existsSync(embeddingsPath)) {
+      console.error('Embeddings file not found');
+      return null;
+    }
+  }
+  const data = JSON.parse(fs.readFileSync(embeddingsPath, 'utf-8'));
   return {
     embeddings: data.embeddings as number[][],
     labels: data.labels as number[],

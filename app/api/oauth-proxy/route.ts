@@ -41,14 +41,40 @@ export async function GET(request: NextRequest) {
 
   // Block requests to internal/private IPs
   const hostname = parsedUrl.hostname;
-  if (
-    hostname === 'localhost' ||
-    hostname === '127.0.0.1' ||
-    hostname.startsWith('192.168.') ||
-    hostname.startsWith('10.') ||
-    hostname.startsWith('172.') ||
-    hostname === '::1'
-  ) {
+
+  // Check if hostname is a private/internal IP address
+  function isPrivateHost(host: string): boolean {
+    // Localhost variants
+    if (host === 'localhost' || host.endsWith('.localhost')) return true;
+
+    // IPv4 checks
+    const ipv4Parts = host.split('.').map(Number);
+    if (ipv4Parts.length === 4 && ipv4Parts.every(p => !isNaN(p) && p >= 0 && p <= 255)) {
+      const [a, b] = ipv4Parts;
+      // 10.0.0.0/8
+      if (a === 10) return true;
+      // 172.16.0.0/12
+      if (a === 172 && b >= 16 && b <= 31) return true;
+      // 192.168.0.0/16
+      if (a === 192 && b === 168) return true;
+      // 127.0.0.0/8 (localhost)
+      if (a === 127) return true;
+      // 169.254.0.0/16 (link-local, includes AWS/cloud metadata endpoints)
+      if (a === 169 && b === 254) return true;
+      // 0.0.0.0
+      if (a === 0) return true;
+    }
+
+    // IPv6 checks
+    const hostLower = host.toLowerCase();
+    if (hostLower === '::1' || hostLower === '::') return true;
+    if (hostLower.startsWith('fe80:')) return true; // Link-local
+    if (hostLower.startsWith('fc') || hostLower.startsWith('fd')) return true; // Unique local
+
+    return false;
+  }
+
+  if (isPrivateHost(hostname)) {
     return NextResponse.json({ error: 'Cannot proxy to internal addresses' }, { status: 400 });
   }
 

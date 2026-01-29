@@ -23,6 +23,10 @@ async function main() {
 
   console.log('Loading embedding classifier...');
   const data = await loadEmbeddingData();
+  if (!data) {
+    console.error('Failed to load embeddings file. Make sure lib/classifier-embeddings.json exists.');
+    process.exit(1);
+  }
   initEmbeddingClassifier(API_KEY, data);
 
   console.log('Fetching all Substack posts...');

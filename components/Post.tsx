@@ -494,11 +494,11 @@ function RichText({ text, facets }: { text: string; facets?: AppBskyFeedPost.Rec
           did={did}
           handle={mentionHandle}
           onOpenProfile={() => {
-            window.location.href = `/u/${did}`;
+            window.location.href = `/profile/${did}`;
           }}
         >
           <a
-            href={`/u/${did}`}
+            href={`/profile/${did}`}
             className="text-blue-500 hover:underline"
             onClick={(e) => e.stopPropagation()}
           >
@@ -1414,6 +1414,7 @@ function EmbedRecord({ record, onOpenThread }: {
 function EmbedVideo({ video }: { video: AppBskyEmbedVideo.View }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const hlsRef = useRef<Hls | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const playlist = video.playlist;
   const thumbnail = video.thumbnail;
   const aspectRatio = video.aspectRatio;
@@ -1436,8 +1437,33 @@ function EmbedVideo({ video }: { video: AppBskyEmbedVideo.View }) {
         lowLatencyMode: true,
       });
       hlsRef.current = hls;
+
+      // Add error handling
+      hls.on(Hls.Events.ERROR, (_event, data) => {
+        console.error('HLS error:', data);
+        if (data.fatal) {
+          setError('Video failed to load');
+          switch (data.type) {
+            case Hls.ErrorTypes.NETWORK_ERROR:
+              console.error('Network error - trying to recover');
+              hls.startLoad();
+              break;
+            case Hls.ErrorTypes.MEDIA_ERROR:
+              console.error('Media error - trying to recover');
+              hls.recoverMediaError();
+              break;
+            default:
+              console.error('Unrecoverable error');
+              hls.destroy();
+              break;
+          }
+        }
+      });
+
       hls.loadSource(playlist);
       hls.attachMedia(videoElement);
+    } else {
+      setError('Video playback not supported');
     }
 
     return () => {
@@ -1449,7 +1475,10 @@ function EmbedVideo({ video }: { video: AppBskyEmbedVideo.View }) {
   }, [playlist]);
 
   return (
-    <div className="mt-2 rounded-xl overflow-hidden bg-black">
+    <div
+      className="mt-2 rounded-xl overflow-hidden bg-black"
+      onClick={(e) => e.stopPropagation()}
+    >
       <div className="relative" style={{ paddingBottom }}>
         <video
           ref={videoRef}
@@ -1458,9 +1487,18 @@ function EmbedVideo({ video }: { video: AppBskyEmbedVideo.View }) {
           controls
           preload="metadata"
           playsInline
+          onError={(e) => {
+            console.error('Video element error:', e);
+            setError('Video failed to load');
+          }}
         >
           Your browser does not support the video tag.
         </video>
+        {error && (
+          <div className="absolute inset-0 flex items-center justify-center bg-black/80 text-white text-sm">
+            {error}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -2024,11 +2062,11 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
     // Parse AT URI to extract DID and rkey
     // Format: at://did:plc:xxx/app.bsky.feed.post/rkey
     const match = post.uri.match(/^at:\/\/(did:[^/]+)\/app\.bsky\.feed\.post\/([^/]+)$/);
-    
+
     if (match) {
-      const [, , rkey] = match;
-      // Use author handle for cleaner URLs
-      return `${window.location.origin}/post/${author.handle}/${rkey}`;
+      const [, did, rkey] = match;
+      // Use buildPostUrl to properly handle handles with dots (uses DID when needed)
+      return `${window.location.origin}${buildPostUrl(author.handle, rkey, did)}`;
     } else {
       // Fallback: encode the full URI
       return `${window.location.origin}/post/${encodeURIComponent(post.uri)}`;
@@ -2039,11 +2077,13 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
     // Parse AT URI to extract DID and rkey
     // Format: at://did:plc:xxx/app.bsky.feed.post/rkey
     const match = post.uri.match(/^at:\/\/(did:[^/]+)\/app\.bsky\.feed\.post\/([^/]+)$/);
-    
+
     if (match) {
-      const [, , rkey] = match;
-      // Use author handle for Bluesky URL
-      return `https://bsky.app/profile/${author.handle}/post/${rkey}`;
+      const [, did, rkey] = match;
+      // Use buildPostUrl logic for Bluesky URL - handles with dots need DID
+      const handleHasDot = author.handle.includes('.');
+      const identifier = handleHasDot ? did : author.handle;
+      return `https://bsky.app/profile/${identifier}/post/${rkey}`;
     } else {
       // Fallback: can't construct Bluesky URL without proper format
       return null;
@@ -2485,8 +2525,8 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
 
   // Build article class based on context
   const articleClass = isInSelfThread || isInThread
-    ? `hover:bg-gray-50 dark:hover:bg-gray-900/50 transition-colors ${dimmed ? 'opacity-60' : ''}`
-    : `border-b border-gray-200 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-900/50 transition-colors ${dimmed ? 'opacity-60' : ''}`;
+    ? `hover:bg-gray-50 dark:hover:bg-gray-900/50 transition-colors`
+    : `border-b border-gray-200 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-900/50 transition-colors`;
 
   // Determine reply target - prefer feed-provided parent, fall back to extracting from record.reply
   const replyTarget = replyParent || (record.reply ? {
@@ -2519,8 +2559,8 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
       return;
     }
 
-    // Don't trigger if clicking on other interactive elements (buttons, inputs)
-    const interactiveElement = target.closest('button, input, textarea, [role="button"]');
+    // Don't trigger if clicking on other interactive elements (buttons, inputs, images, videos)
+    const interactiveElement = target.closest('button, input, textarea, [role="button"], img, video');
     if (interactiveElement) {
       // Prevent the wrapper anchor from navigating
       e.preventDefault();
@@ -2577,8 +2617,8 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
       return;
     }
 
-    // For non-link interactive elements (buttons, images, inputs), prevent the wrapper anchor navigation
-    const interactiveElement = target.closest('button, input, textarea, [role="button"], img');
+    // For non-link interactive elements (buttons, images, inputs, videos), prevent the wrapper anchor navigation
+    const interactiveElement = target.closest('button, input, textarea, [role="button"], img, video');
     if (interactiveElement) {
       // For external links (target="_blank"), let them open naturally
       // Only prevent default for other interactive elements to stop the wrapper anchor from navigating
@@ -2616,7 +2656,7 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
             onClick={(e) => {
               e.stopPropagation();
               if (e.shiftKey || e.metaKey || e.ctrlKey) {
-                window.open(`/u/${repostedBy.handle}`, '_blank');
+                window.open(buildProfileUrl(repostedBy.handle, repostedBy.did), '_blank');
               } else if (onOpenProfile) {
                 onOpenProfile(repostedBy.did);
               }
@@ -2639,7 +2679,7 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
               e.stopPropagation();
               if (replyTarget!.author.did && onOpenProfile) {
                 if (e.shiftKey || e.metaKey || e.ctrlKey) {
-                  window.open(`/u/${replyTarget!.author.handle}`, '_blank');
+                  window.open(buildProfileUrl(replyTarget!.author.handle, replyTarget!.author.did), '_blank');
                 } else {
                   onOpenProfile(replyTarget!.author.did);
                 }
@@ -2658,7 +2698,7 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
           handle={author.handle}
           onOpenProfile={(e) => {
             if (e?.shiftKey || e?.metaKey || e?.ctrlKey) {
-              window.open(`/u/${author.handle}`, '_blank');
+              window.open(buildProfileUrl(author.handle, author.did), '_blank');
             } else if (onOpenProfile) {
               onOpenProfile(author.did);
             } else {
@@ -2671,7 +2711,7 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
             onClick={(e) => {
               e.stopPropagation();
               if (e.shiftKey || e.metaKey || e.ctrlKey) {
-                window.open(`/u/${author.handle}`, '_blank');
+                window.open(buildProfileUrl(author.handle, author.did), '_blank');
               } else if (onOpenProfile) {
                 onOpenProfile(author.did);
               } else {
@@ -2752,7 +2792,7 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
               handle={author.handle}
           onOpenProfile={(e) => {
                 if (e?.shiftKey || e?.metaKey || e?.ctrlKey) {
-                  window.open(`/u/${author.handle}`, '_blank');
+                  window.open(buildProfileUrl(author.handle, author.did), '_blank');
                 } else if (onOpenProfile) {
                   onOpenProfile(author.did);
                 } else {
@@ -2765,7 +2805,7 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
                 onClick={(e) => {
                   e.stopPropagation();
                   if (e.shiftKey || e.metaKey || e.ctrlKey) {
-                    window.open(`/u/${author.handle}`, '_blank');
+                    window.open(buildProfileUrl(author.handle, author.did), '_blank');
                   } else if (onOpenProfile) {
                     onOpenProfile(author.did);
                   } else {
@@ -2847,8 +2887,8 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
           {/* Embedded content (images, links, etc.) */}
           <PostEmbed embed={post.embed} onOpenThread={onOpenThread} />
 
-          {/* Poll (if any) */}
-          <PollDisplay postUri={post.uri} />
+          {/* Poll - only check for posts with the poll marker (📊) to avoid unnecessary API requests */}
+          {record?.text?.includes('📊') && <PollDisplay postUri={post.uri} />}
 
           {/* Engagement actions */}
           <div className="flex gap-6 lg:gap-4 mt-3 text-base lg:text-sm text-gray-500">

@@ -8,6 +8,8 @@
 import * as dotenv from 'dotenv';
 dotenv.config({ path: '.env.local' });
 
+import * as fs from 'fs';
+import * as path from 'path';
 import { db, discoveredSubstackPosts, substackMentions } from '@/lib/db';
 import { inArray } from 'drizzle-orm';
 import { initEmbeddingClassifier, classifyContentAsync, isEmbeddingClassifierReady, TECHNICAL_THRESHOLD } from '@/lib/substack-classifier';
@@ -111,6 +113,33 @@ async function fetchBodyText(subdomain: string, slug: string, url: string): Prom
   return fetchBodyFromPage(url);
 }
 
+// Retry wrapper with exponential backoff
+async function withRetry<T>(
+  fn: () => Promise<T>,
+  maxRetries: number = 3,
+  baseDelay: number = 1000
+): Promise<T> {
+  let lastError: Error | null = null;
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      return await fn();
+    } catch (error) {
+      lastError = error as Error;
+      if (attempt < maxRetries - 1) {
+        const delay = baseDelay * Math.pow(2, attempt);
+        console.log(`\n  Retry ${attempt + 1}/${maxRetries} after ${delay}ms...`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
+    }
+  }
+  throw lastError;
+}
+
+// Small delay to avoid rate limits
+function sleep(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
 async function main() {
   const dryRun = process.argv.includes('--dry-run');
 
@@ -157,14 +186,17 @@ async function main() {
       bodyText = await fetchBodyText(post.subdomain, post.slug, post.url);
     }
 
-    // Classify using embedding k-NN (same params as ingestion)
-    const result = await classifyContentAsync(
+    // Classify using embedding k-NN (same params as ingestion) with retry
+    const result = await withRetry(() => classifyContentAsync(
       post.title || '',
       post.description || '',
       bodyText || undefined,
       15, // k neighbors (same as ingestion)
       { logDecision: false, context: 'cleanup' } // Don't log each one, we summarize at end
-    );
+    ));
+
+    // Small delay to avoid rate limits (50ms = ~20 requests/sec, well under limits)
+    await sleep(50);
 
     if (result.isTechnical) {
       kept.push({
@@ -199,6 +231,30 @@ async function main() {
       console.log(`  [${post.probability.toFixed(3)}] ${post.title || '(no title)'}`);
     }
   }
+
+  // Save classification results for training data enhancement
+  const resultsPath = path.join(__dirname, '../data/cleanup-results.json');
+  const resultsData = {
+    timestamp: new Date().toISOString(),
+    threshold: TECHNICAL_THRESHOLD,
+    totalProcessed: allPosts.length,
+    kept: kept.map(p => ({
+      title: p.title,
+      probability: p.probability,
+      titleDescProb: p.titleDescProb,
+      bodyProb: p.bodyProb,
+      label: 'technical' as const,
+    })),
+    removed: removed.map(p => ({
+      title: p.title,
+      probability: p.probability,
+      titleDescProb: p.titleDescProb,
+      bodyProb: p.bodyProb,
+      label: 'non-technical' as const,
+    })),
+  };
+  fs.writeFileSync(resultsPath, JSON.stringify(resultsData, null, 2));
+  console.log(`\nSaved classification results to: ${resultsPath}`);
 
   if (!dryRun && removed.length > 0) {
     console.log('\nDeleting posts from database...');
