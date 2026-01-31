@@ -1,0 +1,151 @@
+# LEA Codebase Guide
+
+## Substack Classifier: Cleanup & Retraining Procedure
+
+This documents how to clean up non-technical Substack posts from the database and retrain the classifier to reduce false positives.
+
+### Overview
+
+The system uses an embedding-based k-NN classifier powered by Google's `gemini-embedding-001` model to filter technical vs non-technical content. Posts with probability < 0.65 are considered non-technical.
+
+**Key files:**
+- `lib/substack-classifier.ts` - Main classifier code
+- `lib/classifier-embeddings.json` - Pre-computed training embeddings (~100MB)
+- `data/training-data.json` - Training examples with labels
+- `scripts/cleanup-substack-local.ts` - Cleanup script
+- `scripts/train-embedding-classifier.ts` - Training script
+- `scripts/add-bulk-training-examples.ts` - Add new training examples
+
+### Prerequisites
+
+1. `GOOGLE_AI_API_KEY` in `.env.local` (free key from https://aistudio.google.com/app/apikey)
+2. Database connection configured
+
+### Step 1: Run Cleanup (Dry Run)
+
+See what posts would be removed without deleting anything:
+
+```bash
+npx tsx scripts/cleanup-substack-local.ts --dry-run
+```
+
+This will:
+- Classify all Substack posts using the current model
+- Save results to `data/cleanup-results.json`
+- Display posts that would be removed (probability < 0.65)
+
+Optional flags:
+- `--limit N` - Process only first N posts (for testing)
+
+### Step 2: Review Results
+
+Open `data/cleanup-results.json` and review:
+- `kept` array: Posts classified as technical (should stay)
+- `removed` array: Posts classified as non-technical (will be deleted)
+
+Look for:
+- **False positives**: Posts in "kept" that should be removed (non-technical content incorrectly classified as technical)
+- **False negatives**: Posts in "removed" that should stay (technical content incorrectly rejected)
+
+### Step 3: Add Training Examples
+
+Edit `scripts/add-bulk-training-examples.ts`:
+
+```typescript
+// Add false positives to this array (non-technical content being misclassified as technical)
+const nonTechExamples: string[] = [
+  "Your example title or description here...",
+  // Add more...
+];
+
+// Add false negatives to this array (technical content being incorrectly rejected)
+const techExamples: string[] = [
+  "Your technical example here...",
+  // Add more...
+];
+```
+
+Then run:
+
+```bash
+npx tsx scripts/add-bulk-training-examples.ts
+```
+
+This appends examples to `data/training-data.json`.
+
+### Step 4: Retrain the Classifier
+
+```bash
+npx tsx scripts/train-embedding-classifier.ts
+```
+
+**Note:** This takes 20-30 minutes due to API rate limits (free tier: 100 requests/minute).
+
+The script:
+- Loads `data/training-data.json`
+- Generates embeddings for all examples using Google's API
+- Computes class centroids
+- Saves to `lib/classifier-embeddings.json`
+
+### Step 5: Verify the Fix
+
+Run cleanup dry-run again to check if false positives are now correctly classified:
+
+```bash
+npx tsx scripts/cleanup-substack-local.ts --dry-run
+```
+
+Compare with previous results.
+
+### Step 6: Execute Cleanup
+
+Once satisfied, run without `--dry-run` to actually delete non-technical posts:
+
+```bash
+npx tsx scripts/cleanup-substack-local.ts
+```
+
+This deletes:
+1. Mentions (foreign key constraint)
+2. Posts themselves
+
+### Troubleshooting
+
+**API Rate Limits:**
+If you see "429 Too Many Requests", the script has built-in retry logic with exponential backoff. Just wait.
+
+**Model Not Found:**
+If you see "models/text-embedding-004 is not found", the model name needs updating. Current model: `gemini-embedding-001`
+
+**Classifier Not Initialized:**
+Check that `GOOGLE_AI_API_KEY` is set in `.env.local`
+
+### Classification Threshold
+
+The threshold is `0.65` (defined in `lib/substack-classifier.ts` as `TECHNICAL_THRESHOLD`).
+
+- Probability >= 0.65 = technical (kept)
+- Probability < 0.65 = non-technical (removed)
+
+Both title+description AND body text are classified; the minimum probability is used (conservative approach).
+
+### Training Data Format
+
+`data/training-data.json`:
+```json
+[
+  { "text": "Article title and description...", "label": "technical" },
+  { "text": "Non-tech article...", "label": "non-technical" }
+]
+```
+
+Current distribution: ~25% technical, ~75% non-technical (~8500 examples).
+
+### Quick Reference
+
+| Task | Command |
+|------|---------|
+| Dry run cleanup | `npx tsx scripts/cleanup-substack-local.ts --dry-run` |
+| Add training examples | Edit then run `npx tsx scripts/add-bulk-training-examples.ts` |
+| Retrain classifier | `npx tsx scripts/train-embedding-classifier.ts` |
+| Execute cleanup | `npx tsx scripts/cleanup-substack-local.ts` |
