@@ -91,6 +91,52 @@ const nonTechExamples: string[] = [
 
 // FALSE NEGATIVES TO FIX - add as technical
 const techExamples: string[] = [
+  // Intellectual/Philosophical Content (Maxim Raginsky - realizable.substack.com)
+  "Hayek's Abstract Logic 9000 - The use of knowledge in Searle's Chinese Room",
+  "Supertzar, or the Hand of Doom - The sleep of reason produces utility monsters. On superintelligence and AI.",
+  "Games Without Frontiers - Hermann Weyl's dialectic of the infinite in the age of AI",
+  "Horace P. Yuen (1946-2025) - A farewell to my PhD advisor. Information theory and quantum mechanics.",
+  "The Sensory Order: Hayek's analysis of distributed knowledge in markets and the system counter-argument to Searle's Chinese room",
+  "Information theory meets philosophy of mind: Embodied cognition and the limits of computation",
+  "Why complexity theory matters for understanding intelligence: P vs NP and cognitive science",
+  "Shannon's channel capacity and the nature of communication: From bits to meaning",
+  "Control theory and homeostasis: Cybernetics, Wiener, and the origins of AI",
+  "The mathematical foundations of learning theory: VC dimension and generalization",
+
+  // Artificial Bureaucracy (Kevin Baker - computing history, philosophy of technology)
+  "Context Widows - or, of GPUs, LPUs, and Goal Displacement. Can LLMs do science?",
+  "Avoidance Machines - On bureaucracy, computing, and organizational behavior",
+  "Crisis of Confidence - Avoidance Machines, Part 2. Technology and institutional failure",
+  "The history of computing and bureaucratic rationality: From punch cards to neural networks",
+  "Goal displacement in AI systems: When optimization metrics become the objective",
+  "The organizational logic of large language models: Bureacracy and machine learning",
+  "Computing history: The RAND Corporation and the origins of artificial intelligence",
+  "Cybernetics and management science: The forgotten roots of AI",
+
+  // argmin blog (Ben Recht - ML theory, statistics, academic research)
+  "Thou Shalt Not Overfit - On the persistent inanity about overfitting in machine learning",
+  "Too Much Information - What if we are writing too many papers? Academic publishing and ML research",
+  "The Higgs Discovery Did Not Take Place - Philosophy of science and experimental physics",
+  "An Outsider's Tour of Reinforcement Learning - Understanding RL from control theory",
+  "The minimum description length principle and Occam's razor in machine learning",
+  "Why optimization is not the same as learning: The difference between training and generalization",
+  "Statistical learning theory: From PAC learning to modern deep learning",
+  "The bitter lesson and the role of compute in AI progress: Historical perspective",
+  "Causal inference and machine learning: Beyond correlation to understanding",
+  "The reproducibility crisis in machine learning research: Benchmarks and best practices",
+
+  // General philosophy of AI/CS theory
+  "Gödel, Turing, and the limits of computation: What undecidability means for AI",
+  "The Chinese Room argument revisited: Syntax, semantics, and understanding",
+  "Embodied cognition and robotics: Why intelligence might require a body",
+  "The frame problem in AI: Why common sense is computationally hard",
+  "Algorithmic information theory: Kolmogorov complexity and learning",
+  "The symbol grounding problem: How do words get their meaning?",
+  "Connectionism vs symbolism: The great debate in cognitive science",
+  "Philosophy of probability: Frequentist, Bayesian, and algorithmic interpretations",
+  "Computational complexity and the nature of mathematical proof",
+  "The alignment problem: Value learning and inverse reinforcement learning",
+
   // Claude/Anthropic
   "Claude Code and What Comes Next. With the right tools, AI can accomplish impressive things.",
   "First impressions of Claude Cowork, Anthropic's general agent. Testing the new AI assistant.",

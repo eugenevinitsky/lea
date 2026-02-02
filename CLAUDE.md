@@ -149,3 +149,64 @@ Current distribution: ~25% technical, ~75% non-technical (~8500 examples).
 | Add training examples | Edit then run `npx tsx scripts/add-bulk-training-examples.ts` |
 | Retrain classifier | `npx tsx scripts/train-embedding-classifier.ts` |
 | Execute cleanup | `npx tsx scripts/cleanup-substack-local.ts` |
+
+---
+
+## Debugging: Non-Technical Posts Getting Through (Feb 2, 2026) - RESOLVED
+
+### Problem
+Non-technical posts were being inserted into the database despite the classifier being configured to reject them.
+
+### Root Cause: Staging Worker Running
+**Hypothesis 2 was correct.** A staging Cloudflare worker (`paper-firehose-staging`) was running alongside the production worker, both processing the same Bluesky firehose. The staging worker was inserting posts without proper classifier filtering.
+
+### Evidence
+- 154 posts inserted on Feb 2 vs ~10/day normally (15x increase)
+- Staging worker showed `substackFound: 3052` when checked
+- After deleting staging worker: only 1 post in 15+ minutes (182 found → 1 accepted = 99.4% rejection rate)
+
+### Fix Applied (Feb 2, 2026)
+1. Stopped the staging worker: `curl -X POST "https://paper-firehose-staging.vinitsky-eugene.workers.dev/stop"`
+2. Deleted the staging worker: `wrangler delete paper-firehose-staging --name paper-firehose-staging`
+3. Verified production worker is running with correct secrets
+
+### Architecture
+```
+Bluesky Firehose → Cloudflare Worker (paper-firehose) → Vercel API (/api/substack/ingest)
+                   extracts URLs                        runs classifier
+```
+
+### Cleanup Steps
+The existing non-technical posts in the database need to be cleaned up:
+```bash
+# Preview what will be deleted
+npx tsx scripts/cleanup-substack-local.ts --dry-run
+
+# Execute cleanup (deletes non-technical posts)
+npx tsx scripts/cleanup-substack-local.ts
+```
+
+### Diagnostic Commands (for future debugging)
+
+```bash
+# Check recent posts and their classifier scores
+npx tsx scripts/cleanup-substack-local.ts --dry-run --limit 50
+
+# Check Cloudflare worker status
+curl -s "https://paper-firehose.vinitsky-eugene.workers.dev/status"
+
+# Tail worker logs
+cd paper-firehose && wrangler tail paper-firehose --format=pretty
+
+# Check if any rogue workers exist
+wrangler deployments list
+
+# Test production classifier directly
+curl -X POST "https://client-kappa-weld-68.vercel.app/api/classifier-status/" \
+  -H "Authorization: Bearer $PAPER_FIREHOSE_SECRET"
+```
+
+### Prevention
+- Don't deploy staging workers to production without proper cleanup
+- If a staging worker exists, ensure it's pointing to a staging API or is stopped
+- Regularly check for rogue workers: `wrangler deployments list`

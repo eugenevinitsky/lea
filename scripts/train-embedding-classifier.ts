@@ -192,10 +192,10 @@ async function main() {
         model: 'gemini-embedding-001',
       });
 
-      // Wait between batches (paid tier: 1500 req/min, batch of 25 = 60 batches/min max)
+      // Wait between batches - minimal delay, rely on rate limit handling if needed
+      // Paid tier has 1500+ req/min, batch of 25 = we can do ~60 batches/min easily
       if (i + batchSize < texts.length) {
-        const delay = 2000; // 2 seconds = 30 batches/min = 750 req/min (safe margin)
-        console.log(`  Saved checkpoint. Waiting ${delay / 1000}s...`);
+        const delay = 200; // 200ms = 5 batches/sec = 300 batches/min (well under limit)
         await new Promise(r => setTimeout(r, delay));
       }
     }
