@@ -371,8 +371,7 @@ export default function Login({ onLogin }: LoginProps) {
                   onClick={(e) => {
                     e.preventDefault();
                     console.log('[DEBUG] Button onClick fired', { inviteCode, loading });
-                    alert('Button tapped! Code: ' + inviteCode);
-                    if (inviteCode && resolvedDid && !loading) {
+                    if (inviteCode && !loading) {
                       handleRedeemInvite(e as unknown as React.FormEvent);
                     }
                   }}
