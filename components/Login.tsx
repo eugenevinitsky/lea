@@ -333,24 +333,25 @@ export default function Login({ onLogin }: LoginProps) {
                     className="w-full px-4 py-3 border border-gray-200 dark:border-gray-700 rounded-xl bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white dark:focus:bg-gray-800 transition-colors font-mono tracking-wider text-center text-lg"
                     disabled={loading}
                     autoComplete="off"
-                    autoCapitalize="characters"
-                    inputMode="text"
                   />
+                  {/* Debug info - remove after fixing */}
+                  <p className="mt-1 text-xs text-gray-500">
+                    DEBUG: code="{inviteCode}" len={inviteCode.length} loading={String(loading)} disabled={String(!inviteCode || loading)}
+                  </p>
                 </div>
 
                 <button
-                  type="submit"
-                  disabled={!inviteCode || loading}
+                  type="button"
                   onClick={(e) => {
-                    // Explicit onClick for mobile Safari compatibility
-                    console.log('[DEBUG] Button clicked/tapped', { inviteCode, loading, disabled: !inviteCode || loading });
+                    e.preventDefault();
+                    console.log('[DEBUG] Button onClick fired', { inviteCode, loading });
+                    alert('Button tapped! Code: ' + inviteCode);
+                    if (inviteCode && resolvedDid && !loading) {
+                      handleRedeemInvite(e as unknown as React.FormEvent);
+                    }
                   }}
-                  onTouchEnd={(e) => {
-                    // Extra handler for mobile Safari touch issues
-                    console.log('[DEBUG] Button touchEnd', { inviteCode, loading });
-                  }}
-                  className="w-full py-3.5 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-semibold rounded-xl disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg shadow-blue-500/25 disabled:shadow-none flex items-center justify-center gap-2 touch-manipulation"
-                  style={{ WebkitTapHighlightColor: 'transparent' }}
+                  className={`w-full py-3.5 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-semibold rounded-xl transition-all shadow-lg shadow-blue-500/25 flex items-center justify-center gap-2 touch-manipulation ${(!inviteCode || loading) ? 'opacity-50' : ''}`}
+                  style={{ WebkitTapHighlightColor: 'rgba(0,0,0,0.1)', WebkitAppearance: 'none' }}
                 >
                   {loading ? (
                     <>
