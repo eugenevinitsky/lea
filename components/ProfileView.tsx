@@ -348,11 +348,16 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
   useEffect(() => {
     async function fetchProfile() {
       try {
+        // Check if viewing own profile - getUnknownFollows is meaningless for own profile
+        // and causes expensive fallback that fetches ALL follows
+        const session = getSession();
+        const isOwnProfile = session?.did === did;
+
         // Fetch all independent data in parallel for faster load
         const [bskyData, known, unknown, profileRes] = await Promise.all([
           getBlueskyProfile(did),
           getKnownFollowers(did, 50),
-          getUnknownFollows(did, followingDids || undefined, 50),
+          isOwnProfile ? Promise.resolve({ follows: [] }) : getUnknownFollows(did, followingDids || undefined, 50),
           fetch(`/api/profile?did=${encodeURIComponent(did)}`),
         ]);
 
