@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db, discoveredSubstackPosts, substackMentions, discoveredArticles, articleMentions } from '@/lib/db';
-import { eq, desc, count, notInArray, and } from 'drizzle-orm';
+import { eq, desc } from 'drizzle-orm';
 import { BOT_BLACKLIST } from '@/lib/bot-blacklist';
 
 // GET /api/articles/mentions?id=substack:eugenewei/status-as-a-service
@@ -57,25 +57,9 @@ async function fetchSubstackMentions(normalizedId: string, limit: number, offset
     });
   }
 
-  // Convert bot blacklist to array for SQL query
-  const botDids = Array.from(BOT_BLACKLIST);
-
-  // Get actual count of mentions (not weighted, excluding bots)
-  const [countResult] = await db
-    .select({ count: count() })
-    .from(substackMentions)
-    .where(
-      botDids.length > 0
-        ? and(
-            eq(substackMentions.substackPostId, post.id),
-            notInArray(substackMentions.authorDid, botDids)
-          )
-        : eq(substackMentions.substackPostId, post.id)
-    );
-  const totalMentions = countResult?.count ?? 0;
-
-  // Fetch mentions for this post (excluding bots)
-  const mentions = await db
+  // Fetch mentions for this post
+  // Filter bots in JS (faster than SQL NOT IN with 400+ values)
+  const rawMentions = await db
     .select({
       id: substackMentions.id,
       postUri: substackMentions.postUri,
@@ -86,17 +70,15 @@ async function fetchSubstackMentions(normalizedId: string, limit: number, offset
       isVerifiedResearcher: substackMentions.isVerifiedResearcher,
     })
     .from(substackMentions)
-    .where(
-      botDids.length > 0
-        ? and(
-            eq(substackMentions.substackPostId, post.id),
-            notInArray(substackMentions.authorDid, botDids)
-          )
-        : eq(substackMentions.substackPostId, post.id)
-    )
-    .orderBy(desc(substackMentions.createdAt))
-    .limit(limit)
-    .offset(offset);
+    .where(eq(substackMentions.substackPostId, post.id))
+    .orderBy(desc(substackMentions.createdAt));
+
+  // Filter out bots in application code (O(1) Set lookup per mention)
+  const allMentions = rawMentions.filter(m => !BOT_BLACKLIST.has(m.authorDid));
+  const totalMentions = allMentions.length;
+
+  // Apply pagination after filtering
+  const mentions = allMentions.slice(offset, offset + limit);
 
   return NextResponse.json({
     post: {
@@ -135,25 +117,9 @@ async function fetchArticleMentions(normalizedId: string, limit: number, offset:
     });
   }
 
-  // Convert bot blacklist to array for SQL query
-  const botDids = Array.from(BOT_BLACKLIST);
-
-  // Get actual count of mentions (excluding bots)
-  const [countResult] = await db
-    .select({ count: count() })
-    .from(articleMentions)
-    .where(
-      botDids.length > 0
-        ? and(
-            eq(articleMentions.articleId, article.id),
-            notInArray(articleMentions.authorDid, botDids)
-          )
-        : eq(articleMentions.articleId, article.id)
-    );
-  const totalMentions = countResult?.count ?? 0;
-
-  // Fetch mentions for this article (excluding bots)
-  const mentions = await db
+  // Fetch mentions for this article
+  // Filter bots in JS (faster than SQL NOT IN with 400+ values)
+  const rawMentions = await db
     .select({
       id: articleMentions.id,
       postUri: articleMentions.postUri,
@@ -163,17 +129,15 @@ async function fetchArticleMentions(normalizedId: string, limit: number, offset:
       isVerifiedResearcher: articleMentions.isVerifiedResearcher,
     })
     .from(articleMentions)
-    .where(
-      botDids.length > 0
-        ? and(
-            eq(articleMentions.articleId, article.id),
-            notInArray(articleMentions.authorDid, botDids)
-          )
-        : eq(articleMentions.articleId, article.id)
-    )
-    .orderBy(desc(articleMentions.createdAt))
-    .limit(limit)
-    .offset(offset);
+    .where(eq(articleMentions.articleId, article.id))
+    .orderBy(desc(articleMentions.createdAt));
+
+  // Filter out bots in application code (O(1) Set lookup per mention)
+  const allMentions = rawMentions.filter(m => !BOT_BLACKLIST.has(m.authorDid));
+  const totalMentions = allMentions.length;
+
+  // Apply pagination after filtering
+  const mentions = allMentions.slice(offset, offset + limit);
 
   // Map source to display name
   const newsletterName = article.source === 'quanta' ? 'Quanta Magazine' :

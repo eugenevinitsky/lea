@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db, discoveredPapers, paperMentions } from '@/lib/db';
-import { eq, desc, count, notInArray, and } from 'drizzle-orm';
+import { eq, desc } from 'drizzle-orm';
 import { BOT_BLACKLIST } from '@/lib/bot-blacklist';
 
 // GET /api/papers/mentions?id=arxiv:2401.12345
@@ -40,25 +40,10 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    // Convert bot blacklist to array for SQL query
-    const botDids = Array.from(BOT_BLACKLIST);
-
-    // Get actual count of mentions (not weighted, excluding bots)
-    const [countResult] = await db
-      .select({ count: count() })
-      .from(paperMentions)
-      .where(
-        botDids.length > 0
-          ? and(
-              eq(paperMentions.paperId, paper.id),
-              notInArray(paperMentions.authorDid, botDids)
-            )
-          : eq(paperMentions.paperId, paper.id)
-      );
-    const totalMentions = countResult?.count ?? 0;
-
-    // Fetch mentions for this paper (excluding bots)
-    const mentions = await db
+    // Fetch mentions for this paper
+    // We fetch more than needed to account for bot filtering, then filter in JS
+    // This is faster than a SQL NOT IN with 400+ values
+    const rawMentions = await db
       .select({
         id: paperMentions.id,
         postUri: paperMentions.postUri,
@@ -69,17 +54,15 @@ export async function GET(request: NextRequest) {
         isVerifiedResearcher: paperMentions.isVerifiedResearcher,
       })
       .from(paperMentions)
-      .where(
-        botDids.length > 0
-          ? and(
-              eq(paperMentions.paperId, paper.id),
-              notInArray(paperMentions.authorDid, botDids)
-            )
-          : eq(paperMentions.paperId, paper.id)
-      )
-      .orderBy(desc(paperMentions.createdAt))
-      .limit(limit)
-      .offset(offset);
+      .where(eq(paperMentions.paperId, paper.id))
+      .orderBy(desc(paperMentions.createdAt));
+
+    // Filter out bots in application code (O(1) Set lookup per mention)
+    const allMentions = rawMentions.filter(m => !BOT_BLACKLIST.has(m.authorDid));
+    const totalMentions = allMentions.length;
+
+    // Apply pagination after filtering
+    const mentions = allMentions.slice(offset, offset + limit);
 
     return NextResponse.json({
       paper: {
