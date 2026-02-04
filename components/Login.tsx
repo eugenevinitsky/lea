@@ -80,11 +80,17 @@ export default function Login({ onLogin }: LoginProps) {
 
   const handleRedeemInvite = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!inviteCode || !resolvedDid) return;
+    console.log('[DEBUG] handleRedeemInvite called', { inviteCode, resolvedDid, loading });
+
+    if (!inviteCode || !resolvedDid) {
+      console.log('[DEBUG] Early return - missing data', { inviteCode: !!inviteCode, resolvedDid: !!resolvedDid });
+      return;
+    }
 
     try {
       setLoading(true);
       setError(null);
+      console.log('[DEBUG] Making API call to redeem-invite');
 
       // Redeem the invite code
       const redeemResponse = await fetch('/api/auth/redeem-invite', {
@@ -318,19 +324,33 @@ export default function Login({ onLogin }: LoginProps) {
                   <input
                     type="text"
                     value={inviteCode}
-                    onChange={(e) => setInviteCode(e.target.value.toUpperCase())}
+                    onChange={(e) => {
+                      const newValue = e.target.value.toUpperCase();
+                      console.log('[DEBUG] Invite code changed:', newValue);
+                      setInviteCode(newValue);
+                    }}
                     placeholder="ABCD1234"
                     className="w-full px-4 py-3 border border-gray-200 dark:border-gray-700 rounded-xl bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white dark:focus:bg-gray-800 transition-colors font-mono tracking-wider text-center text-lg"
                     disabled={loading}
                     autoComplete="off"
-                    autoFocus
+                    autoCapitalize="characters"
+                    inputMode="text"
                   />
                 </div>
 
                 <button
                   type="submit"
                   disabled={!inviteCode || loading}
-                  className="w-full py-3.5 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-semibold rounded-xl disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg shadow-blue-500/25 disabled:shadow-none flex items-center justify-center gap-2"
+                  onClick={(e) => {
+                    // Explicit onClick for mobile Safari compatibility
+                    console.log('[DEBUG] Button clicked/tapped', { inviteCode, loading, disabled: !inviteCode || loading });
+                  }}
+                  onTouchEnd={(e) => {
+                    // Extra handler for mobile Safari touch issues
+                    console.log('[DEBUG] Button touchEnd', { inviteCode, loading });
+                  }}
+                  className="w-full py-3.5 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-semibold rounded-xl disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg shadow-blue-500/25 disabled:shadow-none flex items-center justify-center gap-2 touch-manipulation"
+                  style={{ WebkitTapHighlightColor: 'transparent' }}
                 >
                   {loading ? (
                     <>
