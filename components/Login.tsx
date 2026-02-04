@@ -80,17 +80,43 @@ export default function Login({ onLogin }: LoginProps) {
 
   const handleRedeemInvite = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log('[DEBUG] handleRedeemInvite called', { inviteCode, resolvedDid, loading });
+    console.log('[DEBUG] handleRedeemInvite called', { inviteCode, resolvedDid, handle, loading });
 
-    if (!inviteCode || !resolvedDid) {
-      console.log('[DEBUG] Early return - missing data', { inviteCode: !!inviteCode, resolvedDid: !!resolvedDid });
+    if (!inviteCode) {
+      console.log('[DEBUG] Early return - no invite code');
       return;
     }
 
     try {
       setLoading(true);
       setError(null);
-      console.log('[DEBUG] Making API call to redeem-invite');
+
+      // If resolvedDid is missing, try to resolve it again from the handle
+      let didToUse = resolvedDid;
+      if (!didToUse && handle) {
+        console.log('[DEBUG] resolvedDid missing, re-resolving from handle:', handle);
+        try {
+          const resolveResponse = await fetch(
+            `https://bsky.social/xrpc/com.atproto.identity.resolveHandle?handle=${encodeURIComponent(handle)}`
+          );
+          if (resolveResponse.ok) {
+            const data = await resolveResponse.json();
+            didToUse = data.did;
+            setResolvedDid(data.did);
+            console.log('[DEBUG] Re-resolved DID:', didToUse);
+          }
+        } catch (err) {
+          console.log('[DEBUG] Failed to re-resolve handle:', err);
+        }
+      }
+
+      if (!didToUse) {
+        setError('Could not resolve your handle. Please go back and try again.');
+        setLoading(false);
+        return;
+      }
+
+      console.log('[DEBUG] Making API call to redeem-invite with DID:', didToUse);
 
       // Redeem the invite code
       const redeemResponse = await fetch('/api/auth/redeem-invite', {
@@ -98,7 +124,7 @@ export default function Login({ onLogin }: LoginProps) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           code: inviteCode,
-          did: resolvedDid,
+          did: didToUse,
           handle,
         }),
       });
