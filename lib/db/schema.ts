@@ -372,6 +372,14 @@ export const authorizedUsers = pgTable(
   ]
 );
 
+// Bot accounts to exclude from mentions/discussions
+export const botAccounts = pgTable('bot_accounts', {
+  did: varchar('did', { length: 255 }).primaryKey(),
+  handle: varchar('handle', { length: 255 }),
+  addedAt: timestamp('added_at').defaultNow().notNull(),
+  reason: varchar('reason', { length: 100 }), // 'keyword' | 'high_frequency' | 'manual'
+});
+
 // Type exports
 export type VerifiedResearcher = typeof verifiedResearchers.$inferSelect;
 export type NewVerifiedResearcher = typeof verifiedResearchers.$inferInsert;

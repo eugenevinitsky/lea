@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db, discoveredSubstackPosts, substackMentions, discoveredArticles, articleMentions } from '@/lib/db';
-import { eq, desc } from 'drizzle-orm';
-import { BOT_BLACKLIST } from '@/lib/bot-blacklist';
+import { db, discoveredSubstackPosts, substackMentions, discoveredArticles, articleMentions, botAccounts } from '@/lib/db';
+import { eq, desc, and, notExists, sql } from 'drizzle-orm';
 
 // GET /api/articles/mentions?id=substack:eugenewei/status-as-a-service
 // Handles all article types: Substack, Quanta, MIT Tech Review
@@ -57,9 +56,8 @@ async function fetchSubstackMentions(normalizedId: string, limit: number, offset
     });
   }
 
-  // Fetch mentions for this post
-  // Filter bots in JS (faster than SQL NOT IN with 400+ values)
-  const rawMentions = await db
+  // Fetch mentions excluding bots using NOT EXISTS (efficient with indexed bot_accounts table)
+  const mentions = await db
     .select({
       id: substackMentions.id,
       postUri: substackMentions.postUri,
@@ -70,15 +68,35 @@ async function fetchSubstackMentions(normalizedId: string, limit: number, offset
       isVerifiedResearcher: substackMentions.isVerifiedResearcher,
     })
     .from(substackMentions)
-    .where(eq(substackMentions.substackPostId, post.id))
-    .orderBy(desc(substackMentions.createdAt));
+    .where(
+      and(
+        eq(substackMentions.substackPostId, post.id),
+        notExists(
+          db.select({ one: sql`1` })
+            .from(botAccounts)
+            .where(eq(botAccounts.did, substackMentions.authorDid))
+        )
+      )
+    )
+    .orderBy(desc(substackMentions.createdAt))
+    .limit(limit)
+    .offset(offset);
 
-  // Filter out bots in application code (O(1) Set lookup per mention)
-  const allMentions = rawMentions.filter(m => !BOT_BLACKLIST.has(m.authorDid));
-  const totalMentions = allMentions.length;
-
-  // Apply pagination after filtering
-  const mentions = allMentions.slice(offset, offset + limit);
+  // Get total count (excluding bots)
+  const [countResult] = await db
+    .select({ count: sql<number>`count(*)` })
+    .from(substackMentions)
+    .where(
+      and(
+        eq(substackMentions.substackPostId, post.id),
+        notExists(
+          db.select({ one: sql`1` })
+            .from(botAccounts)
+            .where(eq(botAccounts.did, substackMentions.authorDid))
+        )
+      )
+    );
+  const totalMentions = countResult?.count ?? 0;
 
   return NextResponse.json({
     post: {
@@ -117,9 +135,8 @@ async function fetchArticleMentions(normalizedId: string, limit: number, offset:
     });
   }
 
-  // Fetch mentions for this article
-  // Filter bots in JS (faster than SQL NOT IN with 400+ values)
-  const rawMentions = await db
+  // Fetch mentions excluding bots using NOT EXISTS (efficient with indexed bot_accounts table)
+  const mentions = await db
     .select({
       id: articleMentions.id,
       postUri: articleMentions.postUri,
@@ -129,15 +146,35 @@ async function fetchArticleMentions(normalizedId: string, limit: number, offset:
       isVerifiedResearcher: articleMentions.isVerifiedResearcher,
     })
     .from(articleMentions)
-    .where(eq(articleMentions.articleId, article.id))
-    .orderBy(desc(articleMentions.createdAt));
+    .where(
+      and(
+        eq(articleMentions.articleId, article.id),
+        notExists(
+          db.select({ one: sql`1` })
+            .from(botAccounts)
+            .where(eq(botAccounts.did, articleMentions.authorDid))
+        )
+      )
+    )
+    .orderBy(desc(articleMentions.createdAt))
+    .limit(limit)
+    .offset(offset);
 
-  // Filter out bots in application code (O(1) Set lookup per mention)
-  const allMentions = rawMentions.filter(m => !BOT_BLACKLIST.has(m.authorDid));
-  const totalMentions = allMentions.length;
-
-  // Apply pagination after filtering
-  const mentions = allMentions.slice(offset, offset + limit);
+  // Get total count (excluding bots)
+  const [countResult] = await db
+    .select({ count: sql<number>`count(*)` })
+    .from(articleMentions)
+    .where(
+      and(
+        eq(articleMentions.articleId, article.id),
+        notExists(
+          db.select({ one: sql`1` })
+            .from(botAccounts)
+            .where(eq(botAccounts.did, articleMentions.authorDid))
+        )
+      )
+    );
+  const totalMentions = countResult?.count ?? 0;
 
   // Map source to display name
   const newsletterName = article.source === 'quanta' ? 'Quanta Magazine' :

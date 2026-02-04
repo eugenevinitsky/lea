@@ -4,13 +4,19 @@
 import * as dotenv from 'dotenv';
 dotenv.config({ path: '.env.local' });
 
-import { db, paperMentions, substackMentions, articleMentions, discoveredPapers, discoveredSubstackPosts, discoveredArticles } from '@/lib/db';
+import { db, paperMentions, substackMentions, articleMentions, discoveredPapers, discoveredSubstackPosts, discoveredArticles, botAccounts } from '@/lib/db';
 import { inArray, sql, eq } from 'drizzle-orm';
-import { BOT_BLACKLIST } from '@/lib/bot-blacklist';
 
 async function main() {
-  const botDids = Array.from(BOT_BLACKLIST);
+  // Load bot DIDs from database
+  const bots = await db.select({ did: botAccounts.did }).from(botAccounts);
+  const botDids = bots.map(b => b.did);
   console.log(`Cleaning up mentions from ${botDids.length} blacklisted bots...\n`);
+
+  if (botDids.length === 0) {
+    console.log('No bots in database. Nothing to clean up.');
+    process.exit(0);
+  }
 
   // Count existing bot mentions
   const paperBotMentions = await db

@@ -176,7 +176,7 @@ async function processSingleIngest(req: IngestRequest): Promise<{ articleId: num
   const { articles, postUri, authorDid, postText, createdAt } = req;
 
   // Skip mentions from known bots
-  if (isBot(authorDid)) {
+  if (await isBot(authorDid)) {
     return [];
   }
 

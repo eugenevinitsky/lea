@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db, discoveredPapers, paperMentions } from '@/lib/db';
-import { eq, desc } from 'drizzle-orm';
-import { BOT_BLACKLIST } from '@/lib/bot-blacklist';
+import { db, discoveredPapers, paperMentions, botAccounts } from '@/lib/db';
+import { eq, desc, and, notExists, sql } from 'drizzle-orm';
 
 // GET /api/papers/mentions?id=arxiv:2401.12345
 // Fetches all post URIs that mention a paper
@@ -40,10 +39,8 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    // Fetch mentions for this paper
-    // We fetch more than needed to account for bot filtering, then filter in JS
-    // This is faster than a SQL NOT IN with 400+ values
-    const rawMentions = await db
+    // Fetch mentions excluding bots using NOT EXISTS (efficient with indexed bot_accounts table)
+    const mentions = await db
       .select({
         id: paperMentions.id,
         postUri: paperMentions.postUri,
@@ -54,15 +51,35 @@ export async function GET(request: NextRequest) {
         isVerifiedResearcher: paperMentions.isVerifiedResearcher,
       })
       .from(paperMentions)
-      .where(eq(paperMentions.paperId, paper.id))
-      .orderBy(desc(paperMentions.createdAt));
+      .where(
+        and(
+          eq(paperMentions.paperId, paper.id),
+          notExists(
+            db.select({ one: sql`1` })
+              .from(botAccounts)
+              .where(eq(botAccounts.did, paperMentions.authorDid))
+          )
+        )
+      )
+      .orderBy(desc(paperMentions.createdAt))
+      .limit(limit)
+      .offset(offset);
 
-    // Filter out bots in application code (O(1) Set lookup per mention)
-    const allMentions = rawMentions.filter(m => !BOT_BLACKLIST.has(m.authorDid));
-    const totalMentions = allMentions.length;
-
-    // Apply pagination after filtering
-    const mentions = allMentions.slice(offset, offset + limit);
+    // Get total count (excluding bots)
+    const [countResult] = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(paperMentions)
+      .where(
+        and(
+          eq(paperMentions.paperId, paper.id),
+          notExists(
+            db.select({ one: sql`1` })
+              .from(botAccounts)
+              .where(eq(botAccounts.did, paperMentions.authorDid))
+          )
+        )
+      );
+    const totalMentions = countResult?.count ?? 0;
 
     return NextResponse.json({
       paper: {

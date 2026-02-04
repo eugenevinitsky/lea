@@ -246,7 +246,7 @@ async function processSingleIngest(req: IngestRequest): Promise<{ substackPostId
   const { substackPosts, postUri, authorDid, postText, createdAt, quotedPostUri } = req;
 
   // Skip mentions from known bots
-  if (isBot(authorDid)) {
+  if (await isBot(authorDid)) {
     return [];
   }
 
