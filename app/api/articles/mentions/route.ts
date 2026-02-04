@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db, discoveredSubstackPosts, substackMentions, discoveredArticles, articleMentions } from '@/lib/db';
-import { eq, desc, count } from 'drizzle-orm';
+import { eq, desc, count, notInArray, and } from 'drizzle-orm';
+import { BOT_BLACKLIST } from '@/lib/bot-blacklist';
 
 // GET /api/articles/mentions?id=substack:eugenewei/status-as-a-service
 // Handles all article types: Substack, Quanta, MIT Tech Review
@@ -56,14 +57,24 @@ async function fetchSubstackMentions(normalizedId: string, limit: number, offset
     });
   }
 
-  // Get actual count of mentions (not weighted)
+  // Convert bot blacklist to array for SQL query
+  const botDids = Array.from(BOT_BLACKLIST);
+
+  // Get actual count of mentions (not weighted, excluding bots)
   const [countResult] = await db
     .select({ count: count() })
     .from(substackMentions)
-    .where(eq(substackMentions.substackPostId, post.id));
+    .where(
+      botDids.length > 0
+        ? and(
+            eq(substackMentions.substackPostId, post.id),
+            notInArray(substackMentions.authorDid, botDids)
+          )
+        : eq(substackMentions.substackPostId, post.id)
+    );
   const totalMentions = countResult?.count ?? 0;
 
-  // Fetch mentions for this post
+  // Fetch mentions for this post (excluding bots)
   const mentions = await db
     .select({
       id: substackMentions.id,
@@ -75,7 +86,14 @@ async function fetchSubstackMentions(normalizedId: string, limit: number, offset
       isVerifiedResearcher: substackMentions.isVerifiedResearcher,
     })
     .from(substackMentions)
-    .where(eq(substackMentions.substackPostId, post.id))
+    .where(
+      botDids.length > 0
+        ? and(
+            eq(substackMentions.substackPostId, post.id),
+            notInArray(substackMentions.authorDid, botDids)
+          )
+        : eq(substackMentions.substackPostId, post.id)
+    )
     .orderBy(desc(substackMentions.createdAt))
     .limit(limit)
     .offset(offset);
@@ -117,14 +135,24 @@ async function fetchArticleMentions(normalizedId: string, limit: number, offset:
     });
   }
 
-  // Get actual count of mentions
+  // Convert bot blacklist to array for SQL query
+  const botDids = Array.from(BOT_BLACKLIST);
+
+  // Get actual count of mentions (excluding bots)
   const [countResult] = await db
     .select({ count: count() })
     .from(articleMentions)
-    .where(eq(articleMentions.articleId, article.id));
+    .where(
+      botDids.length > 0
+        ? and(
+            eq(articleMentions.articleId, article.id),
+            notInArray(articleMentions.authorDid, botDids)
+          )
+        : eq(articleMentions.articleId, article.id)
+    );
   const totalMentions = countResult?.count ?? 0;
 
-  // Fetch mentions for this article
+  // Fetch mentions for this article (excluding bots)
   const mentions = await db
     .select({
       id: articleMentions.id,
@@ -135,7 +163,14 @@ async function fetchArticleMentions(normalizedId: string, limit: number, offset:
       isVerifiedResearcher: articleMentions.isVerifiedResearcher,
     })
     .from(articleMentions)
-    .where(eq(articleMentions.articleId, article.id))
+    .where(
+      botDids.length > 0
+        ? and(
+            eq(articleMentions.articleId, article.id),
+            notInArray(articleMentions.authorDid, botDids)
+          )
+        : eq(articleMentions.articleId, article.id)
+    )
     .orderBy(desc(articleMentions.createdAt))
     .limit(limit)
     .offset(offset);

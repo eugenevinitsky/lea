@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db, discoveredPapers, paperMentions } from '@/lib/db';
-import { eq, desc, count } from 'drizzle-orm';
+import { eq, desc, count, notInArray, and } from 'drizzle-orm';
+import { BOT_BLACKLIST } from '@/lib/bot-blacklist';
 
 // GET /api/papers/mentions?id=arxiv:2401.12345
 // Fetches all post URIs that mention a paper
@@ -39,14 +40,24 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    // Get actual count of mentions (not weighted)
+    // Convert bot blacklist to array for SQL query
+    const botDids = Array.from(BOT_BLACKLIST);
+
+    // Get actual count of mentions (not weighted, excluding bots)
     const [countResult] = await db
       .select({ count: count() })
       .from(paperMentions)
-      .where(eq(paperMentions.paperId, paper.id));
+      .where(
+        botDids.length > 0
+          ? and(
+              eq(paperMentions.paperId, paper.id),
+              notInArray(paperMentions.authorDid, botDids)
+            )
+          : eq(paperMentions.paperId, paper.id)
+      );
     const totalMentions = countResult?.count ?? 0;
 
-    // Fetch mentions for this paper
+    // Fetch mentions for this paper (excluding bots)
     const mentions = await db
       .select({
         id: paperMentions.id,
@@ -58,7 +69,14 @@ export async function GET(request: NextRequest) {
         isVerifiedResearcher: paperMentions.isVerifiedResearcher,
       })
       .from(paperMentions)
-      .where(eq(paperMentions.paperId, paper.id))
+      .where(
+        botDids.length > 0
+          ? and(
+              eq(paperMentions.paperId, paper.id),
+              notInArray(paperMentions.authorDid, botDids)
+            )
+          : eq(paperMentions.paperId, paper.id)
+      )
       .orderBy(desc(paperMentions.createdAt))
       .limit(limit)
       .offset(offset);
