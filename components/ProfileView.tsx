@@ -348,8 +348,15 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
   useEffect(() => {
     async function fetchProfile() {
       try {
-        // Always fetch full Bluesky profile for bio, follower counts, etc.
-        const bskyData = await getBlueskyProfile(did);
+        // Fetch all independent data in parallel for faster load
+        const [bskyData, known, unknown, profileRes] = await Promise.all([
+          getBlueskyProfile(did),
+          getKnownFollowers(did, 50),
+          getUnknownFollows(did, followingDids || undefined, 50),
+          fetch(`/api/profile?did=${encodeURIComponent(did)}`),
+        ]);
+
+        // Process Bluesky profile data
         if (bskyData) {
           setBskyProfile(bskyData);
           // Set following state from viewer info
@@ -369,23 +376,18 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
             setBlockUri(undefined);
           }
         }
-        
-        // Fetch known followers (people you follow who follow this account)
-        const known = await getKnownFollowers(did, 50);
-        setKnownFollowers(known);
 
-        // Fetch unknown follows (people this profile follows that you don't follow)
-        // Pass cached followingDids for fast filtering (avoids re-fetching all follows)
-        const unknown = await getUnknownFollows(did, followingDids || undefined, 50);
+        // Set followers data
+        setKnownFollowers(known);
         setUnknownFollows(unknown);
 
-        const res = await fetch(`/api/profile?did=${encodeURIComponent(did)}`);
-        if (res.status === 404) {
+        // Process profile API response
+        if (profileRes.status === 404) {
           setError('not_verified');
           setLoading(false);
           return;
         }
-        if (!res.ok) {
+        if (!profileRes.ok) {
           // For non-verified users, treat server errors as not_verified
           // This handles cases where the profile API fails but we still have bskyProfile
           if (bskyData) {
@@ -395,11 +397,11 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
           }
           throw new Error('Failed to fetch profile');
         }
-        const data = await res.json();
+        const data = await profileRes.json();
         setResearcher(data.researcher);
         setProfile(data.profile);
-        
-        // Fetch co-authors if we have an ORCID
+
+        // Fetch co-authors if we have an ORCID (runs after profile loads)
         if (data.researcher?.orcid) {
           fetchCoAuthors(data.researcher.orcid);
         }
@@ -410,7 +412,7 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
         setLoading(false);
       }
     }
-    
+
     async function fetchCoAuthors(orcid: string) {
       try {
         // First get OpenAlex author ID from ORCID
@@ -419,7 +421,7 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
         const authorData = await authorRes.json();
         const openAlexId = authorData.results?.[0]?.id;
         if (!openAlexId) return;
-        
+
         // Then fetch co-authors
         const coAuthorsRes = await fetch(`/api/openalex/coauthors?authorId=${encodeURIComponent(openAlexId)}`);
         if (!coAuthorsRes.ok) return;
@@ -429,7 +431,7 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
         console.error('Failed to fetch co-authors:', err);
       }
     }
-    
+
     fetchProfile();
   }, [did]);
   
