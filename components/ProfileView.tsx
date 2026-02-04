@@ -457,23 +457,6 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
         if (result.pinnedPost) {
           setPinnedPost(result.pinnedPost);
         }
-        
-        // For Papers tab, auto-load more batches to find paper posts
-        if (activeTab === 'papers' && result.cursor) {
-          let currentCursor: string | undefined = result.cursor;
-          let allPosts = result.feed;
-          const MIN_PAGES = 15; // Load up to 15 pages (~450 posts) to find papers
-          
-          for (let i = 1; i < MIN_PAGES && currentCursor; i++) {
-            await new Promise(resolve => setTimeout(resolve, 100)); // Small delay between requests
-            const moreResult = await getAuthorFeed(did, currentCursor);
-            allPosts = [...allPosts, ...moreResult.feed];
-            currentCursor = moreResult.cursor;
-          }
-          
-          setPosts(allPosts);
-          setPostsCursor(currentCursor);
-        }
       } catch (err) {
         console.error('Failed to fetch posts:', err);
         setPostsError('Failed to load posts');
