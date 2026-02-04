@@ -109,21 +109,45 @@ export function isEmbeddingClassifierReady(): boolean {
 
 /**
  * Compute k-NN probability for a single embedding
- * Applies class weighting to account for real-world distribution
- * Training data: ~30% tech, ~70% non-tech
- * Real world: ~5% tech, ~95% non-tech
- * Adjust non-tech weight: (0.95/0.70) / (0.05/0.30) = 8.14x
+ * Uses partial sort (min-heap) for O(n log k) instead of O(n log n)
  */
 function computeKnnProbability(embedding: number[], k: number = 15): number {
   if (!trainEmbeddings || !trainLabels) return 0;
 
-  const similarities: { idx: number; sim: number }[] = [];
+  // Use a min-heap of size k to find top-k similarities in O(n log k)
+  // Heap stores { idx, sim } sorted by sim ascending (min at top)
+  const heap: { idx: number; sim: number }[] = [];
+
   for (let i = 0; i < trainEmbeddings.length; i++) {
-    similarities.push({ idx: i, sim: cosineSimilarity(embedding, trainEmbeddings[i]) });
+    const sim = cosineSimilarity(embedding, trainEmbeddings[i]);
+
+    if (heap.length < k) {
+      // Heap not full, add and bubble up
+      heap.push({ idx: i, sim });
+      let j = heap.length - 1;
+      while (j > 0) {
+        const parent = Math.floor((j - 1) / 2);
+        if (heap[parent].sim <= heap[j].sim) break;
+        [heap[parent], heap[j]] = [heap[j], heap[parent]];
+        j = parent;
+      }
+    } else if (sim > heap[0].sim) {
+      // Replace min (root) and bubble down
+      heap[0] = { idx: i, sim };
+      let j = 0;
+      while (true) {
+        const left = 2 * j + 1, right = 2 * j + 2;
+        let smallest = j;
+        if (left < k && heap[left].sim < heap[smallest].sim) smallest = left;
+        if (right < k && heap[right].sim < heap[smallest].sim) smallest = right;
+        if (smallest === j) break;
+        [heap[j], heap[smallest]] = [heap[smallest], heap[j]];
+        j = smallest;
+      }
+    }
   }
 
-  similarities.sort((a, b) => b.sim - a.sim);
-  const topK = similarities.slice(0, k);
+  const topK = heap;
 
   // Class weighting - reduced since training data was cleaned
   const NON_TECH_WEIGHT = 1.0;
