@@ -1,5 +1,50 @@
 # LEA Codebase Guide
 
+---
+
+## Security Guidelines (DO NOT VIOLATE)
+
+### Critical: Never Commit Secrets
+- `.env.local` contains production secrets - NEVER commit this file
+- If secrets are ever exposed, rotate ALL of them immediately
+- Use Vercel environment variables for production, not local files
+
+### High Priority Security Patterns
+
+**1. Always Rate Limit Auth Endpoints**
+- Any endpoint that handles authentication, invite codes, or session creation MUST have rate limiting
+- Use Upstash Redis or similar: `Ratelimit.slidingWindow(5, "1 m")`
+- Current gap: `/api/auth/redeem-invite`, `/api/vouching/request` lack rate limiting
+
+**2. Sanitize dangerouslySetInnerHTML**
+- ALWAYS use DOMPurify when rendering user-controlled HTML
+- Current risk: `components/Post.tsx` uses dangerouslySetInnerHTML for KaTeX/Prism output
+- Fix: `dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(html) }}`
+
+**3. No Hardcoded Fallback URLs**
+- Never provide hardcoded fallback URLs for external services
+- Current issue: Ozone URL has hardcoded AWS fallback in `api/labeler/sync-from-ozone/route.ts`
+- Fix: Fail explicitly if required env vars are missing
+
+**4. Generic Error Messages to Clients**
+- Log full errors server-side, return generic messages to clients
+- Bad: `return NextResponse.json({ error: String(error) }, { status: 500 })`
+- Good: `console.error('Error:', error); return NextResponse.json({ error: 'An error occurred' }, { status: 500 })`
+
+**5. Keep Dependencies Updated**
+- Next.js and other deps have known CVEs - update regularly
+- Run `npm audit` periodically
+- Current: Next.js 16.1.1 has CVEs, update to 16.1.5+
+
+### Good Practices Already in Place
+- Timing-safe secret comparison (`crypto.timingSafeEqual`)
+- SSRF protection in link-meta and oauth-proxy routes
+- Parameterized queries via Drizzle ORM (no SQL injection)
+- HttpOnly, SameSite, Secure flags on session cookies
+- Authorization checks (DID matching for user data)
+
+---
+
 ## Substack Classifier: Cleanup & Retraining Procedure
 
 This documents how to clean up non-technical Substack posts from the database and retrain the classifier to reduce false positives.
