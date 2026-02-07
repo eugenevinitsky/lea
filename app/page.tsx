@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useState, useCallback, useEffect, Suspense, useRef } from 'react';
-import { useRouter } from 'next/navigation';
 import { getSession, logout, getBlueskyProfile, buildProfileUrl, buildPostUrl, checkVerificationStatus, refreshAgent, configureAgentLabelers, setCachedHandle } from '@/lib/bluesky';
 import { initOAuth } from '@/lib/oauth';
 import { SettingsProvider } from '@/lib/settings';
@@ -13,13 +12,7 @@ import { ComposerProvider, useComposer } from '@/lib/composer-context';
 import Login from '@/components/Login';
 import Feed from '@/components/Feed';
 import Composer from '@/components/Composer';
-import Bookmarks from '@/components/Bookmarks';
 import ThreadView from '@/components/ThreadView';
-import DMSidebar from '@/components/DMSidebar';
-import Notifications from '@/components/Notifications';
-import ModerationBox from '@/components/ModerationBox';
-import SafetyPanel from '@/components/SafetyPanel';
-import SettingsPanel from '@/components/SettingsPanel';
 import FeedDiscovery from '@/components/FeedDiscovery';
 import Onboarding from '@/components/Onboarding';
 import ProfileEditor from '@/components/ProfileEditor';
@@ -28,7 +21,6 @@ import ErrorBoundary from '@/components/ErrorBoundary';
 import RemixSettings from '@/components/RemixSettings';
 
 function AppContent() {
-  const router = useRouter();
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [accessDenied, setAccessDenied] = useState(false);
@@ -46,28 +38,7 @@ function AppContent() {
   const [canScrollRight, setCanScrollRight] = useState(false);
   const { isOpen: showComposer, quotePost, openComposer, closeComposer } = useComposer();
   const [showMobileMenu, setShowMobileMenu] = useState(false);
-  const [showMobileBookmarks, setShowMobileBookmarks] = useState(false);
-  const [showMobileNotifications, setShowMobileNotifications] = useState(false);
-  const [showMobileModeration, setShowMobileModeration] = useState(false);
-  const [showMobileDMs, setShowMobileDMs] = useState(false);
-  const [showMobileDiscoverPapers, setShowMobileDiscoverPapers] = useState(false);
   const [showRemixSettings, setShowRemixSettings] = useState(false);
-
-  // Collapsible sidebar state (for lg to xl breakpoint)
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const [collapsedPopover, setCollapsedPopover] = useState<'bookmarks' | 'dms' | 'notifications' | 'moderation' | 'safety' | 'settings' | null>(null);
-
-  // Track viewport width for collapsible sidebar
-  useEffect(() => {
-    const checkWidth = () => {
-      const width = window.innerWidth;
-      // Collapsed: between lg (1024) and xl (1280)
-      setSidebarCollapsed(width >= 1024 && width < 1280);
-    };
-    checkWidth();
-    window.addEventListener('resize', checkWidth);
-    return () => window.removeEventListener('resize', checkWidth);
-  }, []);
 
   // Pull-to-refresh state
   const [pullDistance, setPullDistance] = useState(0);
@@ -549,83 +520,58 @@ function AppContent() {
         {showMobileMenu && (
           <div className="lg:hidden border-t border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950 px-4 py-3 space-y-3">
             {/* Bookmarks */}
-            <button
-              onClick={() => {
-                setShowMobileBookmarks(true);
-                setShowMobileMenu(false);
-              }}
+            <a
+              href="/bookmarks"
               className="flex items-center gap-2 text-gray-700 dark:text-gray-300 w-full"
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
               </svg>
               <span>Bookmarks</span>
-            </button>
+            </a>
             {/* Notifications */}
-            <button
-              onClick={() => {
-                setShowMobileNotifications(true);
-                setShowMobileMenu(false);
-              }}
+            <a
+              href="/notifications"
               className="flex items-center gap-2 text-gray-700 dark:text-gray-300 w-full"
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
               </svg>
               <span>Notifications</span>
-            </button>
+            </a>
             {/* Moderation */}
-            <button
-              onClick={() => {
-                setShowMobileModeration(true);
-                setShowMobileMenu(false);
-              }}
+            <a
+              href="/moderation"
               className="flex items-center gap-2 text-gray-700 dark:text-gray-300 w-full"
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
               </svg>
               <span>Moderation</span>
-            </button>
-            {/* Discover Researchers */}
-            <button
-              onClick={() => {
-                setOnboardingStartStep(3);
-                setShowOnboarding(true);
-                setShowMobileMenu(false);
-              }}
+            </a>
+            {/* Discover */}
+            <a
+              href="/discover"
               className="flex items-center gap-2 text-gray-700 dark:text-gray-300 w-full"
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
               </svg>
-              <span>Discover Researchers</span>
-            </button>
-            {/* Discover Papers */}
-            <button
-              onClick={() => {
-                setShowMobileDiscoverPapers(true);
-                setShowMobileMenu(false);
-              }}
+              <span>Discover</span>
+            </a>
+            {/* Messages */}
+            <a
+              href="/messages"
               className="flex items-center gap-2 text-gray-700 dark:text-gray-300 w-full"
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
               </svg>
-              <span>Discover Papers</span>
-            </button>
-            {/* Verification status */}
-            {isVerified && (
-              <div className="flex items-center text-emerald-500">
-                <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
-                  <path fillRule="evenodd" d="M8.603 3.799A4.49 4.49 0 0112 2.25c1.357 0 2.573.6 3.397 1.549a4.49 4.49 0 013.498 1.307 4.491 4.491 0 011.307 3.497A4.49 4.49 0 0121.75 12a4.49 4.49 0 01-1.549 3.397 4.491 4.491 0 01-1.307 3.497 4.491 4.491 0 01-3.497 1.307A4.49 4.49 0 0112 21.75a4.49 4.49 0 01-3.397-1.549 4.49 4.49 0 01-3.498-1.306 4.491 4.491 0 01-1.307-3.498A4.49 4.49 0 012.25 12c0-1.357.6-2.573 1.549-3.397a4.49 4.49 0 011.307-3.497 4.49 4.49 0 013.497-1.307zm7.007 6.387a.75.75 0 10-1.22-.872l-3.236 4.53L9.53 12.22a.75.75 0 00-1.06 1.06l2.25 2.25a.75.75 0 001.14-.094l3.75-5.25z" clipRule="evenodd" />
-                </svg>
-              </div>
-            )}
+              <span>Messages</span>
+            </a>
             {/* Settings */}
             <a
               href="/settings/display"
-              onClick={() => setShowMobileMenu(false)}
               className="flex items-center gap-2 text-gray-700 dark:text-gray-300 w-full"
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -654,145 +600,96 @@ function AppContent() {
       {/* Main layout with sidebar */}
       <div className="max-w-5xl mx-auto px-0 lg:px-4">
         <div className="flex lg:gap-4 lg:items-start">
-          {/* Left Sidebar - Bookmarks & Messages */}
-          {/* Full sidebar at xl+, collapsed icon sidebar at lg-xl, hidden below lg */}
-          <aside className={`hidden lg:block flex-shrink-0 sticky top-14 self-start max-h-[calc(100vh-3.5rem)] overflow-y-auto pt-4 pb-4 scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-gray-700 transition-all ${sidebarCollapsed ? 'w-16' : 'w-64 space-y-4'}`}>
-            {sidebarCollapsed ? (
-              /* Collapsed: Icon buttons only */
-              <div className="flex flex-col items-center gap-2">
-                {/* Bookmarks */}
-                <button
-                  onClick={() => setCollapsedPopover(collapsedPopover === 'bookmarks' ? null : 'bookmarks')}
-                  className={`p-3 rounded-xl transition-colors ${collapsedPopover === 'bookmarks' ? 'bg-blue-100 dark:bg-blue-900 text-blue-600' : 'hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400'}`}
-                  title="Bookmarks"
-                >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
-                  </svg>
-                </button>
+          {/* Left Sidebar - Navigation buttons */}
+          {/* Icon-only on md-lg, icon+label on lg+, hidden on mobile (bottom nav handles it) */}
+          <aside className="hidden md:block flex-shrink-0 sticky top-14 self-start pt-4 pb-4 w-14 lg:w-48">
+            <nav className="flex flex-col gap-1 items-center lg:items-stretch">
+              {/* Bookmarks */}
+              <a
+                href="/bookmarks"
+                className="flex items-center justify-center lg:justify-start gap-3 p-3 lg:px-3 lg:py-2.5 rounded-xl text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                title="Bookmarks"
+              >
+                <svg className="w-5 h-5 flex-shrink-0 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
+                </svg>
+                <span className="hidden lg:inline text-sm font-medium">Bookmarks</span>
+              </a>
 
-                {/* DMs */}
-                <button
-                  onClick={() => setCollapsedPopover(collapsedPopover === 'dms' ? null : 'dms')}
-                  className={`p-3 rounded-xl transition-colors ${collapsedPopover === 'dms' ? 'bg-blue-100 dark:bg-blue-900 text-blue-600' : 'hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400'}`}
-                  title="Messages"
-                >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-                  </svg>
-                </button>
+              {/* Messages */}
+              <a
+                href="/messages"
+                className="flex items-center justify-center lg:justify-start gap-3 p-3 lg:px-3 lg:py-2.5 rounded-xl text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                title="Messages"
+              >
+                <svg className="w-5 h-5 flex-shrink-0 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                </svg>
+                <span className="hidden lg:inline text-sm font-medium">Messages</span>
+              </a>
 
-                {/* Notifications */}
-                <button
-                  onClick={() => setCollapsedPopover(collapsedPopover === 'notifications' ? null : 'notifications')}
-                  className={`p-3 rounded-xl transition-colors ${collapsedPopover === 'notifications' ? 'bg-blue-100 dark:bg-blue-900 text-blue-600' : 'hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400'}`}
-                  title="Notifications"
-                >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
-                  </svg>
-                </button>
+              {/* Notifications */}
+              <a
+                href="/notifications"
+                className="flex items-center justify-center lg:justify-start gap-3 p-3 lg:px-3 lg:py-2.5 rounded-xl text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                title="Notifications"
+              >
+                <svg className="w-5 h-5 flex-shrink-0 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                </svg>
+                <span className="hidden lg:inline text-sm font-medium">Notifications</span>
+              </a>
 
-                {/* Moderation / Discover */}
-                <button
-                  onClick={() => setCollapsedPopover(collapsedPopover === 'moderation' ? null : 'moderation')}
-                  className={`p-3 rounded-xl transition-colors ${collapsedPopover === 'moderation' ? 'bg-emerald-100 dark:bg-emerald-900 text-emerald-600' : 'hover:bg-gray-100 dark:hover:bg-gray-800 text-emerald-500'}`}
-                  title="Discover"
-                >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-                  </svg>
-                </button>
+              {/* Discover */}
+              <a
+                href="/discover"
+                className="flex items-center justify-center lg:justify-start gap-3 p-3 lg:px-3 lg:py-2.5 rounded-xl text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                title="Discover"
+              >
+                <svg className="w-5 h-5 flex-shrink-0 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                </svg>
+                <span className="hidden lg:inline text-sm font-medium">Discover</span>
+              </a>
 
-                {/* Safety / Moderation */}
-                <button
-                  onClick={() => setCollapsedPopover(collapsedPopover === 'safety' ? null : 'safety')}
-                  className={`p-3 rounded-xl transition-colors ${collapsedPopover === 'safety' ? 'bg-blue-100 dark:bg-blue-900 text-blue-600' : 'hover:bg-gray-100 dark:hover:bg-gray-800 text-blue-500'}`}
-                  title="Moderation"
-                >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-                  </svg>
-                </button>
+              {/* Moderation */}
+              <a
+                href="/moderation"
+                className="flex items-center justify-center lg:justify-start gap-3 p-3 lg:px-3 lg:py-2.5 rounded-xl text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                title="Moderation"
+              >
+                <svg className="w-5 h-5 flex-shrink-0 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                </svg>
+                <span className="hidden lg:inline text-sm font-medium">Moderation</span>
+              </a>
 
-                {/* Settings */}
-                <button
-                  onClick={() => setCollapsedPopover(collapsedPopover === 'settings' ? null : 'settings')}
-                  className={`p-3 rounded-xl transition-colors ${collapsedPopover === 'settings' ? 'bg-blue-100 dark:bg-blue-900 text-blue-600' : 'hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400'}`}
-                  title="Settings"
-                >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                  </svg>
-                </button>
+              {/* Settings */}
+              <a
+                href="/settings/display"
+                className="flex items-center justify-center lg:justify-start gap-3 p-3 lg:px-3 lg:py-2.5 rounded-xl text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                title="Settings"
+              >
+                <svg className="w-5 h-5 flex-shrink-0 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+                <span className="hidden lg:inline text-sm font-medium">Settings</span>
+              </a>
 
-                {/* Compose Button - icon only */}
-                <button
-                  onClick={() => openComposer()}
-                  className="p-3 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white rounded-xl transition-all shadow-sm"
-                  title="New Post"
-                >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                  </svg>
-                </button>
-              </div>
-            ) : (
-              /* Expanded: Full components */
-              <>
-                <Bookmarks onOpenPost={openThread} onOpenProfile={navigateToProfile} />
-                <DMSidebar />
-                <Notifications onOpenPost={openThread} onOpenProfile={navigateToProfile} />
-                <ModerationBox onOpenProfile={navigateToProfile} />
-                <SafetyPanel onOpenProfile={navigateToProfile} onOpenThread={openThread} />
-                <SettingsPanel />
-
-                {/* Compose Button */}
-                <button
-                  onClick={() => openComposer()}
-                  className="w-full py-2 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white text-sm font-medium rounded-full flex items-center justify-center gap-1.5 transition-all shadow-sm"
-                >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                  </svg>
-                  New Post
-                </button>
-              </>
-            )}
+              {/* Compose Button */}
+              <button
+                onClick={() => openComposer()}
+                className="mt-2 p-3 lg:py-2 lg:w-full bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white text-sm font-medium rounded-full flex items-center justify-center gap-1.5 transition-all shadow-sm"
+                title="New Post"
+              >
+                <svg className="w-5 h-5 lg:w-4 lg:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                </svg>
+                <span className="hidden lg:inline">New Post</span>
+              </button>
+            </nav>
           </aside>
-
-          {/* Collapsed sidebar popovers - rendered outside sidebar to avoid overflow clipping */}
-          {collapsedPopover && (
-            <>
-              {/* Backdrop */}
-              <div
-                className="fixed inset-0 z-40 bg-black/20"
-                onClick={() => setCollapsedPopover(null)}
-              />
-              {/* Popover panel */}
-              <div className="fixed left-20 top-16 w-80 max-h-[calc(100vh-5rem)] overflow-y-auto bg-white dark:bg-gray-900 rounded-xl shadow-2xl border border-gray-200 dark:border-gray-700 z-50">
-                {collapsedPopover === 'bookmarks' && (
-                  <Bookmarks onOpenPost={openThread} onOpenProfile={navigateToProfile} embedded />
-                )}
-                {collapsedPopover === 'dms' && (
-                  <DMSidebar embedded />
-                )}
-                {collapsedPopover === 'notifications' && (
-                  <Notifications onOpenPost={openThread} onOpenProfile={navigateToProfile} embedded />
-                )}
-                {collapsedPopover === 'moderation' && (
-                  <ModerationBox onOpenProfile={navigateToProfile} embedded />
-                )}
-                {collapsedPopover === 'safety' && (
-                  <SafetyPanel onOpenProfile={navigateToProfile} onOpenThread={openThread} embedded />
-                )}
-                {collapsedPopover === 'settings' && (
-                  <SettingsPanel embedded />
-                )}
-              </div>
-            </>
-          )}
 
           {/* Main content area with feed and vertical tabs */}
           <div className="flex-1 flex items-start min-w-0 max-w-full lg:max-w-[calc(576px+180px)]">
@@ -802,7 +699,7 @@ function AppContent() {
             onTouchStart={handleTouchStart}
             onTouchMove={handleTouchMove}
             onTouchEnd={handleTouchEnd}
-            className="flex-1 w-full min-w-0 max-w-full lg:max-w-xl bg-white dark:bg-gray-950 min-h-screen lg:border-l border-gray-200 dark:border-gray-800 lg:border-r pb-16 lg:pb-0"
+            className="flex-1 w-full min-w-0 max-w-full lg:max-w-xl bg-white dark:bg-gray-950 min-h-screen lg:border-l border-gray-200 dark:border-gray-800 lg:border-r"
             style={{ transform: `translateY(${pullDistance}px)`, transition: isPulling ? 'none' : 'transform 0.2s ease-out' }}
           >
             {/* Pull-to-refresh indicator */}
@@ -1053,67 +950,6 @@ function AppContent() {
         onClose={() => setShowRemixSettings(false)}
       />
 
-      {/* Mobile Bottom Navigation Bar */}
-      <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-white dark:bg-gray-950 border-t border-gray-200 dark:border-gray-800 z-30 safe-area-inset-bottom">
-        <div className="flex items-center justify-around h-14">
-          {/* Home */}
-          <button
-            onClick={() => window.location.href = '/'}
-            className="flex flex-col items-center justify-center flex-1 h-full text-blue-500"
-          >
-            <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
-              <path d="M12 2L2 12h3v9h6v-6h2v6h6v-9h3L12 2z" />
-            </svg>
-          </button>
-          {/* Search */}
-          <button
-            onClick={() => window.location.href = '/search'}
-            className="flex flex-col items-center justify-center flex-1 h-full text-gray-500"
-          >
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-            </svg>
-          </button>
-          {/* Papers */}
-          <button
-            onClick={() => setShowMobileDiscoverPapers(true)}
-            className="flex flex-col items-center justify-center flex-1 h-full text-gray-500"
-          >
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-            </svg>
-          </button>
-          {/* Messages/DMs */}
-          <button
-            onClick={() => setShowMobileDMs(true)}
-            className="flex flex-col items-center justify-center flex-1 h-full text-gray-500"
-          >
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-            </svg>
-          </button>
-          {/* Profile */}
-          <button
-            onClick={() => window.location.href = buildProfileUrl(session?.handle || '', session?.did)}
-            className="flex flex-col items-center justify-center flex-1 h-full text-gray-500"
-          >
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-            </svg>
-          </button>
-        </div>
-      </nav>
-
-      {/* Mobile Floating Action Button (FAB) for composing */}
-      <button
-        onClick={() => openComposer()}
-        className="lg:hidden fixed w-14 h-14 bg-blue-500 hover:bg-blue-600 text-white rounded-full shadow-lg flex items-center justify-center z-30 transition-transform hover:scale-105 active:scale-95 bottom-20 right-4"
-        aria-label="Compose post"
-      >
-        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-        </svg>
-      </button>
 
       {/* Composer Modal */}
       {showComposer && (
@@ -1151,112 +987,6 @@ function AppContent() {
         </div>
       )}
 
-      {/* Mobile DMs Modal */}
-      {showMobileDMs && (
-        <div className="lg:hidden fixed inset-0 z-50 flex flex-col bg-white dark:bg-gray-950">
-          {/* Modal header */}
-          <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 dark:border-gray-800 relative">
-            <button
-              onClick={() => setShowMobileDMs(false)}
-              className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full"
-            >
-              <svg className="w-6 h-6 text-gray-600 dark:text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-              </svg>
-            </button>
-            <span className="absolute left-1/2 -translate-x-1/2 font-semibold text-gray-900 dark:text-gray-100">Messages</span>
-            <div className="w-10" />
-          </div>
-          {/* DM Sidebar content */}
-          <div className="flex-1 overflow-y-auto">
-            <DMSidebar embedded />
-          </div>
-        </div>
-      )}
-
-      {/* Mobile Bookmarks Modal */}
-      {showMobileBookmarks && (
-        <div className="lg:hidden fixed inset-0 z-50 flex flex-col bg-white dark:bg-gray-950">
-          <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 dark:border-gray-800 relative">
-            <button
-              onClick={() => setShowMobileBookmarks(false)}
-              className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full"
-            >
-              <svg className="w-6 h-6 text-gray-600 dark:text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-              </svg>
-            </button>
-            <span className="absolute left-1/2 -translate-x-1/2 font-semibold text-gray-900 dark:text-gray-100">Bookmarks</span>
-            <div className="w-10" />
-          </div>
-          <div className="flex-1 overflow-y-auto [&_.text-xs]:text-sm [&_.text-\[9px\]]:text-xs [&_.w-7]:w-9 [&_.h-7]:h-9">
-            <Bookmarks embedded onOpenPost={(uri) => { setShowMobileBookmarks(false); openThread(uri); }} onOpenProfile={(did) => { setShowMobileBookmarks(false); navigateToProfile(did); }} />
-          </div>
-        </div>
-      )}
-
-      {/* Mobile Notifications Modal */}
-      {showMobileNotifications && (
-        <div className="lg:hidden fixed inset-0 z-50 flex flex-col bg-white dark:bg-gray-950">
-          <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 dark:border-gray-800 relative">
-            <button
-              onClick={() => setShowMobileNotifications(false)}
-              className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full"
-            >
-              <svg className="w-6 h-6 text-gray-600 dark:text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-              </svg>
-            </button>
-            <span className="absolute left-1/2 -translate-x-1/2 font-semibold text-gray-900 dark:text-gray-100">Notifications</span>
-            <div className="w-10" />
-          </div>
-          <div className="flex-1 overflow-y-auto [&_.text-xs]:text-sm [&_.text-\[9px\]]:text-xs [&_.w-7]:w-9 [&_.h-7]:h-9">
-            <Notifications embedded onOpenPost={(uri) => { setShowMobileNotifications(false); openThread(uri); }} onOpenProfile={(did) => { setShowMobileNotifications(false); navigateToProfile(did); }} />
-          </div>
-        </div>
-      )}
-
-      {/* Mobile Moderation Modal */}
-      {showMobileModeration && (
-        <div className="lg:hidden fixed inset-0 z-50 flex flex-col bg-white dark:bg-gray-950">
-          <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 dark:border-gray-800 relative">
-            <button
-              onClick={() => setShowMobileModeration(false)}
-              className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full"
-            >
-              <svg className="w-6 h-6 text-gray-600 dark:text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-              </svg>
-            </button>
-            <span className="absolute left-1/2 -translate-x-1/2 font-semibold text-gray-900 dark:text-gray-100">Moderation</span>
-            <div className="w-10" />
-          </div>
-          <div className="flex-1 overflow-y-auto [&_.text-xs]:text-sm [&_.text-\[9px\]]:text-xs [&_.w-7]:w-9 [&_.h-7]:h-9">
-            <SafetyPanel embedded onOpenProfile={(did) => { setShowMobileModeration(false); navigateToProfile(did); }} onOpenThread={(uri) => { setShowMobileModeration(false); openThread(uri); }} />
-          </div>
-        </div>
-      )}
-
-      {/* Mobile Discover Papers Modal */}
-      {showMobileDiscoverPapers && (
-        <div className="lg:hidden fixed inset-0 z-50 flex flex-col bg-white dark:bg-gray-950">
-          <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 dark:border-gray-800 relative">
-            <button
-              onClick={() => setShowMobileDiscoverPapers(false)}
-              className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full"
-            >
-              <svg className="w-6 h-6 text-gray-600 dark:text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-              </svg>
-            </button>
-            <span className="absolute left-1/2 -translate-x-1/2 font-semibold text-gray-900 dark:text-gray-100">Discover Papers</span>
-            <div className="w-10" />
-          </div>
-          <div className="flex-1 flex flex-col min-h-0 [&_.text-xs]:text-sm [&_.text-\[10px\]]:text-xs">
-            <ModerationBox embedded onOpenProfile={(did) => { setShowMobileDiscoverPapers(false); navigateToProfile(did); }} />
-          </div>
-        </div>
-      )}
     </div>
   );
 }
