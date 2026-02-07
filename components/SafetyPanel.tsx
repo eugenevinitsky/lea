@@ -417,7 +417,7 @@ export default function SafetyPanel({ onOpenProfile, onOpenThread, defaultExpand
                 </svg>
                 <h4 className="text-xs font-medium text-gray-700 dark:text-gray-300">Alerts</h4>
                 {alerts.length > 0 && (
-                  <span className="px-1.5 py-0.5 text-xs font-medium bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 rounded-full">
+                  <span className="px-1.5 py-0.5 text-xs font-medium bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 rounded-full">
                     {alerts.length}
                   </span>
                 )}
@@ -465,7 +465,7 @@ export default function SafetyPanel({ onOpenProfile, onOpenThread, defaultExpand
                     {alerts.map((alert) => (
                       <div
                         key={alert.id}
-                        className="relative p-2 bg-gray-50 dark:bg-gray-800/50 rounded-lg group"
+                        className="relative p-2 bg-amber-50 dark:bg-amber-900/20 rounded-lg group"
                       >
                         <div className="flex items-start gap-2">
                           <div className="flex-shrink-0 mt-0.5">
@@ -521,13 +521,13 @@ export default function SafetyPanel({ onOpenProfile, onOpenThread, defaultExpand
           {/* Quick Help Link */}
           <Link
             href="/moderation/safety-help"
-            className="flex items-center gap-2 px-3 py-2.5 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+            className="flex items-center gap-2 px-3 py-2.5 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
           >
-            <svg className="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-3.5 h-3.5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 5.636l-3.536 3.536m0 5.656l3.536 3.536M9.172 9.172L5.636 5.636m3.536 9.192l-3.536 3.536M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-5 0a4 4 0 11-8 0 4 4 0 018 0z" />
             </svg>
-            <span className="text-xs font-medium text-gray-700 dark:text-gray-300">Quick Help</span>
-            <svg className="w-3.5 h-3.5 text-gray-300 dark:text-gray-600 ml-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <span className="text-xs font-medium text-red-600 dark:text-red-400">Quick Help</span>
+            <svg className="w-3.5 h-3.5 text-red-300 dark:text-red-600 ml-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
             </svg>
           </Link>
