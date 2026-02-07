@@ -380,7 +380,18 @@ export const botAccounts = pgTable('bot_accounts', {
   reason: varchar('reason', { length: 100 }), // 'keyword' | 'high_frequency' | 'manual'
 });
 
+// Suspended users
+export const suspendedUsers = pgTable('suspended_users', {
+  did: varchar('did', { length: 255 }).primaryKey(),
+  handle: varchar('handle', { length: 255 }),
+  reason: text('reason'),
+  suspendedAt: timestamp('suspended_at').defaultNow().notNull(),
+  suspendedBy: varchar('suspended_by', { length: 255 }), // Admin DID
+});
+
 // Type exports
+export type SuspendedUser = typeof suspendedUsers.$inferSelect;
+export type NewSuspendedUser = typeof suspendedUsers.$inferInsert;
 export type VerifiedResearcher = typeof verifiedResearchers.$inferSelect;
 export type NewVerifiedResearcher = typeof verifiedResearchers.$inferInsert;
 export type SocialGraphEdge = typeof socialGraph.$inferSelect;
