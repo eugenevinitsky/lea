@@ -1,10 +1,9 @@
 'use client';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { getSession, getBlueskyProfile, checkSafetyAlerts, dismissSafetyAlert, SafetyAlert, AlertThresholds, followUser, unfollowUser, isVerifiedResearcher, Label, buildProfileUrl, buildPostUrl, checkVerificationStatus, blockUser, getKnownFollowers, BlueskyProfile, getMyRecentPostsAndReplies, getPostsByUris, setCachedHandle } from '@/lib/bluesky';
+import { getSession, getBlueskyProfile, checkSafetyAlerts, dismissSafetyAlert, SafetyAlert, AlertThresholds, followUser, unfollowUser, isVerifiedResearcher, Label, buildProfileUrl, buildPostUrl, checkVerificationStatus, blockUser, getKnownFollowers, BlueskyProfile, setCachedHandle } from '@/lib/bluesky';
 import { initOAuth } from '@/lib/oauth';
 import { refreshAgent } from '@/lib/bluesky';
-import { AppBskyFeedDefs } from '@atproto/api';
 import { useFollowing } from '@/lib/following-context';
 import { SettingsProvider, useSettings, LeaSettings } from '@/lib/settings';
 import { BookmarksProvider, useBookmarks } from '@/lib/bookmarks';
@@ -17,11 +16,7 @@ import {
   GroupedNotifications,
 } from '@/lib/notifications';
 import Login from '@/components/Login';
-import Bookmarks from '@/components/Bookmarks';
 import DMSidebar from '@/components/DMSidebar';
-import Notifications from '@/components/Notifications';
-import ModerationBox from '@/components/ModerationBox';
-import SafetyPanel from '@/components/SafetyPanel';
 import ResearcherSearch from '@/components/ResearcherSearch';
 import ProfileHoverCard from '@/components/ProfileHoverCard';
 import ProfileLabels from '@/components/ProfileLabels';
