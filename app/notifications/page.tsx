@@ -594,47 +594,6 @@ function CategoryBreakdown({
   );
 }
 
-// Storage key for last viewed My Posts timestamp
-const MY_POSTS_LAST_VIEWED_KEY = 'lea-my-posts-last-viewed';
-
-// Storage key for last viewed Mentions timestamp
-const MENTIONS_LAST_VIEWED_KEY = 'lea-mentions-last-viewed';
-
-function getMentionsLastViewed(): Date {
-  if (typeof window === 'undefined') return new Date(0);
-  const saved = localStorage.getItem(MENTIONS_LAST_VIEWED_KEY);
-  return saved ? new Date(saved) : new Date(0);
-}
-
-function setMentionsLastViewed() {
-  if (typeof window === 'undefined') return;
-  localStorage.setItem(MENTIONS_LAST_VIEWED_KEY, new Date().toISOString());
-}
-
-function getMyPostsLastViewed(): Date {
-  if (typeof window === 'undefined') return new Date(0);
-  const saved = localStorage.getItem(MY_POSTS_LAST_VIEWED_KEY);
-  return saved ? new Date(saved) : new Date(0);
-}
-
-function setMyPostsLastViewed() {
-  if (typeof window === 'undefined') return;
-  localStorage.setItem(MY_POSTS_LAST_VIEWED_KEY, new Date().toISOString());
-}
-
-// Helper to categorize time periods
-function getTimePeriod(dateString: string): 'hour' | 'today' | 'week' | 'older' {
-  const date = new Date(dateString);
-  const now = new Date();
-  const diffMs = now.getTime() - date.getTime();
-  const diffHours = diffMs / 3600000;
-  const diffDays = diffMs / 86400000;
-  
-  if (diffHours < 1) return 'hour';
-  if (diffDays < 1) return 'today';
-  if (diffDays < 7) return 'week';
-  return 'older';
-}
 
 // Helper to compute avatar ring class based on relationship
 function getAvatarRingClass(
@@ -658,1355 +617,10 @@ function getAvatarRingClass(
   return '';
 }
 
-// Activity item for a single interaction on a post
-interface PostActivity {
-  type: 'like' | 'repost' | 'reply' | 'quote' | 'mention';
-  author: {
-    did: string;
-    handle: string;
-    displayName?: string;
-    avatar?: string;
-    viewer?: {
-      following?: string;
-      followedBy?: string;
-    };
-  };
-  text?: string; // For replies/quotes
-  uri?: string; // URI of the reply/quote post
-  indexedAt: string;
-}
 
-// Aggregated post with its activity
-interface PostWithActivity {
-  post: AppBskyFeedDefs.PostView;
-  activity: PostActivity[];
-  latestActivityAt: string;
-  totalEngagement: number;
-}
 
-// Activity type colors and icons
-const ACTIVITY_STYLES = {
-  like: {
-    color: 'text-pink-400',
-    icon: (
-      <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24">
-        <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />
-      </svg>
-    ),
-    label: 'liked',
-  },
-  repost: {
-    color: 'text-emerald-500',
-    icon: (
-      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-      </svg>
-    ),
-    label: 'reposted',
-  },
-  reply: {
-    color: 'text-blue-500',
-    icon: (
-      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
-      </svg>
-    ),
-    label: 'replied',
-  },
-  quote: {
-    color: 'text-purple-500',
-    icon: (
-      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
-      </svg>
-    ),
-    label: 'quoted',
-  },
-  mention: {
-    color: 'text-amber-500',
-    icon: (
-      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 12a4 4 0 10-8 0 4 4 0 008 0zm0 0v1.5a2.5 2.5 0 005 0V12a9 9 0 10-9 9m4.5-1.206a8.959 8.959 0 01-4.5 1.207" />
-      </svg>
-    ),
-    label: 'mentioned you',
-  },
-};
 
-// Single activity item row (for non-like activities)
-function ActivityItem({
-  activity,
-  onOpenProfile,
-  onOpenPost,
-}: {
-  activity: PostActivity;
-  onOpenProfile: (did: string) => void;
-  onOpenPost: (uri: string) => void;
-}) {
-  const style = ACTIVITY_STYLES[activity.type];
-  const { settings } = useSettings();
-  const avatarRingClass = getAvatarRingClass(activity.author.viewer, settings);
-  
-  return (
-    <div
-      className="flex items-start gap-2 py-1.5 px-2 rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors"
-      onClick={() => {
-        if (activity.uri && (activity.type === 'reply' || activity.type === 'quote' || activity.type === 'mention')) {
-          onOpenPost(activity.uri);
-        } else {
-          onOpenProfile(activity.author.did);
-        }
-      }}
-    >
-      {/* Avatar with hover card */}
-      <ProfileHoverCard
-        did={activity.author.did}
-        handle={activity.author.handle}
-        onOpenProfile={() => onOpenProfile(activity.author.did)}
-      >
-        {activity.author.avatar ? (
-          <img
-            src={activity.author.avatar}
-            alt=""
-            className={`w-5 h-5 rounded-full flex-shrink-0 cursor-pointer ${avatarRingClass}`}
-            onClick={(e) => {
-              e.stopPropagation();
-              onOpenProfile(activity.author.did);
-            }}
-          />
-        ) : (
-          <div
-            className={`w-5 h-5 rounded-full bg-gray-400 flex items-center justify-center text-white text-[10px] font-bold flex-shrink-0 cursor-pointer ${avatarRingClass}`}
-            onClick={(e) => {
-              e.stopPropagation();
-              onOpenProfile(activity.author.did);
-            }}
-          >
-            {(activity.author.displayName || activity.author.handle)[0].toUpperCase()}
-          </div>
-        )}
-      </ProfileHoverCard>
-      <span className={`flex-shrink-0 mt-0.5 ${style.color}`}>
-        {style.icon}
-      </span>
-      <div className="flex-1 min-w-0">
-        <span className="text-xs">
-          <span
-            className="font-medium text-gray-900 dark:text-gray-100 hover:text-blue-500 cursor-pointer"
-            onClick={(e) => {
-              e.stopPropagation();
-              onOpenProfile(activity.author.did);
-            }}
-          >
-            {activity.author.displayName || `@${activity.author.handle}`}
-          </span>
-          <span className="text-gray-500 dark:text-gray-400"> {style.label}</span>
-          {activity.text && (
-            <p className="text-sm text-gray-800 dark:text-gray-200 mt-1 line-clamp-2">&ldquo;{activity.text.slice(0, 120)}{activity.text.length > 120 ? '...' : ''}&rdquo;</p>
-          )}
-        </span>
-      </div>
-      <span className="text-xs text-gray-400 flex-shrink-0">
-        {formatTime(activity.indexedAt)}
-      </span>
-    </div>
-  );
-}
 
-// Rolled-up likes row showing avatars and "X, Y, Z, and N others liked"
-function LikesRollupRow({
-  likes,
-  onOpenProfile,
-}: {
-  likes: PostActivity[];
-  onOpenProfile: (did: string) => void;
-}) {
-  const { settings } = useSettings();
-  
-  if (likes.length === 0) return null;
-  
-  const style = ACTIVITY_STYLES.like;
-  const MAX_NAMES = 3;
-  const MAX_AVATARS = 5;
-  
-  // Get unique likers (in case of duplicates)
-  const uniqueLikers = likes.reduce((acc, like) => {
-    if (!acc.find(l => l.author.did === like.author.did)) {
-      acc.push(like);
-    }
-    return acc;
-  }, [] as PostActivity[]);
-  
-  const displayedLikers = uniqueLikers.slice(0, MAX_NAMES);
-  const remainingCount = uniqueLikers.length - MAX_NAMES;
-  const avatarsToShow = uniqueLikers.slice(0, MAX_AVATARS);
-  
-  // Build the names string
-  const formatNames = () => {
-    const names = displayedLikers.map(l => l.author.displayName || l.author.handle);
-    if (remainingCount <= 0) {
-      if (names.length === 1) return names[0];
-      if (names.length === 2) return `${names[0]} and ${names[1]}`;
-      return `${names.slice(0, -1).join(', ')}, and ${names[names.length - 1]}`;
-    }
-    return `${names.join(', ')}, and ${remainingCount} other${remainingCount === 1 ? '' : 's'}`;
-  };
-  
-  return (
-    <div className="flex items-center gap-2 py-1.5 px-2 rounded-lg">
-      {/* Stacked avatars with hover cards */}
-      <div className="flex -space-x-1.5 flex-shrink-0">
-        {avatarsToShow.map((liker, i) => {
-          const avatarRingClass = getAvatarRingClass(liker.author.viewer, settings);
-          return (
-            <ProfileHoverCard
-              key={liker.author.did}
-              did={liker.author.did}
-              handle={liker.author.handle}
-              onOpenProfile={() => onOpenProfile(liker.author.did)}
-            >
-              {liker.author.avatar ? (
-                <img
-                  src={liker.author.avatar}
-                  alt=""
-                  className={`w-5 h-5 rounded-full border border-white dark:border-gray-900 cursor-pointer hover:z-10 hover:scale-110 transition-transform ${avatarRingClass}`}
-                  style={{ zIndex: MAX_AVATARS - i }}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onOpenProfile(liker.author.did);
-                  }}
-                />
-              ) : (
-                <div
-                  className={`w-5 h-5 rounded-full bg-gray-400 flex items-center justify-center text-white text-[10px] font-bold border border-white dark:border-gray-900 cursor-pointer hover:z-10 hover:scale-110 transition-transform ${avatarRingClass}`}
-                  style={{ zIndex: MAX_AVATARS - i }}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onOpenProfile(liker.author.did);
-                  }}
-                >
-                  {(liker.author.displayName || liker.author.handle)[0].toUpperCase()}
-                </div>
-              )}
-            </ProfileHoverCard>
-          );
-        })}
-      </div>
-      
-      {/* Heart icon */}
-      <span className={`flex-shrink-0 ${style.color}`}>
-        {style.icon}
-      </span>
-      
-      {/* Names */}
-      <div className="flex-1 min-w-0">
-        <span className="text-xs">
-          <span className="font-medium text-gray-900 dark:text-gray-100">
-            {formatNames()}
-          </span>
-          <span className="text-gray-500 dark:text-gray-400"> liked</span>
-        </span>
-      </div>
-    </div>
-  );
-}
-
-// Rolled-up reposts row showing avatars and "X, Y, Z, and N others reposted"
-function RepostsRollupRow({
-  reposts,
-  onOpenProfile,
-}: {
-  reposts: PostActivity[];
-  onOpenProfile: (did: string) => void;
-}) {
-  const { settings } = useSettings();
-  
-  if (reposts.length === 0) return null;
-  
-  const style = ACTIVITY_STYLES.repost;
-  const MAX_NAMES = 3;
-  const MAX_AVATARS = 5;
-  
-  // Get unique reposters (in case of duplicates)
-  const uniqueReposters = reposts.reduce((acc, repost) => {
-    if (!acc.find(r => r.author.did === repost.author.did)) {
-      acc.push(repost);
-    }
-    return acc;
-  }, [] as PostActivity[]);
-  
-  const displayedReposters = uniqueReposters.slice(0, MAX_NAMES);
-  const remainingCount = uniqueReposters.length - MAX_NAMES;
-  const avatarsToShow = uniqueReposters.slice(0, MAX_AVATARS);
-  
-  // Build the names string
-  const formatNames = () => {
-    const names = displayedReposters.map(r => r.author.displayName || r.author.handle);
-    if (remainingCount <= 0) {
-      if (names.length === 1) return names[0];
-      if (names.length === 2) return `${names[0]} and ${names[1]}`;
-      return `${names.slice(0, -1).join(', ')}, and ${names[names.length - 1]}`;
-    }
-    return `${names.join(', ')}, and ${remainingCount} other${remainingCount === 1 ? '' : 's'}`;
-  };
-  
-  return (
-    <div className="flex items-center gap-2 py-1.5 px-2 rounded-lg">
-      {/* Stacked avatars with hover cards */}
-      <div className="flex -space-x-1.5 flex-shrink-0">
-        {avatarsToShow.map((reposter, i) => {
-          const avatarRingClass = getAvatarRingClass(reposter.author.viewer, settings);
-          return (
-            <ProfileHoverCard
-              key={reposter.author.did}
-              did={reposter.author.did}
-              handle={reposter.author.handle}
-              onOpenProfile={() => onOpenProfile(reposter.author.did)}
-            >
-              {reposter.author.avatar ? (
-                <img
-                  src={reposter.author.avatar}
-                  alt=""
-                  className={`w-5 h-5 rounded-full border border-white dark:border-gray-900 cursor-pointer hover:z-10 hover:scale-110 transition-transform ${avatarRingClass}`}
-                  style={{ zIndex: MAX_AVATARS - i }}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onOpenProfile(reposter.author.did);
-                  }}
-                />
-              ) : (
-                <div
-                  className={`w-5 h-5 rounded-full bg-gray-400 flex items-center justify-center text-white text-[10px] font-bold border border-white dark:border-gray-900 cursor-pointer hover:z-10 hover:scale-110 transition-transform ${avatarRingClass}`}
-                  style={{ zIndex: MAX_AVATARS - i }}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onOpenProfile(reposter.author.did);
-                  }}
-                >
-                  {(reposter.author.displayName || reposter.author.handle)[0].toUpperCase()}
-                </div>
-              )}
-            </ProfileHoverCard>
-          );
-        })}
-      </div>
-      
-      {/* Repost icon */}
-      <span className={`flex-shrink-0 ${style.color}`}>
-        {style.icon}
-      </span>
-      
-      {/* Names */}
-      <div className="flex-1 min-w-0">
-        <span className="text-xs">
-          <span className="font-medium text-gray-900 dark:text-gray-100">
-            {formatNames()}
-          </span>
-          <span className="text-gray-500 dark:text-gray-400"> reposted</span>
-        </span>
-      </div>
-    </div>
-  );
-}
-
-// Time-grouped activity entry for a post within a specific time period
-interface TimeGroupedPostEntry {
-  post: AppBskyFeedDefs.PostView;
-  activity: PostActivity[]; // Only activity within this time period
-  isNew: boolean;
-}
-
-// Row for a single post with its activity (always expanded, no collapse)
-function PostActivityRow({
-  entry,
-  onOpenProfile,
-  onOpenPost,
-}: {
-  entry: TimeGroupedPostEntry;
-  onOpenProfile: (did: string) => void;
-  onOpenPost: (uri: string) => void;
-}) {
-  const { post, activity, isNew } = entry;
-  const postText = (post.record as { text?: string })?.text || '';
-  const isReply = !!(post.record as { reply?: unknown })?.reply;
-  
-  // Separate likes and reposts from other activity types (they get rolled up)
-  const likesActivity = activity.filter(a => a.type === 'like');
-  const repostsActivity = activity.filter(a => a.type === 'repost');
-  const otherActivity = activity.filter(a => a.type !== 'like' && a.type !== 'repost');
-  
-  // Activity count for this time period
-  const periodActivityCount = activity.length;
-  
-  return (
-    <div className={`border-b border-gray-100 dark:border-gray-800 last:border-b-0 ${isNew ? 'bg-blue-50/50 dark:bg-blue-900/10 border-l-4 border-l-blue-500' : ''}`}>
-      {/* Post header - clickable to open post */}
-      <div
-        className="p-3 hover:bg-gray-50 dark:hover:bg-gray-800/30 cursor-pointer"
-        onClick={() => onOpenPost(post.uri)}
-      >
-        <div className="flex items-start gap-3">
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 mb-1">
-              {isNew && (
-                <span className="w-2 h-2 rounded-full bg-blue-500 flex-shrink-0 animate-pulse" title="New activity" />
-              )}
-              {isReply && (
-                <span className="text-xs px-1.5 py-0.5 bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 rounded">
-                  Reply
-                </span>
-              )}
-              <span className="text-xs text-gray-400">
-                Posted {formatTime(post.indexedAt)}
-              </span>
-              {/* Arrow to indicate clickable */}
-              <svg
-                className="w-4 h-4 text-gray-300 ml-auto"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-              </svg>
-            </div>
-            <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-2">
-              {postText || <span className="italic text-gray-400">(no text)</span>}
-            </p>
-            
-            {/* Activity count for this period */}
-            <div className="flex items-center gap-2 mt-2 text-xs">
-              <span className="text-gray-500">
-                {periodActivityCount} {periodActivityCount === 1 ? 'interaction' : 'interactions'} in this period
-              </span>
-            </div>
-          </div>
-        </div>
-      </div>
-      
-      {/* Activity feed - always visible */}
-      {activity.length > 0 && (
-        <div className="px-3 pb-3 space-y-1">
-          {/* Show rolled-up likes first if there are any */}
-          {likesActivity.length > 0 && (
-            <LikesRollupRow
-              likes={likesActivity}
-              onOpenProfile={onOpenProfile}
-            />
-          )}
-          
-          {/* Show rolled-up reposts */}
-          {repostsActivity.length > 0 && (
-            <RepostsRollupRow
-              reposts={repostsActivity}
-              onOpenProfile={onOpenProfile}
-            />
-          )}
-          
-          {/* Show other activities (replies, quotes, mentions) */}
-          {otherActivity.map((a, i) => (
-            <ActivityItem
-              key={`${a.type}-${a.author.did}-${i}`}
-              activity={a}
-              onOpenProfile={onOpenProfile}
-              onOpenPost={onOpenPost}
-            />
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
-// Sort options for posts
-type PostSortOption = 'recent_activity' | 'most_engagement' | 'recent_post';
-
-// Timeline section header
-function TimelineSectionHeader({ period }: { period: 'hour' | 'today' | 'week' }) {
-  const labels = {
-    hour: 'Last hour',
-    today: 'Earlier today',
-    week: 'This week',
-  };
-  const styles = {
-    hour: 'text-pink-700 dark:text-pink-300 bg-pink-100 dark:bg-pink-900/40 border-l-4 border-pink-500',
-    today: 'text-yellow-700 dark:text-yellow-300 bg-yellow-100 dark:bg-yellow-900/40 border-l-4 border-yellow-500',
-    week: 'text-gray-600 dark:text-gray-400 bg-gray-100 dark:bg-gray-800 border-l-4 border-gray-400',
-  };
-  
-  return (
-    <div className={`px-3 py-1.5 text-xs font-semibold ${styles[period]} sticky top-0 z-10`}>
-      {labels[period]}
-    </div>
-  );
-}
-
-// "New since last visit" divider
-function NewSinceLastVisitDivider() {
-  return (
-    <div className="flex items-center gap-3 px-3 py-2">
-      <div className="flex-1 h-px bg-gray-200 dark:bg-gray-700" />
-      <span className="text-xs font-medium text-gray-400 dark:text-gray-500 whitespace-nowrap">Seen previously</span>
-      <div className="flex-1 h-px bg-gray-200 dark:bg-gray-700" />
-    </div>
-  );
-}
-
-// Collapsed post row (for old/read posts)
-function CollapsedPostRow({
-  post,
-  activityCount,
-  onExpand,
-  onOpenPost,
-}: {
-  post: AppBskyFeedDefs.PostView;
-  activityCount: number;
-  onExpand: () => void;
-  onOpenPost: (uri: string) => void;
-}) {
-  const postText = (post.record as { text?: string })?.text || '';
-
-  return (
-    <div
-      className="flex items-center gap-3 px-3 py-2 hover:bg-gray-50 dark:hover:bg-gray-800/30 cursor-pointer border-b border-gray-100 dark:border-gray-800 last:border-b-0"
-      onClick={onExpand}
-    >
-      <p className="flex-1 text-xs text-gray-500 dark:text-gray-400 truncate">
-        {postText || <span className="italic">(no text)</span>}
-      </p>
-      <span className="flex-shrink-0 px-1.5 py-0.5 text-xs font-medium bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 rounded-full">
-        {activityCount}
-      </span>
-      <svg className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-      </svg>
-    </div>
-  );
-}
-
-// Needs Response pane — shows posts with new replies/quotes/mentions
-function NeedsResponsePane({
-  notifications,
-  onOpenProfile,
-  onOpenPost,
-  activeFilter,
-}: {
-  notifications: NotificationItem[];
-  onOpenProfile: (did: string) => void;
-  onOpenPost: (uri: string) => void;
-  activeFilter: string | null;
-}) {
-  const [posts, setPosts] = useState<AppBskyFeedDefs.PostView[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [lastViewed] = useState(() => getMyPostsLastViewed());
-  const [expandedOld, setExpandedOld] = useState<Set<string>>(new Set());
-
-  useEffect(() => {
-    const loadPosts = async () => {
-      setLoading(true);
-      try {
-        const myPosts = await getMyRecentPostsAndReplies(2, 50);
-        setPosts(myPosts);
-      } catch (err) {
-        console.error('Failed to load posts:', err);
-      } finally {
-        setLoading(false);
-      }
-    };
-    loadPosts();
-  }, []);
-
-  // Build actionable activity map (replies/quotes/mentions only)
-  const actionableByPost = useMemo(() => {
-    const map = new Map<string, PostActivity[]>();
-    const actionableTypes = new Set(['reply', 'quote', 'mention']);
-
-    for (const n of notifications) {
-      if (!actionableTypes.has(n.reason)) continue;
-      if (activeFilter) {
-        const categoryKey = n.reason === 'reply' ? 'replies' : n.reason === 'quote' ? 'quotes' : 'mentions';
-        if (activeFilter !== categoryKey) continue;
-      }
-      const targetUri = n.reasonSubject;
-      if (!targetUri) continue;
-
-      const activity: PostActivity = {
-        type: n.reason as PostActivity['type'],
-        author: n.author,
-        text: n.record?.text,
-        uri: n.uri,
-        indexedAt: n.indexedAt,
-      };
-
-      if (!map.has(targetUri)) {
-        map.set(targetUri, []);
-      }
-      map.get(targetUri)!.push(activity);
-    }
-
-    for (const activities of map.values()) {
-      activities.sort((a, b) => new Date(a.indexedAt).getTime() - new Date(b.indexedAt).getTime());
-    }
-
-    return map;
-  }, [notifications, activeFilter]);
-
-  const postByUri = useMemo(() => {
-    const map = new Map<string, AppBskyFeedDefs.PostView>();
-    for (const post of posts) map.set(post.uri, post);
-    return map;
-  }, [posts]);
-
-  // Build entries sorted by latest activity, split into new/old
-  const { newEntries, oldEntries, newCount } = useMemo(() => {
-    const entries: { post: AppBskyFeedDefs.PostView; activity: PostActivity[]; isNew: boolean; latestAt: number }[] = [];
-
-    for (const [postUri, activity] of actionableByPost.entries()) {
-      const post = postByUri.get(postUri);
-      if (!post) continue;
-      const latestAt = Math.max(...activity.map(a => new Date(a.indexedAt).getTime()));
-      const isNew = activity.some(a => new Date(a.indexedAt) > lastViewed);
-      entries.push({ post, activity, isNew, latestAt });
-    }
-
-    entries.sort((a, b) => b.latestAt - a.latestAt);
-
-    const newOnes = entries.filter(e => e.isNew);
-    const oldOnes = entries.filter(e => !e.isNew);
-    return { newEntries: newOnes, oldEntries: oldOnes, newCount: newOnes.length };
-  }, [actionableByPost, postByUri, lastViewed]);
-
-  const toggleOldExpand = (uri: string) => {
-    setExpandedOld(prev => {
-      const next = new Set(prev);
-      if (next.has(uri)) next.delete(uri); else next.add(uri);
-      return next;
-    });
-  };
-
-  return (
-    <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden">
-      <div className="p-4 border-b border-gray-200 dark:border-gray-800 flex items-center justify-between">
-        <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-2">
-          <svg className="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
-          </svg>
-          Needs Response
-          {newCount > 0 && (
-            <span className="px-1.5 py-0.5 text-xs font-medium bg-blue-500 text-white rounded-full">
-              {newCount}
-            </span>
-          )}
-        </h3>
-      </div>
-
-      {loading ? (
-        <div className="flex items-center justify-center py-12">
-          <div className="animate-spin w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full" />
-        </div>
-      ) : newEntries.length === 0 && oldEntries.length === 0 ? (
-        <div className="p-8 text-center">
-          <svg className="w-10 h-10 mx-auto text-gray-300 dark:text-gray-600 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
-          <p className="text-sm text-gray-500 dark:text-gray-400">All caught up!</p>
-          <p className="text-xs text-gray-400 mt-1">No replies, quotes, or mentions to respond to</p>
-        </div>
-      ) : (
-        <div className="max-h-[600px] overflow-y-auto">
-          {/* New entries — fully expanded */}
-          {newEntries.map((entry) => (
-            <NeedsResponsePostRow
-              key={entry.post.uri}
-              post={entry.post}
-              activity={entry.activity}
-              isNew
-              onOpenProfile={onOpenProfile}
-              onOpenPost={onOpenPost}
-            />
-          ))}
-
-          {/* Divider between new and old */}
-          {newEntries.length > 0 && oldEntries.length > 0 && <NewSinceLastVisitDivider />}
-
-          {/* Old entries — collapsed by default */}
-          {oldEntries.map((entry) => (
-            expandedOld.has(entry.post.uri) ? (
-              <NeedsResponsePostRow
-                key={entry.post.uri}
-                post={entry.post}
-                activity={entry.activity}
-                isNew={false}
-                onOpenProfile={onOpenProfile}
-                onOpenPost={onOpenPost}
-              />
-            ) : (
-              <CollapsedPostRow
-                key={entry.post.uri}
-                post={entry.post}
-                activityCount={entry.activity.length}
-                onExpand={() => toggleOldExpand(entry.post.uri)}
-                onOpenPost={onOpenPost}
-              />
-            )
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
-// Post row for the Needs Response pane — shows reply/quote/mention text prominently
-function NeedsResponsePostRow({
-  post,
-  activity,
-  isNew,
-  onOpenProfile,
-  onOpenPost,
-}: {
-  post: AppBskyFeedDefs.PostView;
-  activity: PostActivity[];
-  isNew: boolean;
-  onOpenProfile: (did: string) => void;
-  onOpenPost: (uri: string) => void;
-}) {
-  const postText = (post.record as { text?: string })?.text || '';
-  const { settings } = useSettings();
-
-  return (
-    <div className={`border-b border-gray-100 dark:border-gray-800 last:border-b-0 ${isNew ? 'bg-blue-50/30 dark:bg-blue-900/10' : ''}`}>
-      {/* Your post (small, muted context) */}
-      <div
-        className="px-3 pt-3 pb-1 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800/30"
-        onClick={() => onOpenPost(post.uri)}
-      >
-        <div className="flex items-center gap-2">
-          {isNew && <span className="w-2 h-2 rounded-full bg-blue-500 flex-shrink-0" />}
-          <p className="text-xs text-gray-400 dark:text-gray-500 truncate flex-1">
-            Your post: {postText || <span className="italic">(no text)</span>}
-          </p>
-          <span className="text-xs text-gray-400">{formatTime(post.indexedAt)}</span>
-        </div>
-      </div>
-
-      {/* Replies/quotes/mentions — prominent, shown as conversation */}
-      <div className="px-3 pb-3 pt-1 space-y-2">
-        {activity.map((a, i) => {
-          const style = ACTIVITY_STYLES[a.type];
-          const avatarRingClass = getAvatarRingClass(a.author.viewer, settings);
-          return (
-            <div
-              key={`${a.type}-${a.author.did}-${i}`}
-              className="flex items-start gap-2.5 p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800/50 cursor-pointer transition-colors"
-              onClick={() => a.uri ? onOpenPost(a.uri) : onOpenProfile(a.author.did)}
-            >
-              <ProfileHoverCard
-                did={a.author.did}
-                handle={a.author.handle}
-                onOpenProfile={() => onOpenProfile(a.author.did)}
-              >
-                {a.author.avatar ? (
-                  <img
-                    src={a.author.avatar}
-                    alt=""
-                    className={`w-7 h-7 rounded-full flex-shrink-0 cursor-pointer ${avatarRingClass}`}
-                    onClick={(e) => { e.stopPropagation(); onOpenProfile(a.author.did); }}
-                  />
-                ) : (
-                  <div
-                    className={`w-7 h-7 rounded-full bg-gray-400 flex items-center justify-center text-white text-xs font-bold flex-shrink-0 cursor-pointer ${avatarRingClass}`}
-                    onClick={(e) => { e.stopPropagation(); onOpenProfile(a.author.did); }}
-                  >
-                    {(a.author.displayName || a.author.handle)[0].toUpperCase()}
-                  </div>
-                )}
-              </ProfileHoverCard>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-1.5 mb-0.5">
-                  <span
-                    className="text-xs font-medium text-gray-900 dark:text-gray-100 hover:text-blue-500 cursor-pointer"
-                    onClick={(e) => { e.stopPropagation(); onOpenProfile(a.author.did); }}
-                  >
-                    {a.author.displayName || `@${a.author.handle}`}
-                  </span>
-                  <span className={`flex-shrink-0 ${style.color}`}>{style.icon}</span>
-                  <span className="text-xs text-gray-400">{formatTime(a.indexedAt)}</span>
-                </div>
-                {a.text && (
-                  <p className="text-sm text-gray-800 dark:text-gray-200 line-clamp-3">
-                    {a.text}
-                  </p>
-                )}
-              </div>
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
-// Main Activity pane — shows likes/reposts only (replies/quotes/mentions are in Needs Response)
-function MyPostsActivityPane({
-  notifications,
-  onOpenProfile,
-  onOpenPost,
-  activeFilter,
-}: {
-  notifications: NotificationItem[];
-  onOpenProfile: (did: string) => void;
-  onOpenPost: (uri: string) => void;
-  activeFilter: string | null;
-}) {
-  const [posts, setPosts] = useState<AppBskyFeedDefs.PostView[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [lastViewed] = useState(() => getMyPostsLastViewed());
-  const [expandedOld, setExpandedOld] = useState<Set<string>>(new Set());
-
-  // Mark as viewed when component mounts
-  useEffect(() => {
-    setMyPostsLastViewed();
-  }, []);
-
-  useEffect(() => {
-    const loadPosts = async () => {
-      setLoading(true);
-      try {
-        const myPosts = await getMyRecentPostsAndReplies(2, 50);
-        setPosts(myPosts);
-      } catch (err) {
-        console.error('Failed to load posts:', err);
-      } finally {
-        setLoading(false);
-      }
-    };
-    loadPosts();
-  }, []);
-
-  // Build activity map — likes/reposts only
-  const activityByPost = useMemo(() => {
-    const map = new Map<string, PostActivity[]>();
-    const engagementTypes = new Set(['like', 'repost']);
-
-    for (const n of notifications) {
-      if (!engagementTypes.has(n.reason)) continue;
-      if (activeFilter) {
-        const categoryKey = n.reason === 'like' ? 'likes' : 'reposts';
-        if (activeFilter !== categoryKey) continue;
-      }
-      const targetUri = n.reasonSubject;
-      if (!targetUri) continue;
-
-      const activity: PostActivity = {
-        type: n.reason as PostActivity['type'],
-        author: n.author,
-        text: n.record?.text,
-        uri: n.uri,
-        indexedAt: n.indexedAt,
-      };
-
-      if (!map.has(targetUri)) map.set(targetUri, []);
-      map.get(targetUri)!.push(activity);
-    }
-
-    for (const activities of map.values()) {
-      activities.sort((a, b) => new Date(b.indexedAt).getTime() - new Date(a.indexedAt).getTime());
-    }
-
-    return map;
-  }, [notifications, activeFilter]);
-
-  const postByUri = useMemo(() => {
-    const map = new Map<string, AppBskyFeedDefs.PostView>();
-    for (const post of posts) map.set(post.uri, post);
-    return map;
-  }, [posts]);
-
-  // Split into new/old entries
-  const { newEntries, oldEntries, newCount } = useMemo(() => {
-    const entries: { post: AppBskyFeedDefs.PostView; activity: PostActivity[]; isNew: boolean; latestAt: number }[] = [];
-
-    for (const [postUri, activity] of activityByPost.entries()) {
-      const post = postByUri.get(postUri);
-      if (!post) continue;
-      const latestAt = Math.max(...activity.map(a => new Date(a.indexedAt).getTime()));
-      const isNew = activity.some(a => new Date(a.indexedAt) > lastViewed);
-      entries.push({ post, activity, isNew, latestAt });
-    }
-
-    entries.sort((a, b) => b.latestAt - a.latestAt);
-    const newOnes = entries.filter(e => e.isNew);
-    const oldOnes = entries.filter(e => !e.isNew);
-    return { newEntries: newOnes, oldEntries: oldOnes, newCount: newOnes.reduce((sum, e) => sum + e.activity.length, 0) };
-  }, [activityByPost, postByUri, lastViewed]);
-
-  const toggleOldExpand = (uri: string) => {
-    setExpandedOld(prev => {
-      const next = new Set(prev);
-      if (next.has(uri)) next.delete(uri); else next.add(uri);
-      return next;
-    });
-  };
-
-  return (
-    <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden">
-      <div className="p-4 border-b border-gray-200 dark:border-gray-800 flex items-center justify-between">
-        <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-2">
-          <svg className="w-4 h-4 text-pink-400" fill="currentColor" viewBox="0 0 24 24">
-            <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />
-          </svg>
-          Activity
-          {newCount > 0 && (
-            <span className="px-1.5 py-0.5 text-xs font-medium bg-pink-500 text-white rounded-full">
-              {newCount} new
-            </span>
-          )}
-        </h3>
-      </div>
-
-      {loading ? (
-        <div className="flex items-center justify-center py-12">
-          <div className="animate-spin w-6 h-6 border-2 border-pink-500 border-t-transparent rounded-full" />
-        </div>
-      ) : newEntries.length === 0 && oldEntries.length === 0 ? (
-        <div className="p-8 text-center">
-          <p className="text-sm text-gray-500 dark:text-gray-400">No recent likes or reposts</p>
-          <p className="text-xs text-gray-400 mt-1">Engagement from the last 48 hours will appear here</p>
-        </div>
-      ) : (
-        <div className="max-h-[600px] overflow-y-auto">
-          {/* New entries — fully expanded */}
-          {newEntries.map((entry) => (
-            <PostActivityRow
-              key={entry.post.uri}
-              entry={{ post: entry.post, activity: entry.activity, isNew: true }}
-              onOpenProfile={onOpenProfile}
-              onOpenPost={onOpenPost}
-            />
-          ))}
-
-          {newEntries.length > 0 && oldEntries.length > 0 && <NewSinceLastVisitDivider />}
-
-          {/* Old entries — collapsed by default */}
-          {oldEntries.map((entry) => (
-            expandedOld.has(entry.post.uri) ? (
-              <PostActivityRow
-                key={entry.post.uri}
-                entry={{ post: entry.post, activity: entry.activity, isNew: false }}
-                onOpenProfile={onOpenProfile}
-                onOpenPost={onOpenPost}
-              />
-            ) : (
-              <CollapsedPostRow
-                key={entry.post.uri}
-                post={entry.post}
-                activityCount={entry.activity.length}
-                onExpand={() => toggleOldExpand(entry.post.uri)}
-                onOpenPost={onOpenPost}
-              />
-            )
-          ))}
-        </div>
-      )}
-
-      <div className="p-3 border-t border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-800/50">
-        <p className="text-xs text-gray-400 text-center">Likes &amp; reposts from the last 48 hours</p>
-      </div>
-    </div>
-  );
-}
-
-// Entry for a mention with engagement stats
-interface MentionWithEngagement {
-  mention: NotificationItem;
-  postData?: AppBskyFeedDefs.PostView;
-  isNew: boolean;
-}
-
-// Mentions Pane Component - shows mentions with engagement stats
-function MentionsPane({
-  mentions,
-  onOpenProfile,
-  onOpenPost,
-}: {
-  mentions: NotificationItem[];
-  onOpenProfile: (did: string) => void;
-  onOpenPost: (uri: string) => void;
-}) {
-  const [lastViewed] = useState(() => getMentionsLastViewed());
-  const [postDataMap, setPostDataMap] = useState<Map<string, AppBskyFeedDefs.PostView>>(new Map());
-  const [loading, setLoading] = useState(true);
-  
-  // Mark as viewed when component mounts
-  useEffect(() => {
-    setMentionsLastViewed();
-  }, []);
-  
-  // Fetch post data for mentions to get engagement stats
-  useEffect(() => {
-    const fetchPostData = async () => {
-      setLoading(true);
-      try {
-        const uris = mentions.map(m => m.uri).filter((uri, idx, arr) => arr.indexOf(uri) === idx);
-        if (uris.length > 0) {
-          const posts = await getPostsByUris(uris);
-          const map = new Map<string, AppBskyFeedDefs.PostView>();
-          for (const post of posts) {
-            map.set(post.uri, post);
-          }
-          setPostDataMap(map);
-        }
-      } catch (err) {
-        console.error('Failed to fetch mention posts:', err);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchPostData();
-  }, [mentions]);
-  
-  // Group mentions by time period
-  const groupedByPeriod = useMemo(() => {
-    const periodMentions: { period: 'hour' | 'today' | 'week'; mention: NotificationItem }[] = [];
-    
-    for (const mention of mentions) {
-      const period = getTimePeriod(mention.indexedAt);
-      if (period === 'older') continue;
-      periodMentions.push({ period, mention });
-    }
-    
-    // Sort by period priority then by time
-    const periodOrder = { hour: 0, today: 1, week: 2 };
-    periodMentions.sort((a, b) => {
-      if (a.period !== b.period) {
-        return periodOrder[a.period] - periodOrder[b.period];
-      }
-      return new Date(b.mention.indexedAt).getTime() - new Date(a.mention.indexedAt).getTime();
-    });
-    
-    // Group into period sections
-    const groups: { period: 'hour' | 'today' | 'week'; entries: MentionWithEngagement[] }[] = [];
-    let currentPeriod: 'hour' | 'today' | 'week' | null = null;
-    
-    for (const item of periodMentions) {
-      if (item.period !== currentPeriod) {
-        currentPeriod = item.period;
-        groups.push({ period: item.period, entries: [] });
-      }
-      
-      const isNew = new Date(item.mention.indexedAt) > lastViewed;
-      
-      groups[groups.length - 1].entries.push({
-        mention: item.mention,
-        postData: postDataMap.get(item.mention.uri),
-        isNew,
-      });
-    }
-    
-    return groups;
-  }, [mentions, postDataMap, lastViewed]);
-  
-  // Count mentions and new mentions
-  const totalCount = useMemo(() => {
-    return mentions.filter(m => getTimePeriod(m.indexedAt) !== 'older').length;
-  }, [mentions]);
-  
-  const newMentionsCount = useMemo(() => {
-    return mentions.filter(m => 
-      new Date(m.indexedAt) > lastViewed && getTimePeriod(m.indexedAt) !== 'older'
-    ).length;
-  }, [mentions, lastViewed]);
-  
-  return (
-    <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden">
-      {/* Header */}
-      <div className="p-4 border-b border-gray-200 dark:border-gray-800 flex items-center justify-between bg-amber-50 dark:bg-amber-900/20">
-        <h3 className="text-sm font-semibold text-amber-700 dark:text-amber-300 flex items-center gap-2">
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 12a4 4 0 10-8 0 4 4 0 008 0zm0 0v1.5a2.5 2.5 0 005 0V12a9 9 0 10-9 9m4.5-1.206a8.959 8.959 0 01-4.5 1.207" />
-          </svg>
-          Mentions
-          {newMentionsCount > 0 && (
-            <span className="px-1.5 py-0.5 text-xs font-medium bg-amber-500 text-white rounded-full animate-pulse">
-              {newMentionsCount} new
-            </span>
-          )}
-          {totalCount > 0 && newMentionsCount === 0 && (
-            <span className="px-1.5 py-0.5 text-xs font-medium bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 rounded-full">
-              {totalCount} total
-            </span>
-          )}
-        </h3>
-      </div>
-      
-      {/* Content */}
-      {loading ? (
-        <div className="flex items-center justify-center py-12">
-          <div className="animate-spin w-6 h-6 border-2 border-amber-500 border-t-transparent rounded-full" />
-        </div>
-      ) : groupedByPeriod.length === 0 ? (
-        <div className="p-8 text-center">
-          <svg className="w-10 h-10 mx-auto text-gray-300 dark:text-gray-600 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 12a4 4 0 10-8 0 4 4 0 008 0zm0 0v1.5a2.5 2.5 0 005 0V12a9 9 0 10-9 9m4.5-1.206a8.959 8.959 0 01-4.5 1.207" />
-          </svg>
-          <p className="text-sm text-gray-500 dark:text-gray-400">
-            No recent mentions
-          </p>
-          <p className="text-xs text-gray-400 mt-1">
-            Mentions from the last 48 hours will appear here
-          </p>
-        </div>
-      ) : (
-        <div className="max-h-[600px] overflow-y-auto">
-          {groupedByPeriod.map((group) => (
-            <div key={group.period}>
-              <TimelineSectionHeader period={group.period} />
-              <div className="divide-y divide-gray-100 dark:divide-gray-800">
-                {group.entries.map((entry, idx) => (
-                  <MentionRow
-                    key={`${entry.mention.uri}-${group.period}-${idx}`}
-                    entry={entry}
-                    onOpenProfile={onOpenProfile}
-                    onOpenPost={onOpenPost}
-                  />
-                ))}
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-      
-      {/* Footer */}
-      <div className="p-3 border-t border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-800/50">
-        <p className="text-xs text-gray-400 text-center">
-          Showing mentions from the last 48 hours
-        </p>
-      </div>
-    </div>
-  );
-}
-
-// Row for a single mention with engagement stats
-function MentionRow({
-  entry,
-  onOpenProfile,
-  onOpenPost,
-}: {
-  entry: MentionWithEngagement;
-  onOpenProfile: (did: string) => void;
-  onOpenPost: (uri: string) => void;
-}) {
-  const { mention, postData, isNew } = entry;
-  const postText = mention.record?.text || '';
-  const { settings } = useSettings();
-  const avatarRingClass = getAvatarRingClass(mention.author.viewer, settings);
-  
-  // Get engagement stats from post data
-  const likeCount = postData?.likeCount ?? 0;
-  const repostCount = postData?.repostCount ?? 0;
-  const replyCount = postData?.replyCount ?? 0;
-  const quoteCount = postData?.quoteCount ?? 0;
-  const hasEngagement = likeCount > 0 || repostCount > 0 || replyCount > 0 || quoteCount > 0;
-  
-  return (
-    <div className={`border-b border-gray-100 dark:border-gray-800 last:border-b-0 ${isNew ? 'bg-amber-50/50 dark:bg-amber-900/10 border-l-4 border-l-amber-500' : ''}`}>
-      {/* Mention header - clickable to open post */}
-      <div
-        className="p-3 hover:bg-gray-50 dark:hover:bg-gray-800/30 cursor-pointer"
-        onClick={() => onOpenPost(mention.uri)}
-      >
-        <div className="flex items-start gap-3">
-          {/* Author avatar */}
-          <ProfileHoverCard
-            did={mention.author.did}
-            handle={mention.author.handle}
-            onOpenProfile={() => onOpenProfile(mention.author.did)}
-          >
-            {mention.author.avatar ? (
-              <img
-                src={mention.author.avatar}
-                alt=""
-                className={`w-10 h-10 rounded-full cursor-pointer flex-shrink-0 ${avatarRingClass || 'hover:ring-2 hover:ring-amber-400'}`}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onOpenProfile(mention.author.did);
-                }}
-              />
-            ) : (
-              <div
-                className={`w-10 h-10 rounded-full bg-amber-500 flex items-center justify-center text-white text-sm font-bold flex-shrink-0 cursor-pointer ${avatarRingClass || 'hover:ring-2 hover:ring-amber-400'}`}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onOpenProfile(mention.author.did);
-                }}
-              >
-                {(mention.author.displayName || mention.author.handle)[0].toUpperCase()}
-              </div>
-            )}
-          </ProfileHoverCard>
-          
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 mb-1">
-              {isNew && (
-                <span className="w-2 h-2 rounded-full bg-amber-500 flex-shrink-0 animate-pulse" title="New mention" />
-              )}
-              <span className="text-amber-500 flex-shrink-0">
-                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 12a4 4 0 10-8 0 4 4 0 008 0zm0 0v1.5a2.5 2.5 0 005 0V12a9 9 0 10-9 9m4.5-1.206a8.959 8.959 0 01-4.5 1.207" />
-                </svg>
-              </span>
-              <span
-                className="text-sm font-medium text-gray-900 dark:text-gray-100 hover:text-amber-600 dark:hover:text-amber-400 cursor-pointer truncate"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onOpenProfile(mention.author.did);
-                }}
-              >
-                {mention.author.displayName || `@${mention.author.handle}`}
-              </span>
-              <span className="text-xs text-amber-600 dark:text-amber-400">
-                mentioned you
-              </span>
-              <span className="text-xs text-gray-400 flex-shrink-0">
-                · {formatTime(mention.indexedAt)}
-              </span>
-              {/* Arrow to indicate clickable */}
-              <svg
-                className="w-4 h-4 text-gray-300 ml-auto flex-shrink-0"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-              </svg>
-            </div>
-            <p className="text-sm text-gray-700 dark:text-gray-300 line-clamp-2">
-              {postText || <span className="italic text-gray-400">(no text)</span>}
-            </p>
-            
-            {/* Engagement stats */}
-            {hasEngagement && (
-              <div className="flex items-center gap-3 mt-2 text-xs text-gray-500">
-                {likeCount > 0 && (
-                  <span className="flex items-center gap-1">
-                    <svg className="w-3.5 h-3.5 text-pink-400" fill="currentColor" viewBox="0 0 24 24">
-                      <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />
-                    </svg>
-                    {likeCount}
-                  </span>
-                )}
-                {repostCount > 0 && (
-                  <span className="flex items-center gap-1">
-                    <svg className="w-3.5 h-3.5 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                    </svg>
-                    {repostCount}
-                  </span>
-                )}
-                {replyCount > 0 && (
-                  <span className="flex items-center gap-1">
-                    <svg className="w-3.5 h-3.5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
-                    </svg>
-                    {replyCount}
-                  </span>
-                )}
-                {quoteCount > 0 && (
-                  <span className="flex items-center gap-1">
-                    <svg className="w-3.5 h-3.5 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
-                    </svg>
-                    {quoteCount}
-                  </span>
-                )}
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// Notification item for grouped view
-function NotificationRow({
-  notification,
-  onOpenPost,
-  onOpenProfile,
-}: {
-  notification: NotificationItem;
-  onOpenPost: (uri: string) => void;
-  onOpenProfile: (did: string) => void;
-}) {
-  const n = notification;
-  
-  return (
-    <div
-      className="p-3 hover:bg-gray-50 dark:hover:bg-gray-800/50 cursor-pointer"
-      onClick={() => {
-        if (n.reason === 'follow') {
-          onOpenProfile(n.author.did);
-        } else if (n.reason === 'reply' || n.reason === 'quote' || n.reason === 'mention') {
-          // For replies/quotes/mentions, go to the reply/quote itself
-          onOpenPost(n.uri);
-        } else if (n.reasonSubject) {
-          // For likes/reposts, go to the parent post
-          onOpenPost(n.reasonSubject);
-        } else {
-          onOpenPost(n.uri);
-        }
-      }}
-    >
-      <div className="flex items-start gap-3">
-        <ProfileHoverCard
-          did={n.author.did}
-          handle={n.author.handle}
-          onOpenProfile={() => onOpenProfile(n.author.did)}
-        >
-          {n.author.avatar ? (
-            <img
-              src={n.author.avatar}
-              alt=""
-              className="w-8 h-8 rounded-full cursor-pointer hover:ring-2 hover:ring-blue-400"
-              onClick={(e) => {
-                e.stopPropagation();
-                onOpenProfile(n.author.did);
-              }}
-            />
-          ) : (
-            <div
-              className="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center text-white text-xs font-bold cursor-pointer hover:ring-2 hover:ring-blue-400"
-              onClick={(e) => {
-                e.stopPropagation();
-                onOpenProfile(n.author.did);
-              }}
-            >
-              {(n.author.displayName || n.author.handle)[0].toUpperCase()}
-            </div>
-          )}
-        </ProfileHoverCard>
-        <div className="flex-1 min-w-0">
-          <p
-            className="text-sm font-medium text-gray-900 dark:text-gray-100 hover:text-blue-500 cursor-pointer truncate"
-            onClick={(e) => {
-              e.stopPropagation();
-              onOpenProfile(n.author.did);
-            }}
-          >
-            {n.author.displayName || n.author.handle}
-          </p>
-          {(n.record?.text || n.subjectText) && (
-            <p className="text-xs text-gray-500 dark:text-gray-500 line-clamp-2 mt-0.5">
-              {n.record?.text || n.subjectText}
-            </p>
-          )}
-        </div>
-        <span className="text-xs text-gray-400 flex-shrink-0">
-          {formatTime(n.indexedAt)}
-        </span>
-      </div>
-    </div>
-  );
-}
 
 // Rich follow notification row with profile info
 interface FollowProfile {
@@ -2872,386 +1486,386 @@ function NewFollowersPane({
   );
 }
 
-// Clustered like group - groups likes on the same post
-interface LikeCluster {
-  postUri: string;
-  postText: string;
-  likers: NotificationItem['author'][];
-  latestTime: string;
+
+// --- Bluesky-style Notification Stream ---
+
+// A processed stream item (either a single notification or a clustered group)
+interface StreamItem {
+  kind: 'like-cluster' | 'repost-cluster' | 'reply' | 'quote' | 'mention' | 'follow';
+  // For clusters
+  authors: NotificationItem['author'][];
+  // For single items
+  author: NotificationItem['author'];
+  // Post text: for likes/reposts this is the subject post text; for replies/quotes/mentions this is the author's text
+  text?: string;
+  // The subject post text (your post) for replies/quotes
+  subjectText?: string;
+  // URI to open (post or profile)
+  postUri?: string;
+  // Time of the most recent notification in this item
+  time: string;
+  // Whether any notification in this item is unread
+  isUnread: boolean;
+  // Action label for display
+  actionLabel: string;
 }
 
-function ClusteredLikeRow({
-  cluster,
-  onOpenPost,
+// Build stream items from raw notifications, applying optional category filter
+function buildStreamItems(notifications: NotificationItem[], activeFilter: string | null): StreamItem[] {
+  // Apply filter
+  let filtered = notifications;
+  if (activeFilter) {
+    const reasonMap: Record<string, string[]> = {
+      likes: ['like'],
+      reposts: ['repost'],
+      replies: ['reply'],
+      quotes: ['quote'],
+      mentions: ['mention'],
+      follows: ['follow'],
+    };
+    const allowedReasons = reasonMap[activeFilter] || [];
+    filtered = notifications.filter(n => allowedReasons.includes(n.reason));
+  }
+
+  const items: StreamItem[] = [];
+
+  // Cluster likes by post URI
+  const likesByPost = new Map<string, NotificationItem[]>();
+  // Cluster reposts by post URI
+  const repostsByPost = new Map<string, NotificationItem[]>();
+
+  for (const n of filtered) {
+    if (n.reason === 'like' && n.reasonSubject) {
+      if (!likesByPost.has(n.reasonSubject)) likesByPost.set(n.reasonSubject, []);
+      likesByPost.get(n.reasonSubject)!.push(n);
+    } else if (n.reason === 'repost' && n.reasonSubject) {
+      if (!repostsByPost.has(n.reasonSubject)) repostsByPost.set(n.reasonSubject, []);
+      repostsByPost.get(n.reasonSubject)!.push(n);
+    } else if (n.reason === 'reply') {
+      items.push({
+        kind: 'reply',
+        authors: [n.author],
+        author: n.author,
+        text: n.record?.text,
+        subjectText: n.subjectText,
+        postUri: n.uri,
+        time: n.indexedAt,
+        isUnread: !n.isRead,
+        actionLabel: 'replied to your post',
+      });
+    } else if (n.reason === 'quote') {
+      items.push({
+        kind: 'quote',
+        authors: [n.author],
+        author: n.author,
+        text: n.record?.text,
+        subjectText: n.subjectText,
+        postUri: n.uri,
+        time: n.indexedAt,
+        isUnread: !n.isRead,
+        actionLabel: 'quoted your post',
+      });
+    } else if (n.reason === 'mention') {
+      items.push({
+        kind: 'mention',
+        authors: [n.author],
+        author: n.author,
+        text: n.record?.text,
+        postUri: n.uri,
+        time: n.indexedAt,
+        isUnread: !n.isRead,
+        actionLabel: 'mentioned you',
+      });
+    } else if (n.reason === 'follow') {
+      items.push({
+        kind: 'follow',
+        authors: [n.author],
+        author: n.author,
+        time: n.indexedAt,
+        isUnread: !n.isRead,
+        actionLabel: 'followed you',
+      });
+    }
+  }
+
+  // Build like clusters
+  for (const [postUri, likes] of likesByPost.entries()) {
+    const sorted = likes.sort((a, b) => new Date(b.indexedAt).getTime() - new Date(a.indexedAt).getTime());
+    const authors = sorted.map(l => l.author);
+    // Dedupe authors by did
+    const seen = new Set<string>();
+    const uniqueAuthors = authors.filter(a => {
+      if (seen.has(a.did)) return false;
+      seen.add(a.did);
+      return true;
+    });
+    items.push({
+      kind: 'like-cluster',
+      authors: uniqueAuthors,
+      author: uniqueAuthors[0],
+      subjectText: sorted[0].subjectText,
+      postUri,
+      time: sorted[0].indexedAt,
+      isUnread: sorted.some(l => !l.isRead),
+      actionLabel: uniqueAuthors.length === 1 ? 'liked your post' : 'liked your post',
+    });
+  }
+
+  // Build repost clusters
+  for (const [postUri, reposts] of repostsByPost.entries()) {
+    const sorted = reposts.sort((a, b) => new Date(b.indexedAt).getTime() - new Date(a.indexedAt).getTime());
+    const authors = sorted.map(r => r.author);
+    const seen = new Set<string>();
+    const uniqueAuthors = authors.filter(a => {
+      if (seen.has(a.did)) return false;
+      seen.add(a.did);
+      return true;
+    });
+    items.push({
+      kind: 'repost-cluster',
+      authors: uniqueAuthors,
+      author: uniqueAuthors[0],
+      subjectText: sorted[0].subjectText,
+      postUri,
+      time: sorted[0].indexedAt,
+      isUnread: sorted.some(r => !r.isRead),
+      actionLabel: 'reposted your post',
+    });
+  }
+
+  // Sort all items by time, newest first
+  items.sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime());
+  return items;
+}
+
+// Action icons for stream rows
+const STREAM_ICONS: Record<StreamItem['kind'], { icon: React.ReactNode; color: string }> = {
+  'like-cluster': {
+    color: 'text-pink-500',
+    icon: (
+      <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+        <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />
+      </svg>
+    ),
+  },
+  'repost-cluster': {
+    color: 'text-emerald-500',
+    icon: (
+      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+      </svg>
+    ),
+  },
+  reply: {
+    color: 'text-blue-500',
+    icon: (
+      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
+      </svg>
+    ),
+  },
+  quote: {
+    color: 'text-purple-500',
+    icon: (
+      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
+      </svg>
+    ),
+  },
+  mention: {
+    color: 'text-amber-500',
+    icon: (
+      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 12a4 4 0 10-8 0 4 4 0 008 0zm0 0v1.5a2.5 2.5 0 005 0V12a9 9 0 10-9 9m4.5-1.206a8.959 8.959 0 01-4.5 1.207" />
+      </svg>
+    ),
+  },
+  follow: {
+    color: 'text-blue-500',
+    icon: (
+      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+      </svg>
+    ),
+  },
+};
+
+// A single row in the notification stream
+function NotificationStreamRow({
+  item,
   onOpenProfile,
+  onOpenPost,
 }: {
-  cluster: LikeCluster;
-  onOpenPost: (uri: string) => void;
+  item: StreamItem;
   onOpenProfile: (did: string) => void;
+  onOpenPost: (uri: string) => void;
 }) {
-  const [isExpanded, setIsExpanded] = useState(false);
-  const displayAvatars = cluster.likers.slice(0, 5);
-  const firstName = cluster.likers[0]?.displayName || cluster.likers[0]?.handle || 'Someone';
-  const othersCount = cluster.likers.length - 1;
+  const { settings } = useSettings();
+  const style = STREAM_ICONS[item.kind];
+  const isCluster = item.kind === 'like-cluster' || item.kind === 'repost-cluster';
+  const displayAuthors = item.authors.slice(0, 5);
+  const firstName = item.author.displayName || item.author.handle;
+  const othersCount = item.authors.length - 1;
+
+  const handleClick = () => {
+    if (item.postUri) {
+      onOpenPost(item.postUri);
+    } else {
+      onOpenProfile(item.author.did);
+    }
+  };
+
+  // Format author names for clusters
+  const formatAuthors = () => {
+    if (othersCount <= 0) return null;
+    return (
+      <span className="text-gray-500 dark:text-gray-400">
+        {' '}and <span className="font-medium text-gray-700 dark:text-gray-300">{othersCount} other{othersCount !== 1 ? 's' : ''}</span>
+      </span>
+    );
+  };
+
+  // Determine what text to show below the action line
+  const previewText = (item.kind === 'reply' || item.kind === 'quote' || item.kind === 'mention')
+    ? item.text  // Show the other person's text
+    : item.subjectText;  // Show your post text for likes/reposts
 
   return (
-    <div className="p-3 hover:bg-gray-50 dark:hover:bg-gray-800/50">
-      {/* Main cluster view */}
-      <div
-        className="cursor-pointer"
-        onClick={() => onOpenPost(cluster.postUri)}
-      >
-        {/* Stacked avatars */}
-        <div className="flex items-center mb-2">
+    <div
+      className={`flex items-start gap-3 px-4 py-3 cursor-pointer transition-colors border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/50 ${
+        item.isUnread ? 'bg-blue-50/60 dark:bg-blue-900/15' : ''
+      }`}
+      onClick={handleClick}
+    >
+      {/* Avatar(s) */}
+      <div className="flex-shrink-0 mt-0.5">
+        {isCluster && displayAuthors.length > 1 ? (
           <div className="flex -space-x-2">
-            {displayAvatars.map((author, i) => (
-              <ProfileHoverCard
-                key={author.did}
-                did={author.did}
-                handle={author.handle}
-                onOpenProfile={() => onOpenProfile(author.did)}
-              >
-                {author.avatar ? (
-                  <img
-                    src={author.avatar}
-                    alt=""
-                    className="w-7 h-7 rounded-full border-2 border-white dark:border-gray-900 cursor-pointer hover:z-10 hover:scale-110 transition-transform"
-                    style={{ zIndex: displayAvatars.length - i }}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onOpenProfile(author.did);
-                    }}
-                  />
-                ) : (
-                  <div
-                    className="w-7 h-7 rounded-full bg-blue-500 flex items-center justify-center text-white text-xs font-bold border-2 border-white dark:border-gray-900 cursor-pointer hover:z-10 hover:scale-110 transition-transform"
-                    style={{ zIndex: displayAvatars.length - i }}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onOpenProfile(author.did);
-                    }}
-                  >
-                    {(author.displayName || author.handle)[0].toUpperCase()}
-                  </div>
-                )}
-              </ProfileHoverCard>
-            ))}
-            {cluster.likers.length > 5 && (
+            {displayAuthors.map((author, i) => {
+              const ringClass = getAvatarRingClass(author.viewer, settings);
+              return author.avatar ? (
+                <img
+                  key={author.did}
+                  src={author.avatar}
+                  alt=""
+                  className={`w-8 h-8 rounded-full border-2 border-white dark:border-gray-900 ${ringClass}`}
+                  style={{ zIndex: displayAuthors.length - i }}
+                  onClick={(e) => { e.stopPropagation(); onOpenProfile(author.did); }}
+                />
+              ) : (
+                <div
+                  key={author.did}
+                  className={`w-8 h-8 rounded-full bg-gray-400 flex items-center justify-center text-white text-xs font-bold border-2 border-white dark:border-gray-900 ${ringClass}`}
+                  style={{ zIndex: displayAuthors.length - i }}
+                  onClick={(e) => { e.stopPropagation(); onOpenProfile(author.did); }}
+                >
+                  {(author.displayName || author.handle)[0].toUpperCase()}
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <ProfileHoverCard
+            did={item.author.did}
+            handle={item.author.handle}
+            onOpenProfile={() => onOpenProfile(item.author.did)}
+          >
+            {item.author.avatar ? (
+              <img
+                src={item.author.avatar}
+                alt=""
+                className={`w-9 h-9 rounded-full cursor-pointer ${getAvatarRingClass(item.author.viewer, settings)}`}
+                onClick={(e) => { e.stopPropagation(); onOpenProfile(item.author.did); }}
+              />
+            ) : (
               <div
-                className="w-7 h-7 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center text-xs font-medium text-gray-600 dark:text-gray-300 border-2 border-white dark:border-gray-900"
-                style={{ zIndex: 0 }}
+                className={`w-9 h-9 rounded-full bg-gray-400 flex items-center justify-center text-white text-sm font-bold cursor-pointer ${getAvatarRingClass(item.author.viewer, settings)}`}
+                onClick={(e) => { e.stopPropagation(); onOpenProfile(item.author.did); }}
               >
-                +{cluster.likers.length - 5}
+                {(item.author.displayName || item.author.handle)[0].toUpperCase()}
               </div>
             )}
-          </div>
-          <span className="ml-3 text-xs text-gray-400">{formatTime(cluster.latestTime)}</span>
-        </div>
-
-        {/* Summary text */}
-        <p className="text-sm text-gray-700 dark:text-gray-300 mb-1">
-          <span
-            className="font-medium text-gray-900 dark:text-gray-100 hover:text-blue-500 cursor-pointer"
-            onClick={(e) => {
-              e.stopPropagation();
-              onOpenProfile(cluster.likers[0].did);
-            }}
-          >
-            {firstName}
-          </span>
-          {othersCount > 0 && (
-            <span className="text-gray-500 dark:text-gray-400">
-              {' '}and {othersCount} other{othersCount !== 1 ? 's' : ''}
-            </span>
-          )}
-          <span className="text-gray-500 dark:text-gray-400"> liked your post</span>
-        </p>
-
-        {/* Post text preview */}
-        {cluster.postText && (
-          <p className="text-xs text-gray-500 dark:text-gray-500 line-clamp-2 italic">
-            &ldquo;{cluster.postText}&rdquo;
-          </p>
+          </ProfileHoverCard>
         )}
       </div>
 
-      {/* Expand/collapse button */}
-      {cluster.likers.length > 1 && (
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            setIsExpanded(!isExpanded);
-          }}
-          className="mt-2 flex items-center gap-1 text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-        >
-          <svg
-            className={`w-3 h-3 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-          </svg>
-          {isExpanded ? 'Hide' : `Show all ${cluster.likers.length} people`}
-        </button>
-      )}
-
-      {/* Expanded list */}
-      {isExpanded && (
-        <div className="mt-2 pl-2 border-l-2 border-gray-200 dark:border-gray-700 space-y-2">
-          {cluster.likers.map((author) => (
-            <div
-              key={author.did}
-              className="flex items-center gap-2 py-1 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 rounded px-1 -mx-1"
-              onClick={(e) => {
-                e.stopPropagation();
-                onOpenProfile(author.did);
-              }}
+      {/* Content */}
+      <div className="flex-1 min-w-0">
+        {/* Action line */}
+        <div className="flex items-center gap-1.5">
+          <span className={`flex-shrink-0 ${style.color}`}>{style.icon}</span>
+          <p className="text-sm flex-1 min-w-0">
+            <span
+              className="font-semibold text-gray-900 dark:text-gray-100 hover:text-blue-500 cursor-pointer"
+              onClick={(e) => { e.stopPropagation(); onOpenProfile(item.author.did); }}
             >
-              {author.avatar ? (
-                <img src={author.avatar} alt="" className="w-6 h-6 rounded-full" />
-              ) : (
-                <div className="w-6 h-6 rounded-full bg-blue-500 flex items-center justify-center text-white text-xs font-bold">
-                  {(author.displayName || author.handle)[0].toUpperCase()}
-                </div>
-              )}
-              <span className="text-sm text-gray-700 dark:text-gray-300 truncate">
-                {author.displayName || author.handle}
-              </span>
-              <span className="text-xs text-gray-400 truncate">@{author.handle}</span>
-            </div>
-          ))}
+              {firstName}
+            </span>
+            {formatAuthors()}
+            <span className="text-gray-500 dark:text-gray-400"> {item.actionLabel}</span>
+          </p>
+          <span className="text-xs text-gray-400 dark:text-gray-500 flex-shrink-0 whitespace-nowrap">
+            {formatTime(item.time)}
+          </span>
         </div>
-      )}
+
+        {/* Preview text */}
+        {previewText && (
+          <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400 line-clamp-2">
+            {previewText}
+          </p>
+        )}
+      </div>
     </div>
   );
 }
 
-// Group likes by post URI
-function clusterLikesByPost(likes: NotificationItem[]): LikeCluster[] {
-  const clusters: Record<string, LikeCluster> = {};
-  
-  for (const like of likes) {
-    const postUri = like.reasonSubject || '';
-    if (!postUri) continue;
-    
-    if (!clusters[postUri]) {
-      clusters[postUri] = {
-        postUri,
-        postText: like.subjectText || '',
-        likers: [],
-        latestTime: like.indexedAt,
-      };
-    }
-    
-    clusters[postUri].likers.push(like.author);
-    
-    // Update latest time
-    if (new Date(like.indexedAt) > new Date(clusters[postUri].latestTime)) {
-      clusters[postUri].latestTime = like.indexedAt;
-    }
-    
-    // Update post text if we have it
-    if (like.subjectText && !clusters[postUri].postText) {
-      clusters[postUri].postText = like.subjectText;
-    }
-  }
-  
-  // Sort by latest time
-  return Object.values(clusters).sort(
-    (a, b) => new Date(b.latestTime).getTime() - new Date(a.latestTime).getTime()
-  );
-}
-
-// Repost cluster interface
-interface RepostCluster {
-  postUri: string;
-  postText: string;
-  reposters: NotificationItem['author'][];
-  latestTime: string;
-}
-
-// Clustered repost row component
-function ClusteredRepostRow({
-  cluster,
-  onOpenPost,
+// The main notification stream component
+function NotificationStream({
+  notifications,
+  activeFilter,
   onOpenProfile,
+  onOpenPost,
 }: {
-  cluster: RepostCluster;
-  onOpenPost: (uri: string) => void;
+  notifications: NotificationItem[];
+  activeFilter: string | null;
   onOpenProfile: (did: string) => void;
+  onOpenPost: (uri: string) => void;
 }) {
-  const [isExpanded, setIsExpanded] = useState(false);
-  const displayAvatars = cluster.reposters.slice(0, 5);
-  const firstName = cluster.reposters[0]?.displayName || cluster.reposters[0]?.handle || 'Someone';
-  const othersCount = cluster.reposters.length - 1;
+  const streamItems = useMemo(
+    () => buildStreamItems(notifications, activeFilter),
+    [notifications, activeFilter]
+  );
+
+  if (notifications.length === 0) {
+    return (
+      <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-8 text-center">
+        <p className="text-sm text-gray-500 dark:text-gray-400">No notifications yet</p>
+      </div>
+    );
+  }
+
+  if (streamItems.length === 0 && activeFilter) {
+    return (
+      <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-8 text-center">
+        <p className="text-sm text-gray-500 dark:text-gray-400">No {activeFilter} notifications</p>
+      </div>
+    );
+  }
 
   return (
-    <div className="p-3 hover:bg-gray-50 dark:hover:bg-gray-800/50">
-      {/* Main cluster view */}
-      <div
-        className="cursor-pointer"
-        onClick={() => onOpenPost(cluster.postUri)}
-      >
-        {/* Stacked avatars */}
-        <div className="flex items-center mb-2">
-          <div className="flex -space-x-2">
-            {displayAvatars.map((author, i) => (
-              <ProfileHoverCard
-                key={author.did}
-                did={author.did}
-                handle={author.handle}
-                onOpenProfile={() => onOpenProfile(author.did)}
-              >
-                {author.avatar ? (
-                  <img
-                    src={author.avatar}
-                    alt=""
-                    className="w-7 h-7 rounded-full border-2 border-white dark:border-gray-900 cursor-pointer hover:z-10 hover:scale-110 transition-transform"
-                    style={{ zIndex: displayAvatars.length - i }}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onOpenProfile(author.did);
-                    }}
-                  />
-                ) : (
-                  <div
-                    className="w-7 h-7 rounded-full bg-emerald-500 flex items-center justify-center text-white text-xs font-bold border-2 border-white dark:border-gray-900 cursor-pointer hover:z-10 hover:scale-110 transition-transform"
-                    style={{ zIndex: displayAvatars.length - i }}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onOpenProfile(author.did);
-                    }}
-                  >
-                    {(author.displayName || author.handle)[0].toUpperCase()}
-                  </div>
-                )}
-              </ProfileHoverCard>
-            ))}
-            {cluster.reposters.length > 5 && (
-              <div
-                className="w-7 h-7 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center text-xs font-medium text-gray-600 dark:text-gray-300 border-2 border-white dark:border-gray-900"
-                style={{ zIndex: 0 }}
-              >
-                +{cluster.reposters.length - 5}
-              </div>
-            )}
-          </div>
-          <span className="ml-3 text-xs text-gray-400">{formatTime(cluster.latestTime)}</span>
-        </div>
-
-        {/* Summary text */}
-        <p className="text-sm text-gray-700 dark:text-gray-300 mb-1">
-          <span
-            className="font-medium text-gray-900 dark:text-gray-100 hover:text-blue-500 cursor-pointer"
-            onClick={(e) => {
-              e.stopPropagation();
-              onOpenProfile(cluster.reposters[0].did);
-            }}
-          >
-            {firstName}
-          </span>
-          {othersCount > 0 && (
-            <span className="text-gray-500 dark:text-gray-400">
-              {' '}and {othersCount} other{othersCount !== 1 ? 's' : ''}
-            </span>
-          )}
-          <span className="text-gray-500 dark:text-gray-400"> reposted your post</span>
-        </p>
-
-        {/* Post text preview */}
-        {cluster.postText && (
-          <p className="text-xs text-gray-500 dark:text-gray-500 line-clamp-2 italic">
-            &ldquo;{cluster.postText}&rdquo;
-          </p>
-        )}
+    <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden">
+      <div className="max-h-[800px] overflow-y-auto">
+        {streamItems.map((item, i) => (
+          <NotificationStreamRow
+            key={`${item.kind}-${item.time}-${item.author.did}-${i}`}
+            item={item}
+            onOpenProfile={onOpenProfile}
+            onOpenPost={onOpenPost}
+          />
+        ))}
       </div>
-
-      {/* Expand/collapse button */}
-      {cluster.reposters.length > 1 && (
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            setIsExpanded(!isExpanded);
-          }}
-          className="mt-2 flex items-center gap-1 text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-        >
-          <svg
-            className={`w-3 h-3 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-          </svg>
-          {isExpanded ? 'Hide' : `Show all ${cluster.reposters.length} people`}
-        </button>
-      )}
-
-      {/* Expanded list */}
-      {isExpanded && (
-        <div className="mt-2 pl-2 border-l-2 border-emerald-200 dark:border-emerald-700 space-y-2">
-          {cluster.reposters.map((author) => (
-            <div
-              key={author.did}
-              className="flex items-center gap-2 py-1 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 rounded px-1 -mx-1"
-              onClick={(e) => {
-                e.stopPropagation();
-                onOpenProfile(author.did);
-              }}
-            >
-              {author.avatar ? (
-                <img src={author.avatar} alt="" className="w-6 h-6 rounded-full" />
-              ) : (
-                <div className="w-6 h-6 rounded-full bg-emerald-500 flex items-center justify-center text-white text-xs font-bold">
-                  {(author.displayName || author.handle)[0].toUpperCase()}
-                </div>
-              )}
-              <span className="text-sm text-gray-700 dark:text-gray-300 truncate">
-                {author.displayName || author.handle}
-              </span>
-              <span className="text-xs text-gray-400 truncate">@{author.handle}</span>
-            </div>
-          ))}
-        </div>
-      )}
     </div>
-  );
-}
-
-// Group reposts by post URI
-function clusterRepostsByPost(reposts: NotificationItem[]): RepostCluster[] {
-  const clusters: Record<string, RepostCluster> = {};
-  
-  for (const repost of reposts) {
-    const postUri = repost.reasonSubject || '';
-    if (!postUri) continue;
-    
-    if (!clusters[postUri]) {
-      clusters[postUri] = {
-        postUri,
-        postText: repost.subjectText || '',
-        reposters: [],
-        latestTime: repost.indexedAt,
-      };
-    }
-    
-    clusters[postUri].reposters.push(repost.author);
-    
-    // Update latest time
-    if (new Date(repost.indexedAt) > new Date(clusters[postUri].latestTime)) {
-      clusters[postUri].latestTime = repost.indexedAt;
-    }
-    
-    // Update post text if we have it
-    if (repost.subjectText && !clusters[postUri].postText) {
-      clusters[postUri].postText = repost.subjectText;
-    }
-  }
-  
-  // Sort by latest time
-  return Object.values(clusters).sort(
-    (a, b) => new Date(b.latestTime).getTime() - new Date(a.latestTime).getTime()
   );
 }
 
@@ -3525,7 +2139,7 @@ function NotificationsExplorerContent() {
                 </svg>
               </button>
               <div>
-                <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Notifications Dashboard</h2>
+                <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Notifications</h2>
                 <p className="text-sm text-gray-500 dark:text-gray-400">
                   {loading ? 'Loading notifications...' : `${totalNotifications} notifications in the last 48 hours`}
                 </p>
@@ -3550,57 +2164,18 @@ function NotificationsExplorerContent() {
           </div>
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6" onDragEnd={handleDragEnd}>
-            {/* Left column - Activity feed */}
+            {/* Left column - Notification stream + Followers */}
             <div className="lg:col-span-2 space-y-6">
-              {paneOrder.left.map((paneId) => {
-                const paneContent = {
-                  'needs-response': (
-                    <NeedsResponsePane
-                      notifications={allNotifications}
-                      onOpenProfile={handleOpenProfile}
-                      onOpenPost={openThread}
-                      activeFilter={activeFilter}
-                    />
-                  ),
-                  'new-followers': (
-                    <NewFollowersPane
-                      follows={grouped.follows}
-                      onOpenProfile={handleOpenProfile}
-                    />
-                  ),
-                  'my-posts': (
-                    <MyPostsActivityPane
-                      notifications={allNotifications}
-                      onOpenProfile={handleOpenProfile}
-                      onOpenPost={openThread}
-                      activeFilter={activeFilter}
-                    />
-                  ),
-                  'mentions': (
-                    <MentionsPane
-                      mentions={grouped.mentions}
-                      onOpenProfile={handleOpenProfile}
-                      onOpenPost={openThread}
-                    />
-                  ),
-                }[paneId];
-                
-                if (!paneContent) return null;
-                
-                return (
-                  <DraggablePane
-                    key={paneId}
-                    id={paneId}
-                    onDragStart={(e) => handleDragStart(e, paneId, 'left')}
-                    onDragOver={(e) => handleDragOver(e, paneId, 'left')}
-                    onDrop={(e) => handleDrop(e, paneId, 'left')}
-                    isDragging={draggingPane === paneId}
-                    isDropTarget={dropTarget === paneId}
-                  >
-                    {paneContent}
-                  </DraggablePane>
-                );
-              })}
+              <NotificationStream
+                notifications={allNotifications}
+                activeFilter={activeFilter}
+                onOpenProfile={handleOpenProfile}
+                onOpenPost={openThread}
+              />
+              <NewFollowersPane
+                follows={grouped.follows}
+                onOpenProfile={handleOpenProfile}
+              />
             </div>
 
             {/* Right column - Stats and insights */}
