@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef, ReactNode } from 'react';
+import { useState, useEffect, useLayoutEffect, useRef, ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { getBlueskyProfile, followUser, unfollowUser, isVerifiedResearcher, Label, BlueskyProfile, blockUser, unblockUser, buildProfileUrl } from '@/lib/bluesky';
 import { useFollowing } from '@/lib/following-context';
@@ -39,6 +39,7 @@ export default function ProfileHoverCard({ did, handle, children, onOpenProfile 
   const [followUri, setFollowUri] = useState<string | undefined>();
   const [followLoading, setFollowLoading] = useState(false);
   const [cardPosition, setCardPosition] = useState({ top: 0, left: 0 });
+  const [showAbove, setShowAbove] = useState(true);
   const { refresh: refreshFollowing } = useFollowing();
   const { settings } = useSettings();
 
@@ -70,29 +71,58 @@ export default function ProfileHoverCard({ did, handle, children, onOpenProfile 
     if (triggerRef.current) {
       const rect = triggerRef.current.getBoundingClientRect();
       const cardWidth = 288; // w-72 = 18rem = 288px
-      const cardHeight = 280; // approximate height
+      const estimatedCardHeight = 280; // initial estimate
+      const gap = 4; // small gap between card and trigger
 
+      // Start with left edge aligned to trigger's left edge
       let left = rect.left;
-      let top = rect.bottom + 8; // 8px gap below trigger
 
-      // Adjust if card would go off right edge
+      // If that would push card off the right edge, align to right edge instead
       if (left + cardWidth > window.innerWidth - 16) {
         left = window.innerWidth - cardWidth - 16;
       }
 
-      // Adjust if card would go off left edge
+      // Never go off the left edge
       if (left < 16) {
         left = 16;
       }
 
-      // If card would go below viewport, show above trigger instead
-      if (top + cardHeight > window.innerHeight - 16) {
-        top = rect.top - cardHeight - 8;
-      }
+      // Check if there's enough space above
+      const spaceAbove = rect.top - 16; // 16px margin from viewport top
+      const canShowAbove = spaceAbove >= estimatedCardHeight + gap;
 
-      setCardPosition({ top, left });
+      if (canShowAbove) {
+        // Position above - we'll adjust after measuring actual height
+        setShowAbove(true);
+        setCardPosition({ top: rect.top - estimatedCardHeight - gap, left });
+      } else {
+        // Position below
+        setShowAbove(false);
+        setCardPosition({ top: rect.bottom + gap, left });
+      }
     }
   };
+
+  // After card renders, measure actual height and reposition precisely
+  useLayoutEffect(() => {
+    if (showCard && cardRef.current && triggerRef.current) {
+      const cardRect = cardRef.current.getBoundingClientRect();
+      const triggerRect = triggerRef.current.getBoundingClientRect();
+      const gap = 4;
+
+      if (showAbove) {
+        // Reposition so card's bottom edge is just above the trigger's top
+        const newTop = triggerRect.top - cardRect.height - gap;
+        setCardPosition(prev => ({ ...prev, top: newTop }));
+      } else {
+        // Reposition so card's top edge is just below the trigger's bottom
+        const newTop = triggerRect.bottom + gap;
+        // Also make sure it doesn't go off the bottom of viewport
+        const maxTop = window.innerHeight - cardRect.height - 16;
+        setCardPosition(prev => ({ ...prev, top: Math.min(newTop, maxTop) }));
+      }
+    }
+  }, [showCard, showAbove, profile]); // Reposition when profile loads (card size may change)
 
   const handleMouseEnter = () => {
     // Clear any pending hide timeout
@@ -364,7 +394,7 @@ export default function ProfileHoverCard({ did, handle, children, onOpenProfile 
         ref={triggerRef}
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
-        className="inline-block"
+        className="inline-flex flex-shrink-0 self-start"
       >
         {children}
       </div>
