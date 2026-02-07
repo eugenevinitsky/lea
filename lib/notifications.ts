@@ -218,6 +218,20 @@ export function countUnread(
   return counts;
 }
 
+// Get unread notification count from Bluesky API (lightweight, no full fetch)
+export async function getUnreadNotificationCount(): Promise<number> {
+  const agent = getAgent();
+  if (!agent) return 0;
+
+  try {
+    const response = await agent.countUnreadNotifications();
+    return response.data.count;
+  } catch (err) {
+    console.error('Failed to get unread notification count:', err);
+    return 0;
+  }
+}
+
 // Update notification seen state on server
 export async function updateSeenNotifications(): Promise<void> {
   const agent = getAgent();
