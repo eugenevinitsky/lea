@@ -10,12 +10,7 @@ import { BookmarksProvider, useBookmarks } from '@/lib/bookmarks';
 import { FeedsProvider } from '@/lib/feeds';
 import { FollowingProvider } from '@/lib/following-context';
 import Login from '@/components/Login';
-import Bookmarks from '@/components/Bookmarks';
-import DMSidebar from '@/components/DMSidebar';
-import Notifications from '@/components/Notifications';
-import ModerationBox from '@/components/ModerationBox';
-import SafetyPanel from '@/components/SafetyPanel';
-import SettingsPanel from '@/components/SettingsPanel';
+import Sidebar from '@/components/Sidebar';
 import ResearcherSearch from '@/components/ResearcherSearch';
 import AdvancedSearch from '@/components/AdvancedSearch';
 import Onboarding from '@/components/Onboarding';
@@ -251,16 +246,9 @@ function AdvancedSearchPageContent() {
       </header>
 
       {/* Main layout */}
-      <div className="max-w-5xl mx-auto flex gap-4 px-0 lg:px-4">
-        {/* Left Sidebar */}
-        <aside className="hidden lg:block w-72 flex-shrink-0 sticky top-16 max-h-[calc(100vh-5rem)] overflow-y-auto pt-4 pb-4 space-y-4 scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-gray-700">
-          <Bookmarks onOpenPost={openThread} onOpenProfile={navigateToProfile} />
-          <DMSidebar />
-          <Notifications onOpenPost={openThread} onOpenProfile={navigateToProfile} />
-          <ModerationBox onOpenProfile={navigateToProfile} />
-          <SafetyPanel onOpenProfile={navigateToProfile} onOpenThread={openThread} />
-          <SettingsPanel />
-        </aside>
+      <div className="max-w-5xl mx-auto px-0 lg:px-4">
+        <div className="flex lg:gap-4 lg:items-start">
+        <Sidebar />
 
         {/* Main content */}
         <main className="flex-1 max-w-2xl bg-white dark:bg-gray-950 min-h-screen border-x border-gray-200 dark:border-gray-800">
@@ -343,6 +331,7 @@ function AdvancedSearchPageContent() {
             )}
           </div>
         </main>
+        </div>
       </div>
     </div>
   );

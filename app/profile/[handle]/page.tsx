@@ -13,12 +13,7 @@ import { ComposerProvider, useComposer } from '@/lib/composer-context';
 import ProfileView from '@/components/ProfileView';
 import ProfileEditor from '@/components/ProfileEditor';
 import Login from '@/components/Login';
-import Bookmarks from '@/components/Bookmarks';
-import DMSidebar from '@/components/DMSidebar';
-import Notifications from '@/components/Notifications';
-import ModerationBox from '@/components/ModerationBox';
-import SafetyPanel from '@/components/SafetyPanel';
-import SettingsPanel from '@/components/SettingsPanel';
+import Sidebar from '@/components/Sidebar';
 import ResearcherSearch from '@/components/ResearcherSearch';
 import Onboarding from '@/components/Onboarding';
 import ThreadView from '@/components/ThreadView';
@@ -215,27 +210,9 @@ function ProfilePageContent() {
       </header>
 
       {/* Main layout with sidebar */}
-      <div className="max-w-5xl mx-auto flex gap-4 px-0 lg:px-4">
-        {/* Left Sidebar - Bookmarks & Messages */}
-        <aside className="hidden lg:block w-72 flex-shrink-0 sticky top-16 max-h-[calc(100vh-5rem)] overflow-y-auto pt-4 pb-4 space-y-4 scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-gray-700">
-          <Bookmarks onOpenPost={openThread} onOpenProfile={handleOpenProfile} />
-          <DMSidebar />
-          <Notifications onOpenPost={openThread} onOpenProfile={handleOpenProfile} />
-          <ModerationBox onOpenProfile={handleOpenProfile} />
-          <SafetyPanel onOpenProfile={handleOpenProfile} onOpenThread={openThread} />
-          <SettingsPanel />
-
-          {/* Compose Button */}
-          <button
-            onClick={() => openComposer()}
-            className="w-full py-2 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white text-sm font-medium rounded-full flex items-center justify-center gap-1.5 transition-all shadow-sm"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-            </svg>
-            New Post
-          </button>
-        </aside>
+      <div className="max-w-5xl mx-auto px-0 lg:px-4">
+        <div className="flex lg:gap-4 lg:items-start">
+        <Sidebar />
 
         {/* Main content */}
         <main className="flex-1 w-full lg:max-w-xl bg-white dark:bg-gray-950 min-h-screen border-x border-gray-200 dark:border-gray-800">
@@ -269,6 +246,7 @@ function ProfilePageContent() {
             </div>
           )}
         </main>
+        </div>
       </div>
 
       {/* Thread View Modal */}
