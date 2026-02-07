@@ -53,6 +53,22 @@ function AppContent() {
   const [showMobileDiscoverPapers, setShowMobileDiscoverPapers] = useState(false);
   const [showRemixSettings, setShowRemixSettings] = useState(false);
 
+  // Collapsible sidebar state (for lg to xl breakpoint)
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [collapsedPopover, setCollapsedPopover] = useState<'bookmarks' | 'dms' | 'notifications' | 'moderation' | 'safety' | 'settings' | null>(null);
+
+  // Track viewport width for collapsible sidebar
+  useEffect(() => {
+    const checkWidth = () => {
+      const width = window.innerWidth;
+      // Collapsed: between lg (1024) and xl (1280)
+      setSidebarCollapsed(width >= 1024 && width < 1280);
+    };
+    checkWidth();
+    window.addEventListener('resize', checkWidth);
+    return () => window.removeEventListener('resize', checkWidth);
+  }, []);
+
   // Pull-to-refresh state
   const [pullDistance, setPullDistance] = useState(0);
   const [isPulling, setIsPulling] = useState(false);
@@ -639,25 +655,144 @@ function AppContent() {
       <div className="max-w-5xl mx-auto px-0 lg:px-4">
         <div className="flex lg:gap-4 lg:items-start">
           {/* Left Sidebar - Bookmarks & Messages */}
-          <aside className="hidden lg:block w-64 flex-shrink-0 sticky top-14 self-start max-h-[calc(100vh-3.5rem)] overflow-y-auto pt-4 pb-4 space-y-4 scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-gray-700">
-            <Bookmarks onOpenPost={openThread} onOpenProfile={navigateToProfile} />
-            <DMSidebar />
-            <Notifications onOpenPost={openThread} onOpenProfile={navigateToProfile} />
-            <ModerationBox onOpenProfile={navigateToProfile} />
-            <SafetyPanel onOpenProfile={navigateToProfile} onOpenThread={openThread} />
-            <SettingsPanel />
+          {/* Full sidebar at xl+, collapsed icon sidebar at lg-xl, hidden below lg */}
+          <aside className={`hidden lg:block flex-shrink-0 sticky top-14 self-start max-h-[calc(100vh-3.5rem)] overflow-y-auto pt-4 pb-4 scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-gray-700 transition-all ${sidebarCollapsed ? 'w-16' : 'w-64 space-y-4'}`}>
+            {sidebarCollapsed ? (
+              /* Collapsed: Icon buttons only */
+              <div className="flex flex-col items-center gap-2">
+                {/* Bookmarks */}
+                <button
+                  onClick={() => setCollapsedPopover(collapsedPopover === 'bookmarks' ? null : 'bookmarks')}
+                  className={`p-3 rounded-xl transition-colors ${collapsedPopover === 'bookmarks' ? 'bg-blue-100 dark:bg-blue-900 text-blue-600' : 'hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400'}`}
+                  title="Bookmarks"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
+                  </svg>
+                </button>
 
-            {/* Compose Button */}
-            <button
-              onClick={() => openComposer()}
-              className="w-full py-2 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white text-sm font-medium rounded-full flex items-center justify-center gap-1.5 transition-all shadow-sm"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-              </svg>
-              New Post
-            </button>
+                {/* DMs */}
+                <button
+                  onClick={() => setCollapsedPopover(collapsedPopover === 'dms' ? null : 'dms')}
+                  className={`p-3 rounded-xl transition-colors ${collapsedPopover === 'dms' ? 'bg-blue-100 dark:bg-blue-900 text-blue-600' : 'hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400'}`}
+                  title="Messages"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                  </svg>
+                </button>
+
+                {/* Notifications */}
+                <button
+                  onClick={() => setCollapsedPopover(collapsedPopover === 'notifications' ? null : 'notifications')}
+                  className={`p-3 rounded-xl transition-colors ${collapsedPopover === 'notifications' ? 'bg-blue-100 dark:bg-blue-900 text-blue-600' : 'hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400'}`}
+                  title="Notifications"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                  </svg>
+                </button>
+
+                {/* Moderation / Discover */}
+                <button
+                  onClick={() => setCollapsedPopover(collapsedPopover === 'moderation' ? null : 'moderation')}
+                  className={`p-3 rounded-xl transition-colors ${collapsedPopover === 'moderation' ? 'bg-blue-100 dark:bg-blue-900 text-blue-600' : 'hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400'}`}
+                  title="Discover"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                  </svg>
+                </button>
+
+                {/* Safety */}
+                <button
+                  onClick={() => setCollapsedPopover(collapsedPopover === 'safety' ? null : 'safety')}
+                  className={`p-3 rounded-xl transition-colors ${collapsedPopover === 'safety' ? 'bg-blue-100 dark:bg-blue-900 text-blue-600' : 'hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400'}`}
+                  title="Safety"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                  </svg>
+                </button>
+
+                {/* Settings */}
+                <button
+                  onClick={() => setCollapsedPopover(collapsedPopover === 'settings' ? null : 'settings')}
+                  className={`p-3 rounded-xl transition-colors ${collapsedPopover === 'settings' ? 'bg-blue-100 dark:bg-blue-900 text-blue-600' : 'hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400'}`}
+                  title="Settings"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                  </svg>
+                </button>
+
+                {/* Compose Button - icon only */}
+                <button
+                  onClick={() => openComposer()}
+                  className="p-3 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white rounded-xl transition-all shadow-sm"
+                  title="New Post"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                  </svg>
+                </button>
+              </div>
+            ) : (
+              /* Expanded: Full components */
+              <>
+                <Bookmarks onOpenPost={openThread} onOpenProfile={navigateToProfile} />
+                <DMSidebar />
+                <Notifications onOpenPost={openThread} onOpenProfile={navigateToProfile} />
+                <ModerationBox onOpenProfile={navigateToProfile} />
+                <SafetyPanel onOpenProfile={navigateToProfile} onOpenThread={openThread} />
+                <SettingsPanel />
+
+                {/* Compose Button */}
+                <button
+                  onClick={() => openComposer()}
+                  className="w-full py-2 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white text-sm font-medium rounded-full flex items-center justify-center gap-1.5 transition-all shadow-sm"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                  </svg>
+                  New Post
+                </button>
+              </>
+            )}
           </aside>
+
+          {/* Collapsed sidebar popovers - rendered outside sidebar to avoid overflow clipping */}
+          {collapsedPopover && (
+            <>
+              {/* Backdrop */}
+              <div
+                className="fixed inset-0 z-40 bg-black/20"
+                onClick={() => setCollapsedPopover(null)}
+              />
+              {/* Popover panel */}
+              <div className="fixed left-20 top-16 w-80 max-h-[calc(100vh-5rem)] overflow-y-auto bg-white dark:bg-gray-900 rounded-xl shadow-2xl border border-gray-200 dark:border-gray-700 z-50">
+                {collapsedPopover === 'bookmarks' && (
+                  <Bookmarks onOpenPost={openThread} onOpenProfile={navigateToProfile} embedded />
+                )}
+                {collapsedPopover === 'dms' && (
+                  <DMSidebar embedded />
+                )}
+                {collapsedPopover === 'notifications' && (
+                  <Notifications onOpenPost={openThread} onOpenProfile={navigateToProfile} embedded />
+                )}
+                {collapsedPopover === 'moderation' && (
+                  <ModerationBox onOpenProfile={navigateToProfile} embedded />
+                )}
+                {collapsedPopover === 'safety' && (
+                  <SafetyPanel onOpenProfile={navigateToProfile} onOpenThread={openThread} embedded />
+                )}
+                {collapsedPopover === 'settings' && (
+                  <SettingsPanel embedded />
+                )}
+              </div>
+            </>
+          )}
 
           {/* Main content area with feed and vertical tabs */}
           <div className="flex-1 flex items-start min-w-0 max-w-full lg:max-w-[calc(576px+180px)]">
