@@ -11,6 +11,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
+import { isSuspendedSync } from '@/lib/suspended-users';
 
 // Secret for signing session tokens - MUST be configured in production
 const SESSION_SECRET = process.env.INTERNAL_AUTH_SECRET;
@@ -163,6 +164,11 @@ export function getAuthenticatedDid(request: NextRequest): string | null {
   const verification = verifySessionToken(sessionCookie.value);
 
   if (!verification.success) {
+    return null;
+  }
+
+  // Check if the user is suspended
+  if (isSuspendedSync(verification.did)) {
     return null;
   }
 

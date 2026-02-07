@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db, verifiedResearchers, authorizedUsers } from '@/lib/db';
+import { db, verifiedResearchers, authorizedUsers, suspendedUsers } from '@/lib/db';
 import { eq, and } from 'drizzle-orm';
 
 // GET /api/auth/check-access?did=xxx or ?handle=xxx - Check if a user is authorized
@@ -41,6 +41,21 @@ export async function GET(request: NextRequest) {
   }
 
   try {
+    // Check if user is suspended
+    const [suspended] = await db
+      .select()
+      .from(suspendedUsers)
+      .where(eq(suspendedUsers.did, did))
+      .limit(1);
+
+    if (suspended) {
+      return NextResponse.json({
+        authorized: false,
+        suspended: true,
+        reason: suspended.reason || 'Account suspended',
+      });
+    }
+
     // First check if user is already authorized (used an invite code)
     const [existingUser] = await db
       .select()
