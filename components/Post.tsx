@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
+import DOMPurify from 'dompurify';
 import { AppBskyFeedDefs, AppBskyFeedPost, AppBskyEmbedExternal, AppBskyEmbedImages, AppBskyEmbedRecord, AppBskyEmbedRecordWithMedia, AppBskyEmbedVideo } from '@atproto/api';
 import Hls from 'hls.js';
 import Prism from 'prismjs';
@@ -41,6 +42,21 @@ import PollDisplay from './PollDisplay';
 import Link from 'next/link';
 import type { BlueskyProfile } from '@/lib/bluesky';
 import { extractPaperUrl, extractAnyUrl, getPaperIdFromUrl, PAPER_DOMAINS, LinkFacet } from '@/lib/papers';
+
+// Sanitize URLs to prevent javascript: and other dangerous protocols
+function sanitizeUrl(url: string): string {
+  try {
+    const parsed = new URL(url);
+    // Only allow http and https protocols
+    if (parsed.protocol === 'http:' || parsed.protocol === 'https:') {
+      return url;
+    }
+    return '#';
+  } catch {
+    // If URL parsing fails, return safe fallback
+    return '#';
+  }
+}
 
 // Reply context from feed (parent post info)
 interface ReplyParent {
@@ -279,7 +295,7 @@ function renderLatex(text: string, keyPrefix: string = ''): React.ReactNode[] {
         <span
           key={`${keyPrefix}math-${matchIndex}`}
           className={isDisplay ? 'block my-2 text-center overflow-x-auto' : 'inline-block align-middle'}
-          dangerouslySetInnerHTML={{ __html: html }}
+          dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(html) }}
         />
       );
     } catch {
@@ -410,7 +426,7 @@ function renderCodeBlocks(text: string, keyPrefix: string = ''): React.ReactNode
         {highlightedCode ? (
           <code
             className="text-sm font-mono whitespace-pre prism-code"
-            dangerouslySetInnerHTML={{ __html: highlightedCode }}
+            dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(highlightedCode) }}
           />
         ) : (
           <code className="text-sm text-gray-100 font-mono whitespace-pre">
@@ -475,7 +491,7 @@ function RichText({ text, facets }: { text: string; facets?: AppBskyFeedPost.Rec
       elements.push(
         <a
           key={byteStart}
-          href={uri}
+          href={sanitizeUrl(uri)}
           target="_blank"
           rel="noopener noreferrer"
           className="text-blue-500 hover:underline"
@@ -807,7 +823,7 @@ function PaperEmbed({ external }: { external: AppBskyEmbedExternal.ViewExternal 
 
   return (
     <a
-      href={external.uri}
+      href={sanitizeUrl(external.uri)}
       target="_blank"
       rel="noopener noreferrer"
       className="mt-2 block w-full border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors"
@@ -865,7 +881,7 @@ function EmbedExternal({ external }: { external: AppBskyEmbedExternal.ViewExtern
   // Regular external link embed
   return (
     <a
-      href={external.uri}
+      href={sanitizeUrl(external.uri)}
       target="_blank"
       rel="noopener noreferrer"
       className="mt-2 block w-full border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors"

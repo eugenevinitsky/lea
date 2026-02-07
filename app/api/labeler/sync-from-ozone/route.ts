@@ -21,7 +21,15 @@ function verifyInternalSecret(request: NextRequest): boolean {
 }
 
 const VERIFIED_RESEARCHER_LABEL = 'verified-researcher';
-const OZONE_URL = process.env.OZONE_URL || 'https://ec2-13-61-190-180.eu-north-1.compute.amazonaws.com';
+const OZONE_URL = process.env.OZONE_URL;
+
+// Fail explicitly if OZONE_URL is not configured
+function getOzoneUrl(): string {
+  if (!OZONE_URL) {
+    throw new Error('OZONE_URL environment variable is required');
+  }
+  return OZONE_URL;
+}
 
 // Get labeler agent for Bluesky operations
 async function getLabelerAgent(): Promise<BskyAgent | null> {
@@ -64,7 +72,7 @@ async function queryOzoneLabels(): Promise<{ dids: string[], debug: Record<strin
       if (cursor) params.set('cursor', cursor);
 
       const response = await fetch(
-        `${OZONE_URL}/xrpc/com.atproto.label.queryLabels?${params}`
+        `${getOzoneUrl()}/xrpc/com.atproto.label.queryLabels?${params}`
       );
 
       if (!response.ok) {
@@ -217,7 +225,6 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      ozoneUrl: OZONE_URL,
       listUri,
       labeledUsersFound: labeledDids.length,
       labeledUsers: labeledDids,
@@ -229,7 +236,7 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error('Ozone sync error:', error);
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Sync failed' },
+      { error: 'Sync failed' },
       { status: 500 }
     );
   }

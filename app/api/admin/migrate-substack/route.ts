@@ -78,6 +78,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ success: true, message: 'Substack tables created successfully' });
   } catch (error) {
     console.error('Migration error:', error);
-    return NextResponse.json({ error: String(error) }, { status: 500 });
+    return NextResponse.json({ error: 'Migration operation failed' }, { status: 500 });
   }
 }

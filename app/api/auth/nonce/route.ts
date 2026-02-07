@@ -70,8 +70,11 @@ export function verifyAndConsumeNonce(cookieValue: string | undefined): boolean 
       return false;
     }
 
-    // Verify signature
+    // Verify signature - require secret in production
     const secret = process.env.INTERNAL_AUTH_SECRET;
+    if (!secret && process.env.NODE_ENV === 'production') {
+      return false;
+    }
     const signingSecret = secret || 'dev-secret-do-not-use-in-production';
 
     const expectedSignature = crypto

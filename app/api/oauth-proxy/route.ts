@@ -21,8 +21,9 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'Invalid URL' }, { status: 400 });
   }
 
-  // Only allow HTTPS URLs (except for localhost in development)
-  if (parsedUrl.protocol !== 'https:' && !parsedUrl.hostname.includes('localhost')) {
+  // Only allow HTTPS URLs (except for localhost in development mode only)
+  const isLocalhost = parsedUrl.hostname === 'localhost' || parsedUrl.hostname === '127.0.0.1';
+  if (parsedUrl.protocol !== 'https:' && !(process.env.NODE_ENV === 'development' && isLocalhost)) {
     return NextResponse.json({ error: 'Only HTTPS URLs are allowed' }, { status: 400 });
   }
 
