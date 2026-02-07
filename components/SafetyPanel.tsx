@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
+import Link from 'next/link';
 import {
   getPreferences,
   getLabelerInfo,
@@ -509,8 +510,8 @@ export default function SafetyPanel({ onOpenProfile, onOpenThread, defaultExpand
           </div>
 
           {/* Quick Help Link */}
-          <a
-            href="/settings/safety-help"
+          <Link
+            href="/moderation/safety-help"
             className="flex items-center gap-2 px-3 py-2 bg-rose-50 dark:bg-rose-900/20 hover:bg-rose-100 dark:hover:bg-rose-900/30 transition-colors"
           >
             <svg className="w-3.5 h-3.5 text-rose-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -520,11 +521,11 @@ export default function SafetyPanel({ onOpenProfile, onOpenThread, defaultExpand
             <svg className="w-3.5 h-3.5 text-rose-400 ml-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
             </svg>
-          </a>
+          </Link>
 
           {/* Reply Limits Link */}
-          <a
-            href="/settings/reply-limits"
+          <Link
+            href="/moderation/reply-limits"
             className="flex items-center gap-2 px-3 py-2.5 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
           >
             <svg className="w-3.5 h-3.5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -534,11 +535,11 @@ export default function SafetyPanel({ onOpenProfile, onOpenThread, defaultExpand
             <svg className="w-3.5 h-3.5 text-blue-400 ml-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
             </svg>
-          </a>
+          </Link>
 
           {/* Content Filtering Link */}
-          <a
-            href="/settings/content-filtering"
+          <Link
+            href="/moderation/content-filtering"
             className="flex items-center gap-2 px-3 py-2.5 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
           >
             <svg className="w-3.5 h-3.5 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -548,11 +549,11 @@ export default function SafetyPanel({ onOpenProfile, onOpenThread, defaultExpand
             <svg className="w-3.5 h-3.5 text-emerald-400 ml-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
             </svg>
-          </a>
+          </Link>
 
           {/* Block Management Link */}
-          <a
-            href="/settings/blocked"
+          <Link
+            href="/moderation/blocked"
             className="flex items-center gap-2 px-3 py-2.5 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
           >
             <svg className="w-3.5 h-3.5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -562,11 +563,11 @@ export default function SafetyPanel({ onOpenProfile, onOpenThread, defaultExpand
             <svg className="w-3.5 h-3.5 text-red-400 ml-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
             </svg>
-          </a>
+          </Link>
 
           {/* Lists Link */}
-          <a
-            href="/lists"
+          <Link
+            href="/moderation/lists"
             className="flex items-center gap-2 px-3 py-2.5 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
           >
             <svg className="w-3.5 h-3.5 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -576,11 +577,11 @@ export default function SafetyPanel({ onOpenProfile, onOpenThread, defaultExpand
             <svg className="w-3.5 h-3.5 text-indigo-400 ml-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
             </svg>
-          </a>
+          </Link>
 
           {/* Labelers Link */}
-          <a
-            href="/settings/labelers"
+          <Link
+            href="/moderation/labelers"
             className="flex items-center gap-2 px-3 py-2.5 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
           >
             <svg className="w-3.5 h-3.5 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -590,7 +591,7 @@ export default function SafetyPanel({ onOpenProfile, onOpenThread, defaultExpand
             <svg className="w-3.5 h-3.5 text-orange-400 ml-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
             </svg>
-          </a>
+          </Link>
         </div>
       )}
 
