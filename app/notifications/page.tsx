@@ -30,7 +30,7 @@ import ProfileLabels from '@/components/ProfileLabels';
 const PANE_ORDER_KEY = 'lea-dashboard-pane-order';
 
 // Default pane order
-const DEFAULT_LEFT_PANES = ['new-followers', 'my-posts', 'mentions'];
+const DEFAULT_LEFT_PANES = ['needs-response', 'new-followers', 'my-posts', 'mentions'];
 const DEFAULT_RIGHT_PANES = ['messages', 'alerts', 'breakdown', 'top-interactors'];
 
 // Load pane order from localStorage
@@ -42,6 +42,10 @@ function loadPaneOrder(): { left: string[]; right: string[] } {
     const saved = localStorage.getItem(PANE_ORDER_KEY);
     if (saved) {
       const parsed = JSON.parse(saved);
+      // Migrate: add 'needs-response' if missing from left panes
+      if (Array.isArray(parsed.left) && !parsed.left.includes('needs-response')) {
+        parsed.left = ['needs-response', ...parsed.left];
+      }
       // Validate that all panes are present
       const allLeft = new Set(DEFAULT_LEFT_PANES);
       const allRight = new Set(DEFAULT_RIGHT_PANES);
@@ -508,15 +512,23 @@ function TopInteractors({
   );
 }
 
-// Category breakdown chart
-function CategoryBreakdown({ grouped }: { grouped: GroupedNotifications }) {
+// Category breakdown chart — interactive, click to filter
+function CategoryBreakdown({
+  grouped,
+  activeFilter,
+  onFilterChange,
+}: {
+  grouped: GroupedNotifications;
+  activeFilter: string | null;
+  onFilterChange: (filter: string | null) => void;
+}) {
   const categories = [
+    { key: 'replies', label: 'Replies', count: grouped.replies.length },
+    { key: 'quotes', label: 'Quotes', count: grouped.quotes.length },
+    { key: 'mentions', label: 'Mentions', count: grouped.mentions.length },
     { key: 'likes', label: 'Likes', count: grouped.likes.length },
     { key: 'reposts', label: 'Reposts', count: grouped.reposts.length },
-    { key: 'quotes', label: 'Quotes', count: grouped.quotes.length },
-    { key: 'replies', label: 'Replies', count: grouped.replies.length },
     { key: 'follows', label: 'Follows', count: grouped.follows.length },
-    { key: 'mentions', label: 'Mentions', count: grouped.mentions.length },
   ];
 
   const total = categories.reduce((sum, c) => sum + c.count, 0);
@@ -524,35 +536,57 @@ function CategoryBreakdown({ grouped }: { grouped: GroupedNotifications }) {
 
   return (
     <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-4">
-      <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-4 flex items-center gap-2">
-        <svg className="w-4 h-4 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-        </svg>
-        Activity Breakdown
-        <span className="text-xs font-normal text-gray-400 ml-auto">{total} total</span>
-      </h3>
-      
-      <div className="space-y-3">
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-2">
+          <svg className="w-4 h-4 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+          </svg>
+          Filter
+          <span className="text-xs font-normal text-gray-400">{total} total</span>
+        </h3>
+        {activeFilter && (
+          <button
+            onClick={() => onFilterChange(null)}
+            className="text-xs text-blue-500 hover:text-blue-600"
+          >
+            Clear filter
+          </button>
+        )}
+      </div>
+
+      <div className="space-y-2">
         {categories.map((cat) => {
           const colors = CATEGORY_COLORS[cat.key as keyof typeof CATEGORY_COLORS];
           const percentage = total > 0 ? Math.round((cat.count / total) * 100) : 0;
-          
+          const isActive = activeFilter === cat.key;
+          const isDimmed = activeFilter !== null && !isActive;
+
           return (
-            <div key={cat.key} className="flex items-center gap-3">
+            <button
+              key={cat.key}
+              onClick={() => onFilterChange(isActive ? null : cat.key)}
+              className={`w-full flex items-center gap-3 p-1.5 rounded-lg transition-all cursor-pointer ${
+                isActive
+                  ? 'bg-blue-50 dark:bg-blue-900/20 ring-1 ring-blue-300 dark:ring-blue-700'
+                  : isDimmed
+                    ? 'opacity-40 hover:opacity-70'
+                    : 'hover:bg-gray-50 dark:hover:bg-gray-800/50'
+              }`}
+            >
               <span className={`${colors.icon} w-5`}>
                 {CATEGORY_ICONS[cat.key as keyof typeof CATEGORY_ICONS]}
               </span>
-              <span className="text-xs text-gray-600 dark:text-gray-400 w-16">{cat.label}</span>
+              <span className="text-xs text-gray-600 dark:text-gray-400 w-16 text-left">{cat.label}</span>
               <div className="flex-1 h-3 bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden">
                 <div
                   className={`h-full ${colors.bar} rounded-full transition-all duration-500`}
                   style={{ width: `${(cat.count / maxCount) * 100}%` }}
                 />
               </div>
-              <span className="text-xs text-gray-500 w-12 text-right">
-                {cat.count} <span className="text-gray-400">({percentage}%)</span>
+              <span className="text-xs text-gray-500 w-8 text-right">
+                {cat.count}
               </span>
-            </div>
+            </button>
           );
         })}
       </div>
@@ -1106,70 +1140,66 @@ function TimelineSectionHeader({ period }: { period: 'hour' | 'today' | 'week' }
   );
 }
 
-// Activity summary component
-function ActivitySummary({ 
-  newReplies, 
-  newQuotes, 
-  newMentions, 
-  newLikes, 
-  newReposts,
-  totalNew,
-}: { 
-  newReplies: number;
-  newQuotes: number;
-  newMentions: number;
-  newLikes: number;
-  newReposts: number;
-  totalNew: number;
-}) {
-  if (totalNew === 0) return null;
-  
-  const items = [
-    { count: newReplies, label: 'reply', labelPlural: 'replies', color: 'text-blue-500' },
-    { count: newQuotes, label: 'quote', labelPlural: 'quotes', color: 'text-purple-500' },
-    { count: newMentions, label: 'mention', labelPlural: 'mentions', color: 'text-amber-500' },
-    { count: newLikes, label: 'like', labelPlural: 'likes', color: 'text-pink-400' },
-    { count: newReposts, label: 'repost', labelPlural: 'reposts', color: 'text-emerald-500' },
-  ].filter(i => i.count > 0);
-  
+// "New since last visit" divider
+function NewSinceLastVisitDivider() {
   return (
-    <div className="px-4 py-3 bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 border-b border-gray-200 dark:border-gray-800">
-      <div className="flex items-center gap-2 flex-wrap text-sm">
-        <span className="font-medium text-gray-700 dark:text-gray-300">New:</span>
-        {items.map((item, i) => (
-          <span key={item.label} className="flex items-center gap-1">
-            <span className={`font-semibold ${item.color}`}>{item.count}</span>
-            <span className="text-gray-500 dark:text-gray-400">
-              {item.count === 1 ? item.label : item.labelPlural}
-            </span>
-            {i < items.length - 1 && <span className="text-gray-300 dark:text-gray-600 mx-1">·</span>}
-          </span>
-        ))}
-      </div>
+    <div className="flex items-center gap-3 px-3 py-2">
+      <div className="flex-1 h-px bg-gray-200 dark:bg-gray-700" />
+      <span className="text-xs font-medium text-gray-400 dark:text-gray-500 whitespace-nowrap">Seen previously</span>
+      <div className="flex-1 h-px bg-gray-200 dark:bg-gray-700" />
     </div>
   );
 }
 
-// Main My Posts Activity pane
-function MyPostsActivityPane({
+// Collapsed post row (for old/read posts)
+function CollapsedPostRow({
+  post,
+  activityCount,
+  onExpand,
+  onOpenPost,
+}: {
+  post: AppBskyFeedDefs.PostView;
+  activityCount: number;
+  onExpand: () => void;
+  onOpenPost: (uri: string) => void;
+}) {
+  const postText = (post.record as { text?: string })?.text || '';
+
+  return (
+    <div
+      className="flex items-center gap-3 px-3 py-2 hover:bg-gray-50 dark:hover:bg-gray-800/30 cursor-pointer border-b border-gray-100 dark:border-gray-800 last:border-b-0"
+      onClick={onExpand}
+    >
+      <p className="flex-1 text-xs text-gray-500 dark:text-gray-400 truncate">
+        {postText || <span className="italic">(no text)</span>}
+      </p>
+      <span className="flex-shrink-0 px-1.5 py-0.5 text-xs font-medium bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 rounded-full">
+        {activityCount}
+      </span>
+      <svg className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+      </svg>
+    </div>
+  );
+}
+
+// Needs Response pane — shows posts with new replies/quotes/mentions
+function NeedsResponsePane({
   notifications,
   onOpenProfile,
   onOpenPost,
+  activeFilter,
 }: {
   notifications: NotificationItem[];
   onOpenProfile: (did: string) => void;
   onOpenPost: (uri: string) => void;
+  activeFilter: string | null;
 }) {
   const [posts, setPosts] = useState<AppBskyFeedDefs.PostView[]>([]);
   const [loading, setLoading] = useState(true);
   const [lastViewed] = useState(() => getMyPostsLastViewed());
-  
-  // Mark as viewed when component mounts
-  useEffect(() => {
-    setMyPostsLastViewed();
-  }, []);
-  
-  // Fetch user's posts on mount
+  const [expandedOld, setExpandedOld] = useState<Set<string>>(new Set());
+
   useEffect(() => {
     const loadPosts = async () => {
       setLoading(true);
@@ -1184,23 +1214,21 @@ function MyPostsActivityPane({
     };
     loadPosts();
   }, []);
-  
-  // Build activity map keyed by post URI
-  const activityByPost = useMemo(() => {
+
+  // Build actionable activity map (replies/quotes/mentions only)
+  const actionableByPost = useMemo(() => {
     const map = new Map<string, PostActivity[]>();
-    
+    const actionableTypes = new Set(['reply', 'quote', 'mention']);
+
     for (const n of notifications) {
-      // Determine which post this notification is about
-      let targetUri: string | undefined;
-      
-      if (n.reason === 'like' || n.reason === 'repost') {
-        targetUri = n.reasonSubject;
-      } else if (n.reason === 'reply' || n.reason === 'quote' || n.reason === 'mention') {
-        targetUri = n.reasonSubject;
+      if (!actionableTypes.has(n.reason)) continue;
+      if (activeFilter) {
+        const categoryKey = n.reason === 'reply' ? 'replies' : n.reason === 'quote' ? 'quotes' : 'mentions';
+        if (activeFilter !== categoryKey) continue;
       }
-      
+      const targetUri = n.reasonSubject;
       if (!targetUri) continue;
-      
+
       const activity: PostActivity = {
         type: n.reason as PostActivity['type'],
         author: n.author,
@@ -1208,217 +1236,380 @@ function MyPostsActivityPane({
         uri: n.uri,
         indexedAt: n.indexedAt,
       };
-      
+
       if (!map.has(targetUri)) {
         map.set(targetUri, []);
       }
       map.get(targetUri)!.push(activity);
     }
-    
-    // Sort activity within each post by recency
+
     for (const activities of map.values()) {
-      activities.sort((a, b) => new Date(b.indexedAt).getTime() - new Date(a.indexedAt).getTime());
+      activities.sort((a, b) => new Date(a.indexedAt).getTime() - new Date(b.indexedAt).getTime());
     }
-    
+
     return map;
-  }, [notifications]);
-  
-  // Create a post lookup map
+  }, [notifications, activeFilter]);
+
   const postByUri = useMemo(() => {
     const map = new Map<string, AppBskyFeedDefs.PostView>();
-    for (const post of posts) {
-      map.set(post.uri, post);
-    }
+    for (const post of posts) map.set(post.uri, post);
     return map;
   }, [posts]);
-  
-  // Group activity by time period, with posts appearing in each period they have activity
-  const groupedByPeriod = useMemo(() => {
-    // Collect all activity with their time periods
-    const periodActivity: {
-      period: 'hour' | 'today' | 'week';
-      postUri: string;
-      activity: PostActivity[];
-    }[] = [];
-    
-    // Group activity by (postUri, period)
-    const activityByPostAndPeriod = new Map<string, Map<'hour' | 'today' | 'week', PostActivity[]>>();
-    
-    for (const [postUri, activities] of activityByPost.entries()) {
-      // Only include posts we have loaded
-      if (!postByUri.has(postUri)) continue;
-      
-      for (const activity of activities) {
-        const period = getTimePeriod(activity.indexedAt);
-        if (period === 'older') continue; // Skip older activity
-        
-        if (!activityByPostAndPeriod.has(postUri)) {
-          activityByPostAndPeriod.set(postUri, new Map());
-        }
-        const postPeriods = activityByPostAndPeriod.get(postUri)!;
-        
-        if (!postPeriods.has(period)) {
-          postPeriods.set(period, []);
-        }
-        postPeriods.get(period)!.push(activity);
-      }
-    }
-    
-    // Convert to array format grouped by period
-    for (const [postUri, periods] of activityByPostAndPeriod.entries()) {
-      for (const [period, activity] of periods.entries()) {
-        periodActivity.push({ period, postUri, activity });
-      }
-    }
-    
-    // Sort by period priority (hour > today > week) then by latest activity time
-    const periodOrder = { hour: 0, today: 1, week: 2 };
-    periodActivity.sort((a, b) => {
-      if (a.period !== b.period) {
-        return periodOrder[a.period] - periodOrder[b.period];
-      }
-      // Within same period, sort by latest activity
-      const aLatest = Math.max(...a.activity.map(act => new Date(act.indexedAt).getTime()));
-      const bLatest = Math.max(...b.activity.map(act => new Date(act.indexedAt).getTime()));
-      return bLatest - aLatest;
-    });
-    
-    // Group into period sections
-    const groups: { period: 'hour' | 'today' | 'week'; entries: TimeGroupedPostEntry[] }[] = [];
-    let currentPeriod: 'hour' | 'today' | 'week' | null = null;
-    
-    for (const item of periodActivity) {
-      const post = postByUri.get(item.postUri);
+
+  // Build entries sorted by latest activity, split into new/old
+  const { newEntries, oldEntries, newCount } = useMemo(() => {
+    const entries: { post: AppBskyFeedDefs.PostView; activity: PostActivity[]; isNew: boolean; latestAt: number }[] = [];
+
+    for (const [postUri, activity] of actionableByPost.entries()) {
+      const post = postByUri.get(postUri);
       if (!post) continue;
-      
-      if (item.period !== currentPeriod) {
-        currentPeriod = item.period;
-        groups.push({ period: item.period, entries: [] });
-      }
-      
-      // Check if any activity in this period is new (since last viewed)
-      const isNew = item.activity.some(a => new Date(a.indexedAt) > lastViewed);
-      
-      groups[groups.length - 1].entries.push({
-        post,
-        activity: item.activity,
-        isNew,
-      });
+      const latestAt = Math.max(...activity.map(a => new Date(a.indexedAt).getTime()));
+      const isNew = activity.some(a => new Date(a.indexedAt) > lastViewed);
+      entries.push({ post, activity, isNew, latestAt });
     }
-    
-    return groups;
-  }, [activityByPost, postByUri, lastViewed]);
-  
-  // Calculate totals
-  const totalActivityCount = useMemo(() => {
-    let count = 0;
-    for (const activities of activityByPost.values()) {
-      for (const a of activities) {
-        const period = getTimePeriod(a.indexedAt);
-        if (period !== 'older') count++;
-      }
-    }
-    return count;
-  }, [activityByPost]);
-  
-  // Calculate new activity counts (since last viewed)
-  const newActivityStats = useMemo(() => {
-    let newReplies = 0, newQuotes = 0, newMentions = 0, newLikes = 0, newReposts = 0;
-    
-    for (const activities of activityByPost.values()) {
-      for (const a of activities) {
-        if (new Date(a.indexedAt) > lastViewed) {
-          switch (a.type) {
-            case 'reply': newReplies++; break;
-            case 'quote': newQuotes++; break;
-            case 'mention': newMentions++; break;
-            case 'like': newLikes++; break;
-            case 'repost': newReposts++; break;
-          }
-        }
-      }
-    }
-    
-    return {
-      newReplies,
-      newQuotes,
-      newMentions,
-      newLikes,
-      newReposts,
-      totalNew: newReplies + newQuotes + newMentions + newLikes + newReposts,
-    };
-  }, [activityByPost, lastViewed]);
-  
+
+    entries.sort((a, b) => b.latestAt - a.latestAt);
+
+    const newOnes = entries.filter(e => e.isNew);
+    const oldOnes = entries.filter(e => !e.isNew);
+    return { newEntries: newOnes, oldEntries: oldOnes, newCount: newOnes.length };
+  }, [actionableByPost, postByUri, lastViewed]);
+
+  const toggleOldExpand = (uri: string) => {
+    setExpandedOld(prev => {
+      const next = new Set(prev);
+      if (next.has(uri)) next.delete(uri); else next.add(uri);
+      return next;
+    });
+  };
+
   return (
     <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden">
-      {/* Header */}
       <div className="p-4 border-b border-gray-200 dark:border-gray-800 flex items-center justify-between">
         <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-2">
           <svg className="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
           </svg>
-          My Posts
-          {newActivityStats.totalNew > 0 && (
-            <span className="px-1.5 py-0.5 text-xs font-medium bg-blue-500 text-white rounded-full animate-pulse">
-              {newActivityStats.totalNew} new
-            </span>
-          )}
-          {totalActivityCount > 0 && newActivityStats.totalNew === 0 && (
-            <span className="px-1.5 py-0.5 text-xs font-medium bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 rounded-full">
-              {totalActivityCount} total
+          Needs Response
+          {newCount > 0 && (
+            <span className="px-1.5 py-0.5 text-xs font-medium bg-blue-500 text-white rounded-full">
+              {newCount}
             </span>
           )}
         </h3>
       </div>
-      
-      {/* Activity summary */}
-      {!loading && newActivityStats.totalNew > 0 && (
-        <ActivitySummary {...newActivityStats} />
-      )}
-      
-      {/* Content */}
+
       {loading ? (
         <div className="flex items-center justify-center py-12">
           <div className="animate-spin w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full" />
         </div>
-      ) : groupedByPeriod.length === 0 ? (
+      ) : newEntries.length === 0 && oldEntries.length === 0 ? (
         <div className="p-8 text-center">
           <svg className="w-10 h-10 mx-auto text-gray-300 dark:text-gray-600 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
-          <p className="text-sm text-gray-500 dark:text-gray-400">
-            No recent activity on your posts
-          </p>
-          <p className="text-xs text-gray-400 mt-1">
-            Activity from the last 48 hours will appear here
-          </p>
+          <p className="text-sm text-gray-500 dark:text-gray-400">All caught up!</p>
+          <p className="text-xs text-gray-400 mt-1">No replies, quotes, or mentions to respond to</p>
         </div>
       ) : (
-        // Timeline view with section headers - always expanded
         <div className="max-h-[600px] overflow-y-auto">
-          {groupedByPeriod.map((group) => (
-            <div key={group.period}>
-              <TimelineSectionHeader period={group.period} />
-              <div className="divide-y divide-gray-100 dark:divide-gray-800">
-                {group.entries.map((entry, idx) => (
-                  <PostActivityRow
-                    key={`${entry.post.uri}-${group.period}-${idx}`}
-                    entry={entry}
-                    onOpenProfile={onOpenProfile}
-                    onOpenPost={onOpenPost}
-                  />
-                ))}
-              </div>
-            </div>
+          {/* New entries — fully expanded */}
+          {newEntries.map((entry) => (
+            <NeedsResponsePostRow
+              key={entry.post.uri}
+              post={entry.post}
+              activity={entry.activity}
+              isNew
+              onOpenProfile={onOpenProfile}
+              onOpenPost={onOpenPost}
+            />
+          ))}
+
+          {/* Divider between new and old */}
+          {newEntries.length > 0 && oldEntries.length > 0 && <NewSinceLastVisitDivider />}
+
+          {/* Old entries — collapsed by default */}
+          {oldEntries.map((entry) => (
+            expandedOld.has(entry.post.uri) ? (
+              <NeedsResponsePostRow
+                key={entry.post.uri}
+                post={entry.post}
+                activity={entry.activity}
+                isNew={false}
+                onOpenProfile={onOpenProfile}
+                onOpenPost={onOpenPost}
+              />
+            ) : (
+              <CollapsedPostRow
+                key={entry.post.uri}
+                post={entry.post}
+                activityCount={entry.activity.length}
+                onExpand={() => toggleOldExpand(entry.post.uri)}
+                onOpenPost={onOpenPost}
+              />
+            )
           ))}
         </div>
       )}
-      
-      {/* Footer with note */}
+    </div>
+  );
+}
+
+// Post row for the Needs Response pane — shows reply/quote/mention text prominently
+function NeedsResponsePostRow({
+  post,
+  activity,
+  isNew,
+  onOpenProfile,
+  onOpenPost,
+}: {
+  post: AppBskyFeedDefs.PostView;
+  activity: PostActivity[];
+  isNew: boolean;
+  onOpenProfile: (did: string) => void;
+  onOpenPost: (uri: string) => void;
+}) {
+  const postText = (post.record as { text?: string })?.text || '';
+  const { settings } = useSettings();
+
+  return (
+    <div className={`border-b border-gray-100 dark:border-gray-800 last:border-b-0 ${isNew ? 'bg-blue-50/30 dark:bg-blue-900/10' : ''}`}>
+      {/* Your post (small, muted context) */}
+      <div
+        className="px-3 pt-3 pb-1 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800/30"
+        onClick={() => onOpenPost(post.uri)}
+      >
+        <div className="flex items-center gap-2">
+          {isNew && <span className="w-2 h-2 rounded-full bg-blue-500 flex-shrink-0" />}
+          <p className="text-xs text-gray-400 dark:text-gray-500 truncate flex-1">
+            Your post: {postText || <span className="italic">(no text)</span>}
+          </p>
+          <span className="text-xs text-gray-400">{formatTime(post.indexedAt)}</span>
+        </div>
+      </div>
+
+      {/* Replies/quotes/mentions — prominent, shown as conversation */}
+      <div className="px-3 pb-3 pt-1 space-y-2">
+        {activity.map((a, i) => {
+          const style = ACTIVITY_STYLES[a.type];
+          const avatarRingClass = getAvatarRingClass(a.author.viewer, settings);
+          return (
+            <div
+              key={`${a.type}-${a.author.did}-${i}`}
+              className="flex items-start gap-2.5 p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800/50 cursor-pointer transition-colors"
+              onClick={() => a.uri ? onOpenPost(a.uri) : onOpenProfile(a.author.did)}
+            >
+              <ProfileHoverCard
+                did={a.author.did}
+                handle={a.author.handle}
+                onOpenProfile={() => onOpenProfile(a.author.did)}
+              >
+                {a.author.avatar ? (
+                  <img
+                    src={a.author.avatar}
+                    alt=""
+                    className={`w-7 h-7 rounded-full flex-shrink-0 cursor-pointer ${avatarRingClass}`}
+                    onClick={(e) => { e.stopPropagation(); onOpenProfile(a.author.did); }}
+                  />
+                ) : (
+                  <div
+                    className={`w-7 h-7 rounded-full bg-gray-400 flex items-center justify-center text-white text-xs font-bold flex-shrink-0 cursor-pointer ${avatarRingClass}`}
+                    onClick={(e) => { e.stopPropagation(); onOpenProfile(a.author.did); }}
+                  >
+                    {(a.author.displayName || a.author.handle)[0].toUpperCase()}
+                  </div>
+                )}
+              </ProfileHoverCard>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-1.5 mb-0.5">
+                  <span
+                    className="text-xs font-medium text-gray-900 dark:text-gray-100 hover:text-blue-500 cursor-pointer"
+                    onClick={(e) => { e.stopPropagation(); onOpenProfile(a.author.did); }}
+                  >
+                    {a.author.displayName || `@${a.author.handle}`}
+                  </span>
+                  <span className={`flex-shrink-0 ${style.color}`}>{style.icon}</span>
+                  <span className="text-xs text-gray-400">{formatTime(a.indexedAt)}</span>
+                </div>
+                {a.text && (
+                  <p className="text-sm text-gray-800 dark:text-gray-200 line-clamp-3">
+                    {a.text}
+                  </p>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// Main Activity pane — shows likes/reposts only (replies/quotes/mentions are in Needs Response)
+function MyPostsActivityPane({
+  notifications,
+  onOpenProfile,
+  onOpenPost,
+  activeFilter,
+}: {
+  notifications: NotificationItem[];
+  onOpenProfile: (did: string) => void;
+  onOpenPost: (uri: string) => void;
+  activeFilter: string | null;
+}) {
+  const [posts, setPosts] = useState<AppBskyFeedDefs.PostView[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [lastViewed] = useState(() => getMyPostsLastViewed());
+  const [expandedOld, setExpandedOld] = useState<Set<string>>(new Set());
+
+  // Mark as viewed when component mounts
+  useEffect(() => {
+    setMyPostsLastViewed();
+  }, []);
+
+  useEffect(() => {
+    const loadPosts = async () => {
+      setLoading(true);
+      try {
+        const myPosts = await getMyRecentPostsAndReplies(2, 50);
+        setPosts(myPosts);
+      } catch (err) {
+        console.error('Failed to load posts:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadPosts();
+  }, []);
+
+  // Build activity map — likes/reposts only
+  const activityByPost = useMemo(() => {
+    const map = new Map<string, PostActivity[]>();
+    const engagementTypes = new Set(['like', 'repost']);
+
+    for (const n of notifications) {
+      if (!engagementTypes.has(n.reason)) continue;
+      if (activeFilter) {
+        const categoryKey = n.reason === 'like' ? 'likes' : 'reposts';
+        if (activeFilter !== categoryKey) continue;
+      }
+      const targetUri = n.reasonSubject;
+      if (!targetUri) continue;
+
+      const activity: PostActivity = {
+        type: n.reason as PostActivity['type'],
+        author: n.author,
+        text: n.record?.text,
+        uri: n.uri,
+        indexedAt: n.indexedAt,
+      };
+
+      if (!map.has(targetUri)) map.set(targetUri, []);
+      map.get(targetUri)!.push(activity);
+    }
+
+    for (const activities of map.values()) {
+      activities.sort((a, b) => new Date(b.indexedAt).getTime() - new Date(a.indexedAt).getTime());
+    }
+
+    return map;
+  }, [notifications, activeFilter]);
+
+  const postByUri = useMemo(() => {
+    const map = new Map<string, AppBskyFeedDefs.PostView>();
+    for (const post of posts) map.set(post.uri, post);
+    return map;
+  }, [posts]);
+
+  // Split into new/old entries
+  const { newEntries, oldEntries, newCount } = useMemo(() => {
+    const entries: { post: AppBskyFeedDefs.PostView; activity: PostActivity[]; isNew: boolean; latestAt: number }[] = [];
+
+    for (const [postUri, activity] of activityByPost.entries()) {
+      const post = postByUri.get(postUri);
+      if (!post) continue;
+      const latestAt = Math.max(...activity.map(a => new Date(a.indexedAt).getTime()));
+      const isNew = activity.some(a => new Date(a.indexedAt) > lastViewed);
+      entries.push({ post, activity, isNew, latestAt });
+    }
+
+    entries.sort((a, b) => b.latestAt - a.latestAt);
+    const newOnes = entries.filter(e => e.isNew);
+    const oldOnes = entries.filter(e => !e.isNew);
+    return { newEntries: newOnes, oldEntries: oldOnes, newCount: newOnes.reduce((sum, e) => sum + e.activity.length, 0) };
+  }, [activityByPost, postByUri, lastViewed]);
+
+  const toggleOldExpand = (uri: string) => {
+    setExpandedOld(prev => {
+      const next = new Set(prev);
+      if (next.has(uri)) next.delete(uri); else next.add(uri);
+      return next;
+    });
+  };
+
+  return (
+    <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden">
+      <div className="p-4 border-b border-gray-200 dark:border-gray-800 flex items-center justify-between">
+        <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-2">
+          <svg className="w-4 h-4 text-pink-400" fill="currentColor" viewBox="0 0 24 24">
+            <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />
+          </svg>
+          Activity
+          {newCount > 0 && (
+            <span className="px-1.5 py-0.5 text-xs font-medium bg-pink-500 text-white rounded-full">
+              {newCount} new
+            </span>
+          )}
+        </h3>
+      </div>
+
+      {loading ? (
+        <div className="flex items-center justify-center py-12">
+          <div className="animate-spin w-6 h-6 border-2 border-pink-500 border-t-transparent rounded-full" />
+        </div>
+      ) : newEntries.length === 0 && oldEntries.length === 0 ? (
+        <div className="p-8 text-center">
+          <p className="text-sm text-gray-500 dark:text-gray-400">No recent likes or reposts</p>
+          <p className="text-xs text-gray-400 mt-1">Engagement from the last 48 hours will appear here</p>
+        </div>
+      ) : (
+        <div className="max-h-[600px] overflow-y-auto">
+          {/* New entries — fully expanded */}
+          {newEntries.map((entry) => (
+            <PostActivityRow
+              key={entry.post.uri}
+              entry={{ post: entry.post, activity: entry.activity, isNew: true }}
+              onOpenProfile={onOpenProfile}
+              onOpenPost={onOpenPost}
+            />
+          ))}
+
+          {newEntries.length > 0 && oldEntries.length > 0 && <NewSinceLastVisitDivider />}
+
+          {/* Old entries — collapsed by default */}
+          {oldEntries.map((entry) => (
+            expandedOld.has(entry.post.uri) ? (
+              <PostActivityRow
+                key={entry.post.uri}
+                entry={{ post: entry.post, activity: entry.activity, isNew: false }}
+                onOpenProfile={onOpenProfile}
+                onOpenPost={onOpenPost}
+              />
+            ) : (
+              <CollapsedPostRow
+                key={entry.post.uri}
+                post={entry.post}
+                activityCount={entry.activity.length}
+                onExpand={() => toggleOldExpand(entry.post.uri)}
+                onOpenPost={onOpenPost}
+              />
+            )
+          ))}
+        </div>
+      )}
+
       <div className="p-3 border-t border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-800/50">
-        <p className="text-xs text-gray-400 text-center">
-          Showing activity from the last 48 hours
-        </p>
+        <p className="text-xs text-gray-400 text-center">Likes &amp; reposts from the last 48 hours</p>
       </div>
     </div>
   );
@@ -3070,6 +3261,7 @@ function NotificationsExplorerContent() {
   const [isVerified, setIsVerified] = useState(false);
   const { setUserDid } = useBookmarks();
   const { settings, updateSettings } = useSettings();
+  const [activeFilter, setActiveFilter] = useState<string | null>(null);
 
   // Notifications state
   const [allNotifications, setAllNotifications] = useState<NotificationItem[]>([]);
@@ -3362,6 +3554,14 @@ function NotificationsExplorerContent() {
             <div className="lg:col-span-2 space-y-6">
               {paneOrder.left.map((paneId) => {
                 const paneContent = {
+                  'needs-response': (
+                    <NeedsResponsePane
+                      notifications={allNotifications}
+                      onOpenProfile={handleOpenProfile}
+                      onOpenPost={openThread}
+                      activeFilter={activeFilter}
+                    />
+                  ),
                   'new-followers': (
                     <NewFollowersPane
                       follows={grouped.follows}
@@ -3373,6 +3573,7 @@ function NotificationsExplorerContent() {
                       notifications={allNotifications}
                       onOpenProfile={handleOpenProfile}
                       onOpenPost={openThread}
+                      activeFilter={activeFilter}
                     />
                   ),
                   'mentions': (
@@ -3404,36 +3605,6 @@ function NotificationsExplorerContent() {
 
             {/* Right column - Stats and insights */}
             <div className="space-y-6">
-              {/* Notification category toggles */}
-              <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-4">
-                <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-3 flex items-center gap-2">
-                  <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
-                  </svg>
-                  Show Notifications
-                </h3>
-                <div className="space-y-2">
-                  {[
-                    { key: 'notifyReplies' as const, label: 'Replies', icon: CATEGORY_ICONS.replies, color: CATEGORY_COLORS.replies.icon },
-                    { key: 'notifyQuotes' as const, label: 'Quotes', icon: CATEGORY_ICONS.quotes, color: CATEGORY_COLORS.quotes.icon },
-                    { key: 'notifyMentions' as const, label: 'Mentions', icon: CATEGORY_ICONS.mentions, color: CATEGORY_COLORS.mentions.icon },
-                    { key: 'notifyLikes' as const, label: 'Likes', icon: CATEGORY_ICONS.likes, color: CATEGORY_COLORS.likes.icon },
-                    { key: 'notifyReposts' as const, label: 'Reposts', icon: CATEGORY_ICONS.reposts, color: CATEGORY_COLORS.reposts.icon },
-                  ].map(({ key, label, icon, color }) => (
-                    <label key={key} className="flex items-center gap-2.5 cursor-pointer group">
-                      <input
-                        type="checkbox"
-                        checked={settings[key]}
-                        onChange={() => updateSettings({ [key]: !settings[key] })}
-                        className="w-4 h-4 rounded border-gray-300 text-blue-500 focus:ring-blue-500"
-                      />
-                      <span className={`${color} group-hover:opacity-80 transition-opacity`}>{icon}</span>
-                      <span className="text-sm text-gray-700 dark:text-gray-300">{label}</span>
-                    </label>
-                  ))}
-                </div>
-              </div>
-
               {paneOrder.right.map((paneId) => {
                 const paneContent = {
                   'messages': <DMSidebar embedded defaultExpanded />,
@@ -3443,7 +3614,13 @@ function NotificationsExplorerContent() {
                       onOpenProfile={handleOpenProfile}
                     />
                   ),
-                  'breakdown': <CategoryBreakdown grouped={grouped} />,
+                  'breakdown': (
+                    <CategoryBreakdown
+                      grouped={grouped}
+                      activeFilter={activeFilter}
+                      onFilterChange={setActiveFilter}
+                    />
+                  ),
                   'top-interactors': (
                     <TopInteractors
                       notifications={allNotifications}
