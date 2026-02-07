@@ -60,6 +60,10 @@ export default function Feed({ feedId, feedUri, feedName, acceptsInteractions, r
   const [remixSourceIndex, setRemixSourceIndex] = useState(0);
   const [remixStats, setRemixStats] = useState<RemixStats>({ postCounts: new Map(), totalPosts: 0 });
   
+  // Persistent set of seen post URIs for remix feed deduplication across refreshes
+  // Using a ref so it persists across re-renders and refreshes within the session
+  const remixSeenPostsRef = useRef<Set<string>>(new Set());
+  
   // Self-thread expansion state
   const [expandedThreads, setExpandedThreads] = useState<Map<string, SelfThreadResult>>(new Map());
   // Use refs for tracking to avoid re-triggering effects
@@ -175,12 +179,25 @@ export default function Feed({ feedId, feedUri, feedName, acceptsInteractions, r
       setError(null);
 
       const TOTAL_POSTS_TARGET = 50; // Total posts to fetch across all feeds
+      const MIN_NEW_POSTS = 10; // Minimum new posts we want to show
+      const MAX_SEEN_POSTS = 500; // Limit seen posts set size to prevent unbounded growth
       const allPosts: RemixFeedViewPost[] = [];
       const newCursors = new Map(remixCursors);
-      const seenUris = new Set<string>();
       const postCountsByFeed = new Map<string, number>(loadMore ? remixStats.postCounts : undefined);
       
-      // If loading more, add existing post URIs to seen set for deduplication
+      // Use the persistent seen set for deduplication across refreshes
+      // On fresh load (not loadMore), we still use the persistent set to avoid showing
+      // posts that were shown in previous refreshes during this session
+      const seenUris = remixSeenPostsRef.current;
+      
+      // Trim the seen set if it's gotten too large (keep most recent entries)
+      if (seenUris.size > MAX_SEEN_POSTS) {
+        const entries = Array.from(seenUris);
+        const toRemove = entries.slice(0, entries.length - MAX_SEEN_POSTS);
+        toRemove.forEach(uri => seenUris.delete(uri));
+      }
+      
+      // Also add current posts to seen set (in case of loadMore)
       if (loadMore) {
         posts.forEach(p => seenUris.add(p.post.uri));
       }
@@ -223,7 +240,8 @@ export default function Feed({ feedId, feedUri, feedName, acceptsInteractions, r
             const post = result.posts[i];
             // Deduplicate posts that appear in multiple feeds
             if (!seenUris.has(post.post.uri)) {
-              seenUris.add(post.post.uri);
+              // Add to persistent seen set
+              remixSeenPostsRef.current.add(post.post.uri);
               // Attach source feed info
               const remixPost: RemixFeedViewPost = {
                 ...post,
@@ -241,6 +259,62 @@ export default function Feed({ feedId, feedUri, feedName, acceptsInteractions, r
         }
       }
 
+      // Check if any feed has more posts
+      let hasMore = Array.from(newCursors.values()).some(c => c !== undefined);
+      
+      // If we got too few new posts and there's more content available,
+      // fetch additional pages to find fresh content (up to 3 extra attempts)
+      let extraFetches = 0;
+      const MAX_EXTRA_FETCHES = 3;
+      
+      while (!loadMore && allPosts.length < MIN_NEW_POSTS && hasMore && extraFetches < MAX_EXTRA_FETCHES) {
+        extraFetches++;
+        
+        // Fetch next page from each source feed
+        const extraFetchPromises = remixSourceFeeds.map(async (feed) => {
+          try {
+            const feedCursor = newCursors.get(feed.uri);
+            if (!feedCursor) return { feed, posts: [] };
+            
+            const targetCount = postsPerFeed.get(feed.uri) || 10;
+            const result = await fetchFromSource(feed, feedCursor);
+            newCursors.set(feed.uri, result.cursor);
+            const filteredPosts = result.posts.filter(p => !isPinnedInFeed(p));
+            return { feed, posts: filteredPosts.slice(0, targetCount) };
+          } catch (err) {
+            console.error(`Failed to fetch more from ${feed.displayName}:`, err);
+            return { feed, posts: [] };
+          }
+        });
+        
+        const extraResults = await Promise.all(extraFetchPromises);
+        
+        // Add new posts
+        const extraMaxLen = Math.max(...extraResults.map(r => r.posts.length));
+        for (let i = 0; i < extraMaxLen; i++) {
+          for (const result of extraResults) {
+            if (i < result.posts.length) {
+              const post = result.posts[i];
+              if (!seenUris.has(post.post.uri)) {
+                remixSeenPostsRef.current.add(post.post.uri);
+                const remixPost: RemixFeedViewPost = {
+                  ...post,
+                  sourceFeed: {
+                    uri: result.feed.uri,
+                    displayName: result.feed.displayName,
+                  },
+                };
+                allPosts.push(remixPost);
+                const currentCount = postCountsByFeed.get(result.feed.uri) || 0;
+                postCountsByFeed.set(result.feed.uri, currentCount + 1);
+              }
+            }
+          }
+        }
+        
+        hasMore = Array.from(newCursors.values()).some(c => c !== undefined);
+      }
+
       // Shuffle the posts randomly (on initial load, not load more)
       const finalPosts = loadMore ? allPosts : shuffleArray(allPosts);
 
@@ -255,8 +329,6 @@ export default function Feed({ feedId, feedUri, feedName, acceptsInteractions, r
         totalPosts: totalPostsLoaded,
       });
       
-      // Check if any feed has more posts
-      const hasMore = Array.from(newCursors.values()).some(c => c !== undefined);
       const remixCursor = hasMore ? 'remix-has-more' : undefined;
       setCursor(remixCursor);
 
