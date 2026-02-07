@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, createContext, useContext, ReactNode, useCallback, useRef } from 'react';
+import { getSession } from '@/lib/bluesky';
 
 export interface BookmarkedPost {
   uri: string;
@@ -67,6 +68,17 @@ export function BookmarksProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [userDid, setUserDid] = useState<string | null>(null);
   const pendingIdRef = useRef<string | null>(null); // For optimistic collection ID
+
+  // Auto-detect user DID from session on mount
+  // This ensures bookmarks work even if the page forgets to call setUserDid
+  useEffect(() => {
+    if (!userDid) {
+      const session = getSession();
+      if (session?.did) {
+        setUserDid(session.did);
+      }
+    }
+  }, [userDid]);
 
   // Fetch bookmarks from API when userDid changes
   useEffect(() => {
