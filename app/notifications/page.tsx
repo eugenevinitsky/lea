@@ -768,7 +768,7 @@ function ActivityItem({
           </span>
           <span className="text-gray-500 dark:text-gray-400"> {style.label}</span>
           {activity.text && (
-            <span className="text-gray-600 dark:text-gray-300">: &ldquo;{activity.text.slice(0, 60)}{activity.text.length > 60 ? '...' : ''}&rdquo;</span>
+            <p className="text-sm text-gray-800 dark:text-gray-200 mt-1 line-clamp-2">&ldquo;{activity.text.slice(0, 120)}{activity.text.length > 120 ? '...' : ''}&rdquo;</p>
           )}
         </span>
       </div>
@@ -1035,7 +1035,7 @@ function PostActivityRow({
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
               </svg>
             </div>
-            <p className="text-sm text-gray-900 dark:text-gray-100 line-clamp-2">
+            <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-2">
               {postText || <span className="italic text-gray-400">(no text)</span>}
             </p>
             
