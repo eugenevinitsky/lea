@@ -39,6 +39,8 @@ import EmojiPicker from './EmojiPicker';
 import LabelBadges from './LabelBadges';
 import ProfileLabels from './ProfileLabels';
 import PollDisplay from './PollDisplay';
+import CommunityNoteDisplay from './CommunityNoteDisplay';
+import CommunityNoteForm from './CommunityNoteForm';
 import Link from 'next/link';
 import type { BlueskyProfile } from '@/lib/bluesky';
 import { extractPaperUrl, extractAnyUrl, getPaperIdFromUrl, PAPER_DOMAINS, LinkFacet } from '@/lib/papers';
@@ -1707,6 +1709,10 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
   const [isDetached, setIsDetached] = useState(false);
   const [showDetachConfirm, setShowDetachConfirm] = useState(false);
 
+  // Community notes state
+  const [showNoteForm, setShowNoteForm] = useState(false);
+  const [noteRefreshKey, setNoteRefreshKey] = useState(0);
+
   const handleThreadgateUpdate = async (newType: ThreadgateType) => {
     if (updatingThreadgate || newType === currentThreadgate) return;
     
@@ -2459,12 +2465,12 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
       setReplyError(null);
 
       // Upload images if any
-      let uploadedImages: { blob: unknown; alt: string }[] | undefined;
+      let uploadedImages: { blob: unknown; alt: string; width?: number; height?: number }[] | undefined;
       if (replyImages.length > 0) {
         uploadedImages = [];
         for (const img of replyImages) {
           const uploaded = await uploadImage(img.file);
-          uploadedImages.push({ blob: uploaded.blob, alt: img.alt });
+          uploadedImages.push({ blob: uploaded.blob, alt: img.alt, width: uploaded.width, height: uploaded.height });
         }
       }
 
@@ -2904,6 +2910,9 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
           {/* Poll - only check for posts with the poll marker (📊) to avoid unnecessary API requests */}
           {record?.text?.includes('📊') && <PollDisplay postUri={post.uri} />}
 
+          {/* Community Notes */}
+          <CommunityNoteDisplay key={`cn-${noteRefreshKey}`} postUri={post.uri} />
+
           {/* Engagement actions */}
           <div className="flex gap-6 lg:gap-4 mt-3 text-base lg:text-sm text-gray-500">
             {/* Reply button */}
@@ -3169,6 +3178,19 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
                 document.body
               )}
             </div>
+
+            {/* Community Note button */}
+            <button
+              onClick={() => setShowNoteForm(!showNoteForm)}
+              className={`flex items-center gap-1.5 lg:gap-1 transition-colors py-1 ${
+                showNoteForm ? 'text-amber-500' : 'hover:text-amber-500'
+              }`}
+              title="Write a community note"
+            >
+              <svg className="w-5 h-5 lg:w-4 lg:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+            </button>
 
             {/* Reply settings button - only for own posts */}
             {isOwnPost && (
@@ -3555,6 +3577,15 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
                 <p className="mt-2 text-xs text-gray-500">Updating reply settings...</p>
               )}
             </div>
+          )}
+
+          {/* Community Note Form */}
+          {showNoteForm && (
+            <CommunityNoteForm
+              postUri={post.uri}
+              onClose={() => setShowNoteForm(false)}
+              onSubmitted={() => setNoteRefreshKey((k) => k + 1)}
+            />
           )}
         </div>
       </div>
