@@ -17,9 +17,19 @@ export default function Sidebar({ openComposer }: SidebarProps) {
       setHasModerationAlerts(activeAlerts.length > 0);
     } catch { /* ignore */ }
 
-    getFilteredUnreadNotificationCount().then(count => {
-      setHasUnreadNotifications(count > 0);
-    });
+    // Check for unread notifications immediately and poll every 30 seconds.
+    // Use a small initial delay to let the OAuth agent initialize first.
+    const checkUnread = () => {
+      getFilteredUnreadNotificationCount().then(count => {
+        setHasUnreadNotifications(count > 0);
+      });
+    };
+    const initialTimer = setTimeout(checkUnread, 2000);
+    const interval = setInterval(checkUnread, 30000);
+    return () => {
+      clearTimeout(initialTimer);
+      clearInterval(interval);
+    };
   }, []);
 
   return (

@@ -244,6 +244,22 @@ export async function updateSeenNotifications(): Promise<void> {
   }
 }
 
+// --- Local "last seen" timestamp for the notifications page ---
+// This is independent of Bluesky's updateSeen, so it works even if the user
+// views notifications in the Bluesky app.
+
+const NOTIF_PAGE_LAST_SEEN_KEY = 'lea-notifications-page-last-seen';
+
+export function getNotificationsPageLastSeen(): string | null {
+  if (typeof window === 'undefined') return null;
+  return localStorage.getItem(NOTIF_PAGE_LAST_SEEN_KEY);
+}
+
+export function setNotificationsPageLastSeen(timestamp: string): void {
+  if (typeof window === 'undefined') return;
+  localStorage.setItem(NOTIF_PAGE_LAST_SEEN_KEY, timestamp);
+}
+
 // --- Notification type preferences (controls which types show the unread dot) ---
 
 const NOTIFICATION_PREFS_KEY = 'lea-notification-type-prefs';
