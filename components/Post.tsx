@@ -1495,7 +1495,7 @@ function EmbedVideo({ video }: { video: AppBskyEmbedVideo.View }) {
   return (
     <div
       className="mt-2 rounded-xl overflow-hidden bg-black"
-      onClick={(e) => e.stopPropagation()}
+      onClick={(e) => { e.stopPropagation(); e.preventDefault(); }}
     >
       <div className="relative" style={{ paddingBottom }}>
         <video
