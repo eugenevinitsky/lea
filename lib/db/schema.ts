@@ -8,6 +8,7 @@ import {
   primaryKey,
   index,
   uniqueIndex,
+  real,
 } from 'drizzle-orm/pg-core';
 
 // Verified researchers
@@ -551,6 +552,117 @@ export interface PollOption {
   id: string;
   text: string;
 }
+
+// ==================== COMMUNITY NOTES TABLES ====================
+
+// Community notes on posts
+export const communityNotes = pgTable(
+  'community_notes',
+  {
+    id: varchar('id', { length: 50 }).primaryKey(),
+    postUri: varchar('post_uri', { length: 500 }).notNull(),
+    authorDid: varchar('author_did', { length: 255 }).notNull(),
+    summary: text('summary').notNull(), // max 2000 chars enforced in API
+    classification: varchar('classification', { length: 30 }).notNull(), // legacy field, mapped from reasons
+    // OCN fields
+    aid: varchar('aid', { length: 40 }), // Anonymous ID for OCN spec
+    reasons: text('reasons'), // JSON array of OCN reason strings
+    targetType: varchar('target_type', { length: 20 }).default('post'), // 'post' or 'note' (disputes)
+    labelUri: varchar('label_uri', { length: 500 }), // AT URI of published label
+    labelPublishedAt: timestamp('label_published_at'),
+    labelStatus: varchar('label_status', { length: 20 }).default('none'), // 'none' | 'proposed-annotation' | 'annotation' | 'negated'
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+    updatedAt: timestamp('updated_at').defaultNow().notNull(),
+  },
+  (table) => [
+    index('community_notes_post_uri_idx').on(table.postUri),
+    index('community_notes_author_did_idx').on(table.authorDid),
+    index('community_notes_created_at_idx').on(table.createdAt),
+  ]
+);
+
+// Ratings on community notes (not anonymous - MF algorithm needs rater identity)
+export const communityNoteRatings = pgTable(
+  'community_note_ratings',
+  {
+    id: varchar('id', { length: 50 }).primaryKey(),
+    noteId: varchar('note_id', { length: 50 }).notNull(),
+    raterDid: varchar('rater_did', { length: 255 }).notNull(), // needed for MF, never exposed in API
+    helpfulness: real('helpfulness').notNull(), // 1.0=helpful, 0.5=somewhat, 0.0=not helpful
+    // OCN fields
+    aid: varchar('aid', { length: 40 }), // Anonymous ID for OCN spec
+    ocnValue: integer('ocn_value'), // +1, 0, -1 (OCN scale)
+    reasons: text('reasons'), // JSON array of OCN vote reason strings
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+    updatedAt: timestamp('updated_at').defaultNow().notNull(),
+  },
+  (table) => [
+    index('community_note_ratings_note_idx').on(table.noteId),
+    index('community_note_ratings_rater_idx').on(table.raterDid),
+    uniqueIndex('community_note_ratings_unique').on(table.noteId, table.raterDid),
+  ]
+);
+
+// Computed scores for community notes (1:1 with community_notes)
+export const communityNoteScores = pgTable(
+  'community_note_scores',
+  {
+    noteId: varchar('note_id', { length: 50 }).primaryKey(),
+    intercept: real('intercept').default(0).notNull(), // i_n, the helpfulness score
+    factor: real('factor').default(0).notNull(), // f_n, the viewpoint factor
+    ratingCount: integer('rating_count').default(0).notNull(),
+    status: varchar('status', { length: 20 }).default('NMR').notNull(), // 'CRH' | 'CRNH' | 'NMR'
+    scoredAt: timestamp('scored_at').defaultNow().notNull(),
+  },
+  (table) => [
+    index('community_note_scores_status_idx').on(table.status),
+  ]
+);
+
+// Disputes: notes targeting other notes
+export const communityNoteDisputes = pgTable(
+  'community_note_disputes',
+  {
+    id: varchar('id', { length: 50 }).primaryKey(),
+    disputeNoteId: varchar('dispute_note_id', { length: 50 }).notNull(), // The note that IS the dispute
+    targetNoteId: varchar('target_note_id', { length: 50 }).notNull(), // The note being disputed
+    status: varchar('status', { length: 20 }).default('pending'), // 'pending' | 'approved' | 'rejected'
+    resolvedAt: timestamp('resolved_at'),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+  },
+  (table) => [
+    index('community_note_disputes_target_idx').on(table.targetNoteId),
+    index('community_note_disputes_dispute_idx').on(table.disputeNoteId),
+  ]
+);
+
+// Label publishing audit log
+export const communityNoteLabelLog = pgTable(
+  'community_note_label_log',
+  {
+    id: varchar('id', { length: 50 }).primaryKey(),
+    noteId: varchar('note_id', { length: 50 }).notNull(),
+    action: varchar('action', { length: 20 }), // 'publish' | 'negate'
+    labelVal: varchar('label_val', { length: 50 }), // 'annotation' | 'proposed-annotation'
+    success: boolean('success'),
+    error: text('error'),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+  },
+  (table) => [
+    index('community_note_label_log_note_idx').on(table.noteId),
+  ]
+);
+
+export type CommunityNote = typeof communityNotes.$inferSelect;
+export type NewCommunityNote = typeof communityNotes.$inferInsert;
+export type CommunityNoteRating = typeof communityNoteRatings.$inferSelect;
+export type NewCommunityNoteRating = typeof communityNoteRatings.$inferInsert;
+export type CommunityNoteScore = typeof communityNoteScores.$inferSelect;
+export type NewCommunityNoteScore = typeof communityNoteScores.$inferInsert;
+export type CommunityNoteDispute = typeof communityNoteDisputes.$inferSelect;
+export type NewCommunityNoteDispute = typeof communityNoteDisputes.$inferInsert;
+export type CommunityNoteLabelLog = typeof communityNoteLabelLog.$inferSelect;
+export type NewCommunityNoteLabelLog = typeof communityNoteLabelLog.$inferInsert;
 
 // Profile field types
 export interface ProfileLink {

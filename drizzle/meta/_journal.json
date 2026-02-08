@@ -43,6 +43,20 @@
       "when": 1769539738871,
       "tag": "0005_medical_firebrand",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1770508783937,
+      "tag": "0006_mixed_wendigo",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1770514483739,
+      "tag": "0007_powerful_skrulls",
+      "breakpoints": true
     }
   ]
 }
