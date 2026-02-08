@@ -1486,7 +1486,7 @@ function NewFollowersPane({
 
 // A processed stream item (either a single notification or a clustered group)
 interface StreamItem {
-  kind: 'like-cluster' | 'repost-cluster' | 'reply' | 'quote' | 'mention' | 'follow';
+  kind: 'like-cluster' | 'repost-cluster' | 'reply' | 'quote' | 'mention';
   // For clusters
   authors: NotificationItem['author'][];
   // For single items
@@ -1571,16 +1571,8 @@ function buildStreamItems(notifications: NotificationItem[], activeFilter: strin
         isUnread: !n.isRead,
         actionLabel: 'mentioned you',
       });
-    } else if (n.reason === 'follow') {
-      items.push({
-        kind: 'follow',
-        authors: [n.author],
-        author: n.author,
-        time: n.indexedAt,
-        isUnread: !n.isRead,
-        actionLabel: 'followed you',
-      });
     }
+    // Follows are excluded — they appear in the NewFollowersPane instead
   }
 
   // Build like clusters
@@ -1672,14 +1664,6 @@ const STREAM_ICONS: Record<StreamItem['kind'], { icon: React.ReactNode; color: s
     icon: (
       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 12a4 4 0 10-8 0 4 4 0 008 0zm0 0v1.5a2.5 2.5 0 005 0V12a9 9 0 10-9 9m4.5-1.206a8.959 8.959 0 01-4.5 1.207" />
-      </svg>
-    ),
-  },
-  follow: {
-    color: 'text-blue-500',
-    icon: (
-      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
       </svg>
     ),
   },
