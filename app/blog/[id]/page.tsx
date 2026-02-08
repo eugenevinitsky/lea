@@ -3,7 +3,7 @@
 import { useParams, useRouter } from 'next/navigation';
 import { useState, useEffect, useCallback, Suspense } from 'react';
 import { AppBskyFeedDefs } from '@atproto/api';
-import { getSession, getBlueskyProfile, getPostsByUris, searchPosts, buildProfileUrl } from '@/lib/bluesky';
+import { getSession, getBlueskyProfile, getPostsByUris, searchPosts, buildProfileUrl, checkVerificationStatus } from '@/lib/bluesky';
 import { initOAuth } from '@/lib/oauth';
 import { refreshAgent } from '@/lib/bluesky';
 import { SettingsProvider } from '@/lib/settings';
@@ -54,12 +54,17 @@ function BlogPageContent() {
   const [error, setError] = useState<string | null>(null);
   const [blogInfo, setBlogInfo] = useState<BlogPostInfo>({});
   const [threadUri, setThreadUri] = useState<string | null>(null);
+  const [isVerified, setIsVerified] = useState(false);
 
   // Restore session on mount
   useEffect(() => {
     initOAuth().then((result) => { refreshAgent(); const restored = !!result?.session;
       if (restored) {
         setIsLoggedIn(true);
+        const session = getSession();
+        if (session?.did) {
+          checkVerificationStatus(session.did).then(setIsVerified);
+        }
       }
       setIsLoading(false);
     });
@@ -323,9 +328,19 @@ function BlogPageContent() {
           <div className="flex items-center gap-3">
             <button
               onClick={() => window.location.href = buildProfileUrl(session?.handle || '', session?.did)}
-              className="px-3 py-1.5 text-sm font-medium text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30 hover:bg-blue-100 dark:hover:bg-blue-900/50 rounded-full transition-colors"
+              className={`px-3 py-1.5 text-sm font-medium rounded-full transition-colors flex items-center gap-1.5 ${
+                isVerified
+                  ? 'text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/30 hover:bg-emerald-100 dark:hover:bg-emerald-900/50'
+                  : 'text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30 hover:bg-blue-100 dark:hover:bg-blue-900/50'
+              }`}
+              title={isVerified ? 'Verified researcher' : undefined}
             >
               @{session?.handle}
+              {isVerified && (
+                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                  <path fillRule="evenodd" d="M8.603 3.799A4.49 4.49 0 0112 2.25c1.357 0 2.573.6 3.397 1.549a4.49 4.49 0 013.498 1.307 4.491 4.491 0 011.307 3.497A4.49 4.49 0 0121.75 12a4.49 4.49 0 01-1.549 3.397 4.491 4.491 0 01-1.307 3.497 4.491 4.491 0 01-3.497 1.307A4.49 4.49 0 0112 21.75a4.49 4.49 0 01-3.397-1.549 4.49 4.49 0 01-3.498-1.306 4.491 4.491 0 01-1.307-3.498A4.49 4.49 0 012.25 12c0-1.357.6-2.573 1.549-3.397a4.49 4.49 0 011.307-3.497 4.49 4.49 0 013.497-1.307zm7.007 6.387a.75.75 0 10-1.22-.872l-3.236 4.53L9.53 12.22a.75.75 0 00-1.06 1.06l2.25 2.25a.75.75 0 001.14-.094l3.75-5.25z" clipRule="evenodd" />
+                </svg>
+              )}
             </button>
           </div>
         </div>

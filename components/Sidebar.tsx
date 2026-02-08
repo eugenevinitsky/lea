@@ -122,7 +122,7 @@ export default function Sidebar({ openComposer }: SidebarProps) {
         {openComposer && (
           <button
             onClick={() => openComposer()}
-            className="mt-2 p-3 lg:py-2 lg:w-full bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white text-sm font-medium rounded-full flex items-center justify-center gap-1.5 transition-all shadow-sm"
+            className="mt-2 p-3 lg:py-2 lg:px-6 lg:self-center bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white text-sm font-medium rounded-full flex items-center justify-center gap-1.5 transition-all shadow-sm"
             title="New Post"
           >
             <svg className="w-5 h-5 lg:w-4 lg:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
