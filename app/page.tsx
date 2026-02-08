@@ -458,7 +458,7 @@ function AppContent() {
           {/* Desktop header - matches body layout */}
           <div className="hidden lg:flex items-center gap-4">
             {/* Left section matching sidebar width */}
-            <div className="w-64 flex-shrink-0">
+            <div className="w-56 flex-shrink-0">
               <h1
                 className="text-xl font-bold text-blue-500 cursor-pointer hover:text-blue-600 transition-colors"
                 onClick={() => window.location.reload()}

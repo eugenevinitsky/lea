@@ -33,7 +33,7 @@ export default function Sidebar({ openComposer }: SidebarProps) {
   }, []);
 
   return (
-    <aside className="hidden md:block flex-shrink-0 sticky top-14 self-start pt-4 pb-4 w-14 lg:w-48">
+    <aside className="hidden md:block flex-shrink-0 sticky top-14 self-start pt-4 pb-4 w-14 lg:w-40">
       <nav className="flex flex-col gap-1 items-center lg:items-stretch">
         {/* Bookmarks */}
         <a
