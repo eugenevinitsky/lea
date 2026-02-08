@@ -268,7 +268,7 @@ function SearchPageContent() {
       {/* Main layout */}
       <div className="max-w-5xl mx-auto px-0 lg:px-4">
         <div className="flex lg:gap-4 lg:items-start">
-        <Sidebar />
+        <Sidebar openComposer={openComposer} />
 
         {/* Main content */}
         <main className="flex-1 w-full lg:max-w-xl bg-white dark:bg-gray-950 min-h-screen border-x border-gray-200 dark:border-gray-800">
