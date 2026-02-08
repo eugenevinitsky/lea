@@ -19,30 +19,10 @@ describe('Content Security Policy Configuration', () => {
   };
 
   describe('connect-src directive', () => {
-    it('should allow video.bsky.app for video streaming', async () => {
+    it('should allow all HTTPS origins for federated ATProto PDS support', async () => {
       const csp = await getCSPHeader();
       expect(csp).not.toBeNull();
-      expect(csp).toContain('video.bsky.app');
-    });
-
-    it('should allow bsky.social for API requests', async () => {
-      const csp = await getCSPHeader();
-      expect(csp).toContain('bsky.social');
-    });
-
-    it('should allow public.api.bsky.app for public API', async () => {
-      const csp = await getCSPHeader();
-      expect(csp).toContain('public.api.bsky.app');
-    });
-
-    it('should allow bsky.network wildcard for CDN/network services', async () => {
-      const csp = await getCSPHeader();
-      expect(csp).toContain('*.bsky.network');
-    });
-
-    it('should allow plc.directory for DID resolution', async () => {
-      const csp = await getCSPHeader();
-      expect(csp).toContain('plc.directory');
+      expect(csp).toContain("connect-src 'self' https:");
     });
 
     it('should allow WebSocket connections to bsky.network', async () => {
@@ -70,20 +50,12 @@ describe('Content Security Policy Configuration', () => {
     });
   });
 
-  describe('Required Bluesky domains', () => {
-    const requiredDomains = [
-      'video.bsky.app',      // Video streaming (HLS playlist)
-      'video.cdn.bsky.app',  // Video streaming (HLS segments)
-      'bsky.social',         // Main API
-      'public.api.bsky.app', // Public API
-      'plc.directory',       // DID resolution
-    ];
-
-    requiredDomains.forEach(domain => {
-      it(`should include ${domain} in CSP`, async () => {
-        const csp = await getCSPHeader();
-        expect(csp).toContain(domain);
-      });
+  describe('Required Bluesky connectivity', () => {
+    it('should allow https: to cover all ATProto PDS domains', async () => {
+      const csp = await getCSPHeader();
+      // https: covers bsky.social, public.api.bsky.app, video.bsky.app,
+      // video.cdn.bsky.app, plc.directory, and any self-hosted PDS
+      expect(csp).toContain('https:');
     });
   });
 });
