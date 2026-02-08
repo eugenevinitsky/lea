@@ -6,19 +6,16 @@ import { useState, useEffect, useCallback } from 'react';
 // Theme token types
 // ---------------------------------------------------------------------------
 interface ThemeTokens {
-  // Fonts
   headingFont: string;
   bodyFont: string;
   monoFont: string;
-  // Sizes
-  headingSize: string;     // e.g. '2rem'
-  subheadingSize: string;  // e.g. '1.15rem'
-  bodySize: string;        // e.g. '0.875rem'
-  smallSize: string;       // e.g. '0.75rem'
+  headingSize: string;
+  subheadingSize: string;
+  bodySize: string;
+  smallSize: string;
   headingWeight: string;
   headingLetterSpacing: string;
   bodyLineHeight: string;
-  // Colors
   bg: string;
   fg: string;
   accent: string;
@@ -27,7 +24,6 @@ interface ThemeTokens {
   border: string;
   cardBg: string;
   highlightBg: string;
-  // Spacing / shape
   cardRadius: string;
   cardPadding: string;
   borderWidth: string;
@@ -36,82 +32,247 @@ interface ThemeTokens {
 // ---------------------------------------------------------------------------
 // Presets
 // ---------------------------------------------------------------------------
-const PRESETS: Record<string, ThemeTokens> = {
+const PRESETS: Record<string, { label: string; tokens: ThemeTokens }> = {
   default: {
-    headingFont: 'Geist, system-ui, sans-serif',
-    bodyFont: 'Geist, system-ui, sans-serif',
-    monoFont: 'Geist Mono, monospace',
-    headingSize: '1.5rem',
-    subheadingSize: '0.875rem',
-    bodySize: '0.875rem',
-    smallSize: '0.75rem',
-    headingWeight: '700',
-    headingLetterSpacing: '0',
-    bodyLineHeight: '1.5',
-    bg: '#f9fafb',
-    fg: '#111827',
-    accent: '#3b82f6',
-    accentFg: '#ffffff',
-    muted: '#6b7280',
-    border: '#e5e7eb',
-    cardBg: '#ffffff',
-    highlightBg: '#eff6ff',
-    cardRadius: '0.75rem',
-    cardPadding: '1rem',
-    borderWidth: '1px',
+    label: 'Default',
+    tokens: {
+      headingFont: 'Geist, system-ui, sans-serif',
+      bodyFont: 'Geist, system-ui, sans-serif',
+      monoFont: 'Geist Mono, monospace',
+      headingSize: '1.5rem',
+      subheadingSize: '0.875rem',
+      bodySize: '0.875rem',
+      smallSize: '0.75rem',
+      headingWeight: '700',
+      headingLetterSpacing: '0',
+      bodyLineHeight: '1.5',
+      bg: '#f9fafb',
+      fg: '#111827',
+      accent: '#3b82f6',
+      accentFg: '#ffffff',
+      muted: '#6b7280',
+      border: '#e5e7eb',
+      cardBg: '#ffffff',
+      highlightBg: '#eff6ff',
+      cardRadius: '0.75rem',
+      cardPadding: '1rem',
+      borderWidth: '1px',
+    },
   },
   surface: {
-    headingFont: 'Playfair Display, Georgia, serif',
-    bodyFont: 'Inter, system-ui, sans-serif',
-    monoFont: 'Geist Mono, monospace',
-    headingSize: '1.75rem',
-    subheadingSize: '0.95rem',
-    bodySize: '0.9rem',
-    smallSize: '0.8rem',
-    headingWeight: '800',
-    headingLetterSpacing: '-0.02em',
-    bodyLineHeight: '1.6',
-    bg: '#fafafa',
-    fg: '#1a1a1a',
-    accent: '#1a1a1a',
-    accentFg: '#ffffff',
-    muted: '#737373',
-    border: '#e0e0e0',
-    cardBg: '#ffffff',
-    highlightBg: '#f5f0eb',
-    cardRadius: '0',
-    cardPadding: '1.25rem',
-    borderWidth: '1px',
+    label: 'Surface',
+    tokens: {
+      headingFont: 'Playfair Display, Georgia, serif',
+      bodyFont: 'Inter, system-ui, sans-serif',
+      monoFont: 'Geist Mono, monospace',
+      headingSize: '1.75rem',
+      subheadingSize: '0.95rem',
+      bodySize: '0.9rem',
+      smallSize: '0.8rem',
+      headingWeight: '800',
+      headingLetterSpacing: '-0.02em',
+      bodyLineHeight: '1.6',
+      bg: '#fafafa',
+      fg: '#1a1a1a',
+      accent: '#1a1a1a',
+      accentFg: '#ffffff',
+      muted: '#737373',
+      border: '#e0e0e0',
+      cardBg: '#ffffff',
+      highlightBg: '#f5f0eb',
+      cardRadius: '0',
+      cardPadding: '1.25rem',
+      borderWidth: '1px',
+    },
   },
   thibault: {
-    headingFont: 'Space Grotesk, system-ui, sans-serif',
-    bodyFont: 'Inter, system-ui, sans-serif',
-    monoFont: 'Space Mono, monospace',
-    headingSize: '2rem',
-    subheadingSize: '1rem',
-    bodySize: '0.875rem',
-    smallSize: '0.75rem',
-    headingWeight: '700',
-    headingLetterSpacing: '-0.03em',
-    bodyLineHeight: '1.45',
-    bg: '#ffffff',
-    fg: '#0a0a0a',
-    accent: '#e11d48',
-    accentFg: '#ffffff',
-    muted: '#525252',
-    border: '#d4d4d4',
-    cardBg: '#ffffff',
-    highlightBg: '#fef2f2',
-    cardRadius: '0.25rem',
-    cardPadding: '0.875rem',
-    borderWidth: '2px',
+    label: 'Thibault',
+    tokens: {
+      headingFont: 'Space Grotesk, system-ui, sans-serif',
+      bodyFont: 'Inter, system-ui, sans-serif',
+      monoFont: 'Space Mono, monospace',
+      headingSize: '2rem',
+      subheadingSize: '1rem',
+      bodySize: '0.875rem',
+      smallSize: '0.75rem',
+      headingWeight: '700',
+      headingLetterSpacing: '-0.03em',
+      bodyLineHeight: '1.45',
+      bg: '#ffffff',
+      fg: '#0a0a0a',
+      accent: '#e11d48',
+      accentFg: '#ffffff',
+      muted: '#525252',
+      border: '#d4d4d4',
+      cardBg: '#ffffff',
+      highlightBg: '#fef2f2',
+      cardRadius: '0.25rem',
+      cardPadding: '0.875rem',
+      borderWidth: '2px',
+    },
+  },
+  academic: {
+    label: 'Academic',
+    tokens: {
+      headingFont: 'Source Serif 4, Georgia, serif',
+      bodyFont: 'Source Serif 4, Georgia, serif',
+      monoFont: 'Space Mono, monospace',
+      headingSize: '1.5rem',
+      subheadingSize: '0.95rem',
+      bodySize: '0.9rem',
+      smallSize: '0.8rem',
+      headingWeight: '700',
+      headingLetterSpacing: '0',
+      bodyLineHeight: '1.65',
+      bg: '#fdf8f0',
+      fg: '#292524',
+      accent: '#7c2d12',
+      accentFg: '#ffffff',
+      muted: '#78716c',
+      border: '#e7e5e4',
+      cardBg: '#fffdf9',
+      highlightBg: '#fef3c7',
+      cardRadius: '0.25rem',
+      cardPadding: '1.25rem',
+      borderWidth: '1px',
+    },
+  },
+  midnight: {
+    label: 'Midnight',
+    tokens: {
+      headingFont: 'Sora, system-ui, sans-serif',
+      bodyFont: 'Inter, system-ui, sans-serif',
+      monoFont: 'Space Mono, monospace',
+      headingSize: '1.5rem',
+      subheadingSize: '0.875rem',
+      bodySize: '0.875rem',
+      smallSize: '0.75rem',
+      headingWeight: '600',
+      headingLetterSpacing: '-0.01em',
+      bodyLineHeight: '1.5',
+      bg: '#0f172a',
+      fg: '#e2e8f0',
+      accent: '#818cf8',
+      accentFg: '#ffffff',
+      muted: '#94a3b8',
+      border: '#1e293b',
+      cardBg: '#1e293b',
+      highlightBg: '#1e1b4b',
+      cardRadius: '0.75rem',
+      cardPadding: '1rem',
+      borderWidth: '1px',
+    },
+  },
+  soft: {
+    label: 'Soft',
+    tokens: {
+      headingFont: 'DM Sans, system-ui, sans-serif',
+      bodyFont: 'DM Sans, system-ui, sans-serif',
+      monoFont: 'Geist Mono, monospace',
+      headingSize: '1.375rem',
+      subheadingSize: '0.875rem',
+      bodySize: '0.875rem',
+      smallSize: '0.75rem',
+      headingWeight: '600',
+      headingLetterSpacing: '0',
+      bodyLineHeight: '1.55',
+      bg: '#faf5ff',
+      fg: '#3b0764',
+      accent: '#9333ea',
+      accentFg: '#ffffff',
+      muted: '#7e22ce',
+      border: '#e9d5ff',
+      cardBg: '#ffffff',
+      highlightBg: '#f3e8ff',
+      cardRadius: '1rem',
+      cardPadding: '1rem',
+      borderWidth: '1px',
+    },
+  },
+  brutalist: {
+    label: 'Brutalist',
+    tokens: {
+      headingFont: 'Space Grotesk, system-ui, sans-serif',
+      bodyFont: 'Space Grotesk, system-ui, sans-serif',
+      monoFont: 'Space Mono, monospace',
+      headingSize: '2rem',
+      subheadingSize: '1rem',
+      bodySize: '0.875rem',
+      smallSize: '0.75rem',
+      headingWeight: '700',
+      headingLetterSpacing: '-0.04em',
+      bodyLineHeight: '1.4',
+      bg: '#ffffff',
+      fg: '#000000',
+      accent: '#000000',
+      accentFg: '#ffffff',
+      muted: '#555555',
+      border: '#000000',
+      cardBg: '#ffffff',
+      highlightBg: '#f0f0f0',
+      cardRadius: '0',
+      cardPadding: '1rem',
+      borderWidth: '2px',
+    },
+  },
+  forest: {
+    label: 'Forest',
+    tokens: {
+      headingFont: 'Libre Baskerville, Georgia, serif',
+      bodyFont: 'Inter, system-ui, sans-serif',
+      monoFont: 'Space Mono, monospace',
+      headingSize: '1.5rem',
+      subheadingSize: '0.875rem',
+      bodySize: '0.875rem',
+      smallSize: '0.75rem',
+      headingWeight: '700',
+      headingLetterSpacing: '0',
+      bodyLineHeight: '1.55',
+      bg: '#f0fdf4',
+      fg: '#14532d',
+      accent: '#16a34a',
+      accentFg: '#ffffff',
+      muted: '#4d7c0f',
+      border: '#bbf7d0',
+      cardBg: '#ffffff',
+      highlightBg: '#dcfce7',
+      cardRadius: '0.5rem',
+      cardPadding: '1rem',
+      borderWidth: '1px',
+    },
+  },
+  monochrome: {
+    label: 'Mono',
+    tokens: {
+      headingFont: 'Outfit, system-ui, sans-serif',
+      bodyFont: 'Outfit, system-ui, sans-serif',
+      monoFont: 'Geist Mono, monospace',
+      headingSize: '1.5rem',
+      subheadingSize: '0.875rem',
+      bodySize: '0.875rem',
+      smallSize: '0.75rem',
+      headingWeight: '600',
+      headingLetterSpacing: '-0.01em',
+      bodyLineHeight: '1.5',
+      bg: '#fafafa',
+      fg: '#171717',
+      accent: '#404040',
+      accentFg: '#fafafa',
+      muted: '#737373',
+      border: '#e5e5e5',
+      cardBg: '#ffffff',
+      highlightBg: '#f5f5f5',
+      cardRadius: '0.375rem',
+      cardPadding: '1rem',
+      borderWidth: '1px',
+    },
   },
 };
 
-const PRESET_NAMES = Object.keys(PRESETS) as (keyof typeof PRESETS)[];
+const PRESET_NAMES = Object.keys(PRESETS);
 
 // ---------------------------------------------------------------------------
-// Google Fonts loader
+// Google Fonts
 // ---------------------------------------------------------------------------
 const GOOGLE_FONTS = [
   'Playfair+Display:wght@400;600;700;800',
@@ -137,7 +298,6 @@ function loadGoogleFonts() {
   document.head.appendChild(link);
 }
 
-// Font options for dropdowns
 const FONT_OPTIONS = [
   'Geist, system-ui, sans-serif',
   'Inter, system-ui, sans-serif',
@@ -153,7 +313,6 @@ const FONT_OPTIONS = [
   'Geist Mono, monospace',
 ];
 
-// localStorage key
 const STORAGE_KEY = 'lea-style-lab-tokens';
 
 function loadSaved(): ThemeTokens | null {
@@ -235,7 +394,81 @@ function RangeInput({ label, value, onChange, min, max, step, unit }: {
 }
 
 // ---------------------------------------------------------------------------
-// Preview components (self-contained, using inline styles from tokens)
+// Mock data
+// ---------------------------------------------------------------------------
+const MOCK_POSTS = [
+  {
+    author: 'Leslie Root',
+    handle: 'leslieroot.bsky.social',
+    text: 'New paper on transformer interpretability just dropped — we show that attention heads in layers 8–12 consistently encode syntactic dependency arcs. Big implications for probing studies.',
+    time: '2h',
+    likes: 47,
+    reposts: 12,
+    replies: 8,
+    hasLink: true,
+    linkTitle: 'Syntactic Structure in Attention Heads',
+    linkDomain: 'arxiv.org',
+    verified: true,
+  },
+  {
+    author: 'Ted Underwood',
+    handle: 'tedunderwood.bsky.social',
+    text: 'I keep thinking about the gap between how we evaluate LLMs in benchmarks vs. how humanists actually want to use them. The tasks that matter most — nuanced interpretation, handling ambiguity — are exactly the ones we\'re worst at measuring.',
+    time: '4h',
+    likes: 103,
+    reposts: 31,
+    replies: 22,
+    verified: true,
+  },
+  {
+    author: 'Devon Dopfel',
+    handle: 'devondopfel.bsky.social',
+    text: 'We\'re hiring postdocs in computational social science at UW! Looking for people interested in studying online communities, platform governance, or algorithmic curation. Remote-friendly.',
+    time: '6h',
+    likes: 89,
+    reposts: 45,
+    replies: 5,
+    verified: true,
+  },
+  {
+    author: 'Emily Bender',
+    handle: 'emilybender.bsky.social',
+    text: 'Thread on why "alignment" framing obscures more than it reveals. The metaphor assumes a single axis along which systems can be oriented, but the actual problem space is multi-dimensional and context-dependent.',
+    time: '8h',
+    likes: 215,
+    reposts: 67,
+    replies: 34,
+    verified: true,
+  },
+  {
+    author: 'Yolanda Gil',
+    handle: 'yolandagil.bsky.social',
+    text: 'Excited to share our new paper on AI-assisted scientific discovery. We show that LLMs can help generate novel hypotheses when properly grounded in domain knowledge.',
+    time: '12h',
+    likes: 156,
+    reposts: 38,
+    replies: 19,
+    hasLink: true,
+    linkTitle: 'Grounded Hypothesis Generation with LLMs',
+    linkDomain: 'arxiv.org',
+    verified: true,
+  },
+  {
+    author: 'Percy Liang',
+    handle: 'percyliang.bsky.social',
+    text: 'Just realized I\'ve been using three different notation conventions for the same concept across my last four papers. Consistency is hard when you write with 20 collaborators.',
+    time: '14h',
+    likes: 312,
+    reposts: 15,
+    replies: 41,
+    verified: false,
+  },
+];
+
+const FEED_TABS = ['Following', 'Researchers', 'Papers', 'NLP', 'CompSci'];
+
+// ---------------------------------------------------------------------------
+// Preview components
 // ---------------------------------------------------------------------------
 
 function PreviewHeader({ t }: { t: ThemeTokens }) {
@@ -244,48 +477,54 @@ function PreviewHeader({ t }: { t: ThemeTokens }) {
       style={{
         background: t.cardBg,
         borderBottom: `${t.borderWidth} solid ${t.border}`,
-        padding: '0.75rem 1.25rem',
+        padding: '0.625rem 1rem',
         fontFamily: t.bodyFont,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
       }}
     >
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <span
+      <span
+        style={{
+          fontFamily: t.headingFont,
+          fontWeight: Number(t.headingWeight),
+          fontSize: '1.125rem',
+          letterSpacing: t.headingLetterSpacing,
+          color: t.fg,
+        }}
+      >
+        Lea
+      </span>
+      <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+        <div
           style={{
-            fontFamily: t.headingFont,
-            fontWeight: Number(t.headingWeight),
-            fontSize: '1.25rem',
-            letterSpacing: t.headingLetterSpacing,
-            color: t.accent,
+            background: t.bg,
+            border: `1px solid ${t.border}`,
+            borderRadius: '9999px',
+            padding: '0.3rem 0.75rem',
+            fontSize: t.smallSize,
+            color: t.muted,
+            width: '170px',
+            fontFamily: t.bodyFont,
           }}
         >
-          Lea
-        </span>
-        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-          <div
-            style={{
-              background: t.bg,
-              border: `1px solid ${t.border}`,
-              borderRadius: '9999px',
-              padding: '0.375rem 0.75rem',
-              fontSize: t.smallSize,
-              color: t.muted,
-              width: '200px',
-            }}
-          >
-            Search researchers…
-          </div>
-          <span
-            style={{
-              background: t.highlightBg,
-              color: t.accent,
-              borderRadius: '9999px',
-              padding: '0.375rem 0.75rem',
-              fontSize: t.smallSize,
-              fontWeight: 500,
-            }}
-          >
-            @maria.bsky.social
-          </span>
+          Search researchers…
+        </div>
+        <div
+          style={{
+            width: '1.75rem',
+            height: '1.75rem',
+            borderRadius: '9999px',
+            background: `linear-gradient(135deg, ${t.accent}44, ${t.accent}88)`,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: '0.625rem',
+            fontWeight: 700,
+            color: t.accentFg,
+          }}
+        >
+          M
         </div>
       </div>
     </header>
@@ -294,47 +533,51 @@ function PreviewHeader({ t }: { t: ThemeTokens }) {
 
 function PreviewSidebar({ t }: { t: ThemeTokens }) {
   const items = [
-    { label: 'Bookmarks', dot: false },
-    { label: 'Messages', dot: false },
-    { label: 'Notifications', dot: true },
-    { label: 'Discover', dot: false },
-    { label: 'Moderation', dot: false },
+    { label: 'Bookmarks', icon: '🔖' },
+    { label: 'Messages', icon: '💬' },
+    { label: 'Notifications', icon: '🔔', dot: true },
+    { label: 'Discover', icon: '🔍' },
+    { label: 'Moderation', icon: '🛡️' },
+    { label: 'Settings', icon: '⚙️' },
   ];
   return (
     <nav
       style={{
         fontFamily: t.bodyFont,
-        fontSize: t.bodySize,
         display: 'flex',
         flexDirection: 'column',
-        gap: '0.25rem',
+        gap: '0.125rem',
+        padding: '0.5rem 0',
       }}
     >
       {items.map((item) => (
         <div
           key={item.label}
           style={{
-            padding: '0.5rem 0.75rem',
+            padding: '0.4rem 0.625rem',
             borderRadius: t.cardRadius,
             color: t.fg,
             cursor: 'pointer',
             display: 'flex',
             alignItems: 'center',
-            justifyContent: 'space-between',
+            gap: '0.5rem',
             fontWeight: 500,
+            fontSize: t.smallSize,
             transition: 'background 0.15s',
           }}
           onMouseEnter={(e) => (e.currentTarget.style.background = t.highlightBg)}
           onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
         >
+          <span style={{ fontSize: '0.8rem', width: '1.125rem', textAlign: 'center' }}>{item.icon}</span>
           <span>{item.label}</span>
           {item.dot && (
             <span
               style={{
-                width: '0.5rem',
-                height: '0.5rem',
+                width: '0.4rem',
+                height: '0.4rem',
                 borderRadius: '9999px',
                 background: t.accent,
+                marginLeft: 'auto',
               }}
             />
           )}
@@ -342,16 +585,17 @@ function PreviewSidebar({ t }: { t: ThemeTokens }) {
       ))}
       <button
         style={{
-          marginTop: '0.5rem',
-          padding: '0.5rem',
+          marginTop: '0.375rem',
+          padding: '0.375rem',
           borderRadius: '9999px',
           background: t.accent,
           color: t.accentFg,
           fontWeight: 600,
-          fontSize: t.bodySize,
+          fontSize: t.smallSize,
           border: 'none',
           cursor: 'pointer',
           textAlign: 'center',
+          fontFamily: t.bodyFont,
         }}
       >
         New Post
@@ -360,24 +604,59 @@ function PreviewSidebar({ t }: { t: ThemeTokens }) {
   );
 }
 
-function PreviewNotificationRow({ t, unread, icon, name, action, time, preview }: {
-  t: ThemeTokens; unread: boolean; icon: string; name: string;
-  action: string; time: string; preview?: string;
+function PreviewFeedTabs({ t }: { t: ThemeTokens }) {
+  return (
+    <div
+      style={{
+        display: 'flex',
+        borderBottom: `1px solid ${t.border}`,
+        fontFamily: t.bodyFont,
+        fontSize: t.smallSize,
+        overflowX: 'auto',
+      }}
+    >
+      {FEED_TABS.map((tab, i) => (
+        <button
+          key={tab}
+          style={{
+            padding: '0.5rem 0.75rem',
+            fontWeight: i === 0 ? 600 : 500,
+            color: i === 0 ? t.accent : t.muted,
+            background: 'none',
+            border: 'none',
+            borderBottom: `2px solid ${i === 0 ? t.accent : 'transparent'}`,
+            cursor: 'pointer',
+            whiteSpace: 'nowrap',
+            flexShrink: 0,
+            fontFamily: t.bodyFont,
+          }}
+        >
+          {tab}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function PreviewPost({ t, post }: {
+  t: ThemeTokens;
+  post: typeof MOCK_POSTS[0];
 }) {
   return (
     <div
       style={{
         display: 'flex',
-        gap: '0.75rem',
-        padding: '0.75rem 1rem',
+        gap: '0.625rem',
+        padding: t.cardPadding,
         borderBottom: `1px solid ${t.border}`,
-        background: unread ? t.highlightBg : 'transparent',
         fontFamily: t.bodyFont,
         cursor: 'pointer',
         transition: 'background 0.15s',
       }}
+      onMouseEnter={(e) => (e.currentTarget.style.background = t.highlightBg)}
+      onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
     >
-      {/* Avatar placeholder */}
+      {/* Avatar */}
       <div
         style={{
           width: '2.25rem',
@@ -393,142 +672,125 @@ function PreviewNotificationRow({ t, unread, icon, name, action, time, preview }
           color: t.accent,
         }}
       >
-        {name[0]}
+        {post.author[0]}
       </div>
+
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
-          <span style={{ fontSize: t.smallSize, flexShrink: 0 }}>{icon}</span>
-          <span style={{ fontSize: t.bodySize }}>
-            <strong style={{ color: t.fg }}>{name}</strong>
-            <span style={{ color: t.muted }}> {action}</span>
-          </span>
-          <span style={{ marginLeft: 'auto', fontSize: t.smallSize, color: t.muted, flexShrink: 0 }}>{time}</span>
+        {/* Author line */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', flexWrap: 'wrap' }}>
+          <span style={{ fontSize: t.bodySize, fontWeight: 600, color: t.fg }}>{post.author}</span>
+          {post.verified && (
+            <span style={{ fontSize: '0.7rem', color: t.accent }} title="Verified researcher">✓</span>
+          )}
+          <span style={{ fontSize: t.smallSize, color: t.muted }}>@{post.handle}</span>
+          <span style={{ fontSize: t.smallSize, color: t.muted }}>· {post.time}</span>
         </div>
-        {preview && (
-          <p style={{ marginTop: '0.125rem', fontSize: t.smallSize, color: t.muted, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-            {preview}
-          </p>
+
+        {/* Post text */}
+        <p style={{
+          margin: '0.25rem 0 0',
+          fontSize: t.bodySize,
+          lineHeight: t.bodyLineHeight,
+          color: t.fg,
+        }}>
+          {post.text}
+        </p>
+
+        {/* Link embed */}
+        {post.hasLink && post.linkTitle && (
+          <div
+            style={{
+              marginTop: '0.5rem',
+              border: `1px solid ${t.border}`,
+              borderRadius: t.cardRadius,
+              overflow: 'hidden',
+            }}
+          >
+            <div style={{ padding: '0.5rem 0.75rem', background: t.highlightBg }}>
+              <div style={{ fontSize: t.smallSize, color: t.muted, marginBottom: '0.125rem' }}>
+                📄 {post.linkDomain}
+              </div>
+              <div style={{ fontSize: t.bodySize, fontWeight: 600, color: t.fg }}>
+                {post.linkTitle}
+              </div>
+            </div>
+          </div>
         )}
+
+        {/* Action bar */}
+        <div style={{
+          display: 'flex',
+          gap: '1rem',
+          marginTop: '0.5rem',
+          fontSize: t.smallSize,
+          color: t.muted,
+        }}>
+          <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', cursor: 'pointer' }}>
+            💬 {post.replies}
+          </span>
+          <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', cursor: 'pointer' }}>
+            🔄 {post.reposts}
+          </span>
+          <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', cursor: 'pointer' }}>
+            ❤️ {post.likes}
+          </span>
+          <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', cursor: 'pointer', marginLeft: 'auto' }}>
+            🔖
+          </span>
+        </div>
       </div>
     </div>
   );
 }
 
-function PreviewNotificationStream({ t }: { t: ThemeTokens }) {
+function PreviewRightSidebar({ t }: { t: ThemeTokens }) {
   return (
     <div
       style={{
-        background: t.cardBg,
-        borderRadius: t.cardRadius,
-        border: `${t.borderWidth} solid ${t.border}`,
-        overflow: 'hidden',
-      }}
-    >
-      <PreviewNotificationRow t={t} unread icon="❤️" name="Leslie Root" action="and 3 others liked your post" time="15m" preview="New paper on transformer interpretability just dropped..." />
-      <PreviewNotificationRow t={t} unread icon="💬" name="Ted Underwood" action="replied to your post" time="32m" preview="Really interesting — have you seen the follow-up by Kim et al.?" />
-      <PreviewNotificationRow t={t} unread={false} icon="🔄" name="Devon Dopfel" action="and 1 other reposted your post" time="2h" preview="We're hiring postdocs in computational social science..." />
-      <PreviewNotificationRow t={t} unread={false} icon="💜" name="Ari Holtzman" action="quoted your post" time="5h" preview="Great thread on evaluation methodology. I'd add that..." />
-      <PreviewNotificationRow t={t} unread={false} icon="@" name="Emily Bender" action="mentioned you" time="8h" preview="cc @maria — you might find this relevant to your work on..." />
-    </div>
-  );
-}
-
-function PreviewBookmarkTile({ t, author, text, tag }: {
-  t: ThemeTokens; author: string; text: string; tag?: string;
-}) {
-  return (
-    <div
-      style={{
-        background: t.cardBg,
-        borderRadius: t.cardRadius,
-        border: `${t.borderWidth} solid ${t.border}`,
-        padding: t.cardPadding,
         fontFamily: t.bodyFont,
-      }}
-    >
-      <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', marginBottom: '0.375rem' }}>
-        <div
-          style={{
-            width: '1.5rem',
-            height: '1.5rem',
-            borderRadius: '9999px',
-            background: `${t.accent}22`,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontSize: '0.625rem',
-            fontWeight: 700,
-            color: t.accent,
-          }}
-        >
-          {author[0]}
-        </div>
-        <span style={{ fontSize: t.smallSize, fontWeight: 600, color: t.fg }}>{author}</span>
-        <span style={{ fontSize: t.smallSize, color: t.muted }}>· 2d</span>
-      </div>
-      <p style={{ fontSize: t.bodySize, color: t.fg, lineHeight: t.bodyLineHeight, display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
-        {text}
-      </p>
-      {tag && (
-        <div style={{ marginTop: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-          <span style={{ fontSize: t.smallSize, color: t.accent, fontWeight: 500 }}>📄 {tag}</span>
-        </div>
-      )}
-    </div>
-  );
-}
-
-function PreviewFollowerRow({ t, name, handle, mutual }: {
-  t: ThemeTokens; name: string; handle: string; mutual?: boolean;
-}) {
-  return (
-    <div
-      style={{
+        fontSize: t.smallSize,
         display: 'flex',
-        alignItems: 'center',
-        gap: '0.625rem',
-        padding: '0.5rem 0.75rem',
-        borderBottom: `1px solid ${t.border}`,
-        fontFamily: t.bodyFont,
+        flexDirection: 'column',
+        borderLeft: `1px solid ${t.border}`,
+        borderRight: `1px solid ${t.border}`,
       }}
     >
+      <div style={{ display: 'flex', borderBottom: `1px solid ${t.border}` }}>
+        <div style={{ flex: 1, padding: '0.375rem', textAlign: 'center', color: t.muted, cursor: 'pointer' }}>↻</div>
+        <div style={{ flex: 1, padding: '0.375rem', textAlign: 'center', color: t.muted, cursor: 'pointer', borderLeft: `1px solid ${t.border}` }}>↑</div>
+      </div>
+      {FEED_TABS.map((tab, i) => (
+        <div
+          key={tab}
+          style={{
+            padding: '0.4rem 0.5rem',
+            fontWeight: i === 0 ? 600 : 500,
+            color: i === 0 ? t.accent : t.muted,
+            background: i === 0 ? t.cardBg : 'transparent',
+            cursor: 'pointer',
+            transition: 'background 0.15s',
+            fontFamily: t.bodyFont,
+          }}
+          onMouseEnter={(e) => { if (i !== 0) e.currentTarget.style.background = t.highlightBg; }}
+          onMouseLeave={(e) => { if (i !== 0) e.currentTarget.style.background = 'transparent'; }}
+        >
+          {tab}
+        </div>
+      ))}
       <div
         style={{
-          width: '2rem',
-          height: '2rem',
-          borderRadius: '9999px',
-          background: `linear-gradient(135deg, ${t.muted}33, ${t.muted}66)`,
+          padding: '0.4rem 0.5rem',
+          color: t.muted,
+          cursor: 'pointer',
+          borderTop: `1px solid ${t.border}`,
           display: 'flex',
           alignItems: 'center',
-          justifyContent: 'center',
-          fontSize: '0.625rem',
-          fontWeight: 700,
-          color: t.muted,
+          gap: '0.375rem',
+          fontFamily: t.bodyFont,
         }}
       >
-        {name[0]}
+        ⚙ Feeds
       </div>
-      <div style={{ flex: 1 }}>
-        <div style={{ fontSize: t.bodySize, fontWeight: 600, color: t.fg }}>{name}</div>
-        <div style={{ fontSize: t.smallSize, color: t.muted }}>@{handle}</div>
-      </div>
-      {mutual && (
-        <span style={{ fontSize: t.smallSize, color: t.muted }}>3 mutuals</span>
-      )}
-      <button
-        style={{
-          fontSize: t.smallSize,
-          padding: '0.25rem 0.625rem',
-          borderRadius: '9999px',
-          background: `${t.accent}15`,
-          color: t.accent,
-          border: 'none',
-          fontWeight: 600,
-          cursor: 'pointer',
-        }}
-      >
-        Follow
-      </button>
     </div>
   );
 }
@@ -537,7 +799,7 @@ function PreviewFollowerRow({ t, name, handle, mutual }: {
 // Main Page
 // ---------------------------------------------------------------------------
 export default function StyleLabPage() {
-  const [tokens, setTokens] = useState<ThemeTokens>(() => loadSaved() || PRESETS.default);
+  const [tokens, setTokens] = useState<ThemeTokens>(() => loadSaved() || PRESETS.default.tokens);
   const [activePreset, setActivePreset] = useState<string | null>(null);
 
   useEffect(() => {
@@ -554,7 +816,7 @@ export default function StyleLabPage() {
   }, []);
 
   const applyPreset = (name: string) => {
-    setTokens(PRESETS[name]);
+    setTokens(PRESETS[name].tokens);
     setActivePreset(name);
   };
 
@@ -567,44 +829,43 @@ export default function StyleLabPage() {
   return (
     <div style={{ background: '#f3f4f6', minHeight: '100vh', fontFamily: 'system-ui, sans-serif' }}>
       {/* Top bar */}
-      <div style={{ background: '#1f2937', color: '#f9fafb', padding: '0.75rem 1.5rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, zIndex: 50 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-          <a href="/" style={{ color: '#60a5fa', fontWeight: 700, textDecoration: 'none' }}>← Lea</a>
+      <div style={{ background: '#1f2937', color: '#f9fafb', padding: '0.625rem 1.25rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, zIndex: 50 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+          <a href="/" style={{ color: '#60a5fa', fontWeight: 700, textDecoration: 'none', fontSize: '0.875rem' }}>← Lea</a>
           <span style={{ fontWeight: 700, fontSize: '1rem' }}>Style Lab</span>
-          <span style={{ fontSize: '0.75rem', color: '#9ca3af' }}>Experimental design playground</span>
+          <span style={{ fontSize: '0.75rem', color: '#9ca3af' }}>Design playground</span>
         </div>
-        <div style={{ display: 'flex', gap: '0.5rem' }}>
+        <div style={{ display: 'flex', gap: '0.375rem', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
           {PRESET_NAMES.map((name) => (
             <button
               key={name}
               onClick={() => applyPreset(name)}
               style={{
-                padding: '0.375rem 0.75rem',
+                padding: '0.25rem 0.5rem',
                 borderRadius: '0.375rem',
-                fontSize: '0.8rem',
+                fontSize: '0.7rem',
                 fontWeight: 600,
                 border: activePreset === name ? '2px solid #60a5fa' : '1px solid #4b5563',
                 background: activePreset === name ? '#1e3a5f' : 'transparent',
                 color: activePreset === name ? '#93c5fd' : '#d1d5db',
                 cursor: 'pointer',
-                textTransform: 'capitalize',
               }}
             >
-              {name}
+              {PRESETS[name].label}
             </button>
           ))}
           <button
             onClick={exportTokens}
             style={{
-              padding: '0.375rem 0.75rem',
+              padding: '0.25rem 0.5rem',
               borderRadius: '0.375rem',
-              fontSize: '0.8rem',
+              fontSize: '0.7rem',
               fontWeight: 600,
               border: '1px solid #4b5563',
               background: 'transparent',
               color: '#d1d5db',
               cursor: 'pointer',
-              marginLeft: '0.5rem',
+              marginLeft: '0.25rem',
             }}
           >
             Copy JSON
@@ -612,13 +873,13 @@ export default function StyleLabPage() {
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '320px 1fr', gap: '1.5rem', padding: '1.5rem', maxWidth: '1400px', margin: '0 auto' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '280px 1fr', gap: '1.25rem', padding: '1.25rem', maxWidth: '1400px', margin: '0 auto' }}>
         {/* ── Controls Panel ── */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
           {/* Typography */}
-          <div style={{ background: 'white', borderRadius: '0.75rem', border: '1px solid #e5e7eb', padding: '1rem' }}>
-            <h3 style={{ fontWeight: 700, fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#6b7280', marginBottom: '0.75rem' }}>Typography</h3>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+          <div style={{ background: 'white', borderRadius: '0.75rem', border: '1px solid #e5e7eb', padding: '0.875rem' }}>
+            <h3 style={{ fontWeight: 700, fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#6b7280', marginBottom: '0.625rem' }}>Typography</h3>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.625rem' }}>
               <FontSelect label="Heading Font" value={tokens.headingFont} onChange={(v) => update('headingFont', v)} />
               <FontSelect label="Body Font" value={tokens.bodyFont} onChange={(v) => update('bodyFont', v)} />
               <RangeInput label="Heading Size" value={tokens.headingSize} onChange={(v) => update('headingSize', v)} min={1} max={3} step={0.125} unit="rem" />
@@ -630,23 +891,23 @@ export default function StyleLabPage() {
           </div>
 
           {/* Colors */}
-          <div style={{ background: 'white', borderRadius: '0.75rem', border: '1px solid #e5e7eb', padding: '1rem' }}>
-            <h3 style={{ fontWeight: 700, fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#6b7280', marginBottom: '0.75rem' }}>Colors</h3>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+          <div style={{ background: 'white', borderRadius: '0.75rem', border: '1px solid #e5e7eb', padding: '0.875rem' }}>
+            <h3 style={{ fontWeight: 700, fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#6b7280', marginBottom: '0.625rem' }}>Colors</h3>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.625rem' }}>
               <ColorInput label="Background" value={tokens.bg} onChange={(v) => update('bg', v)} />
               <ColorInput label="Foreground" value={tokens.fg} onChange={(v) => update('fg', v)} />
               <ColorInput label="Accent" value={tokens.accent} onChange={(v) => update('accent', v)} />
               <ColorInput label="Muted" value={tokens.muted} onChange={(v) => update('muted', v)} />
               <ColorInput label="Border" value={tokens.border} onChange={(v) => update('border', v)} />
               <ColorInput label="Card BG" value={tokens.cardBg} onChange={(v) => update('cardBg', v)} />
-              <ColorInput label="Highlight BG" value={tokens.highlightBg} onChange={(v) => update('highlightBg', v)} />
+              <ColorInput label="Highlight" value={tokens.highlightBg} onChange={(v) => update('highlightBg', v)} />
             </div>
           </div>
 
           {/* Shape */}
-          <div style={{ background: 'white', borderRadius: '0.75rem', border: '1px solid #e5e7eb', padding: '1rem' }}>
-            <h3 style={{ fontWeight: 700, fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#6b7280', marginBottom: '0.75rem' }}>Shape &amp; Spacing</h3>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+          <div style={{ background: 'white', borderRadius: '0.75rem', border: '1px solid #e5e7eb', padding: '0.875rem' }}>
+            <h3 style={{ fontWeight: 700, fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#6b7280', marginBottom: '0.625rem' }}>Shape &amp; Spacing</h3>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.625rem' }}>
               <RangeInput label="Card Radius" value={tokens.cardRadius} onChange={(v) => update('cardRadius', v)} min={0} max={1.5} step={0.125} unit="rem" />
               <RangeInput label="Card Padding" value={tokens.cardPadding} onChange={(v) => update('cardPadding', v)} min={0.5} max={2} step={0.125} unit="rem" />
               <RangeInput label="Border Width" value={tokens.borderWidth} onChange={(v) => update('borderWidth', v)} min={0} max={3} step={0.5} unit="px" />
@@ -654,111 +915,40 @@ export default function StyleLabPage() {
           </div>
         </div>
 
-        {/* ── Preview Area ── */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-          {/* Type specimen */}
-          <div
-            style={{
-              background: tokens.bg,
-              borderRadius: '0.75rem',
-              border: '1px solid #e5e7eb',
-              padding: '2rem',
-              overflow: 'hidden',
-            }}
-          >
-            <h2
-              style={{
-                fontFamily: tokens.headingFont,
-                fontWeight: Number(tokens.headingWeight),
-                fontSize: tokens.headingSize,
-                letterSpacing: tokens.headingLetterSpacing,
-                color: tokens.fg,
-                marginBottom: '0.25rem',
-              }}
-            >
-              Notifications
-            </h2>
-            <p style={{ fontFamily: tokens.bodyFont, fontSize: tokens.subheadingSize, color: tokens.muted, lineHeight: tokens.bodyLineHeight }}>
-              42 notifications in the last 48 hours
-            </p>
-            <div style={{ marginTop: '1.5rem', display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-              {['All', 'Replies', 'Likes', 'Reposts', 'Quotes'].map((label, i) => (
-                <span
-                  key={label}
-                  style={{
-                    fontFamily: tokens.bodyFont,
-                    fontSize: tokens.smallSize,
-                    padding: '0.25rem 0.75rem',
-                    borderRadius: '9999px',
-                    fontWeight: 600,
-                    background: i === 0 ? tokens.accent : `${tokens.accent}10`,
-                    color: i === 0 ? tokens.accentFg : tokens.accent,
-                    cursor: 'pointer',
-                  }}
-                >
-                  {label}
-                </span>
-              ))}
-            </div>
-          </div>
+        {/* ── Preview Area: Homepage Layout ── */}
+        <div
+          style={{
+            background: tokens.bg,
+            borderRadius: '0.75rem',
+            border: '1px solid #e5e7eb',
+            overflow: 'hidden',
+            display: 'flex',
+            flexDirection: 'column',
+          }}
+        >
+          {/* App header */}
+          <PreviewHeader t={tokens} />
 
-          {/* Header preview */}
-          <div style={{ borderRadius: '0.75rem', border: '1px solid #e5e7eb', overflow: 'hidden' }}>
-            <PreviewHeader t={tokens} />
-          </div>
-
-          {/* Two-column layout preview */}
-          <div style={{ display: 'grid', gridTemplateColumns: '180px 1fr', gap: '1rem' }}>
-            {/* Sidebar */}
-            <div style={{ background: tokens.cardBg, borderRadius: tokens.cardRadius, border: `${tokens.borderWidth} solid ${tokens.border}`, padding: tokens.cardPadding }}>
+          {/* Main layout: sidebar + feed + right sidebar */}
+          <div style={{ display: 'grid', gridTemplateColumns: '130px 1fr 110px', flex: 1 }}>
+            {/* Left sidebar */}
+            <div style={{ background: tokens.cardBg, borderRight: `1px solid ${tokens.border}`, padding: '0.25rem 0.375rem' }}>
               <PreviewSidebar t={tokens} />
             </div>
 
-            {/* Notification stream */}
-            <PreviewNotificationStream t={tokens} />
-          </div>
-
-          {/* Bookmarks + Followers */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-            {/* Bookmarks */}
-            <div>
-              <h3
-                style={{
-                  fontFamily: tokens.headingFont,
-                  fontWeight: Number(tokens.headingWeight),
-                  fontSize: tokens.subheadingSize,
-                  letterSpacing: tokens.headingLetterSpacing,
-                  color: tokens.fg,
-                  marginBottom: '0.5rem',
-                }}
-              >
-                Bookmarks
-              </h3>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                <PreviewBookmarkTile t={tokens} author="Yolanda Gil" text="Excited to share our new paper on AI-assisted scientific discovery. We show that LLMs can help generate novel hypotheses when properly grounded..." tag="arXiv:2401.12345" />
-                <PreviewBookmarkTile t={tokens} author="Percy Liang" text="Thread on evaluation methodology for language models — why current benchmarks may be insufficient for measuring real-world capabilities..." />
+            {/* Center: feed tabs + posts */}
+            <div style={{ background: tokens.cardBg, display: 'flex', flexDirection: 'column' }}>
+              <PreviewFeedTabs t={tokens} />
+              <div>
+                {MOCK_POSTS.map((post, i) => (
+                  <PreviewPost key={i} t={tokens} post={post} />
+                ))}
               </div>
             </div>
 
-            {/* Followers */}
-            <div>
-              <h3
-                style={{
-                  fontFamily: tokens.headingFont,
-                  fontWeight: Number(tokens.headingWeight),
-                  fontSize: tokens.subheadingSize,
-                  letterSpacing: tokens.headingLetterSpacing,
-                  color: tokens.fg,
-                  marginBottom: '0.5rem',
-                }}
-              >
-                New Followers
-              </h3>
-              <div style={{ background: tokens.cardBg, borderRadius: tokens.cardRadius, border: `${tokens.borderWidth} solid ${tokens.border}`, overflow: 'hidden' }}>
-                <PreviewFollowerRow t={tokens} name="Sarah Chen" handle="sarachen.bsky.social" mutual />
-                <PreviewFollowerRow t={tokens} name="James Rivera" handle="jrivera.bsky.social" />
-                <PreviewFollowerRow t={tokens} name="Priya Patel" handle="priyap.bsky.social" mutual />
-              </div>
+            {/* Right sidebar: vertical feed tabs */}
+            <div style={{ background: tokens.bg }}>
+              <PreviewRightSidebar t={tokens} />
             </div>
           </div>
         </div>
