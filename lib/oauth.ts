@@ -164,13 +164,25 @@ export async function initOAuth(): Promise<{ session: OAuthSession; isCallback: 
       const isCallback = result.state !== undefined;
 
       // Create server-side session for API authentication
-      // This sets an httpOnly cookie that our API endpoints can verify
+      // This sets an httpOnly cookie that our API endpoints can verify.
+      // On a fresh OAuth callback the nonce cookie is present so this succeeds.
+      // On session restoration the server allows refreshing an existing cookie,
+      // but if the cookie expired we need to get a fresh nonce and retry.
       try {
-        await fetch('/api/auth/session', {
+        const sessionRes = await fetch('/api/auth/session', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ did: result.session.sub }),
         });
+        if (!sessionRes.ok) {
+          // Cookie likely expired — get a fresh nonce and retry
+          await fetch('/api/auth/nonce');
+          await fetch('/api/auth/session', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ did: result.session.sub }),
+          });
+        }
       } catch (err) {
         console.error('Failed to create server session:', err);
         // Continue anyway - the OAuth session is still valid

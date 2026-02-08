@@ -6,14 +6,14 @@ import { verifyAndConsumeNonce } from '../nonce/route';
 const NONCE_COOKIE_NAME = 'lea_auth_nonce';
 
 /**
- * POST /api/auth/session - Create a new session
- * Called by the client after OAuth login completes
+ * POST /api/auth/session - Create or refresh a session
+ * Called by the client after OAuth login completes or on session restoration
  *
  * Body: { did: string }
  *
- * Security: Requires a valid nonce cookie from /api/auth/nonce to prevent
- * session fixation attacks. The nonce ensures the request originated from
- * a legitimate OAuth flow started on this browser.
+ * Security:
+ * - New sessions require a valid nonce cookie from /api/auth/nonce
+ * - Session refresh (existing valid session cookie for same DID) skips nonce
  */
 export async function POST(request: NextRequest) {
   try {
@@ -29,23 +29,33 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid DID format' }, { status: 400 });
     }
 
-    // Verify nonce cookie to prevent session fixation attacks
-    // This ensures the session creation request came from a browser that
-    // started the OAuth flow (got a nonce) and completed it (has the cookie)
-    const nonceCookie = request.cookies.get(NONCE_COOKIE_NAME);
-    if (!verifyAndConsumeNonce(nonceCookie?.value)) {
-      return NextResponse.json(
-        { error: 'Invalid or expired authentication flow. Please try logging in again.' },
-        { status: 401 }
-      );
+    // Check if the user already has a valid session cookie for this DID.
+    // If so, this is a session refresh — skip the nonce requirement.
+    const existingSession = request.cookies.get(SESSION_COOKIE_NAME);
+    const existingVerification = existingSession?.value
+      ? verifySessionToken(existingSession.value)
+      : null;
+    const isRefresh = existingVerification?.success && existingVerification.did === did;
+
+    if (!isRefresh) {
+      // New session — verify nonce cookie to prevent session fixation attacks
+      const nonceCookie = request.cookies.get(NONCE_COOKIE_NAME);
+      if (!verifyAndConsumeNonce(nonceCookie?.value)) {
+        return NextResponse.json(
+          { error: 'Invalid or expired authentication flow. Please try logging in again.' },
+          { status: 401 }
+        );
+      }
     }
 
-    // Create response and set session cookie
+    // Create response and set (or refresh) session cookie
     const response = NextResponse.json({ success: true });
     setSessionCookie(response, did);
 
-    // Clear the nonce cookie - it's single-use
-    response.cookies.delete(NONCE_COOKIE_NAME);
+    // Clear the nonce cookie if present - it's single-use
+    if (!isRefresh) {
+      response.cookies.delete(NONCE_COOKIE_NAME);
+    }
 
     return response;
   } catch (error) {
