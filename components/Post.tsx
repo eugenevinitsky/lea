@@ -1745,16 +1745,16 @@ export default function Post({ post, onReply, onOpenThread, feedContext, reqId, 
     }
   };
 
-  const record = post.record as AppBskyFeedPost.Record;
+  const record = (post.record ?? {}) as AppBskyFeedPost.Record;
   const author = post.author;
   const isVerified = isVerifiedResearcher(author.labels as Label[] | undefined);
 
   // Check for Lea extended text (custom fields for long posts)
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const extendedRecord = post.record as any;
-  const hasExtendedText = !!extendedRecord.leaExtendedText;
-  const fullText = extendedRecord.leaExtendedText || record.text;
-  const fullFacets = extendedRecord.leaExtendedFacets || record.facets;
+  const hasExtendedText = !!extendedRecord?.leaExtendedText;
+  const fullText = extendedRecord?.leaExtendedText || record?.text || '';
+  const fullFacets = extendedRecord?.leaExtendedFacets || record?.facets;
 
   // Track current text for editing (initialized from full text, updated on save)
   const [currentText, setCurrentText] = useState(fullText);

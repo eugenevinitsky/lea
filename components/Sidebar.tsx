@@ -52,6 +52,7 @@ export default function Sidebar({ openComposer }: SidebarProps) {
         {/* Notifications */}
         <a
           href="/notifications"
+          onClick={() => setHasUnreadNotifications(false)}
           className="flex items-center justify-center lg:justify-start gap-3 p-3 lg:px-3 lg:py-2.5 rounded-xl text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
           title="Notifications"
         >

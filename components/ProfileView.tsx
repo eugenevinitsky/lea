@@ -1274,7 +1274,7 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
                       {replies.map((item) => (
                         <div key={item.post.uri} className="border-b border-gray-200 dark:border-gray-800 last:border-b-0">
                           {/* Show parent post if available */}
-                          {item.reply?.parent && 'author' in item.reply.parent && (
+                          {item.reply?.parent && 'author' in item.reply.parent && 'record' in item.reply.parent && (
                             <div className="relative opacity-60">
                               <div className="absolute left-[34px] top-0 bottom-0 w-0.5 bg-gray-300 dark:bg-gray-600" />
                               <Post post={item.reply.parent as AppBskyFeedDefs.PostView} onOpenThread={navigateToPost} isInThread />
@@ -1846,7 +1846,7 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
                 <>
                   {replies.map((item) => (
                     <div key={item.post.uri} className="border-b border-gray-200 dark:border-gray-800 last:border-b-0">
-                      {item.reply?.parent && 'author' in item.reply.parent && (
+                      {item.reply?.parent && 'author' in item.reply.parent && 'record' in item.reply.parent && (
                         <div className="relative opacity-60">
                           <div className="absolute left-[34px] top-0 bottom-0 w-0.5 bg-gray-300 dark:bg-gray-600" />
                           <Post post={item.reply.parent as AppBskyFeedDefs.PostView} onOpenThread={navigateToPost} isInThread />
@@ -2069,7 +2069,7 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
                     <>
                       {replies.map((item) => (
                         <div key={item.post.uri} className="border-b border-gray-200 dark:border-gray-800 last:border-b-0">
-                          {item.reply?.parent && 'author' in item.reply.parent && (
+                          {item.reply?.parent && 'author' in item.reply.parent && 'record' in item.reply.parent && (
                             <div className="relative opacity-60">
                               <div className="absolute left-[34px] top-0 bottom-0 w-0.5 bg-gray-300 dark:bg-gray-600" />
                               <Post post={item.reply.parent as AppBskyFeedDefs.PostView} onOpenThread={navigateToPost} isInThread />
@@ -2490,7 +2490,7 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
                 <>
                   {replies.map((item) => (
                     <div key={item.post.uri} className="border-b border-gray-200 dark:border-gray-800 last:border-b-0">
-                      {item.reply?.parent && 'author' in item.reply.parent && (
+                      {item.reply?.parent && 'author' in item.reply.parent && 'record' in item.reply.parent && (
                         <div className="relative opacity-60">
                           <div className="absolute left-[34px] top-0 bottom-0 w-0.5 bg-gray-300 dark:bg-gray-600" />
                           <Post post={item.reply.parent as AppBskyFeedDefs.PostView} onOpenThread={navigateToPost} isInThread />
