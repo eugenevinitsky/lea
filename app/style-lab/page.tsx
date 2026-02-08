@@ -293,6 +293,32 @@ const PRESETS: Record<string, { label: string; tokens: ThemeTokens }> = {
       borderWidth: '1px',
     },
   },
+  institute: {
+    label: 'Institute',
+    tokens: {
+      headingFont: 'Space Mono, monospace',
+      bodyFont: 'Space Mono, monospace',
+      monoFont: 'Space Mono, monospace',
+      headingSize: '1.375rem',
+      subheadingSize: '0.8125rem',
+      bodySize: '0.8125rem',
+      smallSize: '0.6875rem',
+      headingWeight: '700',
+      headingLetterSpacing: '0',
+      bodyLineHeight: '1.23',
+      bg: '#ffffff',
+      fg: '#0054a6',
+      accent: '#0054a6',
+      accentFg: '#ffffff',
+      muted: '#5a8abd',
+      border: '#0054a6',
+      cardBg: '#ffffff',
+      highlightBg: '#eef4fb',
+      cardRadius: '0',
+      cardPadding: '1.25rem',
+      borderWidth: '1.5px',
+    },
+  },
 };
 
 const PRESET_NAMES = Object.keys(PRESETS);
