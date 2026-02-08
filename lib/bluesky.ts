@@ -842,11 +842,25 @@ export interface ImageEmbed {
 
 // Upload an image to Bluesky and return the blob reference
 // Compress image to fit within Bluesky's 1MB limit
-async function compressImage(file: File, maxSizeBytes: number = 976000): Promise<{ data: Uint8Array; mimeType: string }> {
+async function compressImage(file: File, maxSizeBytes: number = 976000): Promise<{ data: Uint8Array; mimeType: string; width: number; height: number }> {
+  // Helper to get image dimensions from a File
+  async function getImageDimensions(f: File): Promise<{ width: number; height: number }> {
+    const img = new Image();
+    const url = URL.createObjectURL(f);
+    await new Promise<void>((resolve, reject) => {
+      img.onload = () => resolve();
+      img.onerror = () => reject(new Error('Failed to load image'));
+      img.src = url;
+    });
+    URL.revokeObjectURL(url);
+    return { width: img.naturalWidth, height: img.naturalHeight };
+  }
+
   // If file is already small enough and is JPEG/PNG, use it directly
   if (file.size <= maxSizeBytes && (file.type === 'image/jpeg' || file.type === 'image/png')) {
     const arrayBuffer = await file.arrayBuffer();
-    return { data: new Uint8Array(arrayBuffer), mimeType: file.type };
+    const dims = await getImageDimensions(file);
+    return { data: new Uint8Array(arrayBuffer), mimeType: file.type, ...dims };
   }
 
   // Load image into canvas for compression
@@ -914,14 +928,14 @@ async function compressImage(file: File, maxSizeBytes: number = 976000): Promise
   if (!blob) throw new Error('Failed to compress image');
 
   const arrayBuffer = await blob.arrayBuffer();
-  return { data: new Uint8Array(arrayBuffer), mimeType: 'image/jpeg' };
+  return { data: new Uint8Array(arrayBuffer), mimeType: 'image/jpeg', width: canvas.width, height: canvas.height };
 }
 
-export async function uploadImage(file: File): Promise<{ blob: unknown; mimeType: string }> {
+export async function uploadImage(file: File): Promise<{ blob: unknown; mimeType: string; width: number; height: number }> {
   if (!agent) throw new Error('Not logged in');
 
   // Compress image if needed (Bluesky has 1MB limit)
-  const { data, mimeType } = await compressImage(file);
+  const { data, mimeType, width, height } = await compressImage(file);
 
   // Upload to Bluesky
   const response = await agent.uploadBlob(data, {
@@ -931,6 +945,8 @@ export async function uploadImage(file: File): Promise<{ blob: unknown; mimeType
   return {
     blob: response.data.blob,
     mimeType,
+    width,
+    height,
   };
 }
 
@@ -1027,7 +1043,7 @@ export async function createPost(
   reply?: ReplyRef,
   quote?: QuoteRef,
   disableQuotes: boolean = false,
-  images?: { blob: unknown; alt: string }[],
+  images?: { blob: unknown; alt: string; width?: number; height?: number }[],
   external?: ExternalEmbed
 ) {
   if (!agent) throw new Error('Not logged in');
@@ -1081,7 +1097,7 @@ export async function createPost(
         images: images.map(img => ({
           image: img.blob,
           alt: img.alt || '',
-          aspectRatio: undefined, // Could add aspect ratio detection later
+          ...(img.width && img.height ? { aspectRatio: { width: img.width, height: img.height } } : {}),
         })),
       },
     };
@@ -1116,7 +1132,7 @@ export async function createPost(
       images: images.map(img => ({
         image: img.blob,
         alt: img.alt || '',
-        aspectRatio: undefined,
+        ...(img.width && img.height ? { aspectRatio: { width: img.width, height: img.height } } : {}),
       })),
     };
   } else if (hasExternal) {
@@ -2394,132 +2410,143 @@ export async function checkSafetyAlerts(thresholds?: AlertThresholds): Promise<S
     // Get recent posts
     const posts = await getMyRecentPostsWithMetrics(15);
     
-    for (const post of posts) {
-      const totalEngagement = (post.likeCount || 0) + (post.repostCount || 0) + (post.replyCount || 0);
-      const postText = (post.record as { text?: string })?.text || '';
-      const shortText = postText.length > 50 ? postText.substring(0, 50) + '...' : postText;
-      
-      // Check for high engagement
-      if (totalEngagement >= highEngagementThreshold) {
-        const alertId = `high_engagement:${post.uri}`;
-        if (!dismissedAlerts.has(alertId) && !seenAlertIds.has(alertId)) {
-          seenAlertIds.add(alertId);
-          alerts.push({
-            id: alertId,
-            type: 'high_engagement',
-            postUri: post.uri,
-            postText: shortText,
-            message: `Your post is getting attention (${totalEngagement} interactions)`,
-            timestamp: new Date().toISOString(),
-            metrics: {
-              likes: post.likeCount,
-              reposts: post.repostCount,
-              replies: post.replyCount,
-            },
-          });
-        }
-      }
-      
-      // Check reposts for big accounts (only if post has significant reposts)
-      if ((post.repostCount || 0) >= 3) {
-        try {
-          const repostedBy = await getRepostedBy(post.uri);
-          // Need to fetch full profiles to get follower counts
-          for (const reposter of repostedBy.data.repostedBy.slice(0, 5)) {
-            const profile = await getBlueskyProfile(reposter.did);
-            if (profile && (profile.followersCount || 0) >= bigAccountFollowerThreshold) {
-              const alertId = `big_repost:${post.uri}:${reposter.did}`;
-              if (!dismissedAlerts.has(alertId) && !seenAlertIds.has(alertId)) {
-                seenAlertIds.add(alertId);
-                alerts.push({
-                  id: alertId,
-                  type: 'big_account_repost',
-                  postUri: post.uri,
-                  postText: shortText,
-                  message: `@${profile.handle} (${(profile.followersCount || 0).toLocaleString()} followers) reposted your post`,
-                  timestamp: new Date().toISOString(),
-                  relatedAccount: {
-                    did: profile.did,
-                    handle: profile.handle,
-                    displayName: profile.displayName,
-                    avatar: profile.avatar,
-                    followersCount: profile.followersCount || 0,
-                  },
-                });
-              }
-            }
+    // Process posts in batches of 5 to avoid rate limiting
+    const BATCH_SIZE = 5;
+    for (let b = 0; b < posts.length; b += BATCH_SIZE) {
+      const batch = posts.slice(b, b + BATCH_SIZE);
+      await Promise.all(batch.map(async (post) => {
+        const totalEngagement = (post.likeCount || 0) + (post.repostCount || 0) + (post.replyCount || 0);
+        const postText = (post.record as { text?: string })?.text || '';
+        const shortText = postText.length > 50 ? postText.substring(0, 50) + '...' : postText;
+
+        // Check for high engagement
+        if (totalEngagement >= highEngagementThreshold) {
+          const alertId = `high_engagement:${post.uri}`;
+          if (!dismissedAlerts.has(alertId) && !seenAlertIds.has(alertId)) {
+            seenAlertIds.add(alertId);
+            alerts.push({
+              id: alertId,
+              type: 'high_engagement',
+              postUri: post.uri,
+              postText: shortText,
+              message: `Your post is getting attention (${totalEngagement} interactions)`,
+              timestamp: new Date().toISOString(),
+              metrics: {
+                likes: post.likeCount,
+                reposts: post.repostCount,
+                replies: post.replyCount,
+              },
+            });
           }
-        } catch (error) {
-          console.error('Failed to check reposters:', error);
         }
-      }
-      
-      // Check quotes for big accounts and viral quotes
-      if ((post.quoteCount || 0) >= 1) {
-        try {
-          const quotes = await getQuotes(post.uri);
-          for (const quotePost of quotes.data.posts.slice(0, 5)) {
-            const quoter = quotePost.author;
-            // Fetch full profile to get follower count
-            const quoterProfile = await getBlueskyProfile(quoter.did);
-            
-            // Big account quoted
-            if (quoterProfile && (quoterProfile.followersCount || 0) >= bigAccountFollowerThreshold) {
-              const alertId = `big_quote:${post.uri}:${quoter.did}`;
-              if (!dismissedAlerts.has(alertId) && !seenAlertIds.has(alertId)) {
-                seenAlertIds.add(alertId);
-                alerts.push({
-                  id: alertId,
-                  type: 'big_account_quote',
-                  postUri: post.uri,
-                  postText: shortText,
-                  message: `@${quoterProfile.handle} (${(quoterProfile.followersCount || 0).toLocaleString()} followers) quoted your post`,
-                  timestamp: new Date().toISOString(),
-                  relatedAccount: {
-                    did: quoterProfile.did,
-                    handle: quoterProfile.handle,
-                    displayName: quoterProfile.displayName,
-                    avatar: quoterProfile.avatar,
-                    followersCount: quoterProfile.followersCount || 0,
-                  },
-                });
+
+        // Run repost and quote checks in parallel (they're independent)
+        const checkReposts = async () => {
+          if ((post.repostCount || 0) < 3) return;
+          try {
+            const repostedBy = await getRepostedBy(post.uri);
+            const reposterProfiles = await Promise.all(
+              repostedBy.data.repostedBy.slice(0, 5).map((reposter) => getBlueskyProfile(reposter.did))
+            );
+            for (const profile of reposterProfiles) {
+              if (profile && (profile.followersCount || 0) >= bigAccountFollowerThreshold) {
+                const alertId = `big_repost:${post.uri}:${profile.did}`;
+                if (!dismissedAlerts.has(alertId) && !seenAlertIds.has(alertId)) {
+                  seenAlertIds.add(alertId);
+                  alerts.push({
+                    id: alertId,
+                    type: 'big_account_repost',
+                    postUri: post.uri,
+                    postText: shortText,
+                    message: `@${profile.handle} (${(profile.followersCount || 0).toLocaleString()} followers) reposted your post`,
+                    timestamp: new Date().toISOString(),
+                    relatedAccount: {
+                      did: profile.did,
+                      handle: profile.handle,
+                      displayName: profile.displayName,
+                      avatar: profile.avatar,
+                      followersCount: profile.followersCount || 0,
+                    },
+                  });
+                }
               }
             }
-            
-            // Quote going viral
-            const quoteEngagement = (quotePost.likeCount || 0) + (quotePost.repostCount || 0) + (quotePost.replyCount || 0);
-            if (quoteEngagement >= viralQuoteThreshold) {
-              const alertId = `viral_quote:${quotePost.uri}`;
-              if (!dismissedAlerts.has(alertId) && !seenAlertIds.has(alertId)) {
-                seenAlertIds.add(alertId);
-                const profile = quoterProfile || { did: quoter.did, handle: quoter.handle, displayName: quoter.displayName, avatar: quoter.avatar };
-                alerts.push({
-                  id: alertId,
-                  type: 'quote_going_viral',
-                  postUri: quotePost.uri,
-                  postText: shortText,
-                  message: `A quote of your post is getting attention (${quoteEngagement} interactions)`,
-                  timestamp: new Date().toISOString(),
-                  relatedAccount: {
-                    did: profile.did,
-                    handle: profile.handle,
-                    displayName: profile.displayName,
-                    avatar: profile.avatar,
-                    followersCount: quoterProfile?.followersCount || 0,
-                  },
-                  metrics: {
-                    likes: quotePost.likeCount,
-                    reposts: quotePost.repostCount,
-                    replies: quotePost.replyCount,
-                  },
-                });
-              }
-            }
+          } catch (error) {
+            console.error('Failed to check reposters:', error);
           }
-        } catch (error) {
-          console.error('Failed to check quotes:', error);
-        }
-      }
+        };
+
+        const checkQuotes = async () => {
+          if ((post.quoteCount || 0) < 1) return;
+          try {
+            const quotes = await getQuotes(post.uri);
+            const quotePosts = quotes.data.posts.slice(0, 5);
+            const quoterProfiles = await Promise.all(
+              quotePosts.map((qp) => getBlueskyProfile(qp.author.did))
+            );
+            for (let i = 0; i < quotePosts.length; i++) {
+              const quotePost = quotePosts[i];
+              const quoter = quotePost.author;
+              const quoterProfile = quoterProfiles[i];
+
+              if (quoterProfile && (quoterProfile.followersCount || 0) >= bigAccountFollowerThreshold) {
+                const alertId = `big_quote:${post.uri}:${quoter.did}`;
+                if (!dismissedAlerts.has(alertId) && !seenAlertIds.has(alertId)) {
+                  seenAlertIds.add(alertId);
+                  alerts.push({
+                    id: alertId,
+                    type: 'big_account_quote',
+                    postUri: post.uri,
+                    postText: shortText,
+                    message: `@${quoterProfile.handle} (${(quoterProfile.followersCount || 0).toLocaleString()} followers) quoted your post`,
+                    timestamp: new Date().toISOString(),
+                    relatedAccount: {
+                      did: quoterProfile.did,
+                      handle: quoterProfile.handle,
+                      displayName: quoterProfile.displayName,
+                      avatar: quoterProfile.avatar,
+                      followersCount: quoterProfile.followersCount || 0,
+                    },
+                  });
+                }
+              }
+
+              const quoteEngagement = (quotePost.likeCount || 0) + (quotePost.repostCount || 0) + (quotePost.replyCount || 0);
+              if (quoteEngagement >= viralQuoteThreshold) {
+                const alertId = `viral_quote:${quotePost.uri}`;
+                if (!dismissedAlerts.has(alertId) && !seenAlertIds.has(alertId)) {
+                  seenAlertIds.add(alertId);
+                  const profile = quoterProfile || { did: quoter.did, handle: quoter.handle, displayName: quoter.displayName, avatar: quoter.avatar };
+                  alerts.push({
+                    id: alertId,
+                    type: 'quote_going_viral',
+                    postUri: quotePost.uri,
+                    postText: shortText,
+                    message: `A quote of your post is getting attention (${quoteEngagement} interactions)`,
+                    timestamp: new Date().toISOString(),
+                    relatedAccount: {
+                      did: profile.did,
+                      handle: profile.handle,
+                      displayName: profile.displayName,
+                      avatar: profile.avatar,
+                      followersCount: quoterProfile?.followersCount || 0,
+                    },
+                    metrics: {
+                      likes: quotePost.likeCount,
+                      reposts: quotePost.repostCount,
+                      replies: quotePost.replyCount,
+                    },
+                  });
+                }
+              }
+            }
+          } catch (error) {
+            console.error('Failed to check quotes:', error);
+          }
+        };
+
+        await Promise.all([checkReposts(), checkQuotes()]);
+      }));
     }
     
     return alerts;

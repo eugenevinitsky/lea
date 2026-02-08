@@ -483,11 +483,11 @@ export default function Composer({ onPost, quotePost }: ComposerProps) {
 
       // Upload images for first post
       const firstPostImages = postsWithContent[0].images;
-      const firstUploadedImages: { blob: unknown; alt: string }[] = [];
+      const firstUploadedImages: { blob: unknown; alt: string; width?: number; height?: number }[] = [];
       for (const img of firstPostImages) {
         try {
           const uploaded = await uploadImage(img.file);
-          firstUploadedImages.push({ blob: uploaded.blob, alt: img.alt });
+          firstUploadedImages.push({ blob: uploaded.blob, alt: img.alt, width: uploaded.width, height: uploaded.height });
         } catch (uploadErr) {
           console.error('Image upload failed:', uploadErr);
           throw new Error(`Failed to upload image: ${uploadErr instanceof Error ? uploadErr.message : 'Unknown error'}`);
@@ -559,11 +559,11 @@ export default function Composer({ onPost, quotePost }: ComposerProps) {
       for (let i = 1; i < postsWithContent.length; i++) {
         // Upload images for this post
         const postImages = postsWithContent[i].images;
-        const uploadedImages: { blob: unknown; alt: string }[] = [];
+        const uploadedImages: { blob: unknown; alt: string; width?: number; height?: number }[] = [];
         for (const img of postImages) {
           try {
             const uploaded = await uploadImage(img.file);
-            uploadedImages.push({ blob: uploaded.blob, alt: img.alt });
+            uploadedImages.push({ blob: uploaded.blob, alt: img.alt, width: uploaded.width, height: uploaded.height });
           } catch (uploadErr) {
             console.error('Image upload failed:', uploadErr);
             throw new Error(`Failed to upload image in thread post ${i + 1}: ${uploadErr instanceof Error ? uploadErr.message : 'Unknown error'}`);
