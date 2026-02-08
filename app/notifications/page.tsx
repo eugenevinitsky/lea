@@ -1742,7 +1742,7 @@ function NotificationStreamRow({
 }: {
   item: StreamItem;
   onOpenProfile: (did: string) => void;
-  onOpenPost: (uri: string) => void;
+  onOpenPost: (uri: string, e?: React.MouseEvent) => void;
 }) {
   const { settings } = useSettings();
   const style = STREAM_ICONS[item.kind];
@@ -1751,9 +1751,9 @@ function NotificationStreamRow({
   const firstName = item.author.displayName || item.author.handle;
   const othersCount = item.authors.length - 1;
 
-  const handleClick = () => {
+  const handleClick = (e: React.MouseEvent) => {
     if (item.postUri) {
-      onOpenPost(item.postUri);
+      onOpenPost(item.postUri, e);
     } else {
       onOpenProfile(item.author.did);
     }
@@ -1780,6 +1780,7 @@ function NotificationStreamRow({
         item.isUnread ? 'bg-blue-50/60 dark:bg-blue-900/15' : ''
       }`}
       onClick={handleClick}
+      onAuxClick={handleClick}
     >
       {/* Avatar(s) */}
       <div className="flex-shrink-0 mt-0.5">
@@ -2112,21 +2113,26 @@ function NotificationsExplorerContent() {
     }
   }, []);
 
-  const openThread = useCallback(async (uri: string | null) => {
+  const openThread = useCallback(async (uri: string | null, e?: React.MouseEvent) => {
     if (!uri) return;
+    const newTab = e && (e.metaKey || e.ctrlKey || e.button === 1);
     const match = uri.match(/^at:\/\/(did:[^/]+)\/app\.bsky\.feed\.post\/([^/]+)$/);
     if (match) {
       const [, did, rkey] = match;
+      let url: string;
       try {
         const profile = await getBlueskyProfile(did);
-        if (profile?.handle) {
-          window.location.href = buildPostUrl(profile.handle, rkey, profile.did);
-          return;
-        }
+        url = profile?.handle
+          ? buildPostUrl(profile.handle, rkey, profile.did)
+          : buildPostUrl(did, rkey);
       } catch {
-        // Fall through
+        url = buildPostUrl(did, rkey);
       }
-      window.location.href = buildPostUrl(did, rkey);
+      if (newTab) {
+        window.open(url, '_blank');
+      } else {
+        window.location.href = url;
+      }
     }
   }, []);
 
