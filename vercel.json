@@ -7,6 +7,10 @@
     {
       "path": "/api/cron/recalculate-trending/",
       "schedule": "*/5 * * * *"
+    },
+    {
+      "path": "/api/cron/score-community-notes/",
+      "schedule": "*/15 * * * *"
     }
   ],
   "trailingSlash": true
