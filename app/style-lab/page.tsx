@@ -267,6 +267,32 @@ const PRESETS: Record<string, { label: string; tokens: ThemeTokens }> = {
       borderWidth: '1px',
     },
   },
+  meutzner: {
+    label: 'Meutzner',
+    tokens: {
+      headingFont: 'Cormorant Garamond, Georgia, serif',
+      bodyFont: 'Inter, system-ui, sans-serif',
+      monoFont: 'Space Mono, monospace',
+      headingSize: '1.625rem',
+      subheadingSize: '0.9rem',
+      bodySize: '0.875rem',
+      smallSize: '0.75rem',
+      headingWeight: '400',
+      headingLetterSpacing: '0.02em',
+      bodyLineHeight: '1.6',
+      bg: '#fafafa',
+      fg: '#202020',
+      accent: '#d9cae0',
+      accentFg: '#202020',
+      muted: '#999999',
+      border: '#e8e8e8',
+      cardBg: '#ffffff',
+      highlightBg: '#f3eff5',
+      cardRadius: '0',
+      cardPadding: '1.25rem',
+      borderWidth: '1px',
+    },
+  },
 };
 
 const PRESET_NAMES = Object.keys(PRESETS);
@@ -285,6 +311,7 @@ const GOOGLE_FONTS = [
   'Source+Serif+4:wght@400;600;700',
   'Sora:wght@400;500;600;700',
   'Outfit:wght@400;500;600;700',
+  'Cormorant+Garamond:wght@300;400;500;600;700',
 ];
 
 function loadGoogleFonts() {
@@ -309,6 +336,7 @@ const FONT_OPTIONS = [
   'DM Serif Display, Georgia, serif',
   'Libre Baskerville, Georgia, serif',
   'Source Serif 4, Georgia, serif',
+  'Cormorant Garamond, Georgia, serif',
   'Space Mono, monospace',
   'Geist Mono, monospace',
 ];
