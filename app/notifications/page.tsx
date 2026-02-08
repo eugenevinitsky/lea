@@ -14,6 +14,9 @@ import {
   groupNotifications,
   NotificationItem,
   GroupedNotifications,
+  NotificationTypePrefs,
+  getNotificationTypePrefs,
+  setNotificationTypePrefs,
 } from '@/lib/notifications';
 import Login from '@/components/Login';
 import DMSidebar from '@/components/DMSidebar';
@@ -21,12 +24,68 @@ import ResearcherSearch from '@/components/ResearcherSearch';
 import ProfileHoverCard from '@/components/ProfileHoverCard';
 import ProfileLabels from '@/components/ProfileLabels';
 
+// Notification type preferences pane — controls which types show the sidebar dot
+const NOTIF_TOGGLE_ITEMS: { key: keyof NotificationTypePrefs; label: string; color: string }[] = [
+  { key: 'replies', label: 'Replies', color: 'bg-blue-500' },
+  { key: 'quotes', label: 'Quotes', color: 'bg-purple-500' },
+  { key: 'mentions', label: 'Mentions', color: 'bg-amber-500' },
+  { key: 'likes', label: 'Likes', color: 'bg-pink-500' },
+  { key: 'reposts', label: 'Reposts', color: 'bg-emerald-500' },
+  { key: 'follows', label: 'Follows', color: 'bg-blue-400' },
+];
+
+function NotificationPrefsPane() {
+  const [prefs, setPrefs] = useState<NotificationTypePrefs>(() => getNotificationTypePrefs());
+
+  const toggle = (key: keyof NotificationTypePrefs) => {
+    const updated = { ...prefs, [key]: !prefs[key] };
+    setPrefs(updated);
+    setNotificationTypePrefs(updated);
+  };
+
+  return (
+    <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-4">
+      <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-3 flex items-center gap-2">
+        <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+        </svg>
+        Notify me about
+      </h3>
+      <p className="text-xs text-gray-400 dark:text-gray-500 mb-3">
+        Controls the notification dot on the sidebar
+      </p>
+      <div className="space-y-2">
+        {NOTIF_TOGGLE_ITEMS.map((item) => (
+          <button
+            key={item.key}
+            onClick={() => toggle(item.key)}
+            className="w-full flex items-center gap-3 px-2 py-1.5 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors"
+          >
+            <div className={`w-8 h-4 rounded-full relative transition-colors ${
+              prefs[item.key] ? item.color : 'bg-gray-300 dark:bg-gray-600'
+            }`}>
+              <div className={`absolute top-0.5 w-3 h-3 bg-white rounded-full shadow transition-transform ${
+                prefs[item.key] ? 'translate-x-4' : 'translate-x-0.5'
+              }`} />
+            </div>
+            <span className={`text-xs font-medium ${
+              prefs[item.key] ? 'text-gray-900 dark:text-gray-100' : 'text-gray-400 dark:text-gray-500'
+            }`}>
+              {item.label}
+            </span>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // Storage key for pane order
 const PANE_ORDER_KEY = 'lea-dashboard-pane-order';
 
 // Default pane order
 const DEFAULT_LEFT_PANES = ['needs-response', 'new-followers', 'my-posts', 'mentions'];
-const DEFAULT_RIGHT_PANES = ['messages', 'alerts', 'breakdown', 'top-interactors'];
+const DEFAULT_RIGHT_PANES = ['messages', 'alerts', 'breakdown', 'top-interactors', 'notif-prefs'];
 
 // Load pane order from localStorage
 function loadPaneOrder(): { left: string[]; right: string[] } {
@@ -40,6 +99,10 @@ function loadPaneOrder(): { left: string[]; right: string[] } {
       // Migrate: add 'needs-response' if missing from left panes
       if (Array.isArray(parsed.left) && !parsed.left.includes('needs-response')) {
         parsed.left = ['needs-response', ...parsed.left];
+      }
+      // Migrate: add 'notif-prefs' if missing from right panes
+      if (Array.isArray(parsed.right) && !parsed.right.includes('notif-prefs')) {
+        parsed.right = [...parsed.right, 'notif-prefs'];
       }
       // Validate that all panes are present
       const allLeft = new Set(DEFAULT_LEFT_PANES);
@@ -2181,6 +2244,7 @@ function NotificationsExplorerContent() {
                       onOpenProfile={handleOpenProfile}
                     />
                   ),
+                  'notif-prefs': <NotificationPrefsPane />,
                 }[paneId];
                 
                 if (!paneContent) return null;

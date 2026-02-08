@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { getUnreadNotificationCount } from '@/lib/notifications';
+import { getFilteredUnreadNotificationCount } from '@/lib/notifications';
 
 export default function Sidebar() {
   const [hasModerationAlerts, setHasModerationAlerts] = useState(false);
@@ -13,7 +13,7 @@ export default function Sidebar() {
       setHasModerationAlerts(activeAlerts.length > 0);
     } catch { /* ignore */ }
 
-    getUnreadNotificationCount().then(count => {
+    getFilteredUnreadNotificationCount().then(count => {
       setHasUnreadNotifications(count > 0);
     });
   }, []);

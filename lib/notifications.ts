@@ -243,3 +243,82 @@ export async function updateSeenNotifications(): Promise<void> {
     console.error('Failed to update seen notifications:', err);
   }
 }
+
+// --- Notification type preferences (controls which types show the unread dot) ---
+
+const NOTIFICATION_PREFS_KEY = 'lea-notification-type-prefs';
+
+export interface NotificationTypePrefs {
+  likes: boolean;
+  reposts: boolean;
+  quotes: boolean;
+  replies: boolean;
+  follows: boolean;
+  mentions: boolean;
+}
+
+const DEFAULT_PREFS: NotificationTypePrefs = {
+  likes: true,
+  reposts: true,
+  quotes: true,
+  replies: true,
+  follows: true,
+  mentions: true,
+};
+
+export function getNotificationTypePrefs(): NotificationTypePrefs {
+  if (typeof window === 'undefined') return DEFAULT_PREFS;
+  try {
+    const saved = localStorage.getItem(NOTIFICATION_PREFS_KEY);
+    if (saved) {
+      return { ...DEFAULT_PREFS, ...JSON.parse(saved) };
+    }
+  } catch { /* ignore */ }
+  return DEFAULT_PREFS;
+}
+
+export function setNotificationTypePrefs(prefs: NotificationTypePrefs): void {
+  if (typeof window === 'undefined') return;
+  localStorage.setItem(NOTIFICATION_PREFS_KEY, JSON.stringify(prefs));
+}
+
+// Map notification reasons to pref keys
+const REASON_TO_PREF: Record<string, keyof NotificationTypePrefs> = {
+  like: 'likes',
+  repost: 'reposts',
+  quote: 'quotes',
+  reply: 'replies',
+  follow: 'follows',
+  mention: 'mentions',
+};
+
+// Get unread count filtered by user's notification type preferences.
+// Fetches one page of notifications and counts unread ones for enabled types.
+export async function getFilteredUnreadNotificationCount(): Promise<number> {
+  const agent = getAgent();
+  if (!agent) return 0;
+
+  const prefs = getNotificationTypePrefs();
+  // If all types enabled, use the lightweight API
+  const allEnabled = Object.values(prefs).every(v => v);
+  if (allEnabled) {
+    return getUnreadNotificationCount();
+  }
+
+  try {
+    const response = await agent.listNotifications({ limit: 50 });
+    let count = 0;
+    for (const n of response.data.notifications) {
+      if (!n.isRead) {
+        const prefKey = REASON_TO_PREF[n.reason];
+        if (prefKey && prefs[prefKey]) {
+          count++;
+        }
+      }
+    }
+    return count;
+  } catch (err) {
+    console.error('Failed to get filtered unread count:', err);
+    return 0;
+  }
+}
