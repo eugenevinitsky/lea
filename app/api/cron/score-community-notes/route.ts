@@ -8,24 +8,11 @@ import {
 } from '@/lib/db/schema';
 import { scoreNotes, type Rating, type NoteStatus } from '@/lib/community-notes-scoring';
 import { eq, inArray, sql } from 'drizzle-orm';
-import crypto from 'crypto';
 import { publishNoteLabel, negateNoteLabel } from '@/lib/community-notes-labels';
+import { verifyBearerSecret } from '@/lib/server-auth';
 
 const MAX_LABEL_OPS_PER_RUN = 50;
 const LABEL_OP_DELAY_MS = 200;
-
-function verifyBearerSecret(authHeader: string | null, expected: string): boolean {
-  if (!authHeader || !authHeader.startsWith('Bearer ')) return false;
-  const provided = authHeader.slice(7);
-  try {
-    const providedBuffer = Buffer.from(provided);
-    const expectedBuffer = Buffer.from(expected);
-    if (providedBuffer.length !== expectedBuffer.length) return false;
-    return crypto.timingSafeEqual(providedBuffer, expectedBuffer);
-  } catch {
-    return false;
-  }
-}
 
 function delay(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));

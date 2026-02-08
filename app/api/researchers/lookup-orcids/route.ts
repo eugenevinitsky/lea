@@ -203,7 +203,7 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error('ORCID lookup error:', error);
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Lookup failed' },
+      { error: 'Lookup failed' },
       { status: 500 }
     );
   }

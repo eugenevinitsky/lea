@@ -46,7 +46,7 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error('Failed to sync personal list:', error);
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Failed to sync personal list' },
+      { error: 'Failed to sync personal list' },
       { status: 500 }
     );
   }

@@ -195,6 +195,9 @@ async function handleCreate(
     );
   }
 
+  // Strip HTML tags from summary as defense-in-depth against stored XSS
+  const sanitizedSummary = summary.replace(/<[^>]*>/g, '');
+
   // Determine reasons and classification
   let finalReasons: string[];
   let finalClassification: string;
@@ -264,7 +267,7 @@ async function handleCreate(
       id,
       postUri,
       authorDid,
-      summary,
+      summary: sanitizedSummary,
       classification: finalClassification,
       reasons: JSON.stringify(finalReasons),
       aid,
@@ -464,6 +467,9 @@ async function handleDispute(
     );
   }
 
+  // Strip HTML tags from summary as defense-in-depth against stored XSS
+  const sanitizedDisputeSummary = summary.replace(/<[^>]*>/g, '');
+
   // Validate reasons if provided
   let finalReasons: string[] = ['other'];
   if (reasons && Array.isArray(reasons) && reasons.length > 0) {
@@ -519,7 +525,7 @@ async function handleDispute(
         id: noteId,
         postUri: targetNote.postUri, // Same post as the target note
         authorDid: callerDid,
-        summary,
+        summary: sanitizedDisputeSummary,
         classification,
         reasons: JSON.stringify(finalReasons),
         aid,

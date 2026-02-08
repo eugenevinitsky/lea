@@ -13,6 +13,33 @@ import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
 import { isSuspendedSync } from '@/lib/suspended-users';
 
+/**
+ * Timing-safe Bearer token verification.
+ * Use this for any endpoint that verifies a secret via Authorization header.
+ */
+export function verifyBearerSecret(authHeader: string | null, expected: string): boolean {
+  if (!authHeader || !authHeader.startsWith('Bearer ')) return false;
+  const provided = authHeader.slice(7);
+  try {
+    const providedBuffer = Buffer.from(provided);
+    const expectedBuffer = Buffer.from(expected);
+    if (providedBuffer.length !== expectedBuffer.length) return false;
+    return crypto.timingSafeEqual(providedBuffer, expectedBuffer);
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Verify INTERNAL_API_SECRET from request Authorization header.
+ * Use for internal admin/labeler endpoints.
+ */
+export function verifyInternalSecret(request: NextRequest): boolean {
+  const secret = process.env.INTERNAL_API_SECRET;
+  if (!secret) return false;
+  return verifyBearerSecret(request.headers.get('authorization'), secret);
+}
+
 // Secret for signing session tokens - MUST be configured in production
 const SESSION_SECRET = process.env.INTERNAL_AUTH_SECRET;
 

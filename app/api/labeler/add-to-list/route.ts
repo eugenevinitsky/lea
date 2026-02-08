@@ -1,25 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { BskyAgent } from '@atproto/api';
 import { VERIFIED_RESEARCHERS_LIST } from '@/lib/constants';
-import crypto from 'crypto';
-
-// Verify internal API secret for admin endpoints (timing-safe)
-function verifyInternalSecret(request: NextRequest): boolean {
-  const secret = process.env.INTERNAL_API_SECRET;
-  if (!secret) return false;
-
-  const authHeader = request.headers.get('authorization');
-  if (!authHeader?.startsWith('Bearer ')) return false;
-
-  try {
-    const providedBuffer = Buffer.from(authHeader.slice(7));
-    const expectedBuffer = Buffer.from(secret);
-    if (providedBuffer.length !== expectedBuffer.length) return false;
-    return crypto.timingSafeEqual(providedBuffer, expectedBuffer);
-  } catch {
-    return false;
-  }
-}
+import { verifyInternalSecret } from '@/lib/server-auth';
 
 // Get labeler agent
 async function getLabelerAgent(): Promise<BskyAgent | null> {
@@ -140,7 +122,7 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error('Add to list error:', error);
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Failed to add to list' },
+      { error: 'Failed to add to list' },
       { status: 500 }
     );
   }

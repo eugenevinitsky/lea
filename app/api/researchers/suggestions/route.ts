@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db, verifiedResearchers } from '@/lib/db';
 import { eq, and, isNotNull } from 'drizzle-orm';
+import { getAuthenticatedDid } from '@/lib/server-auth';
 
 // Validation constants
 const MAX_TOPICS = 20;
@@ -8,6 +9,12 @@ const MAX_TOPIC_LENGTH = 100;
 const MAX_RESULTS = 50;
 
 export async function POST(request: NextRequest) {
+  // Require authentication to prevent unauthenticated enumeration
+  const callerDid = getAuthenticatedDid(request);
+  if (!callerDid) {
+    return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
+  }
+
   try {
     const body = await request.json();
     const { topics, excludeDid, limit } = body;

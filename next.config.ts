@@ -2,6 +2,11 @@ import type { NextConfig } from "next";
 
 const securityHeaders = [
   {
+    // Enforce HTTPS-only connections
+    key: 'Strict-Transport-Security',
+    value: 'max-age=31536000; includeSubDomains',
+  },
+  {
     // Prevent clickjacking by disallowing iframe embedding
     key: 'X-Frame-Options',
     value: 'DENY',

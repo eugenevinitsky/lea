@@ -52,7 +52,6 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({
         authorized: false,
         suspended: true,
-        reason: suspended.reason || 'Account suspended',
       });
     }
 
@@ -67,8 +66,6 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({
         authorized: true,
         did,
-        authorizedAt: existingUser.authorizedAt,
-        method: 'invite_code',
       });
     }
 
@@ -85,8 +82,6 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       authorized: !!researcher,
       did,
-      verifiedAt: researcher?.verifiedAt || null,
-      method: researcher ? 'verified_researcher' : null,
     });
   } catch (error) {
     console.error('Failed to check access:', error);

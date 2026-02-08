@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import crypto from 'crypto';
 
 // ORCID OAuth configuration
 const ORCID_BASE = process.env.ORCID_SANDBOX === 'true'
@@ -35,9 +36,20 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  // Verify state to prevent CSRF
+  // Verify state to prevent CSRF (timing-safe comparison)
   const storedState = request.cookies.get('orcid_oauth_state')?.value;
-  if (!state || state !== storedState) {
+  const stateValid = (() => {
+    if (!state || !storedState) return false;
+    try {
+      const stateBuffer = Buffer.from(state);
+      const storedBuffer = Buffer.from(storedState);
+      if (stateBuffer.length !== storedBuffer.length) return false;
+      return crypto.timingSafeEqual(stateBuffer, storedBuffer);
+    } catch {
+      return false;
+    }
+  })();
+  if (!stateValid) {
     return NextResponse.redirect(
       new URL('/verify?error=Invalid+state+parameter', request.nextUrl.origin)
     );

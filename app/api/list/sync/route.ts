@@ -1,20 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { syncVerifiedOnlyList, getBotAgent } from '@/lib/services/list-manager';
-import crypto from 'crypto';
-
-// Timing-safe Bearer token verification
-function verifyBearerSecret(authHeader: string | null, expected: string): boolean {
-  if (!authHeader || !authHeader.startsWith('Bearer ')) return false;
-  const provided = authHeader.slice(7);
-  try {
-    const providedBuffer = Buffer.from(provided);
-    const expectedBuffer = Buffer.from(expected);
-    if (providedBuffer.length !== expectedBuffer.length) return false;
-    return crypto.timingSafeEqual(providedBuffer, expectedBuffer);
-  } catch {
-    return false;
-  }
-}
+import { verifyBearerSecret } from '@/lib/server-auth';
 
 export async function POST(request: NextRequest) {
   try {

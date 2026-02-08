@@ -1,24 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db, verifiedResearchers } from '@/lib/db';
 import { eq } from 'drizzle-orm';
-import crypto from 'crypto';
+import { verifyBearerSecret } from '@/lib/server-auth';
 
-// Timing-safe secret comparison for admin endpoints
 function verifyAdminSecret(request: NextRequest): boolean {
   const secret = process.env.BACKFILL_SECRET;
   if (!secret) return false;
-
-  const authHeader = request.headers.get('authorization');
-  if (!authHeader?.startsWith('Bearer ')) return false;
-
-  try {
-    const providedBuffer = Buffer.from(authHeader.slice(7));
-    const expectedBuffer = Buffer.from(secret);
-    if (providedBuffer.length !== expectedBuffer.length) return false;
-    return crypto.timingSafeEqual(providedBuffer, expectedBuffer);
-  } catch {
-    return false;
-  }
+  return verifyBearerSecret(request.headers.get('authorization'), secret);
 }
 
 // Fetch research topics from OpenAlex by author ID
@@ -152,7 +140,7 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error('Manual update error:', error);
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Update failed' },
+      { error: 'Update failed' },
       { status: 500 }
     );
   }

@@ -1,21 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db, discoveredArticles, articleMentions } from '@/lib/db';
 import { inArray, sql, eq } from 'drizzle-orm';
-import crypto from 'crypto';
-
-// Timing-safe secret comparison
-function verifyBearerSecret(authHeader: string | null, expected: string): boolean {
-  if (!authHeader || !authHeader.startsWith('Bearer ')) return false;
-  const provided = authHeader.slice(7);
-  try {
-    const providedBuffer = Buffer.from(provided);
-    const expectedBuffer = Buffer.from(expected);
-    if (providedBuffer.length !== expectedBuffer.length) return false;
-    return crypto.timingSafeEqual(providedBuffer, expectedBuffer);
-  } catch {
-    return false;
-  }
-}
+import { verifyBearerSecret } from '@/lib/server-auth';
 
 // Extract year from URL (for MIT Tech Review and Quanta)
 function getYearFromUrl(url: string): number | null {

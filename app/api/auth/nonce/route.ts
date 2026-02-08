@@ -19,8 +19,12 @@ export async function GET() {
 
   // Create signed nonce to prevent tampering
   const secret = process.env.INTERNAL_AUTH_SECRET;
-  if (!secret && process.env.NODE_ENV === 'production') {
-    return NextResponse.json({ error: 'Server configuration error' }, { status: 500 });
+  if (!secret) {
+    if (process.env.NODE_ENV === 'development') {
+      // Only allow dev fallback when NODE_ENV is explicitly 'development'
+    } else {
+      return NextResponse.json({ error: 'Server configuration error' }, { status: 500 });
+    }
   }
 
   const signingSecret = secret || 'dev-secret-do-not-use-in-production';
@@ -70,9 +74,9 @@ export function verifyAndConsumeNonce(cookieValue: string | undefined): boolean 
       return false;
     }
 
-    // Verify signature - require secret in production
+    // Verify signature - require secret unless NODE_ENV is explicitly 'development'
     const secret = process.env.INTERNAL_AUTH_SECRET;
-    if (!secret && process.env.NODE_ENV === 'production') {
+    if (!secret && process.env.NODE_ENV !== 'development') {
       return false;
     }
     const signingSecret = secret || 'dev-secret-do-not-use-in-production';

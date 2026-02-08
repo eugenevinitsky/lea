@@ -1,21 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { sql } from 'drizzle-orm';
-import crypto from 'crypto';
-
-// Timing-safe secret comparison
-function verifyBearerSecret(authHeader: string | null, expected: string): boolean {
-  if (!authHeader || !authHeader.startsWith('Bearer ')) return false;
-  const provided = authHeader.slice(7);
-  try {
-    const providedBuffer = Buffer.from(provided);
-    const expectedBuffer = Buffer.from(expected);
-    if (providedBuffer.length !== expectedBuffer.length) return false;
-    return crypto.timingSafeEqual(providedBuffer, expectedBuffer);
-  } catch {
-    return false;
-  }
-}
+import { verifyBearerSecret } from '@/lib/server-auth';
 
 // One-time migration endpoint to create Substack tables
 // Should be removed after running once

@@ -3,6 +3,7 @@ import { BskyAgent } from '@atproto/api';
 import { db, blueskyLists } from '@/lib/db';
 import { eq } from 'drizzle-orm';
 import { nanoid } from 'nanoid';
+import { verifyInternalSecret } from '@/lib/server-auth';
 
 const VERIFIED_LIST_NAME = 'Verified Researchers';
 const VERIFIED_LIST_DESCRIPTION = 'Users verified as researchers by Lea. Used for reply restrictions.';
@@ -151,6 +152,11 @@ function delay(ms: number): Promise<void> {
 }
 
 export async function POST(request: NextRequest) {
+  // Require internal API secret - this endpoint is for internal use only
+  if (!verifyInternalSecret(request)) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
   try {
     const agent = await getLabelerAgent();
     if (!agent) {
@@ -251,7 +257,7 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error('Init list error:', error);
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Failed to init list' },
+      { error: 'Failed to init list' },
       { status: 500 }
     );
   }

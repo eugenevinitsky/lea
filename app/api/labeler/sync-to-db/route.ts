@@ -3,23 +3,7 @@ import { BskyAgent } from '@atproto/api';
 import { db, verifiedResearchers } from '@/lib/db';
 import { eq } from 'drizzle-orm';
 import { nanoid } from 'nanoid';
-import crypto from 'crypto';
-
-// Timing-safe secret comparison
-function verifyInternalSecret(request: NextRequest): boolean {
-  const secret = process.env.INTERNAL_API_SECRET;
-  if (!secret) return false;
-  const authHeader = request.headers.get('authorization');
-  if (!authHeader?.startsWith('Bearer ')) return false;
-  try {
-    const providedBuffer = Buffer.from(authHeader.slice(7));
-    const expectedBuffer = Buffer.from(secret);
-    if (providedBuffer.length !== expectedBuffer.length) return false;
-    return crypto.timingSafeEqual(providedBuffer, expectedBuffer);
-  } catch {
-    return false;
-  }
-}
+import { verifyInternalSecret } from '@/lib/server-auth';
 
 const VERIFIED_RESEARCHER_LABEL = 'verified-researcher';
 const LABELER_DID = 'did:plc:7c7tx56n64jhzezlwox5dja6';
@@ -445,7 +429,7 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error('Sync to DB error:', error);
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Sync failed' },
+      { error: 'Sync failed' },
       { status: 500 }
     );
   }

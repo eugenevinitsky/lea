@@ -3,21 +3,7 @@ import { db, verifiedResearchers } from '@/lib/db';
 import { eq } from 'drizzle-orm';
 import { syncUserGraph } from '@/lib/services/graph-sync';
 import { syncVerifiedOnlyList, syncAllPersonalLists, getBotAgent } from '@/lib/services/list-manager';
-import crypto from 'crypto';
-
-// Timing-safe secret comparison
-function verifyBearerSecret(authHeader: string | null, expected: string): boolean {
-  if (!authHeader || !authHeader.startsWith('Bearer ')) return false;
-  const provided = authHeader.slice(7);
-  try {
-    const providedBuffer = Buffer.from(provided);
-    const expectedBuffer = Buffer.from(expected);
-    if (providedBuffer.length !== expectedBuffer.length) return false;
-    return crypto.timingSafeEqual(providedBuffer, expectedBuffer);
-  } catch {
-    return false;
-  }
-}
+import { verifyBearerSecret } from '@/lib/server-auth';
 
 export async function GET(request: NextRequest) {
   // Verify cron secret (Vercel sets this automatically)
@@ -67,7 +53,7 @@ export async function GET(request: NextRequest) {
       } catch (error) {
         graphResults.push({
           did: researcher.did,
-          error: String(error),
+          error: 'Sync step failed',
         });
       }
     }
@@ -109,9 +95,10 @@ export async function GET(request: NextRequest) {
         });
       }
     } catch (error) {
+      console.error('Labeler ozone sync error:', error);
       (results.steps as unknown[]).push({
         name: 'labeler_ozone_sync',
-        error: String(error),
+        error: 'Sync step failed',
       });
     }
 
@@ -135,9 +122,10 @@ export async function GET(request: NextRequest) {
         });
       }
     } catch (error) {
+      console.error('Labeler DB sync error:', error);
       (results.steps as unknown[]).push({
         name: 'labeler_db_sync',
-        error: String(error),
+        error: 'Sync step failed',
       });
     }
 
@@ -152,7 +140,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(results);
   } catch (error) {
     console.error('Cron sync error:', error);
-    results.error = String(error);
+    results.error = 'Sync failed';
     return NextResponse.json(results, { status: 500 });
   }
 }

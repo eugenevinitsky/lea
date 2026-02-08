@@ -33,7 +33,8 @@ function hashVoter(pollId: string, voterDid: string): string {
 // GET /api/polls?postUri=xxx - Fetch poll data by post URI
 export async function GET(request: NextRequest) {
   const postUri = request.nextUrl.searchParams.get('postUri');
-  const voterDid = request.nextUrl.searchParams.get('voterDid');
+  // Use authenticated session DID instead of trusting client-provided voterDid
+  const voterDid = getAuthenticatedDid(request);
 
   if (!postUri) {
     return NextResponse.json({ error: 'postUri required' }, { status: 400 });
