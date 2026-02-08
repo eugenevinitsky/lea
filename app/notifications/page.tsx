@@ -12,13 +12,12 @@ import { FollowingProvider } from '@/lib/following-context';
 import {
   fetchNotifications,
   groupNotifications,
+  updateSeenNotifications,
   NotificationItem,
   GroupedNotifications,
   NotificationTypePrefs,
   getNotificationTypePrefs,
   setNotificationTypePrefs,
-  getNotificationsPageLastSeen,
-  setNotificationsPageLastSeen,
 } from '@/lib/notifications';
 import Login from '@/components/Login';
 import DMSidebar from '@/components/DMSidebar';
@@ -1569,9 +1568,7 @@ interface StreamItem {
 }
 
 // Build stream items from raw notifications, applying optional category filter.
-// Uses a local "last seen" timestamp instead of Bluesky's isRead flag, which
-// gets reset when the user views notifications in the Bluesky app/website.
-function buildStreamItems(notifications: NotificationItem[], activeFilter: string | null, lastSeenTimestamp: string | null): StreamItem[] {
+function buildStreamItems(notifications: NotificationItem[], activeFilter: string | null): StreamItem[] {
   // Apply filter
   let filtered = notifications;
   if (activeFilter) {
@@ -1610,7 +1607,7 @@ function buildStreamItems(notifications: NotificationItem[], activeFilter: strin
         subjectText: n.subjectText,
         postUri: n.uri,
         time: n.indexedAt,
-        isUnread: !lastSeenTimestamp || new Date(n.indexedAt) > new Date(lastSeenTimestamp),
+        isUnread: !n.isRead,
         actionLabel: 'replied to your post',
       });
     } else if (n.reason === 'quote') {
@@ -1622,7 +1619,7 @@ function buildStreamItems(notifications: NotificationItem[], activeFilter: strin
         subjectText: n.subjectText,
         postUri: n.uri,
         time: n.indexedAt,
-        isUnread: !lastSeenTimestamp || new Date(n.indexedAt) > new Date(lastSeenTimestamp),
+        isUnread: !n.isRead,
         actionLabel: 'quoted your post',
       });
     } else if (n.reason === 'mention') {
@@ -1633,7 +1630,7 @@ function buildStreamItems(notifications: NotificationItem[], activeFilter: strin
         text: n.record?.text,
         postUri: n.uri,
         time: n.indexedAt,
-        isUnread: !lastSeenTimestamp || new Date(n.indexedAt) > new Date(lastSeenTimestamp),
+        isUnread: !n.isRead,
         actionLabel: 'mentioned you',
       });
     }
@@ -1658,7 +1655,7 @@ function buildStreamItems(notifications: NotificationItem[], activeFilter: strin
       subjectText: sorted[0].subjectText,
       postUri,
       time: sorted[0].indexedAt,
-      isUnread: !lastSeenTimestamp || sorted.some(l => new Date(l.indexedAt) > new Date(lastSeenTimestamp)),
+      isUnread: sorted.some(l => !l.isRead),
       actionLabel: uniqueAuthors.length === 1 ? 'liked your post' : 'liked your post',
     });
   }
@@ -1680,7 +1677,7 @@ function buildStreamItems(notifications: NotificationItem[], activeFilter: strin
       subjectText: sorted[0].subjectText,
       postUri,
       time: sorted[0].indexedAt,
-      isUnread: !lastSeenTimestamp || sorted.some(r => new Date(r.indexedAt) > new Date(lastSeenTimestamp)),
+      isUnread: sorted.some(r => !r.isRead),
       actionLabel: 'reposted your post',
     });
   }
@@ -1877,23 +1874,20 @@ function NotificationStream({
   onOpenProfile: (did: string) => void;
   onOpenPost: (uri: string) => void;
 }) {
-  // Read the last-seen timestamp once on mount so highlights are stable
-  const [lastSeen] = useState(() => getNotificationsPageLastSeen());
-
-  // After notifications load, update the last-seen timestamp with a short delay
-  // so the user can see the blue highlights before they disappear on next visit
+  // Mark notifications as seen on Bluesky after a short delay so the user
+  // can see the blue highlights before they clear on the next fetch.
   useEffect(() => {
     if (notifications.length > 0) {
       const timer = setTimeout(() => {
-        setNotificationsPageLastSeen(new Date().toISOString());
+        updateSeenNotifications();
       }, 3000);
       return () => clearTimeout(timer);
     }
   }, [notifications]);
 
   const streamItems = useMemo(
-    () => buildStreamItems(notifications, activeFilter, lastSeen),
-    [notifications, activeFilter, lastSeen]
+    () => buildStreamItems(notifications, activeFilter),
+    [notifications, activeFilter]
   );
 
   if (notifications.length === 0) {
