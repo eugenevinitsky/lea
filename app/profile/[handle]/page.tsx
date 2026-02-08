@@ -28,6 +28,7 @@ function ProfilePageContent() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [profileDid, setProfileDid] = useState<string | null>(null);
+  const [resolvedProfile, setResolvedProfile] = useState<{ did: string; handle: string; displayName?: string; avatar?: string } | null>(null);
   const [resolveError, setResolveError] = useState<string | null>(null);
   const [showProfileEditor, setShowProfileEditor] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
@@ -75,6 +76,7 @@ function ProfilePageContent() {
         const profile = await getBlueskyProfile(handle);
         if (profile) {
           setProfileDid(profile.did);
+          setResolvedProfile(profile);
         } else {
           setResolveError('User not found');
         }
@@ -235,6 +237,7 @@ function ProfilePageContent() {
           ) : profileDid ? (
             <ProfileView
               did={profileDid}
+              initialBskyProfile={resolvedProfile || undefined}
               onClose={handleClose}
               onOpenProfile={handleOpenProfile}
               onEdit={() => setShowProfileEditor(true)}

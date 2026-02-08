@@ -112,9 +112,11 @@ interface ProfileViewProps {
   inline?: boolean;
   // Called when user wants to edit their own profile
   onEdit?: () => void;
+  // Pre-fetched Bluesky profile to avoid redundant API call
+  initialBskyProfile?: BlueskyProfile;
 }
 
-export default function ProfileView({ did, avatar: avatarProp, displayName, handle, onClose, onOpenProfile, inline = false, onEdit }: ProfileViewProps) {
+export default function ProfileView({ did, avatar: avatarProp, displayName, handle, onClose, onOpenProfile, inline = false, onEdit, initialBskyProfile }: ProfileViewProps) {
   const [researcher, setResearcher] = useState<ResearcherInfo | null>(null);
   const [profile, setProfile] = useState<ProfileData | null>(null);
   const [coAuthors, setCoAuthors] = useState<CoAuthor[]>([]);
@@ -122,7 +124,7 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
   const [error, setError] = useState<string | null>(null);
   
   // Bluesky profile data (avatar, bio, follower counts, etc.)
-  const [bskyProfile, setBskyProfile] = useState<BlueskyProfile | null>(null);
+  const [bskyProfile, setBskyProfile] = useState<BlueskyProfile | null>(initialBskyProfile || null);
   
   // Known followers (people you follow who also follow this account)
   const [knownFollowers, setKnownFollowers] = useState<KnownFollowersResult>({ followers: [] });
@@ -348,16 +350,10 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
   useEffect(() => {
     async function fetchProfile() {
       try {
-        // Check if viewing own profile - getUnknownFollows is meaningless for own profile
-        // and causes expensive fallback that fetches ALL follows
-        const session = getSession();
-        const isOwnProfile = session?.did === did;
-
-        // Fetch all independent data in parallel for faster load
-        const [bskyData, known, unknown, profileRes] = await Promise.all([
-          getBlueskyProfile(did),
-          getKnownFollowers(did, 50),
-          isOwnProfile ? Promise.resolve({ follows: [] }) : getUnknownFollows(did, followingDids || undefined, 50),
+        // Fetch Bluesky profile and our DB profile in parallel
+        // Skip Bluesky fetch if we already have initialBskyProfile
+        const [bskyData, profileRes] = await Promise.all([
+          initialBskyProfile ? Promise.resolve(initialBskyProfile) : getBlueskyProfile(did),
           fetch(`/api/profile?did=${encodeURIComponent(did)}`),
         ]);
 
@@ -382,10 +378,6 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
           }
         }
 
-        // Set followers data
-        setKnownFollowers(known);
-        setUnknownFollows(unknown);
-
         // Process profile API response
         if (profileRes.status === 404) {
           setError('not_verified');
@@ -406,7 +398,7 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
         setResearcher(data.researcher);
         setProfile(data.profile);
 
-        // Fetch co-authors if we have an ORCID (runs after profile loads)
+        // Fetch co-authors in the background (don't block profile load)
         if (data.researcher?.orcid) {
           fetchCoAuthors(data.researcher.orcid);
         }
@@ -439,6 +431,18 @@ export default function ProfileView({ did, avatar: avatarProp, displayName, hand
 
     fetchProfile();
   }, [did]);
+
+  // Fetch known followers and unknown follows in the background (deferred)
+  useEffect(() => {
+    const session = getSession();
+    const isOwnProfile = session?.did === did;
+
+    getKnownFollowers(did, 50).then(setKnownFollowers).catch(() => {});
+
+    if (!isOwnProfile && followingDids) {
+      getUnknownFollows(did, followingDids, 50).then(setUnknownFollows).catch(() => {});
+    }
+  }, [did, followingDids]);
   
   // Switch to posts tab when viewing non-verified user
   useEffect(() => {
