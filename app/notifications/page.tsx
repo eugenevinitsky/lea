@@ -999,9 +999,7 @@ function EnhancedFollowerRow({
 
   return (
     <div
-      className={`p-4 hover:bg-gray-50 dark:hover:bg-gray-800/50 border-b border-gray-100 dark:border-gray-800 last:border-b-0 ${
-        hasSpamIndicators ? 'bg-amber-50/50 dark:bg-amber-900/10' : ''
-      }`}
+      className="p-3 hover:bg-gray-50 dark:hover:bg-gray-800/50 border-b border-gray-100 dark:border-gray-800 last:border-b-0"
     >
       <div className="flex items-start gap-3">
         {/* Checkbox */}
@@ -1025,10 +1023,10 @@ function EnhancedFollowerRow({
             <img
               src={profile.avatar}
               alt=""
-              className={`w-12 h-12 rounded-full ${getAvatarRingClass()}`}
+              className={`w-10 h-10 rounded-full ${getAvatarRingClass()}`}
             />
           ) : (
-            <div className={`w-12 h-12 rounded-full bg-gradient-to-br from-gray-300 to-gray-400 dark:from-gray-600 dark:to-gray-700 flex items-center justify-center text-white text-lg font-bold ${getAvatarRingClass()}`}>
+            <div className={`w-10 h-10 rounded-full bg-gradient-to-br from-gray-300 to-gray-400 dark:from-gray-600 dark:to-gray-700 flex items-center justify-center text-white text-sm font-bold ${getAvatarRingClass()}`}>
               {(profile.displayName || profile.handle)[0].toUpperCase()}
             </div>
           )}
@@ -1048,16 +1046,16 @@ function EnhancedFollowerRow({
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-1.5 flex-wrap">
             <span
-              className="font-semibold text-gray-900 dark:text-gray-100 truncate cursor-pointer hover:underline"
+              className="text-sm font-semibold text-gray-900 dark:text-gray-100 truncate cursor-pointer hover:underline"
               onClick={handleProfileClick}
               onAuxClick={handleProfileClick}
             >
               {profile.displayName || profile.handle}
             </span>
-            <span className="text-xs text-gray-400">{formatTime(profile.indexedAt)}</span>
+            <span className="text-[11px] text-gray-400">{formatTime(profile.indexedAt)}</span>
           </div>
           <p
-            className="text-sm text-gray-500 dark:text-gray-400 cursor-pointer hover:underline"
+            className="text-xs text-gray-500 dark:text-gray-400 cursor-pointer hover:underline"
             onClick={handleProfileClick}
             onAuxClick={handleProfileClick}
           >
@@ -1066,7 +1064,7 @@ function EnhancedFollowerRow({
 
           {/* Bio */}
           {profile.description ? (
-            <p className="mt-1.5 text-sm text-gray-600 dark:text-gray-300 line-clamp-2">
+            <p className="mt-1 text-xs text-gray-600 dark:text-gray-300 line-clamp-2">
               {profile.description}
             </p>
           ) : null}
@@ -1075,7 +1073,7 @@ function EnhancedFollowerRow({
           <ProfileLabels profile={profile} compact />
 
           {/* Stats row */}
-          <div className="mt-2 flex items-center gap-3 flex-wrap text-xs">
+          <div className="mt-1.5 flex items-center gap-3 flex-wrap text-[11px]">
             <span>
               <span className="font-semibold text-gray-700 dark:text-gray-200">
                 {followersCount.toLocaleString()}
@@ -1109,9 +1107,9 @@ function EnhancedFollowerRow({
 
           {/* Spam indicators */}
           {hasSpamIndicators && (
-            <div className="mt-2 flex items-center gap-2 flex-wrap">
+            <div className="mt-1.5 flex items-center gap-2 flex-wrap">
               {hasNoAvatar && (
-                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 text-xs bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 rounded">
+                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[11px] bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 rounded">
                   <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                   </svg>
@@ -1119,7 +1117,7 @@ function EnhancedFollowerRow({
                 </span>
               )}
               {hasNoBio && (
-                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 text-xs bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 rounded">
+                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[11px] bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 rounded">
                   <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h7" />
                   </svg>
@@ -1127,7 +1125,7 @@ function EnhancedFollowerRow({
                 </span>
               )}
               {followsManyAccounts && (
-                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 text-xs bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 rounded">
+                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[11px] bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 rounded">
                   <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
                   </svg>
@@ -1144,7 +1142,7 @@ function EnhancedFollowerRow({
           <button
             onClick={isFollowing ? handleUnfollow : handleFollow}
             disabled={followLoading}
-            className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
+            className={`px-2.5 py-1 rounded-full text-xs font-medium transition-colors ${
               isFollowing
                 ? 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'
                 : 'bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 hover:bg-blue-200 dark:hover:bg-blue-900/60'
@@ -1166,7 +1164,7 @@ function EnhancedFollowerRow({
           <button
             onClick={handleBlock}
             disabled={blockLoading}
-            className="px-3 py-1.5 rounded-full text-sm font-medium bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/20 dark:hover:text-red-400 transition-colors disabled:opacity-50"
+            className="px-2.5 py-1 rounded-full text-xs font-medium bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/20 dark:hover:text-red-400 transition-colors disabled:opacity-50"
           >
             {blockLoading ? (
               <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
@@ -1521,9 +1519,9 @@ function NewFollowersPane({
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                 </svg>
               }
-              iconColor="text-amber-600 dark:text-amber-400"
-              bgColor="bg-amber-50 dark:bg-amber-900/20"
-              textColor="text-amber-700 dark:text-amber-300"
+              iconColor="text-gray-500 dark:text-gray-400"
+              bgColor="bg-gray-50 dark:bg-gray-800/50"
+              textColor="text-gray-600 dark:text-gray-400"
               defaultExpanded={false}
             >
               {categorizedProfiles.potentialSpam.map((profile) => (
