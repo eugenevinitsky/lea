@@ -8,8 +8,10 @@ import { SettingsProvider, useSettings } from '@/lib/settings';
 import { BookmarksProvider, useBookmarks } from '@/lib/bookmarks';
 import { FeedsProvider } from '@/lib/feeds';
 import { FollowingProvider } from '@/lib/following-context';
+import { ComposerProvider, useComposer } from '@/lib/composer-context';
 import Login from '@/components/Login';
 import Sidebar from '@/components/Sidebar';
+import Composer from '@/components/Composer';
 import ResearcherSearch from '@/components/ResearcherSearch';
 
 interface ModerationLayoutContextValue {
@@ -32,6 +34,7 @@ function ModerationLayoutInner({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const [isVerified, setIsVerified] = useState(false);
   const { setUserDid } = useBookmarks();
+  const { isOpen: showComposer, quotePost, openComposer, closeComposer } = useComposer();
 
   useEffect(() => {
     initOAuth().then((result) => {
@@ -141,7 +144,7 @@ function ModerationLayoutInner({ children }: { children: ReactNode }) {
         {/* Main layout with sidebar */}
         <div className="max-w-5xl mx-auto px-0 lg:px-4">
           <div className="flex lg:gap-4 lg:items-start">
-          <Sidebar />
+          <Sidebar openComposer={openComposer} />
 
           {/* Main content */}
           <main className="flex-1 w-full lg:max-w-xl bg-white dark:bg-gray-950 min-h-screen border-x border-gray-200 dark:border-gray-800">
@@ -149,6 +152,36 @@ function ModerationLayoutInner({ children }: { children: ReactNode }) {
           </main>
           </div>
         </div>
+
+        {/* Composer Modal */}
+        {showComposer && (
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+            onClick={(e) => {
+              if (e.target === e.currentTarget) {
+                closeComposer();
+              }
+            }}
+          >
+            <div className="w-full h-full lg:w-[600px] lg:h-auto lg:max-h-[80vh] lg:rounded-2xl bg-white dark:bg-gray-950 flex flex-col lg:shadow-2xl">
+              <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 dark:border-gray-800">
+                <button
+                  onClick={() => closeComposer()}
+                  className="text-blue-500 hover:text-blue-600 font-medium"
+                >
+                  Cancel
+                </button>
+                <span className="font-semibold text-gray-900 dark:text-gray-100">
+                  {quotePost ? 'Quote Post' : 'New Post'}
+                </span>
+                <div className="w-14" />
+              </div>
+              <div className="flex-1 overflow-y-auto">
+                <Composer onPost={() => closeComposer()} quotePost={quotePost} />
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </ModerationLayoutContext.Provider>
   );
@@ -160,7 +193,9 @@ export default function ModerationLayout({ children }: { children: ReactNode }) 
       <BookmarksProvider>
         <FeedsProvider>
           <FollowingProvider>
-            <ModerationLayoutInner>{children}</ModerationLayoutInner>
+            <ComposerProvider>
+              <ModerationLayoutInner>{children}</ModerationLayoutInner>
+            </ComposerProvider>
           </FollowingProvider>
         </FeedsProvider>
       </BookmarksProvider>
