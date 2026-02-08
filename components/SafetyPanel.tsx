@@ -119,7 +119,7 @@ export default function SafetyPanel({ onOpenProfile, onOpenThread, defaultExpand
   // Section expansion state (alerts always expanded, others collapsed by default)
   const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set());
 
-  // Track mount state for portal and load alerts on mount
+  // Track mount state for portal and load saved thresholds
   useEffect(() => {
     setMounted(true);
     // Load saved thresholds
@@ -131,8 +131,7 @@ export default function SafetyPanel({ onOpenProfile, onOpenThread, defaultExpand
         console.error('Failed to parse saved thresholds:', e);
       }
     }
-    // Load alerts on initial mount (homepage load)
-    loadAlerts();
+    // Alerts are loaded lazily when the panel is expanded (see effect below)
   }, []);
 
   // Load saved preference on mount
@@ -153,9 +152,14 @@ export default function SafetyPanel({ onOpenProfile, onOpenThread, defaultExpand
   // Load alerts when expanded (with rate limiting - max once per 5 minutes)
   useEffect(() => {
     if (isExpanded && !loadingAlerts) {
-      const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
-      if (!lastAlertCheck || lastAlertCheck < fiveMinutesAgo) {
+      // Always load on first check, then rate-limit to every 5 minutes
+      if (!lastAlertCheck) {
         loadAlerts();
+      } else {
+        const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
+        if (lastAlertCheck < fiveMinutesAgo) {
+          loadAlerts();
+        }
       }
     }
   }, [isExpanded]);
@@ -249,16 +253,10 @@ export default function SafetyPanel({ onOpenProfile, onOpenThread, defaultExpand
     setLoadingLabelers(true);
     try {
       const prefs = await getPreferences();
-      const labelerInfos: LabelerInfo[] = [];
-      
-      for (const labeler of prefs.labelers) {
-        const info = await getLabelerInfo(labeler.did);
-        if (info) {
-          labelerInfos.push(info);
-        }
-      }
-      
-      setLabelers(labelerInfos);
+      const results = await Promise.all(
+        prefs.labelers.map((labeler) => getLabelerInfo(labeler.did))
+      );
+      setLabelers(results.filter((info): info is LabelerInfo => info !== null));
     } catch (error) {
       console.error('Failed to load labelers:', error);
     } finally {
