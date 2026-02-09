@@ -407,6 +407,46 @@ export default function Feed({ feedId, feedUri, feedName, acceptsInteractions, r
 
   // Reset and reload when feed changes or refresh triggered
   useEffect(() => {
+    // Check if we're returning from thread navigation with cached feed state
+    try {
+      const scrollPosition = sessionStorage.getItem('lea-scroll-position');
+      if (scrollPosition) {
+        const cached = sessionStorage.getItem('lea-feed-cache');
+        if (cached) {
+          const data = JSON.parse(cached);
+          const currentKey = feedUri || feedId || '';
+          if (data.feedKey === currentKey && data.posts?.length > 0) {
+            // Restore cached state instead of refetching
+            setPosts(data.posts);
+            setCursor(data.cursor);
+            setLoadedPages(data.loadedPages || 1);
+            setLoading(false);
+
+            if (isRemixFeed) {
+              if (data.remixCursors) {
+                setRemixCursors(new Map(data.remixCursors));
+              }
+              if (data.remixStats) {
+                setRemixStats({
+                  postCounts: new Map(data.remixStats.postCounts),
+                  totalPosts: data.remixStats.totalPosts,
+                });
+              }
+              // Rebuild seen posts set from cached posts
+              for (const p of data.posts) {
+                remixSeenPostsRef.current.add(p.post.uri);
+              }
+            }
+
+            sessionStorage.removeItem('lea-feed-cache');
+            return;
+          }
+        }
+      }
+    } catch {
+      // Fall through to normal load
+    }
+
     setPosts([]);
     setCursor(undefined);
     setLoadedPages(0);
@@ -614,6 +654,29 @@ export default function Feed({ feedId, feedUri, feedName, acceptsInteractions, r
       console.log('[SelfThread] Checking', checkedCount, 'posts with replies');
     }
   }, [filteredPosts, settings.expandSelfThreads, expandSelfThread]);
+
+  // Save feed state to sessionStorage for restoration after back navigation
+  useEffect(() => {
+    if (posts.length === 0) return;
+    try {
+      const data: Record<string, unknown> = {
+        feedKey: feedUri || feedId || '',
+        posts,
+        cursor,
+        loadedPages,
+      };
+      if (isRemixFeed) {
+        data.remixCursors = Array.from(remixCursors.entries());
+        data.remixStats = {
+          postCounts: Array.from(remixStats.postCounts.entries()),
+          totalPosts: remixStats.totalPosts,
+        };
+      }
+      sessionStorage.setItem('lea-feed-cache', JSON.stringify(data));
+    } catch {
+      // Ignore - sessionStorage may be full or unavailable
+    }
+  }, [posts, cursor, loadedPages, feedUri, feedId, isRemixFeed, remixCursors, remixStats]);
 
   // Track verified researchers seen in this feed (only count each post once)
   useEffect(() => {
