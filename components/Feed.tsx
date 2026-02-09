@@ -70,6 +70,10 @@ export default function Feed({ feedId, feedUri, feedName, acceptsInteractions, r
   const loadingThreadsRef = useRef<Set<string>>(new Set());
   const checkedUrisRef = useRef<Set<string>>(new Set());
 
+  // Track whether we restored from cache so async dep changes (e.g. remixSettings
+  // loading from localStorage) don't trigger a reload
+  const restoredFeedRef = useRef<{ feedKey: string; refreshKey: number } | null>(null);
+
   // Use external handler if provided, otherwise use internal state
   const handleOpenThread = onOpenThread || setInternalThreadUri;
 
@@ -407,6 +411,20 @@ export default function Feed({ feedId, feedUri, feedName, acceptsInteractions, r
 
   // Reset and reload when feed changes or refresh triggered
   useEffect(() => {
+    const currentFeedKey = feedUri || feedId || '';
+
+    // If we already restored from cache on this mount, skip subsequent re-runs
+    // caused by async dep changes (e.g. remixSettings loading from localStorage)
+    // unless the feed identity or refreshKey actually changed.
+    if (restoredFeedRef.current) {
+      if (restoredFeedRef.current.feedKey === currentFeedKey &&
+          restoredFeedRef.current.refreshKey === refreshKey) {
+        return;
+      }
+      // Feed or refreshKey changed — clear flag and proceed with normal load
+      restoredFeedRef.current = null;
+    }
+
     // Check if we're returning from thread navigation with cached feed state
     try {
       const scrollPosition = sessionStorage.getItem('lea-scroll-position');
@@ -414,8 +432,7 @@ export default function Feed({ feedId, feedUri, feedName, acceptsInteractions, r
         const cached = sessionStorage.getItem('lea-feed-cache');
         if (cached) {
           const data = JSON.parse(cached);
-          const currentKey = feedUri || feedId || '';
-          if (data.feedKey === currentKey && data.posts?.length > 0) {
+          if (data.feedKey === currentFeedKey && data.posts?.length > 0) {
             // Restore cached state instead of refetching
             setPosts(data.posts);
             setCursor(data.cursor);
@@ -439,6 +456,7 @@ export default function Feed({ feedId, feedUri, feedName, acceptsInteractions, r
             }
 
             sessionStorage.removeItem('lea-feed-cache');
+            restoredFeedRef.current = { feedKey: currentFeedKey, refreshKey: refreshKey ?? 0 };
             return;
           }
         }
