@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import { useState, useEffect, useLayoutEffect, useMemo, useRef, useCallback } from 'react';
 import { AppBskyFeedDefs, AppBskyFeedPost, AppBskyEmbedExternal } from '@atproto/api';
 import { getTimeline, getFeed, getListFeed, searchPosts, FEEDS, FeedId, isVerifiedResearcher, Label, hasReplies, isReplyPost, getSelfThread, SelfThreadResult, getModerationOpts, moderatePost, ModerationOpts } from '@/lib/bluesky';
 import { VERIFIED_RESEARCHERS_LIST } from '@/lib/constants';
@@ -73,6 +73,9 @@ export default function Feed({ feedId, feedUri, feedName, acceptsInteractions, r
   // Track whether we restored from cache so async dep changes (e.g. remixSettings
   // loading from localStorage) don't trigger a reload
   const restoredFeedRef = useRef<{ feedKey: string; refreshKey: number } | null>(null);
+
+  // Track pending scroll restoration after cache restore
+  const pendingScrollRestoreRef = useRef(false);
 
   // Use external handler if provided, otherwise use internal state
   const handleOpenThread = onOpenThread || setInternalThreadUri;
@@ -457,6 +460,7 @@ export default function Feed({ feedId, feedUri, feedName, acceptsInteractions, r
 
             sessionStorage.removeItem('lea-feed-cache');
             restoredFeedRef.current = { feedKey: currentFeedKey, refreshKey: refreshKey ?? 0 };
+            pendingScrollRestoreRef.current = true;
             return;
           }
         }
@@ -495,6 +499,25 @@ export default function Feed({ feedId, feedUri, feedName, acceptsInteractions, r
     }
   // Include remixSettings in deps so remix feed reloads when weights change
   }, [feedId, feedUri, refreshKey, isKeywordFeed, effectiveKeyword, isRemixFeed, remixSourceFeeds.length, remixSettings]);
+
+  // Restore scroll position after cache-restored posts are committed to DOM
+  useLayoutEffect(() => {
+    if (!pendingScrollRestoreRef.current || posts.length === 0) return;
+    pendingScrollRestoreRef.current = false;
+
+    try {
+      const savedPosition = sessionStorage.getItem('lea-scroll-position');
+      if (savedPosition) {
+        const targetY = parseInt(savedPosition, 10);
+        window.scrollTo(0, targetY);
+      }
+    } catch {}
+
+    try {
+      sessionStorage.removeItem('lea-scroll-position');
+      sessionStorage.removeItem('lea-scroll-feed');
+    } catch {}
+  }, [posts]);
 
   // Track values in refs for IntersectionObserver callback (avoids stale closures)
   const loadingRef = useRef(loading);

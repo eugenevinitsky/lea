@@ -142,30 +142,8 @@ export default function HomePage() {
     prevFeedUriRef.current = activeFeedUri;
   }, [activeFeedUri, pinnedFeeds]);
 
-  // Restore scroll position after navigating back from a thread
-  useEffect(() => {
-    const savedPosition = sessionStorage.getItem('lea-scroll-position');
-    if (savedPosition) {
-      const targetY = parseInt(savedPosition, 10);
-      // Try to scroll after content loads, with retries
-      let attempts = 0;
-      const tryScroll = () => {
-        attempts++;
-        window.scrollTo(0, targetY);
-        // If we couldn't scroll far enough and haven't tried too many times, retry
-        if (window.scrollY < targetY - 100 && attempts < 10) {
-          setTimeout(tryScroll, 200);
-        } else {
-          // Clear the saved position
-          sessionStorage.removeItem('lea-scroll-position');
-          sessionStorage.removeItem('lea-scroll-feed');
-        }
-      };
-      // Initial delay to let feed start loading
-      const timer = setTimeout(tryScroll, 300);
-      return () => clearTimeout(timer);
-    }
-  }, []);
+  // Scroll restoration after back navigation is handled by Feed.tsx's useLayoutEffect
+  // which fires at the right time — after cached posts are committed to the DOM.
 
   // Handle onboarding detection
   useEffect(() => {
