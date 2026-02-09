@@ -945,6 +945,7 @@ function QuotePost({
     <div
       className={`mt-2 border border-gray-200 dark:border-gray-700 rounded-xl p-3 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors ${onOpenThread ? 'cursor-pointer' : ''}`}
       onClick={(e) => {
+        e.preventDefault();
         e.stopPropagation();
         if (onOpenThread) {
           onOpenThread(viewRecord.uri);
