@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useLayoutEffect, useMemo, useRef, useCallback } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { AppBskyFeedDefs, AppBskyFeedPost, AppBskyEmbedExternal } from '@atproto/api';
 import { getTimeline, getFeed, getListFeed, searchPosts, FEEDS, FeedId, isVerifiedResearcher, Label, hasReplies, isReplyPost, getSelfThread, SelfThreadResult, getModerationOpts, moderatePost, ModerationOpts } from '@/lib/bluesky';
 import { VERIFIED_RESEARCHERS_LIST } from '@/lib/constants';
@@ -69,13 +69,6 @@ export default function Feed({ feedId, feedUri, feedName, acceptsInteractions, r
   // Use refs for tracking to avoid re-triggering effects
   const loadingThreadsRef = useRef<Set<string>>(new Set());
   const checkedUrisRef = useRef<Set<string>>(new Set());
-
-  // Track whether we restored from cache so async dep changes (e.g. remixSettings
-  // loading from localStorage) don't trigger a reload
-  const restoredFeedRef = useRef<{ feedKey: string; refreshKey: number } | null>(null);
-
-  // Track pending scroll restoration after cache restore
-  const pendingScrollRestoreRef = useRef(false);
 
   // Use external handler if provided, otherwise use internal state
   const handleOpenThread = onOpenThread || setInternalThreadUri;
@@ -414,61 +407,6 @@ export default function Feed({ feedId, feedUri, feedName, acceptsInteractions, r
 
   // Reset and reload when feed changes or refresh triggered
   useEffect(() => {
-    const currentFeedKey = feedUri || feedId || '';
-
-    // If we already restored from cache on this mount, skip subsequent re-runs
-    // caused by async dep changes (e.g. remixSettings loading from localStorage)
-    // unless the feed identity or refreshKey actually changed.
-    if (restoredFeedRef.current) {
-      if (restoredFeedRef.current.feedKey === currentFeedKey &&
-          restoredFeedRef.current.refreshKey === refreshKey) {
-        return;
-      }
-      // Feed or refreshKey changed — clear flag and proceed with normal load
-      restoredFeedRef.current = null;
-    }
-
-    // Check if we're returning from thread navigation with cached feed state
-    try {
-      const scrollPosition = sessionStorage.getItem('lea-scroll-position');
-      if (scrollPosition) {
-        const cached = sessionStorage.getItem('lea-feed-cache');
-        if (cached) {
-          const data = JSON.parse(cached);
-          if (data.feedKey === currentFeedKey && data.posts?.length > 0) {
-            // Restore cached state instead of refetching
-            setPosts(data.posts);
-            setCursor(data.cursor);
-            setLoadedPages(data.loadedPages || 1);
-            setLoading(false);
-
-            if (isRemixFeed) {
-              if (data.remixCursors) {
-                setRemixCursors(new Map(data.remixCursors));
-              }
-              if (data.remixStats) {
-                setRemixStats({
-                  postCounts: new Map(data.remixStats.postCounts),
-                  totalPosts: data.remixStats.totalPosts,
-                });
-              }
-              // Rebuild seen posts set from cached posts
-              for (const p of data.posts) {
-                remixSeenPostsRef.current.add(p.post.uri);
-              }
-            }
-
-            sessionStorage.removeItem('lea-feed-cache');
-            restoredFeedRef.current = { feedKey: currentFeedKey, refreshKey: refreshKey ?? 0 };
-            pendingScrollRestoreRef.current = true;
-            return;
-          }
-        }
-      }
-    } catch {
-      // Fall through to normal load
-    }
-
     setPosts([]);
     setCursor(undefined);
     setLoadedPages(0);
@@ -500,26 +438,7 @@ export default function Feed({ feedId, feedUri, feedName, acceptsInteractions, r
   // Include remixSettings in deps so remix feed reloads when weights change
   }, [feedId, feedUri, refreshKey, isKeywordFeed, effectiveKeyword, isRemixFeed, remixSourceFeeds.length, remixSettings]);
 
-  // Restore scroll position after cache-restored posts are committed to DOM
-  useLayoutEffect(() => {
-    if (!pendingScrollRestoreRef.current || posts.length === 0) return;
-    pendingScrollRestoreRef.current = false;
-
-    try {
-      const savedPosition = sessionStorage.getItem('lea-scroll-position');
-      if (savedPosition) {
-        const targetY = parseInt(savedPosition, 10);
-        window.scrollTo(0, targetY);
-      }
-    } catch {}
-
-    try {
-      sessionStorage.removeItem('lea-scroll-position');
-      sessionStorage.removeItem('lea-scroll-feed');
-    } catch {}
-  }, [posts]);
-
-  // Track values in refs for IntersectionObserver callback (avoids stale closures)
+  // Track values in refs
   const loadingRef = useRef(loading);
   const cursorRef = useRef(cursor);
   const loadFeedRef = useRef(loadFeed);
@@ -696,30 +615,7 @@ export default function Feed({ feedId, feedUri, feedName, acceptsInteractions, r
     }
   }, [filteredPosts, settings.expandSelfThreads, expandSelfThread]);
 
-  // Save feed state to sessionStorage for restoration after back navigation
-  useEffect(() => {
-    if (posts.length === 0) return;
-    try {
-      const data: Record<string, unknown> = {
-        feedKey: feedUri || feedId || '',
-        posts,
-        cursor,
-        loadedPages,
-      };
-      if (isRemixFeed) {
-        data.remixCursors = Array.from(remixCursors.entries());
-        data.remixStats = {
-          postCounts: Array.from(remixStats.postCounts.entries()),
-          totalPosts: remixStats.totalPosts,
-        };
-      }
-      sessionStorage.setItem('lea-feed-cache', JSON.stringify(data));
-    } catch {
-      // Ignore - sessionStorage may be full or unavailable
-    }
-  }, [posts, cursor, loadedPages, feedUri, feedId, isRemixFeed, remixCursors, remixStats]);
-
-  // Track verified researchers seen in this feed (only count each post once)
+  // Track verified researchers
   useEffect(() => {
     if (posts.length === 0 || !effectiveFeedUri) return;
 

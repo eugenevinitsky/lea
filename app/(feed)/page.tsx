@@ -1,8 +1,6 @@
 'use client';
 
 import React, { useState, useCallback, useEffect, useRef } from 'react';
-import { useRouter } from 'next/navigation';
-import { getBlueskyProfile, buildPostUrl } from '@/lib/bluesky';
 import { useFeeds } from '@/lib/feeds';
 import { useFeedLayout } from './layout';
 import Feed from '@/components/Feed';
@@ -13,7 +11,6 @@ import ProfileEditor from '@/components/ProfileEditor';
 import RemixSettings from '@/components/RemixSettings';
 
 export default function HomePage() {
-  const router = useRouter();
   const { session, isOAuthCallback, navigateToProfile, postCreatedKey } = useFeedLayout();
 
   const [showOnboarding, setShowOnboarding] = useState(false);
@@ -37,34 +34,35 @@ export default function HomePage() {
   const feedsContainerRef = React.useRef<HTMLDivElement>(null);
   const { pinnedFeeds, isLoaded: feedsLoaded, removeFeed, reorderFeeds } = useFeeds();
 
-  // Open thread using client-side navigation with scroll position save
-  const openThread = useCallback(async (uri: string | null) => {
+  // Open thread as a modal overlay — feed stays mounted so scroll position is preserved
+  const openThread = useCallback((uri: string | null) => {
     if (!uri) {
       setThreadUri(null);
       return;
     }
+    // Push a history entry so the browser back button can close the overlay
+    window.history.pushState({ ...window.history.state, leaThread: true }, '');
+    setThreadUri(uri);
+  }, []);
 
-    const match = uri.match(/^at:\/\/(did:[^/]+)\/app\.bsky\.feed\.post\/([^/]+)$/);
-    if (match) {
-      const [, did, rkey] = match;
-      // Save scroll position before navigating so we can restore it on back
-      sessionStorage.setItem('lea-scroll-position', window.scrollY.toString());
-      sessionStorage.setItem('lea-scroll-feed', activeFeedUri || '');
-      try {
-        const profile = await getBlueskyProfile(did);
-        if (profile?.handle) {
-          router.push(buildPostUrl(profile.handle, rkey, profile.did));
-          return;
-        }
-      } catch {
-        // Fall through to use DID
-      }
-      router.push(buildPostUrl(did, rkey));
-    } else {
-      // Fallback: open in modal if URI format doesn't match
-      setThreadUri(uri);
+  // Close thread overlay and pop the history entry we pushed
+  const closeThread = useCallback(() => {
+    if (!threadUri) return;
+    setThreadUri(null);
+    // Pop the history entry we added when opening the thread
+    if (window.history.state?.leaThread) {
+      window.history.back();
     }
-  }, [activeFeedUri, router]);
+  }, [threadUri]);
+
+  // Listen for browser back button to close the thread overlay
+  useEffect(() => {
+    const handlePopState = () => {
+      setThreadUri(null);
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
 
   // Set active feed once feeds are loaded from localStorage
   useEffect(() => {
@@ -73,21 +71,15 @@ export default function HomePage() {
     
     // Only set if we haven't set one yet
     if (activeFeedUri === null) {
-      // First check sessionStorage (for thread navigation back)
-      let sessionFeed: string | null = null;
       let savedLocalFeed: string | null = null;
       try {
-        sessionFeed = sessionStorage.getItem('lea-scroll-feed');
         savedLocalFeed = localStorage.getItem('lea-active-feed');
       } catch {
         // localStorage may fail in private browsing
       }
-      // Then check localStorage (for page refresh persistence)
-      const savedFeed = sessionFeed || savedLocalFeed;
       
-      if (savedFeed && pinnedFeeds.some(f => f.uri === savedFeed)) {
-        // Saved feed exists and is in pinned feeds
-        setActiveFeedUri(savedFeed);
+      if (savedLocalFeed && pinnedFeeds.some(f => f.uri === savedLocalFeed)) {
+        setActiveFeedUri(savedLocalFeed);
       } else {
         // Default to first feed
         setActiveFeedUri(pinnedFeeds[0].uri);
@@ -142,8 +134,6 @@ export default function HomePage() {
     prevFeedUriRef.current = activeFeedUri;
   }, [activeFeedUri, pinnedFeeds]);
 
-  // Scroll restoration after back navigation is handled by Feed.tsx's useLayoutEffect
-  // which fires at the right time — after cached posts are committed to the DOM.
 
   // Handle onboarding detection
   useEffect(() => {
@@ -494,7 +484,7 @@ export default function HomePage() {
 
       {/* Thread View Modal */}
       {threadUri && (
-        <ThreadView uri={threadUri} onClose={() => openThread(null)} />
+        <ThreadView uri={threadUri} onClose={closeThread} onOpenProfile={navigateToProfile} />
       )}
 
       {/* Feed Discovery modal */}
