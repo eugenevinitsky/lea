@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { getFilteredUnreadNotificationCount } from '@/lib/notifications';
-import { listConvos } from '@/lib/bluesky';
+import { listConvos, checkSafetyAlerts } from '@/lib/bluesky';
 
 interface SidebarProps {
   openComposer?: () => void;
@@ -14,6 +14,7 @@ export default function Sidebar({ openComposer }: SidebarProps) {
   const [hasUnreadMessages, setHasUnreadMessages] = useState(false);
 
   useEffect(() => {
+    // Seed moderation dot from localStorage immediately (may be stale)
     try {
       const activeAlerts = JSON.parse(localStorage.getItem('lea-active-alert-ids') || '[]');
       setHasModerationAlerts(activeAlerts.length > 0);
@@ -39,11 +40,27 @@ export default function Sidebar({ openComposer }: SidebarProps) {
     const msgInitialTimer = setTimeout(checkUnreadMessages, 2000);
     const msgInterval = setInterval(checkUnreadMessages, 30000);
 
+    // Check for moderation alerts and poll every 5 minutes
+    const checkModerationAlerts = () => {
+      const savedThresholds = localStorage.getItem('lea-alert-thresholds');
+      const thresholds = savedThresholds ? JSON.parse(savedThresholds) : undefined;
+      checkSafetyAlerts(thresholds).then(alerts => {
+        setHasModerationAlerts(alerts.length > 0);
+        try {
+          localStorage.setItem('lea-active-alert-ids', JSON.stringify(alerts.map(a => a.id)));
+        } catch { /* ignore */ }
+      }).catch(() => { /* ignore - not logged in yet */ });
+    };
+    const modInitialTimer = setTimeout(checkModerationAlerts, 3000);
+    const modInterval = setInterval(checkModerationAlerts, 5 * 60 * 1000);
+
     return () => {
       clearTimeout(initialTimer);
       clearInterval(interval);
       clearTimeout(msgInitialTimer);
       clearInterval(msgInterval);
+      clearTimeout(modInitialTimer);
+      clearInterval(modInterval);
     };
   }, []);
 
