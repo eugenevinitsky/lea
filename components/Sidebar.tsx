@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { getFilteredUnreadNotificationCount } from '@/lib/notifications';
+import { listConvos } from '@/lib/bluesky';
 
 interface SidebarProps {
   openComposer?: () => void;
@@ -10,6 +11,7 @@ interface SidebarProps {
 export default function Sidebar({ openComposer }: SidebarProps) {
   const [hasModerationAlerts, setHasModerationAlerts] = useState(false);
   const [hasUnreadNotifications, setHasUnreadNotifications] = useState(false);
+  const [hasUnreadMessages, setHasUnreadMessages] = useState(false);
 
   useEffect(() => {
     try {
@@ -26,9 +28,22 @@ export default function Sidebar({ openComposer }: SidebarProps) {
     };
     const initialTimer = setTimeout(checkUnread, 2000);
     const interval = setInterval(checkUnread, 30000);
+
+    // Check for unread messages
+    const checkUnreadMessages = () => {
+      listConvos().then(response => {
+        const hasUnread = response.convos.some(convo => convo.unreadCount > 0);
+        setHasUnreadMessages(hasUnread);
+      }).catch(() => { /* ignore - not logged in yet */ });
+    };
+    const msgInitialTimer = setTimeout(checkUnreadMessages, 2000);
+    const msgInterval = setInterval(checkUnreadMessages, 30000);
+
     return () => {
       clearTimeout(initialTimer);
       clearInterval(interval);
+      clearTimeout(msgInitialTimer);
+      clearInterval(msgInterval);
     };
   }, []);
 
@@ -50,12 +65,18 @@ export default function Sidebar({ openComposer }: SidebarProps) {
         {/* Messages */}
         <a
           href="/messages"
+          onClick={() => setHasUnreadMessages(false)}
           className="flex items-center justify-center lg:justify-start gap-3 p-3 lg:px-3 lg:py-2.5 rounded-xl text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
           title="Messages"
         >
-          <svg className="w-5 h-5 flex-shrink-0 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-          </svg>
+          <div className="relative flex-shrink-0">
+            <svg className="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+            </svg>
+            {hasUnreadMessages && (
+              <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-blue-500 rounded-full" />
+            )}
+          </div>
           <span className="hidden lg:inline text-sm font-medium">Messages</span>
         </a>
 
